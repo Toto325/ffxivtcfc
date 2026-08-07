@@ -2,6 +2,17 @@
   "source": "https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177",
   "posts": [
     {
+      "author": "CHCOOBOO",
+      "uid": "chcooboo",
+      "floor": 348,
+      "segments": [
+        {
+          "type": "text",
+          "value": "本週（8/7）時尚品鑑簡單80分攻略如下\n\n衣：白鋼鱗鎧（スチールスケイルメイル、Steel Scale Mail），三主城防具商人（坦克LV32）\n\n褲：草布腿套（ケクス、Hempen Kecks），三主城防具商人（戰鬥菁英LV8）\n\n計分方式請參考https://forum.gamer.com.tw/Co.php?bsn=17608&sn=123986\n\n參考攻略https://twitter.com/YandY0326/status/2085668988177309860"
+        }
+      ]
+    },
+    {
       "author": "Rhythm",
       "uid": "egg08030",
       "floor": 347,
@@ -24,21 +35,6 @@
         {
           "type": "text",
           "value": "本週（7/31）時尚品鑑簡單80分攻略如下\n\n上衣染色：憂鬱紫（グルームパープル、Gloom Purple），繁中在金碟的霞有賣\n\n手部：各種族初始裝備，三主城大水晶附近的商店都有賣\n\n下著染色：煤煙黑（スートブラック、Soot Black），繁中要解北部森林鳥人族\n\n鞋子染色：泥沼綠（マッドグリーン、Mud Green），繁中在金碟的霞買\n\n計分方式請參考https://forum.gamer.com.tw/Co.php?bsn=17608&sn=123986\n\n參考攻略https://twitter.com/shintoreo/status/2083111526026854457"
-        }
-      ]
-    },
-    {
-      "author": "Rhythm",
-      "uid": "egg08030",
-      "floor": 344,
-      "segments": [
-        {
-          "type": "img",
-          "src": "https://truth.bahamut.com.tw/s01/202607/forum/17608/af442256852e10552056434f53aae1ba.JPG"
-        },
-        {
-          "type": "text",
-          "value": "7/28 金蝶時尚主題【風信子冒險者】\n\n【頭部防具-風信子】\n\nX色風信子頭花 ( 73 級鍊金術師配方 )\n\n【身體防具-西格瑪】\n\n鑽石XX戰甲/長衣/長袍\n\n( 開啟 【歐米茄零式時空狹縫 西格瑪幻境4】掉落的鑽石身體裝備箱（品級370）獲得 / 8個西格瑪戰鬥記錄之四 兌換 )\n\n碳矽晶XX戰甲/長衣/長袍\n\n( 4個西格瑪長杆 兌換 | 西格瑪長杆 可透過通關【歐米茄時空狹縫 西格瑪幻境1~4】獲得 )\n\n【手部防具-冒險的開始】\n\n種族的初始裝備\n\n(森都新街 【黑兔堂採購部長 麥森塔】  X:11.4 Y:11.2\n\n海都下層甲板 【布魯蓋爾商會 班戈・贊戈】 X:9.9 Y:11.4\n\n沙都現世回廊 【阿修迦納貿易公司 勞力士】  X:10.5 Y:9.5 購買 42 Gil)\n\n【腿部防具-裝飾釘扣】\n\n青麻強襲/精準/遊擊軟甲褲 ( 55級裁縫師配方 | 伊修加爾德防具商-購買防具 ( 54級 )、12638 Gil 購買)\n\n歹徒制敵/強襲/遊擊軟甲褲 \n\n( 副本 邪念妖地無限城古堡、武裝聖域放浪神古神殿、幻龍殘骸密約之塔 掉落 )"
         }
       ]
     }
