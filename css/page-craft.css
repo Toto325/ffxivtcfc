@@ -1,0 +1,137 @@
+/* page-craft.css — 生產製作分頁樣式。
+ * 沿用 base.css 的 --gold/--bg/--dim/--main 主題色，跟潛水艇／飛空艇分頁同一套視覺語言。
+ * 排版採左右分欄（角色數值/食藥/技能在左，配方搜尋/求解結果在右），比單欄往下疊更省垂直空間，
+ * 窄螢幕（<820px）自動改回單欄堆疊。
+ */
+.craft-outer{padding:24px}
+.craft-loading{display:flex;align-items:center;gap:10px;justify-content:center;padding:60px 0;color:var(--dim);font-size:14px}
+.craft-loading-icon{font-size:18px;color:var(--gold)}
+.craft-error{color:#e0837a}
+
+.craft-layout{display:flex;gap:20px;align-items:flex-start}
+.craft-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.craft-col-left{flex:0 0 300px}
+.craft-col-right{flex:1}
+
+.craft-card{border:1px solid var(--tb);border-radius:10px;padding:14px 16px;background:rgba(255,255,255,0.02)}
+
+.craft-row{display:flex;align-items:center;gap:10px}
+.craft-row-tight{margin-bottom:6px}
+.craft-row-end{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+.craft-select,.craft-search{
+  background:rgba(0,0,0,.5);border:1px solid var(--tb);color:var(--main);
+  font-family:"Noto Serif TC",serif;font-size:.82rem;padding:6px 10px;border-radius:2px;cursor:pointer
+}
+.craft-select:focus,.craft-search:focus{outline:none;border-color:rgba(197,160,89,.6)}
+.craft-select option{background:#0a0810;color:var(--main)}
+.craft-select-block{width:100%;margin-top:2px}
+.craft-lvl{display:flex;align-items:baseline;gap:5px;font-size:12px;color:var(--dim)}
+.craft-check-inline{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim);margin-left:auto;cursor:pointer}
+
+/* 數字欄位一律用按鈕加減，取代原生 input[number] 的箭頭 */
+.craft-stepper{display:flex;align-items:stretch;border:1px solid var(--tb);border-radius:2px;overflow:hidden;background:rgba(0,0,0,.5)}
+.craft-stepper input{
+  border:none;background:transparent;color:var(--main);text-align:center;width:100%;min-width:0;
+  padding:6px 2px;font-size:.82rem;font-family:"Noto Serif TC",serif
+}
+.craft-stepper input::-webkit-outer-spin-button,.craft-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.craft-stepper input{-moz-appearance:textfield}
+.craft-step-btn{
+  border:none;background:rgba(197,160,89,.08);color:var(--gold);width:22px;flex-shrink:0;cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center;font-family:inherit
+}
+.craft-step-btn:hover{background:rgba(197,160,89,.22)}
+.craft-lvl .craft-stepper{width:78px}
+
+.craft-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.craft-stats-grid label{display:block;font-size:11px;color:var(--dim);margin-bottom:3px}
+.craft-stats-grid input{width:100%}
+.craft-delta{display:block;font-size:11px;color:#7dc48a;margin-top:3px;white-space:nowrap}
+
+.craft-consumable-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.craft-label{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:5px}
+.craft-toggle{display:flex;gap:3px}
+.craft-toggle button{padding:2px 9px;font-size:11px;border:1px solid var(--tb);background:transparent;color:var(--dim);border-radius:5px;cursor:pointer}
+.craft-toggle button.active{background:var(--gold-deep);color:var(--gold-bright);border-color:var(--gold-deep)}
+
+.craft-skill-header{cursor:pointer}
+.craft-hint{font-size:11px;color:var(--dim);opacity:0.7;margin:4px 0 0}
+.craft-link{font-size:11px;color:var(--gold)}
+.craft-muted{color:var(--dim);font-size:11px}
+#cf-skill-chevron{transition:transform .2s;font-size:14px;color:var(--dim)}
+.craft-skill-list{display:none;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:10px;max-height:280px;overflow-y:auto}
+.craft-skill-list.open{display:grid}
+.craft-skill-item{display:flex;align-items:center;gap:6px;font-size:12px;padding:2px 0;cursor:pointer}
+.craft-skill-item input{width:13px;height:13px;margin:0}
+.craft-skill-lvl{margin-left:auto;color:var(--dim);font-size:10px}
+.craft-skill-locked{opacity:0.3;cursor:default}
+
+.craft-search{width:100%}
+.craft-recipe-results{position:relative;display:none;max-height:260px;overflow-y:auto;border:1px solid var(--tb);border-radius:6px;margin-top:6px}
+.craft-recipe-results.open{display:block}
+.craft-recipe-item{padding:7px 10px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--tb)}
+.craft-recipe-item:last-child{border-bottom:none}
+.craft-recipe-item:hover{background:rgba(197,160,89,0.1)}
+.craft-recipe-empty{padding:10px;font-size:12px;color:var(--dim)}
+.craft-recipe-selected{margin-top:8px}
+.craft-recipe-chip{display:inline-block;font-size:13px;background:rgba(197,160,89,0.12);border:1px solid var(--tb);border-radius:6px;padding:5px 10px}
+
+.craft-ingredients{margin-top:10px;border-top:1px solid var(--tb);padding-top:10px}
+.craft-ingredients-title{font-size:12px;color:var(--dim);margin:0 0 8px}
+.craft-ing-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:13px}
+.craft-ing-name{color:var(--main);display:flex;align-items:center;gap:6px}
+.craft-item-icon{border-radius:4px;vertical-align:middle;flex-shrink:0}
+.craft-icon-fallback{display:inline-flex;align-items:center;justify-content:center;border-radius:4px;background:rgba(255,255,255,0.05);color:var(--dim);flex-shrink:0}
+.craft-ing-fixed{font-size:11px;color:var(--dim);opacity:0.7}
+.craft-ing-hq-control{display:flex;align-items:center;gap:6px}
+.craft-ing-split{font-size:11px;min-width:76px;text-align:center}
+.craft-ing-nq{color:var(--dim)}
+.craft-ing-hq{color:var(--gold)}
+
+.craft-material-graph{margin-top:10px;border-top:1px solid var(--tb);padding-top:10px}
+.craft-mat-section-label{font-size:11px;color:var(--dim);margin:4px 0 6px}
+.craft-mat-node{font-size:13px}
+.craft-mat-row{display:flex;align-items:center;gap:6px;padding:3px 0}
+.craft-mat-toggle{width:18px;height:18px;border:none;background:transparent;color:var(--gold);cursor:pointer;font-size:11px;padding:0;flex-shrink:0}
+.craft-mat-toggle-placeholder{width:18px;flex-shrink:0;display:inline-block}
+.craft-mat-name{color:var(--main);display:inline-flex;align-items:center;gap:5px}
+.craft-mat-children{display:none;margin-left:22px;border-left:1px solid var(--tb);padding-left:10px}
+.craft-mat-children.open{display:block}
+.craft-mat-sub-label{font-size:10px;color:var(--dim);opacity:0.7;margin:4px 0 2px}
+.craft-mat-cycle{font-size:12px;color:var(--dim);font-style:italic;padding:2px 0}
+
+.craft-solve-btn{
+  width:100%;padding:11px;font-size:14px;border-radius:8px;border:1px solid var(--gold-deep);
+  background:var(--gold-deep);color:var(--gold-bright);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px
+}
+.craft-solve-btn:disabled{opacity:0.4;cursor:default}
+.craft-solve-btn:not(:disabled):hover{background:var(--gold)}
+.craft-progress{font-size:12px;color:var(--dim);text-align:center;margin-top:8px}
+.craft-manual-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px}
+.craft-manual-skills button{font-size:12px;padding:8px 6px}
+.craft-spin{animation:craft-spin .8s linear infinite}
+@keyframes craft-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+.craft-result-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px}
+.craft-bar-row{margin-bottom:10px}
+.craft-bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:4px}
+.craft-bar-track{height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
+.craft-bar-fill{height:100%;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.craft-fill-accent{background:#6fa8dc}
+.craft-fill-success{background:#7dc48a}
+.craft-fill-warning{background:var(--gold)}
+.craft-hq-line{font-size:12px;margin-top:4px}
+.craft-status-ok{color:#7dc48a}
+.craft-status-fail{color:#e0837a}
+
+.craft-macro-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.craft-copy-btn{padding:4px 10px;font-size:12px;border:1px solid var(--tb);background:transparent;color:var(--main);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.craft-copy-btn:hover{border-color:var(--gold)}
+.craft-macro{font-family:'Courier New',monospace;font-size:12px;background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;white-space:pre-wrap;line-height:1.6;margin:0 0 8px}
+
+@media (max-width:820px){
+  .craft-layout{flex-direction:column}
+  .craft-col-left{flex-basis:auto}
+  .craft-result-split{grid-template-columns:1fr}
+}

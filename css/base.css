@@ -1,0 +1,154 @@
+/* ============================================================
+ * base.css
+ * 全站共用基礎樣式：CSS 變數、reset、星空背景、場景(.scene)切換機制、
+ * 左側/頂部選單版面骨架（html[data-nav-mode]）、.ih 互動光點效果。
+ * 這些規則影響「每一頁」，改動前務必確認不會只想改單一頁面。
+ *
+ * 本檔案由 style.css / style_patch.css / layout_fix.css 三份檔案
+ * 重新分類整理而成（依「元件/頁面」分類，而非依「修改時間」分類）。
+ *
+ * 重要：檔案內部仍依「原始檔案優先順序」分段（style.css 內容在前，
+ * style_patch.css 其次，layout_fix.css 最後），確保原本互相覆蓋的
+ * 規則（例如 .scene / .scene.active 這類疊了多層 !important 的規則）
+ * 覆蓋結果與重整前完全一致，沒有因為搬動位置而改變任何顯示效果。
+ * ============================================================ */
+
+
+/* ---- 來自原 style.css（基礎樣式） ---- */
+
+:root{--gold:#c5a059;--gold-bright:#fcf6ba;--gold-deep:#8a6d3b;--bg:#050406;--tb:rgba(197,160,89,0.25);--dim:#b0a898;--main:#e8e2d5;}
+
+*{box-sizing:border-box;margin:0;padding:0;outline:none;}
+
+body{background:var(--bg);color:var(--main);font-family:"Noto Serif TC",serif;height:100vh;width:100vw;overflow:hidden;-webkit-font-smoothing:antialiased;}
+
+#starfield{position:fixed;top:0;left:0;z-index:-2;width:100%;height:100%;}
+
+.luxury-overlay{position:fixed;inset:0;z-index:-1;background:radial-gradient(circle at 50% 50%,transparent 10%,rgba(0,0,0,.82) 72%,rgba(0,0,0,.97) 100%);}
+
+.ih{position:relative;isolation:isolate;}
+
+.ih::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 85% 180% at 50% 120%,rgba(197,160,89,.52) 0%,rgba(197,160,89,.16) 42%,transparent 66%);border:none;border-radius:0;box-shadow:none;opacity:0;transition:opacity .5s cubic-bezier(.19,1,.22,1);pointer-events:none;z-index:-1;}
+
+.ih::after{content:"";position:absolute;top:auto;bottom:4px;left:10%;right:10%;width:auto;height:1px;background:linear-gradient(90deg,transparent,var(--gold-bright),var(--gold),transparent);box-shadow:0 0 6px rgba(197,160,89,.45);opacity:0;transition:opacity .5s cubic-bezier(.19,1,.22,1),box-shadow .5s;pointer-events:none;z-index:-1;border-radius:1px;}
+
+.ih:hover::before{opacity:1;}
+
+.ih:hover::after{opacity:1;box-shadow:0 0 10px 2px rgba(197,160,89,.7);}
+
+#viewport{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+
+.scene{position:absolute;inset:0;display:none;opacity:0;pointer-events:all;flex-direction:column;align-items:center;justify-content:center;transition:opacity 1.2s cubic-bezier(.19,1,.22,1);}
+
+.scene.active{display:flex;opacity:1;z-index:10;}
+
+
+/* ---- 來自原 style_patch.css（後續補丁，含部分 @media 響應式規則） ---- */
+
+.scene {
+  display: flex !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 1.2s cubic-bezier(.19,1,.22,1),
+              visibility 0s linear 1.2s;
+}
+
+.scene.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: all;
+  z-index: 10;
+  transition: opacity 1.2s cubic-bezier(.19,1,.22,1),
+              visibility 0s linear 0s;
+}
+
+
+/* ---- 來自原 layout_fix.css（版面修正補丁，載入順序最後，用於覆蓋前面規則） ---- */
+
+:root {
+  --nav-content-left:  315px;  
+  --nav-top-h:          52px;  
+  --nav-top-h-actual:   var(--nav-top-h);
+}
+
+html[data-nav-mode="left"] #viewport {
+  left: var(--nav-content-left) !important;
+}
+
+html[data-nav-mode="left"] .scene {
+  overflow-y: auto !important;
+  justify-content: flex-start !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(197,160,89,.35) transparent;
+  display: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  transition: none !important;
+}
+
+html[data-nav-mode="left"] .scene.active {
+  display: flex !important;
+  pointer-events: all !important;
+}
+
+html[data-nav-mode="left"] .scene > * {
+  margin-top: auto !important;
+  margin-bottom: auto !important;
+}
+
+html[data-nav-mode="left"] .scene::-webkit-scrollbar       { width: 6px; }
+
+html[data-nav-mode="left"] .scene::-webkit-scrollbar-thumb { background: rgba(197,160,89,.35); border-radius: 3px; }
+
+html[data-nav-mode="left"] .scene::-webkit-scrollbar-track { background: transparent; }
+
+html[data-nav-mode="top"] #viewport {
+  position: fixed !important;
+  top: var(--nav-top-h-actual) !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  display: block !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  pointer-events: all !important;
+  align-items: unset !important;
+  justify-content: unset !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(197,160,89,.35) transparent;
+}
+
+html[data-nav-mode="top"] #viewport::-webkit-scrollbar       { width: 6px; }
+
+html[data-nav-mode="top"] #viewport::-webkit-scrollbar-thumb { background: rgba(197,160,89,.35); border-radius: 3px; }
+
+html[data-nav-mode="top"] #viewport::-webkit-scrollbar-track { background: transparent; }
+
+html[data-nav-mode="top"] .scene {
+  position: relative !important;
+  inset: auto !important;
+  left: 0 !important;
+  display: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: all !important;
+  transition: none !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 24px 8px 40px !important;
+  min-height: calc(100vh - var(--nav-top-h-actual)) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+html[data-nav-mode="top"] .scene.active { display: flex !important; z-index: auto !important; }
+
+html[data-nav-mode="top"] #sub-results     { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+html[data-nav-mode="top"] #air-results     { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
