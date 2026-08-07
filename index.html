@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="悠然詩靜 — Final Fantasy XIV 利維坦伺服器公會，永久休閒公會，無貢獻要求，歡迎加入。">
+<title>悠然詩靜 | FF14 FC</title>
+<!-- 選單模式（左側／頂部）：必須在任何 CSS 套用前同步決定好，
+     不然畫面會先用錯的版面畫一次，再跳成對的（FOUC）。
+     有手動選過 → 用 localStorage 存的值；沒選過 → 依裝置寬度決定一次預設值，
+     之後就固定下來，不會再因為拉動視窗寬度被強制切換。 -->
+<script>
+(function(){
+  var m;
+  try{
+    m = localStorage.getItem('ff14fc-nav-mode');
+  }catch(e){}
+  if(m!=='left'&&m!=='top'){
+    m = window.innerWidth<=900 ? 'top' : 'left';
+  }
+  document.documentElement.setAttribute('data-nav-mode', m);
+})();
+</script>
+<!-- 字體預連線：讓瀏覽器盡早建立 DNS/TCP，縮短字體阻塞時間 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- CSS 依「元件/頁面」拆分，載入順序必須維持 base → content → sub-air → macro，
+     以保留原本 style.css → style_patch.css → layout_fix.css 疊層覆蓋的結果 -->
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/page-content.css">
+<link rel="stylesheet" href="css/page-sub-air.css">
+<link rel="stylesheet" href="css/page-macro.css">
+<link rel="stylesheet" href="css/page-craft.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
+</head>
+<body>
+<canvas id="starfield"></canvas>
+<div class="luxury-overlay"></div>
+<nav class="royal-nav">
+  <button id="nav-mode-toggle" class="nav-mode-toggle" type="button" aria-label="切換選單顯示位置"><span class="nmt-icon" aria-hidden="true">⇄</span><span class="nmt-label" aria-hidden="true">頂部選單</span></button>
+  <div class="nav-item" data-nav="home"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✧ 序語</span><span class="en">PROLOGUE</span></div></div>
+  <div class="nav-item" data-nav="about"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">❂ 簡介</span><span class="en">INTRO</span></div></div>
+  <div class="nav-item" data-nav="links"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✦ 指南</span><span class="en">DIRECTORY</span></div></div>
+  <div class="nav-item" data-nav="news"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">◈ 公告</span><span class="en">ANNOUNCEMENT</span></div></div>
+  <div class="nav-item nav-group" id="nav-group-exploration" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✧ 遠航探索</span><span class="en">EXPLORATION</span></div><span class="nav-group-arrow" aria-hidden="true">▾</span>
+    <div class="nav-submenu">
+      <div class="nav-item nav-subitem" data-nav="submarine"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji">⚓</span>潛水艇</span><span class="en">SUBMARINE</span></div></div>
+      <div class="nav-item nav-subitem" data-nav="airship"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji">✈</span>飛空艇</span><span class="en">AIRSHIP</span></div></div>
+    </div>
+  </div>
+  <div class="nav-item" data-nav="craft"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">⚒ 生產</span><span class="en">CRAFT</span></div></div>
+  <div class="nav-item" data-nav="fashion"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✿ 時尚品鑑</span><span class="en">FASHION</span></div></div>
+  <div class="nav-item" data-nav="macro"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">⚙ 巨集</span><span class="en">MACROS</span></div></div>
+</nav>
+<main id="viewport">
+  <section id="home" class="scene">
+    <div class="noble-outer-frame"><div class="noble-inner-frame">
+      <span class="game-label">Final Fantasy XIV TC</span>
+      <h1 class="royal-main-title">悠然詩靜</h1>
+      <div class="fancy-divider composite"><div class="silk-thread"></div><div class="ornament-center"><span class="inner-star">✧</span><div class="halo"></div></div><div class="silk-thread"></div></div>
+      <p class="ultra-elegant-en">World No.1 Free Company Buffs Provider</p>
+      <p class="elegant-body-text quote-text">『你以為躲起來就找不到你了嗎？沒有用的！像你這樣出色的冒險者，無論在什麼地方，都像漆黑中的螢火蟲一樣，那樣的鮮明，那樣的出眾。』</p>
+    </div></div>
+  </section>
+  <section id="about" class="scene">
+    <div class="noble-outer-frame"><div class="noble-inner-frame intro-layout">
+      <h2 class="unified-gold-header small">❂ 公會簡介</h2>
+      <div class="fancy-divider mini"><div class="long-silk-line-short"></div></div>
+      <div class="intro-grid">
+        <div class="intro-card"><div class="intro-lbl">創建時間</div><div class="intro-val">2025 / 11 / 28</div></div>
+        <div class="intro-card"><div class="intro-lbl">伺服器</div><div class="intro-val">利維坦</div></div>
+        <div class="intro-card"><div class="intro-lbl">公寓地址</div><div class="intro-val">穹頂皓天　第3區　30號</div></div>
+        <div class="intro-card"><div class="intro-lbl">招募形式</div><div class="intro-val">開放申請</div></div>
+      </div>
+      <div class="intro-motto">
+        <div class="intro-lbl motto-title">公會標語</div>
+        <p class="elegant-body-text motto-text">永久小型休閒公會，無任何貢獻要求<br>自願貢獻式經營，請安心以自己的方式享受遊戲<br>並保持自願自發，以禮以誠待人</p>
+      </div>
+    </div></div>
+  </section>
+  <section id="links" class="scene">
+    <div class="noble-outer-frame"><div class="noble-inner-frame links-grid">
+      <p class="elegant-body-text links-page-note page-note">感謝每一位用心製作工具及分享的冒險者。他們都是夜晚的螢火蟲。</p>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">📜 參考</span><span class="links-cat-line"></span></div>
+      <a href="https://www.ffxiv.com.tw/web/index.aspx" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">OFFICIAL SITE</span><span class="btn-cn">最終幻想14繁中官網</span></a>
+      <a href="https://ff14.huijiwiki.com/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">WIKI KNOWLEDGE</span><span class="btn-cn">灰機維基百科</span></a>
+      <a href="https://ff14.huijiwiki.com/wiki/LeveList" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">LEVE REWARDS</span><span class="btn-cn">全理符獎勵及需求</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">⚔️ 玩法</span><span class="links-cat-line"></span></div>
+      <a href="https://cycleapple.github.io/xiv-tc-treasure-finder/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">TREASURE FINDER</span><span class="btn-cn">繁中藏寶圖查詢器</span></a>
+      <a href="https://cookiebox0501.github.io/Eureka-Tracker/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">EUREKA NM TRACKER</span><span class="btn-cn">優雷卡NM即時追蹤站</span></a>
+      <a href="https://r820704.github.io/ffxiv-scions/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">FFXIV SCIONS</span><span class="btn-cn">優雷卡工具</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">🪙 市場</span><span class="links-cat-line"></span></div>
+      <a href="https://beherw.github.io/FFXIV_Market/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">MARKET BOARD TC</span><span class="btn-cn">繁中市場小屋</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">⚒️ 生產</span><span class="links-cat-line"></span></div>
+      <a href="https://isla-liu.github.io/ffxiv-best-craft-zhtw/#/welcome" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">CRAFTING CALCULATOR</span><span class="btn-cn">生產計算器</span></a>
+      <a href="https://alanghung.github.io/FFXIVGardeningHelper/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">GARDENING HELPER</span><span class="btn-cn">園藝小幫手</span></a>
+      <a href="https://ronaldzzzzz.github.io/ffxiv-toolbox/gathering-log/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">GATHERING TOOLBOX</span><span class="btn-cn">採集手冊小工具</span></a>
+      <a href="https://andycom12000.github.io/ff14-craft-helper/#/batch" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">CRAFT HELPER</span><span class="btn-cn">吐司工坊製作助手</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">🧰 綜合</span><span class="links-cat-line"></span></div>
+      <a href="https://babelin.netlify.app/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">MOCHI'S TOOLBOX</span><span class="btn-cn">小麻糬工具箱</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">🌸 時尚</span><span class="links-cat-line"></span></div>
+      <a href="https://ffxivchocobo.com/en" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">CHOCOBO COLOUR</span><span class="btn-cn">陸行鳥染色計算器</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label">⚓ 潛艇</span><span class="links-cat-line"></span></div>
+      <a href="https://5p.nbbjack.com/#/workshop" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">SUBMARINE MATERIALS</span><span class="btn-cn">潛水艇材料計算器</span></a>
+      <a href="https://www.mogship.com/submarines/exp-calculator" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">SUBMARINE EXP ROUTE</span><span class="btn-cn">潛水艇經驗路線計算器</span></a>
+    </div></div>
+  </section>
+  <section id="news" class="scene">
+    <div class="noble-outer-frame news-outer"><div class="noble-inner-frame news-layout">
+      <h2 class="unified-gold-header small news-title">◈ 官方最新公告</h2>
+      <div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>
+      <div id="news-list" class="news-list-container"><div class="news-loading"><span class="news-loading-icon">✧</span><span>正在讀取最新公告⋯</span></div></div>
+      <a href="https://www.ffxiv.com.tw/web/news/news_list.aspx" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih"><span class="btn-en">VIEW ALL ANNOUNCEMENTS</span><span class="btn-cn-sm">前往官網查看全部公告</span></a>
+    </div></div>
+  </section>
+  <section id="submarine" class="scene">
+    <div class="noble-outer-frame tool-outer sub-outer">
+      <p class="elegant-body-text sub-page-note page-note">感謝MOGSHIP及全球光之戰士的貢獻。</p>
+      <div class="noble-inner-frame tool-layout" id="sub-root"></div>
+    </div>
+  </section>
+  <section id="airship" class="scene">
+    <div class="noble-outer-frame tool-outer air-outer">
+      <p class="elegant-body-text sub-page-note page-note">感謝MOGSHIP及全球光之戰士的貢獻。</p>
+      <div class="noble-inner-frame tool-layout" id="air-root"></div>
+    </div>
+  </section>
+  <section id="craft" class="scene">
+    <div class="noble-outer-frame tool-outer craft-outer">
+      <div class="noble-inner-frame tool-layout" id="craft-root"></div>
+    </div>
+  </section>
+  <section id="fashion" class="scene">
+    <div class="noble-outer-frame news-outer"><div class="noble-inner-frame news-layout">
+      <h2 class="unified-gold-header small news-title">✿ 本週時尚品鑑答案</h2>
+      <div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>
+      <p class="elegant-body-text page-note">感謝巴哈眾英雄熱心分享。如有幫到你，可對他們說聲謝謝。</p>
+      <div id="fashion-content" class="news-list-container"><div class="news-loading"><span class="news-loading-icon">✿</span><span>正在讀取本週答案⋯</span></div></div>
+      <a href="https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih"><span class="btn-en">VIEW ORIGINAL POST</span><span class="btn-cn-sm">前往巴哈姆特原文討論串</span></a>
+    </div></div>
+  </section>
+  <section id="macro" class="scene">
+    <div class="noble-outer-frame tool-outer macro-outer"><div class="noble-inner-frame macro-root-frame" id="macro-root"></div></div>
+  </section>
+</main>
+<!-- 載入順序有相依性，請勿任意調換：
+     1) items.js                資料查表，UI 面板顯示物品名稱用
+     2) sub-data.js / sub-calc.js   潛水艇資料 → 演算法（演算法在頂層直接用到資料常數，順序不可顛倒）
+     3) air-data.js / air-calc.js   飛空艇資料 → 演算法，同上
+     4) app.js                  定義全站共用的 app 物件骨架（必須先於下面兩個面板載入，
+                                 因為它們啟動時就會對 app 物件賦值）
+     5) sub-panel.js / air-panel.js  潛水艇／飛空艇 UI 面板，掛在 app 物件上
+     6) macro-tool.js           巨集工具，獨立運作，不依賴 app 物件
+     7) nav.js                  左側/頂部選單切換，完全獨立 -->
+<script src="js/items.js"></script>
+<script src="js/sub-data.js"></script>
+<script src="js/sub-calc.js"></script>
+<script src="js/air-data.js"></script>
+<script src="js/air-calc.js"></script>
+<script src="js/craft-foods.js"></script>
+<script src="js/craft-consumables.js"></script>
+<script src="js/app.js"></script>
+<script src="js/sub-panel.js"></script>
+<script src="js/air-panel.js"></script>
+<script src="js/craft-panel.js"></script>
+<script src="js/macro-tool.js"></script>
+<script src="js/nav.js"></script>
+</body>
+</html>
