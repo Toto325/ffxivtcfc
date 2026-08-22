@@ -1,0 +1,397 @@
+/* page-craft.css — 生產製作分頁樣式。
+ * 沿用 base.css 的 --gold/--bg/--dim/--main 主題色，跟潛水艇／飛空艇分頁同一套視覺語言。
+ * 排版採左右分欄（角色數值/食藥/技能在左，配方搜尋/求解結果在右），比單欄往下疊更省垂直空間，
+ * 窄螢幕（<820px）自動改回單欄堆疊。
+ */
+.craft-outer{padding:24px}
+.craft-loading{display:flex;align-items:center;gap:10px;justify-content:center;padding:60px 0;color:var(--dim);font-size:14px}
+.craft-loading-icon{font-size:18px;color:var(--gold)}
+.craft-error{color:#e0837a}
+
+.craft-layout{display:flex;gap:20px;align-items:flex-start}
+.craft-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.craft-col-left{flex:0 0 300px}
+.craft-col-right{flex:1}
+
+.craft-card{border:1px solid var(--tb);border-radius:10px;padding:14px 16px;background:rgba(255,255,255,0.02)}
+
+.craft-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.craft-job-row{row-gap:8px}
+.craft-lvl{flex-shrink:0}
+.craft-check-specialist{flex-shrink:0;white-space:nowrap;margin-left:0}
+.craft-select{min-width:0;flex:1 1 100px}
+.craft-row-tight{margin-bottom:6px}
+.craft-row-end{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+.craft-select,.craft-search{
+  background:rgba(0,0,0,.5);border:1px solid var(--tb);color:var(--main);
+  font-family:"Noto Serif TC",serif;font-size:.82rem;padding:6px 10px;border-radius:2px;cursor:pointer
+}
+.craft-select:focus,.craft-search:focus{outline:none;border-color:rgba(197,160,89,.6)}
+.craft-select option{background:#0a0810;color:var(--main)}
+.craft-select-block{width:100%;margin-top:2px}
+.craft-lvl{display:flex;align-items:baseline;gap:5px;font-size:12px;color:var(--dim)}
+.craft-check-inline{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim);margin-left:auto;cursor:pointer}
+.craft-profile-toggle{margin-top:8px;margin-left:0;flex-wrap:wrap;width:100%}
+
+/* 數字欄位一律用按鈕加減，取代原生 input[number] 的箭頭。
+ * 用inline-flex讓整組控制項寬度由內容自然決定，不會被外層grid/flex容器撐開，
+ * 這是之前+/-按鈕左右距離異常長的根因（.craft-stats-grid input{width:100%}疊加width:100%的input，
+ * 把整組stepper撐滿整個欄位寬度）。 */
+.craft-stepper{display:inline-flex;align-items:stretch;border:1px solid var(--tb);border-radius:2px;overflow:hidden;background:rgba(0,0,0,.5)}
+.craft-stepper input{
+  border:none;background:transparent;color:var(--main);text-align:center;width:48px;min-width:0;
+  padding:6px 2px;font-size:.82rem;font-family:"Noto Serif TC",serif
+}
+.craft-stepper input::-webkit-outer-spin-button,.craft-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.craft-stepper input{-moz-appearance:textfield}
+.craft-step-btn{
+  border:none;background:rgba(197,160,89,.08);color:var(--gold);width:22px;flex-shrink:0;cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center;font-family:inherit
+}
+.craft-step-btn:hover{background:rgba(197,160,89,.22)}
+
+.craft-stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+/* 數值歸屬標籤：跨滿三欄，貼在數值正上方，講清楚這組數值現在是「通用」還是「哪個職業的設定檔」 */
+.craft-stats-scope-tag{
+  grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+  padding:5px 10px;border-radius:6px;margin-bottom:2px
+}
+.craft-stats-scope-tag.scope-free{color:var(--dim);background:rgba(255,255,255,.03);border:1px dashed var(--tb)}
+.craft-stats-scope-tag.scope-profile{color:var(--gold-bright);background:rgba(197,160,89,.1);border:1px solid rgba(197,160,89,.3)}
+/* 原本用text-align:center置中，理論上會生效，但這種靠繼承的置中方式在某些情況下容易被別的樣式影響。
+ * 改成直接讓每個欄位本身變成一個垂直排列、內容置中的flex容器，不管裡面塞了label／stepper／badge，
+ * 都是靠容器自己的align-items:center硬性置中，不會有「繼承没生效」的問題。 */
+.craft-stats-grid>div{min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center}
+.craft-stats-grid label{display:block;font-size:11px;color:var(--dim);margin-bottom:3px}
+/* 原本是inline-flex，跟同一列的.craft-stepper維持在同一行，於是badge文字（如「+118 → 2,340」）
+ * 直接從卡片右側整個溢出、疊到旁邊的欄位上。改成block讓它換到新的一行，
+ * 並用width:100%+box-sizing把它鎖在跟上面.craft-stepper一樣的欄寬內，超出寬度就自動換行，
+ * 不會再穿出卡片。 */
+.craft-delta{
+  display:block;width:100%;box-sizing:border-box;
+  font-size:11px;color:#7dc48a;margin-top:5px;
+  white-space:normal;word-break:break-word;overflow-wrap:break-word;
+  opacity:0;max-height:0;overflow:hidden;transition:opacity .25s,max-height .25s
+}
+.craft-delta.craft-delta-show{
+  opacity:1;max-height:40px;
+  display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%;
+  background:linear-gradient(90deg,rgba(125,196,138,.16),rgba(125,196,138,.04));
+  border:1px solid rgba(125,196,138,.3);border-radius:10px;padding:2px 9px 2px 7px;font-weight:600
+}
+.craft-delta i{font-size:11px}
+.craft-delta-arrow{color:var(--dim);font-weight:400;margin:0 1px}
+
+.craft-consumable-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* 食物／藥水加成整合列：跨滿三欄，取代原本塞在每個小欄位下面、容易換行的小徽章 */
+.craft-consumable-summary{grid-column:1/-1}
+.craft-consumable-summary.ccs-show{
+  margin-top:8px;padding:10px 12px;border-radius:8px;
+  background:linear-gradient(135deg,rgba(125,196,138,.1),rgba(197,160,89,.05));
+  border:1px solid rgba(125,196,138,.25);
+  animation:ccsIn .3s ease
+}
+@keyframes ccsIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.ccs-sources{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.ccs-source-tag{
+  display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--gold-bright);
+  background:rgba(197,160,89,.14);border:1px solid rgba(197,160,89,.3);border-radius:20px;padding:3px 10px 3px 8px
+}
+.ccs-source-food{color:#e2933d}
+.ccs-source-pot{color:#7cb8e0}
+.ccs-source-tag em{font-style:normal;font-size:9px;font-weight:700;background:rgba(255,255,255,.15);border-radius:3px;padding:0 4px;margin-left:2px}
+.ccs-chips{display:flex;flex-wrap:wrap;gap:8px}
+.ccs-chip{
+  display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#7dc48a;
+  background:rgba(125,196,138,.1);border:1px solid rgba(125,196,138,.3);border-radius:8px;padding:4px 10px
+}
+.ccs-chip i{font-size:13px}
+.ccs-chip b{font-weight:700}
+.ccs-chip-arrow{color:var(--dim);margin:0 1px}
+
+.craft-label{font-size:12px;color:var(--dim);display:flex;align-items:center;gap:5px}
+.craft-toggle{display:flex;gap:3px}
+.craft-toggle button{padding:2px 9px;font-size:11px;border:1px solid var(--tb);background:transparent;color:var(--dim);border-radius:5px;cursor:pointer}
+.craft-toggle button.active{background:var(--gold-deep);color:var(--gold-bright);border-color:var(--gold-deep)}
+
+.craft-skill-header{cursor:pointer}
+.craft-hint{font-size:11px;color:var(--dim);opacity:0.7;margin:4px 0 0}
+.craft-profile-manager{margin-top:10px;border-top:1px solid var(--tb);padding-top:10px;max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.craft-profile-card{border:1px solid var(--tb);border-radius:8px;padding:8px 10px;background:rgba(255,255,255,.02)}
+.craft-profile-card-active{border-color:rgba(197,160,89,.4);background:rgba(197,160,89,.06)}
+.craft-profile-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.craft-profile-card-name{font-size:13px;color:var(--main)}
+.craft-profile-card-specialist{margin:0;font-size:11px;color:var(--dim);flex-shrink:0}
+.craft-profile-card-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.craft-profile-card-fields label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--dim);text-align:center}
+.craft-profile-card-fields input[type=number]{
+  width:100%;background:rgba(0,0,0,.5);border:1px solid var(--tb);color:var(--main);
+  font-family:"Noto Serif TC",serif;font-size:.82rem;padding:5px 2px;border-radius:4px;text-align:center;box-sizing:border-box
+}
+/* 拿掉原生上下箭頭，跟全站其他數字欄位（.craft-stepper）美術風格一致，不會有一個突兀的瀏覽器預設控制項 */
+.craft-profile-card-fields input[type=number]::-webkit-outer-spin-button,
+.craft-profile-card-fields input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.craft-profile-card-fields input[type=number]{-moz-appearance:textfield}
+.craft-link{font-size:11px;color:var(--gold)}
+button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:2px;font-family:inherit}
+.craft-muted{color:var(--dim);font-size:11px}
+#cf-skill-chevron{transition:transform .2s;font-size:14px;color:var(--dim)}
+.craft-skill-list{display:none;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:10px;max-height:280px;overflow-y:auto}
+.craft-skill-list.open{display:grid}
+.craft-skill-item{display:flex;flex-direction:column;gap:2px;font-size:12px;padding:3px 0;cursor:pointer}
+.craft-skill-item-main{display:flex;align-items:center;gap:6px}
+.craft-skill-item input{width:13px;height:13px;margin:0;flex-shrink:0}
+.craft-skill-lvl{margin-left:19px;color:var(--dim);font-size:10px;line-height:1.4}
+.craft-skill-locked{opacity:0.3;cursor:default}
+
+.craft-filter-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:10px}
+.craft-job-filter{display:flex;flex-wrap:wrap;gap:4px}
+.craft-job-filter-btn{padding:3px 10px;font-size:11px;border:1px solid var(--tb);background:transparent;color:var(--dim);border-radius:5px;cursor:pointer;font-family:"Noto Serif TC",serif}
+.craft-job-filter-btn:hover{border-color:rgba(197,160,89,.5)}
+.craft-job-filter-btn.active{background:var(--gold-deep);color:var(--gold-bright);border-color:var(--gold-deep)}
+.craft-lvl-filter{display:flex;align-items:center;gap:6px}
+.craft-filter-lvl-input{
+  width:56px;background:rgba(0,0,0,.5);border:1px solid var(--tb);color:var(--main);
+  font-family:"Noto Serif TC",serif;font-size:.82rem;padding:5px 6px;border-radius:2px;text-align:center
+}
+.craft-filter-lvl-input::-webkit-outer-spin-button,.craft-filter-lvl-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.craft-filter-lvl-input{-moz-appearance:textfield}
+.craft-filter-lvl-input:focus{outline:none;border-color:rgba(197,160,89,.6)}
+
+.craft-search{width:100%}
+.craft-recipe-results{position:relative;display:none;max-height:260px;overflow-y:auto;border:1px solid var(--tb);border-radius:6px;margin-top:6px}
+.craft-recipe-results.open{display:block}
+.craft-recipe-item{display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--tb)}
+.craft-recipe-item:last-child{border-bottom:none}
+.craft-recipe-item:hover{background:rgba(197,160,89,0.1)}
+.craft-recipe-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-recipe-empty{padding:10px;font-size:12px;color:var(--dim)}
+.craft-feasibility{font-size:10px;padding:1px 6px;border-radius:4px;flex-shrink:0;white-space:nowrap}
+.craft-feasibility-ok{background:rgba(125,196,138,.15);color:#7dc48a;border:1px solid rgba(125,196,138,.3)}
+.craft-feasibility-no{background:rgba(224,131,122,.15);color:#e0837a;border:1px solid rgba(224,131,122,.3)}
+.craft-recipe-selected{margin-top:8px}
+.craft-solve-target{
+  display:flex;align-items:center;gap:4px;font-size:12px;color:var(--gold);
+  background:rgba(197,160,89,.06);border:1px solid rgba(197,160,89,.25);border-radius:6px;
+  padding:6px 10px;margin:8px 0
+}
+.craft-result-title{font-size:13px;color:var(--gold);margin:0 0 8px;font-weight:600}
+.craft-add-batch-box{border:1px solid rgba(197,160,89,.3);background:rgba(197,160,89,.05);border-radius:8px;padding:10px 12px;margin-top:8px}
+/* 原本按鈕下面是兩句完整的說明段落，看起來很像重要規則要仔細讀，但其實只是「這顆按鈕會做什麼」，
+ * 改成跟按鈕同一行、極短的一句灰字說明，視覺上明顯是輔助說明而不是需要細讀的規則文字 */
+.craft-add-batch-caption{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dim);opacity:.75}
+.craft-add-batch-confirmed{background:#2f8f5b!important;border-color:#2f8f5b!important;color:#e8ffe8!important}
+/* 原本用 max-height:0 → max-height:30px 做出現/收起動畫，但品名一長就換行，
+ * 30px裝不下第二行，畫面上看起來像完全沒反應。改成用 display:none/block 切換，
+ * 不管文字多長都完整顯示，動畫只保留opacity，不靠算死的高度值。 */
+.craft-add-batch-confirm{
+  display:none;font-size:12px;color:#7dc48a;margin:6px 0 0;
+  padding:4px 8px;border-radius:6px;background:rgba(125,196,138,.12);
+  opacity:0;transition:opacity .2s
+}
+.craft-add-batch-confirm-show{display:block;opacity:1}
+.craft-recipe-chip{display:inline-block;font-size:13px;background:rgba(197,160,89,0.12);border:1px solid var(--tb);border-radius:6px;padding:5px 10px}
+
+.craft-ingredients{margin-top:10px;border-top:1px solid var(--tb);padding-top:10px}
+.craft-ingredients-title{font-size:12px;color:var(--dim);margin:0 0 8px}
+.craft-ing-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:13px}
+
+/* 批次清單拖曳排序 + 上下移動按鈕 */
+.craft-batch-row{gap:6px;border-radius:6px;transition:background .15s}
+.craft-batch-drag-handle{cursor:grab;color:var(--dim);font-size:14px;flex-shrink:0}
+.craft-batch-drag-handle:active{cursor:grabbing}
+.craft-batch-order-num{flex-shrink:0;width:18px;height:18px;border-radius:50%;background:rgba(197,160,89,.15);color:var(--gold);font-size:10px;display:flex;align-items:center;justify-content:center}
+.craft-batch-row-dragging{opacity:.35}
+.craft-batch-row-dragover{background:rgba(197,160,89,.12);box-shadow:inset 0 2px 0 var(--gold)}
+.craft-batch-reorder-btns{display:flex;flex-direction:column;gap:1px}
+.craft-batch-move{width:16px;height:12px;border:none;background:rgba(255,255,255,.05);color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:9px;border-radius:2px}
+.craft-batch-move:hover:not(:disabled){background:rgba(197,160,89,.25);color:var(--gold)}
+.craft-batch-move:disabled{opacity:.25;cursor:not-allowed}
+
+/* 依序求解導覽列，樣式沿用求解目標的上一個/下一個按鈕 */
+.craft-batch-seq-nav{display:flex;align-items:center;gap:8px;margin:6px 0 10px}
+.craft-batch-seq-pos{flex-shrink:0;font-size:11px;color:var(--dim);white-space:nowrap}
+
+.craft-ing-name{color:var(--main);display:flex;align-items:center;gap:6px}
+.craft-item-icon{border-radius:4px;vertical-align:middle;flex-shrink:0}
+.craft-icon-fallback{display:inline-flex;align-items:center;justify-content:center;border-radius:4px;background:rgba(197,160,89,0.1);border:1px solid var(--tb);color:var(--dim);flex-shrink:0}
+.craft-icon-fallback i{font-size:14px}
+.craft-ing-fixed{font-size:11px;color:var(--dim);opacity:0.7}
+.craft-ing-hq-control{display:inline-flex;align-items:stretch;border:1px solid var(--tb);border-radius:2px;overflow:hidden;background:rgba(0,0,0,.5)}
+.craft-ing-hq-control .craft-step-btn{background:transparent}
+.craft-ing-hq-control .craft-step-btn:hover{background:rgba(197,160,89,.22)}
+.craft-ing-split{font-size:11px;min-width:76px;text-align:center;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.craft-ing-nq{color:var(--dim)}
+.craft-ing-hq{color:var(--gold)}
+
+.craft-material-graph{margin-top:10px;border-top:1px solid var(--tb);padding-top:10px}
+.craft-mat-section-label{font-size:11px;color:var(--dim);margin:4px 0 6px}
+.craft-mat-node{font-size:13px}
+.craft-mat-row{display:flex;align-items:center;gap:6px;padding:3px 0}
+.craft-mat-toggle{
+  width:20px;height:20px;border:1px solid var(--tb);border-radius:50%;background:rgba(197,160,89,.1);
+  color:var(--gold);cursor:pointer;font-size:11px;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  transition:background .15s,transform .15s
+}
+.craft-mat-toggle:hover{background:rgba(197,160,89,.28)}
+.craft-mat-toggle.open{transform:rotate(90deg)}
+.craft-mat-toggle-placeholder{width:20px;flex-shrink:0;display:inline-block}
+.craft-mat-name{color:var(--main);display:inline-flex;align-items:center;gap:5px}
+
+/* 求解對象上一個/下一個導覽列，緊接在「求解目標」提示條下面 */
+.craft-solve-nav{display:flex;justify-content:space-between;gap:8px;margin:6px 0}
+.craft-solve-nav-btn{
+  flex:1 1 0;min-width:0;display:flex;align-items:center;gap:4px;justify-content:center;
+  background:rgba(255,255,255,.02);border:1px solid var(--tb);border-radius:6px;color:var(--dim);
+  font-size:12px;padding:6px 8px;cursor:pointer;font-family:"Noto Serif TC",serif;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis
+}
+.craft-solve-nav-btn:hover:not(:disabled){border-color:rgba(197,160,89,.5);color:var(--main)}
+.craft-solve-nav-btn:disabled{opacity:.35;cursor:not-allowed}
+.craft-solve-nav-btn span{overflow:hidden;text-overflow:ellipsis}
+.craft-mat-children{display:none;margin-left:22px;border-left:1px solid var(--tb);padding-left:10px}
+.craft-mat-children.open{display:block}
+.craft-mat-sub-label{font-size:10px;color:var(--dim);opacity:0.7;margin:4px 0 2px}
+.craft-mat-cycle{font-size:12px;color:var(--dim);font-style:italic;padding:2px 0}
+.craft-mat-price{font-size:11px;color:var(--dim)}
+.craft-mat-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+.craft-mat-quickadd{
+  width:20px;height:20px;flex-shrink:0;border:1px solid var(--tb);border-radius:5px;background:rgba(197,160,89,.08);
+  color:var(--gold);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;gap:4px;
+  padding:0;white-space:nowrap;overflow:hidden;transition:width .18s ease,padding .18s ease,background .18s ease,color .18s ease
+}
+.craft-mat-quickadd:hover{background:rgba(197,160,89,.25)}
+/* 點下去的短暫確認狀態：從純圖示的小方塊展開成看得到「已加入」字樣的膠囊，動畫結束後在JS裡收回去 */
+.craft-mat-quickadd-confirmed{
+  width:60px;padding:0 8px 0 6px;border-radius:20px;background:#2f8f5b;border-color:#2f8f5b;color:#e8ffe8;font-size:11px
+}
+.craft-mat-switch{
+  width:auto;height:20px;flex-shrink:0;border:1px solid rgba(79,180,224,.35);border-radius:5px;background:rgba(79,180,224,.08);
+  color:#4fb4e0;cursor:pointer;font-size:11px;padding:0 8px;display:flex;align-items:center;justify-content:center;white-space:nowrap
+}
+.craft-mat-switch:hover{background:rgba(79,180,224,.25)}
+.craft-mat-showmore{margin:4px 0;padding:4px 10px;font-size:11px;border:1px solid var(--tb);background:transparent;color:var(--gold);border-radius:5px;cursor:pointer}
+.craft-mat-showmore:hover{border-color:var(--gold);background:rgba(197,160,89,.1)}
+
+.craft-solve-btn{
+  width:100%;padding:11px;font-size:14px;border-radius:8px;border:1px solid var(--gold-deep);
+  background:var(--gold-deep);color:var(--gold-bright);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;
+  position:sticky;bottom:12px;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.45)
+}
+.craft-solve-btn:disabled{opacity:0.4;cursor:default;position:static;box-shadow:none}
+.craft-solve-btn:not(:disabled):hover{background:var(--gold)}
+.craft-progress{font-size:12px;color:var(--dim);text-align:center;margin-top:8px}
+.craft-manual-skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px}
+.craft-m-skill-btn{
+  display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;padding:8px 6px;
+  border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.03);color:var(--main);
+  cursor:pointer;font-family:"Noto Serif TC",serif;text-align:center;line-height:1.3
+}
+.craft-m-skill-btn:hover:not(:disabled){border-color:var(--gold);background:rgba(197,160,89,.1)}
+.craft-m-skill-btn:disabled{opacity:.35;cursor:default}
+.craft-m-skill-label{display:block}
+.craft-m-seq-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:rgba(255,255,255,.05);border:1px solid var(--tb);border-radius:6px;padding:2px 8px 2px 4px}
+
+/* 目前製作狀態徽章／每步狀態小圓點：顏色跟用詞照玩家提供的遊戲內截圖核對過 */
+.craft-condition-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 10px;border-radius:20px;border:1px solid var(--tb)}
+.craft-condition-badge::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}
+.craft-condition-badge.cond-normal{color:var(--dim);border-color:var(--tb)}
+.craft-condition-badge.cond-good{color:#e2933d;border-color:rgba(226,147,61,.4);background:rgba(226,147,61,.08)}
+.craft-condition-badge.cond-excellent{color:#4fd07a;border-color:rgba(79,208,122,.4);background:rgba(79,208,122,.08)}
+.craft-condition-badge.cond-poor{color:#e0509a;border-color:rgba(224,80,154,.4);background:rgba(224,80,154,.08)}
+.craft-condition-badge.cond-special{color:#a9763f;border-color:rgba(169,118,63,.4);background:rgba(169,118,63,.08)}
+
+.craft-m-seq-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
+.craft-m-seq-dot.cond-normal{background:var(--dim)}
+.craft-m-seq-dot.cond-good{background:#e2933d}
+.craft-m-seq-dot.cond-excellent{background:#4fd07a}
+.craft-m-seq-dot.cond-poor{background:#e0509a}
+.craft-m-seq-dot.cond-special{background:#a9763f}
+.craft-spin{animation:craft-spin .8s linear infinite}
+@keyframes craft-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+
+.craft-bar-row{margin-bottom:10px}
+.craft-bar-label{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:4px}
+.craft-bar-track{height:10px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}
+.craft-bar-fill{height:100%;transition:width .5s cubic-bezier(.2,.8,.2,1)}
+/* 對齊遊戲實際製作介面配色：進度＝青綠色漸層，品質＝藍色漸層 */
+.craft-fill-progress{background:linear-gradient(90deg,#0e9c86,#5be0c4)}
+.craft-fill-quality{background:linear-gradient(90deg,#2f6fb0,#6fd0f0)}
+.craft-fill-cp{background:linear-gradient(90deg,#a8407a,#e893c2)}
+.craft-fill-cp{background:linear-gradient(90deg,#b5346a,#f08fb8)}
+.craft-fill-cp{background:linear-gradient(90deg,#a83f6e,#e88bb0)}
+.craft-fill-cp{background:linear-gradient(90deg,#b0407a,#ea9dc4)}
+.craft-fill-cp{background:linear-gradient(90deg,#a8347d,#e874c0)}
+.craft-fill-cp{background:linear-gradient(90deg,#b8407e,#e888b8)}
+.craft-hq-line{font-size:12px;margin:8px 0 4px}
+.craft-status-ok{color:#7dc48a}
+.craft-status-fail{color:#e0837a}
+.craft-diagnosis{background:rgba(197,160,89,.06);border:1px solid rgba(197,160,89,.25);border-radius:8px;padding:8px 12px;margin:6px 0 10px}
+.craft-diagnosis-title{font-size:12px;color:var(--gold);margin:0 0 4px;display:flex;align-items:center;gap:4px}
+.craft-diagnosis ul{margin:0;padding-left:18px}
+.craft-diagnosis li{font-size:12px;color:var(--dim);line-height:1.6}
+.craft-diagnosis li strong{color:var(--gold)}
+
+/* 耐久/CP：一左一右排版貼近遊戲介面。耐久是每10耐久一格的方塊，顏色隨剩餘比例藍→黃→紅漸層 */
+.craft-result-meta{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:6px;align-items:end}
+.craft-meta-dur .craft-bar-label,.craft-meta-cp .craft-bar-label{font-size:12px;color:var(--dim);display:flex;justify-content:space-between;margin-bottom:4px}
+.craft-dur-blocks{display:flex;gap:3px}
+.craft-dur-block{flex:1;height:10px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden}
+.craft-dur-block-fill{display:block;height:100%}
+
+.craft-macro-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.craft-macro-block{margin-bottom:4px}
+.craft-macro-seg-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--dim);margin-bottom:3px}
+.craft-copy-btn{padding:4px 10px;font-size:12px;border:1px solid var(--tb);background:transparent;color:var(--main);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.craft-copy-btn:hover{border-color:var(--gold)}
+.craft-copy-btn-danger{color:#e0709a;border-color:rgba(224,112,154,.35)}
+.craft-copy-btn-danger:hover{border-color:#e0709a;background:rgba(224,112,154,.1)}
+.craft-macro{font-family:'Courier New',monospace;font-size:12px;background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;white-space:pre-wrap;line-height:1.6;margin:0 0 8px}
+
+/* 材料圖譜／批次規劃：跟主要求解流程完全分開的側邊抽屜面板
+ * 原本固定在畫面右下角，擋住求解結果／耐久CP資訊／巨集文字。改成貼右側邊緣後，
+ * 垂直置中還是會壓到卡片中段內容，改成貼著導覽列正下方，落在內頁右上角附近，
+ * 不會再隨內容捲動蓋住正在看的東西。--nav-top-h-actual是頁面量出來的真實導覽列高度（見nav.js）。 */
+.craft-explore-fab{
+  position:fixed;right:0;top:calc(var(--nav-top-h-actual, 56px) + 34px);z-index:40;display:flex;align-items:center;gap:6px;
+  padding:11px 14px 11px 18px;border-radius:30px 0 0 30px;border:1px solid var(--gold-deep);border-right:none;
+  background:var(--gold-deep);color:var(--gold-bright);
+  font-size:13px;font-family:"Noto Serif TC",serif;cursor:pointer;box-shadow:-4px 4px 16px rgba(0,0,0,.5)
+}
+.craft-explore-badge{
+  display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;
+  border-radius:9px;background:rgba(0,0,0,.35);color:var(--gold-bright);font-size:11px
+}
+.craft-explore-drawer{position:fixed;inset:0;z-index:50;visibility:hidden;pointer-events:none}
+.craft-explore-drawer.open{visibility:visible;pointer-events:auto}
+.craft-explore-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .25s}
+.craft-explore-drawer.open .craft-explore-backdrop{opacity:1}
+.craft-explore-panel{
+  position:absolute;top:0;right:0;bottom:0;width:min(460px,100vw);background:var(--bg);
+  border-left:1px solid var(--tb);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1)
+}
+.craft-explore-drawer.open .craft-explore-panel{transform:translateX(0)}
+.craft-explore-head{display:flex;align-items:center;justify-content:space-between;padding:10px 10px 10px 16px;border-bottom:1px solid var(--tb);flex-shrink:0}
+.craft-explore-tabs{display:flex;gap:4px}
+.craft-explore-tab{padding:6px 14px;font-size:13px;border:1px solid var(--tb);background:transparent;color:var(--dim);border-radius:20px;cursor:pointer;font-family:"Noto Serif TC",serif}
+.craft-explore-tab.active{background:var(--gold-deep);color:var(--gold-bright);border-color:var(--gold-deep)}
+.craft-explore-close{width:30px;height:30px;border:none;background:transparent;color:var(--dim);cursor:pointer;font-size:16px}
+.craft-explore-close:hover{color:var(--main)}
+.craft-explore-body{flex:1;overflow-y:auto;padding:14px 16px}
+/* 兩個分頁共用的「目前求解對象」小工具列，不管切哪個分頁都固定顯示在最上面，不用捲動 */
+.craft-explore-current-target{
+  display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--tb);
+  background:rgba(197,160,89,.04);flex-shrink:0;flex-wrap:wrap
+}
+.craft-explore-current-name{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--main);flex:1;min-width:0}
+.craft-explore-current-name i{color:var(--gold);flex-shrink:0}
+
+@media (max-width:820px){
+  .craft-layout{flex-direction:column}
+  .craft-col-left{flex-basis:auto}
+  .craft-result-meta{grid-template-columns:1fr}
+  .craft-explore-panel{width:100vw}
+  .craft-explore-fab{padding:10px 12px 10px 14px}
+}
