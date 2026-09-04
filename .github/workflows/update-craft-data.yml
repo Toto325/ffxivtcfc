@@ -1,0 +1,46 @@
+name: 自動更新生產配方資料
+
+# 排程：每週一早上（UTC 0點，約台灣早上8點）自動跑一次；也可以在 GitHub 網頁上手動觸發（workflow_dispatch）
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch: {}
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 簽出 repo
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 執行更新腳本
+        run: node scripts/update-craft-data.js
+
+      - name: 檢查資料有沒有變動
+        id: diff
+        run: |
+          if git diff --quiet -- js/craft-data.js js/craft-action-names.js js/craft-foods.js js/craft-icons.js js/craft-action-icons.js data/item-names-i18n.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 資料來源(ffxiv-teamcraft/xivapi)萬一改了路徑或格式，腳本會直接噴錯讓這個 job 失敗，
+      # 不會因為抓不到資料就默默用空資料覆蓋掉現有的資料檔。圖示查詢允許部分失敗（見腳本註解），
+      # 不會因為圖示抓不全就讓整個更新失敗。
+
+      - name: 送出變更
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "craft-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add js/craft-data.js js/craft-action-names.js js/craft-foods.js js/craft-icons.js js/craft-action-icons.js js/item-names-tw.js data/item-names-i18n.json
+          git commit -m "chore: 自動更新生產配方資料 ($(date -u +%Y-%m-%d))"
+          git push
