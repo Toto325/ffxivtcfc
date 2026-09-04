@@ -1,0 +1,53 @@
+/* page-market.css — 市場頁排版
+ * 大量沿用 page-craft.css 已經定義好的元件 class（craft-search / craft-mat-worlds-icon /
+ * craft-mat-worlds-popover / craft-settings-field / craft-loading 等），這裡只補市場頁
+ * 自己獨有的排版，避免兩份CSS互相打架、風格不一致。 */
+
+.market-header{margin-bottom:14px}
+.market-header .page-note{margin-top:4px}
+
+.market-searchbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.market-search-box{position:relative;flex:1;min-width:0}
+.market-settings-text{font-size:12px}
+
+/* 搜尋框的下拉結果清單，跟生產頁的 cf-recipe-search 系列共用同一種視覺語言，這裡另外命名
+ * class 是因為市場頁的搜尋來源（全物品）跟生產頁（僅配方）是兩套獨立索引，不想共用DOM id。 */
+.craft-search-results{position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:320px;overflow-y:auto;
+  background:var(--bg);border:1px solid var(--tb);border-radius:8px;z-index:30;display:none;
+  box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.craft-search-results.open{display:block}
+.craft-search-item{padding:8px 12px;font-size:13px;cursor:pointer}
+.craft-search-item:hover{background:rgba(197,160,89,.12)}
+
+/* 最近查看：一排可點的小標籤，本機紀錄，沒有資料時整排不顯示（見market-panel.js的renderRecentlyViewed） */
+.market-recent-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:14px;min-height:0}
+.market-recent-label{font-size:12px}
+.market-recent-chip{font-size:12px;padding:4px 10px;border:1px solid var(--tb);background:transparent;
+  color:var(--main);border-radius:999px;cursor:pointer}
+.market-recent-chip:hover{border-color:var(--gold);background:rgba(197,160,89,.1)}
+
+/* 分頁按鈕：物品查詢／機會雷達，樣式參考生產頁材料圖譜/批次規劃那兩個分頁的既有做法 */
+.market-tabs{display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--tb);padding-bottom:0}
+.craft-tab-btn{padding:8px 16px;font-size:13px;border:none;background:transparent;color:var(--dim);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.craft-tab-btn.active{color:var(--gold-bright);border-bottom-color:var(--gold)}
+.craft-tab-btn:hover:not(.active){color:var(--main)}
+
+.market-pane{min-height:120px}
+
+/* 物品詳情頁 */
+.market-detail-header{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.market-detail-header h3{margin:0;color:var(--gold-bright)}
+.market-detail-section{margin-bottom:18px}
+
+.market-price-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+.market-price-table th{text-align:left;color:var(--dim);font-weight:normal;padding:4px 8px;border-bottom:1px solid var(--tb)}
+.market-price-table td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+.market-price-table tbody tr:first-child td{color:#4ade80;font-weight:600}
+
+/* 供應鏈視覺化 */
+.market-supply-breadcrumb{font-size:12px;margin-bottom:8px}
+.market-crumb-item{cursor:pointer;color:var(--gold)}
+.market-crumb-item:hover{text-decoration:underline}
+.market-supply-svg{width:100%;max-width:560px;height:auto;display:block;margin:0 auto}
+.market-supply-legend{margin-top:6px;font-size:11px}
