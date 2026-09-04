@@ -329,6 +329,30 @@ window.MarketData = (function () {
    * 這裡不假裝能預測「多久會賣掉」（Universalis沒有給即時的成交速度資料，硬猜只會誤導），
    * 只把「目前這個世界已經有哪些掛單、掛多少錢」老實攤開來，讓玩家自己判斷市場擁擠不擁擠、
    * 打算掛多少錢比較實際。 ── */
+  /* ── 跨服比價：跟 getSellDepth 不一樣，那支只查「單一世界」的掛單明細，這支查「整個資料中心」，
+   * 每個世界各抓一筆最低價，給市場頁的物品詳情頁用——玩家想知道「這個資料中心裡，哪個世界最便宜」，
+   * 不是「我自己這個世界的深度」。用DC名稱去查Universalis，官方回傳的每筆掛單本來就帶worldName，
+   * 直接照世界分組取最低價就好，不用另外對每個世界各發一次請求。 ── */
+  async function getCrossWorldPrices(itemId) {
+    await ensureMeta();
+    if (!settings.dcName) return null;
+    const url = API + '/' + encodeURIComponent(settings.dcName) + '/' + itemId + '?listings=200&entries=0';
+    try {
+      const res = await throttledFetch(url);
+      const data = await res.json();
+      const byWorld = {};
+      (data.listings || []).forEach(function (l) {
+        const w = l.worldName;
+        if (!w) return;
+        if (!byWorld[w] || l.pricePerUnit < byWorld[w].pricePerUnit) {
+          byWorld[w] = { world: w, pricePerUnit: l.pricePerUnit, quantity: l.quantity };
+        }
+      });
+      return Object.keys(byWorld).map(function (w) { return byWorld[w]; })
+        .sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
+    } catch (e) { return null; }
+  }
+
   async function getSellDepth(itemId, worldNameStr) {
     if (!worldNameStr) return null;
     const url = API + '/' + encodeURIComponent(worldNameStr) + '/' + itemId + '?listings=50&entries=0';
@@ -443,6 +467,7 @@ window.MarketData = (function () {
     listSellCities: listSellCities,
     setSellCity: setSellCity,
     getSellDepth: getSellDepth,
+    getCrossWorldPrices: getCrossWorldPrices,
     fetchSaleVelocity: fetchSaleVelocity,
     fetchSaleVelocityBatch: fetchSaleVelocityBatch,
   };
