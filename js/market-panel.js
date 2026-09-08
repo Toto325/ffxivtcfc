@@ -366,14 +366,15 @@
       const p = xy(i, h.pricePerUnit);
       const when = new Date(h.timestamp * 1000).toLocaleDateString();
       const label = h.pricePerUnit.toLocaleString() + '金' + (h.hq ? '（HQ）' : '（NQ）') + ' · ' + when;
-      // HQ = 菱形，NQ = 圓點——形狀本身就能分辨，不是只能靠顏色
+      // 第3點：圓點跟菱形在小尺寸下看起來太像，改成「圓形 vs 三角形」——輪廓差異大很多，
+      // 一眼就能分辨，不用瞇眼看。HQ的三角形也刻意畫大一點、外框加粗，進一步拉開差異。
       const shape = h.hq
-        ? '<path d="M' + p.x.toFixed(1) + ',' + (p.y - 4).toFixed(1) + ' L' + (p.x + 4).toFixed(1) + ',' + p.y.toFixed(1) + ' L' + p.x.toFixed(1) + ',' + (p.y + 4).toFixed(1) + ' L' + (p.x - 4).toFixed(1) + ',' + p.y.toFixed(1) + ' Z" fill="#fcf6ba" stroke="#3a2f1a" stroke-width="0.6"><title>' + label + '</title></path>'
-        : '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3" fill="#8fb3ff" stroke="#1a2a3a" stroke-width="0.6"><title>' + label + '</title></circle>';
+        ? '<path d="M' + p.x.toFixed(1) + ',' + (p.y - 5.5).toFixed(1) + ' L' + (p.x + 5).toFixed(1) + ',' + (p.y + 4).toFixed(1) + ' L' + (p.x - 5).toFixed(1) + ',' + (p.y + 4).toFixed(1) + ' Z" fill="#fcf6ba" stroke="#3a2f1a" stroke-width="1"><title>' + label + '</title></path>'
+        : '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="3.2" fill="#8fb3ff" stroke="#1a2a3a" stroke-width="0.8"><title>' + label + '</title></circle>';
       return shape;
     }).join('');
     return '<div class="market-trend-chart">' +
-      '<p class="market-subheading">近期成交走勢<span class="craft-muted">（●圓點=NQ　◆菱形=HQ，滑鼠移到點上看細節）</span></p>' +
+      '<p class="market-subheading">近期成交走勢<span class="craft-muted">（●圓形=NQ　▲三角形=HQ，滑鼠移到點上看細節）</span></p>' +
       '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" class="market-trend-svg">' +
         '<path d="' + linePath + '" fill="none" stroke="#c5a059" stroke-width="1.5" opacity="0.8"/>' + dots +
       '</svg></div>';
@@ -430,9 +431,11 @@
     // 「世界」是我們自己加的——這是跨服查詢工具的核心價值，遊戲原生介面看不到這欄，
     // 但拿掉的話就失去「跨服比價」的意義了，所以保留在僱員名後面。
     html += '<p class="market-subheading">目前掛單（共 ' + overview.listings.length + ' 筆） ' +
-        '<button type="button" class="market-icon-btn" data-mk-open-history="1" title="查看最近成交紀錄"><i class="ph ph-file-text"></i></button>' +
-        '<button type="button" class="market-icon-btn" id="mk-hq-filter-btn" title="只顯示HQ"><i class="ph ph-funnel"></i></button>' +
-        ' <button type="button" class="market-history-btn" data-mk-open-trend="1">查看走勢圖</button></p>' +
+        '<button type="button" class="market-history-btn" data-mk-open-history="1">查看最近成交紀錄</button>' +
+        '<button type="button" class="market-history-btn" id="mk-hq-filter-btn">只顯示HQ</button>' +
+        '<button type="button" class="market-history-btn" data-mk-open-trend="1">查看走勢圖</button>' +
+        '<label class="market-fee-toggle-inline"><input type="checkbox" id="mk-fee-toggle"' + (taxInfo && taxInfo.ratePercent ? '' : ' disabled') + '/> 總計價格算入跨城市手續費</label>' +
+      '</p>' +
       '<div id="mk-listing-table-slot"></div>';
     box.innerHTML = html;
 
@@ -451,17 +454,14 @@
       const rows = hqOnly ? overview.listings.filter(function (l) { return l.hq; }) : overview.listings;
       // 手續費：遊戲裡買東西如果僱員登記的市場城市跟你目前所在城市不同，會多收一筆手續費，
       // 同城市不收。我們沒有追蹤「你現在人在哪」，只有你設定的「賣出城市」，所以這裡簡化處理：
-      // 勾選＝假設全部都是跨城市（每一筆都算手續費），用你設定城市的稅率當手續費率估算，
-      // 不是精算每個僱員實際登記城市——這只是估算，不是精確值。
+      // 勾選＝假設全部都是跨城市（每一筆都算手續費），用你設定城市的稅率當手續費率估算。
       const feeRate = (taxInfo && taxInfo.ratePercent) ? taxInfo.ratePercent / 100 : 0;
       $('mk-listing-table-slot').innerHTML =
         '<div class="market-table-scroll"><table class="market-price-table"><thead><tr><th>優質</th><th>價格</th><th>數量</th><th>總計價格</th><th>僱員名</th><th>世界</th></tr></thead><tbody>' +
         rows.map(function (l) {
           const total = l.pricePerUnit * l.quantity * (includeFee ? (1 + feeRate) : 1);
           return '<tr><td>' + (l.hq ? hqIconHtml() : '') + '</td><td>' + l.pricePerUnit.toLocaleString() + '金</td><td>' + l.quantity.toLocaleString() + '</td><td>' + Math.round(total).toLocaleString() + '金</td><td>' + (l.retainerName || '—') + '</td><td>' + l.world + '</td></tr>';
-        }).join('') + '</tbody></table></div>' +
-        '<label class="market-fee-toggle"><input type="checkbox" id="mk-fee-toggle"' + (includeFee ? ' checked' : '') + (feeRate ? '' : ' disabled') + '/> 總計價格算入手續費<span class="craft-muted">（估算：假設每筆都跨城市購買，用你設定的賣出城市稅率試算，不是精確值）</span></label>';
-      $('mk-fee-toggle').addEventListener('change', function () { includeFee = this.checked; renderListingTable(); });
+        }).join('') + '</tbody></table></div>';
     }
     renderListingTable();
     $('mk-hq-filter-btn').addEventListener('click', function () {
@@ -469,6 +469,7 @@
       this.classList.toggle('active', hqOnly);
       renderListingTable();
     });
+    $('mk-fee-toggle').addEventListener('change', function () { includeFee = this.checked; renderListingTable(); });
   }
 
   /* 最近成交紀錄是「輔助資訊」——玩家主要決策看的是目前掛單跟供應鏈，成交紀錄是想深入了解
@@ -717,8 +718,8 @@
     const useNodes = useOverflow ? useNodesFull.slice(0, SUPPLY_NODE_LIMIT - 1) : useNodesFull;
 
     // 版面尺寸：卡片固定寬高，數量決定整排多寬，不會因為卡片一多就把單張卡片擠小
-    const CARD_W = 92, CARD_H = 60, GAP = 16, PAD = 20;
-    const CENTER_W = 104, CENTER_H = 70; // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」
+    const CARD_W = 96, CARD_H = 88, GAP = 16, PAD = 20;
+    const CENTER_W = 112, CENTER_H = 84; // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」
     const rowCount = Math.max(matNodes.length, useNodes.length + (useOverflow ? 1 : 0), 1);
     const W = Math.max(360, rowCount * CARD_W + (rowCount - 1) * GAP + PAD * 2);
     const cx = W / 2;
@@ -808,10 +809,19 @@
     }
 
     // 每張卡片：圖示置中，下面兩行文字（名稱、數量）
+    // 第1點：名字跟圖示重疊的根因是原本用寫死的數字(iconY=20、文字y=42)算間距，圖示半徑一變大
+    // （中心卡片r=18）就不夠用了。改成用「圖示半徑」推算每一行的y座標，間距永遠跟著圖示大小走，
+    // 不會再因為某張卡片圖示比較大就擠在一起。
+    // 第8點：數量(×N)字級加大、換成更亮的顏色＋粗體，一眼就看得到，不用瞇眼看小字。
+    // 第10點：卡片多留一行給「查最低價」，先顯示「查價中…」，實際數字由fillCardPrices()非同步填入。
     function cardHtml(x, topY, iconId, line1, line2, clickAttrs, isOverflow, opts) {
       opts = opts || {};
       const w = opts.w || CARD_W, h = opts.h || CARD_H;
-      const iconY = topY + 20;
+      const r = opts.iconR || 15;
+      const iconY = topY + 8 + r;
+      const nameY = iconY + r + 12;
+      const line2Y = nameY + 13;
+      const priceY = (line2 ? line2Y : nameY) + 13;
       const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 10.5, 8) : { text: '', fontSize: 10.5, titleAttr: '' };
       const strokeColor = isOverflow ? '#7a736a' : (opts.highlight ? '#f0d9a0' : '#c5a059');
       const strokeWidth = opts.highlight ? 2 : 1.2;
@@ -819,9 +829,10 @@
         '<rect x="' + (x - w / 2) + '" y="' + topY + '" width="' + w + '" height="' + h + '" rx="8" fill="' + (opts.highlight ? 'rgba(197,160,89,.18)' : 'rgba(0,0,0,.4)') + '" stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '"/>' +
         (isOverflow
           ? '<text x="' + x + '" y="' + iconY + '" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#ddd">還有</text>'
-          : itemIconSvg(iconId, x, iconY, opts.iconR || 15)) +
-        '<text x="' + x + '" y="' + (topY + 42) + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
-        (line2 ? '<text x="' + x + '" y="' + (topY + 54) + '" text-anchor="middle" font-size="9.5" fill="#999">' + line2 + '</text>' : '') +
+          : itemIconSvg(iconId, x, iconY, r)) +
+        '<text x="' + x + '" y="' + nameY + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
+        (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="12" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
+        (isOverflow ? '' : '<text class="mk-card-price" data-price-item="' + iconId + '" x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
       '</g>';
     }
 
@@ -863,9 +874,10 @@
         cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, { w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true }) +
       '</svg>' +
       '<p class="craft-muted market-supply-legend">上：這個物品被用在哪　下：這個物品需要的材料（可製作的點下去能繼續往下追）</p>' +
-      '<button type="button" class="market-history-btn" data-mk-open-fullchain="1" style="margin-left:0;margin-top:6px">查看完整清單（往上／往下追到底）</button>';
+      '<div class="market-fullchain-btn-row"><button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button></div>';
 
     box.querySelector('[data-mk-open-fullchain]').addEventListener('click', function () { openFullChainModal(itemId, rid); });
+    fillCardPrices(box); // 第10點：圖上每張卡片都補上「查最低價（全世界）」
 
     // 第4點（方案A）：拿掉左上角的路徑紀錄——點進另一個物品的供應鏈，就是單純換掉目前這張圖，
     // 不再累積歷史清單。「最近查看」本身已經是一種瀏覽紀錄，不需要疊床架屋再做一套。
@@ -883,6 +895,26 @@
     }
   }
 
+  // 第10點：幫任何有 data-price-item 標記的節點查「全世界最低價」，做法照抄生產頁材料圖譜的
+  // fillNodePrices——合併成一次批次請求，不要每張卡片各打一次API（一次撐爆Universalis流量限制）。
+  function fillCardPrices(container) {
+    if (typeof MarketData === 'undefined') return;
+    const s = MarketData.getSettings();
+    if (!s.dcName) return; // 沒設定資料中心就不查，卡片上的價格欄保持空白，不跳訊息打斷版面
+    const nodes = Array.prototype.slice.call(container.querySelectorAll('[data-price-item]'));
+    if (!nodes.length) return;
+    const ids = [];
+    nodes.forEach(function (el) { if (ids.indexOf(el.dataset.priceItem) === -1) ids.push(el.dataset.priceItem); });
+    MarketData.fetchListingsBatch(ids.map(Number)).then(function (result) {
+      nodes.forEach(function (el) {
+        const listings = result[el.dataset.priceItem];
+        el.textContent = (listings && listings.length) ? listings[0].pricePerUnit.toLocaleString() + '金' : '無人出售';
+      });
+    }).catch(function () {
+      nodes.forEach(function (el) { el.textContent = '查價失敗'; });
+    });
+  }
+
   /* 第6點：完整供應鏈清單——SVG圖只畫「上下各一層」，適合快速掃視，但看不到更遠的層級，
    * 要看更遠就得換焦點、失去原本的脈絡。這裡另外做一個「看到底」的清單模式，跟生產頁材料清單
    * 同樣的「可展開樹狀清單」邏輯，但多做了一個生產頁沒有的方向——「被用在」也能一路往上展開。
@@ -894,10 +926,14 @@
     const hasChildren = direction === 'down'
       ? !!(rid && CRAFT_RECIPES[rid] && (CRAFT_RECIPES[rid].ingredients || []).length)
       : !!((buildUsedInIndex()[itemId] || []).length);
+    // 第9點：名字/圖示包成獨立可點區塊(data-fc-goto)，點下去直接跳去那個物品的市場頁面；
+    // 展開箭頭是另一個獨立按鈕，兩者互不干擾，點名字不會誤觸展開、點箭頭也不會誤觸跳轉。
+    // 第10點：後面留一個查價佔位(data-price-item)，交給fillCardPrices()統一批次查填。
     return '<li class="market-fc-node" data-fc-item="' + itemId + '" data-fc-rid="' + (rid || '') + '" data-fc-dir="' + direction + '">' +
       '<div class="market-fc-row">' +
         (hasChildren ? '<button type="button" class="market-fc-toggle">▶</button>' : '<span class="market-fc-toggle-spacer"></span>') +
-        itemIconHtml(itemId, 18) + '<span>' + name + '</span>' +
+        '<span class="market-fc-goto" data-fc-goto="' + itemId + '">' + itemIconHtml(itemId, 18) + '<span>' + name + '</span></span>' +
+        '<span class="market-fc-price" data-price-item="' + itemId + '"></span>' +
       '</div>' +
       '<ul class="market-fc-children" style="display:none"></ul>' +
     '</li>';
@@ -912,7 +948,7 @@
       const ings = (rid && CRAFT_RECIPES[rid] && CRAFT_RECIPES[rid].ingredients) || [];
       childHtml = ings.map(function (ing) {
         const childRid = (buildToRecipesIndex()[ing.itemId] || [])[0];
-        return fullChainNodeHtml(ing.itemId, childRid, 'down').replace('<span>', '<span class="market-fc-amount">×' + ing.amount + '</span><span>');
+        return fullChainNodeHtml(ing.itemId, childRid, 'down').replace('<span class="market-fc-goto"', '<span class="market-fc-amount">×' + ing.amount + '</span><span class="market-fc-goto"');
       }).join('');
     } else {
       const urids = buildUsedInIndex()[itemId] || [];
@@ -926,6 +962,7 @@
       }
     }
     childUl.innerHTML = childHtml || '<li class="craft-muted" style="padding:4px 0 4px 26px">（無）</li>';
+    fillCardPrices(childUl); // 第10點：新展開出來的節點也要補查價
   }
   function ensureFullChainModalDom() {
     let modal = $('mk-fullchain-modal');
@@ -944,6 +981,9 @@
     document.body.appendChild(modal);
     modal.addEventListener('click', function (e) {
       if (e.target === modal) { modal.style.display = 'none'; return; }
+      // 第9點：先判斷是不是點在名字/圖示上，是的話直接跳轉，不繼續往下判斷展開箭頭
+      const gotoEl = e.target.closest('[data-fc-goto]');
+      if (gotoEl) { modal.style.display = 'none'; openItemDetail(gotoEl.dataset.fcGoto); return; }
       const toggle = e.target.closest('.market-fc-toggle');
       if (!toggle) return;
       const li = toggle.closest('.market-fc-node');
@@ -961,6 +1001,8 @@
     $('mk-fullchain-title').textContent = (ITEM_NAMES_TW_ALL[itemId] || itemId) + '——完整供應鏈';
     $('mk-fc-up').innerHTML = fullChainNodeHtml(itemId, rid, 'up');
     $('mk-fc-down').innerHTML = fullChainNodeHtml(itemId, rid, 'down');
+    fillCardPrices($('mk-fc-up'));
+    fillCardPrices($('mk-fc-down'));
     modal.style.display = 'flex';
   }
 
