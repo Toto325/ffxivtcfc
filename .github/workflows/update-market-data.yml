@@ -1,0 +1,48 @@
+name: 更新市場資料（熱度排行預先計算）
+
+# 每小時的第17分跑一次（避開整點的排程壅塞），也可以在 GitHub 網頁上手動觸發。
+# 這支 workflow 只抓 Universalis 的成交紀錄並算好統計，網站的「熱度排行」直接讀結果檔，不用即時掃描。
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch: {}
+
+# 同時只允許一個在跑：上一次還沒跑完時，下一次排程會排隊等，不會兩個同時打 Universalis。
+concurrency:
+  group: market-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: 簽出 repo（需要腳本跟繁中道具名稱表）
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 腳本自己有安全檢查：失敗率太高、或道具數量比上一次少太多，會直接以錯誤結束，
+      # 後面的「發布」就不會執行，market-data 分支上的舊資料原封不動（不會被殘缺／空白資料覆蓋）。
+      - name: 抓取並計算市場資料
+        run: node scripts/update-market-data.js
+        env:
+          PREV_META_URL: https://raw.githubusercontent.com/${{ github.repository }}/market-data/market/meta.json
+
+      # 資料只在 market-data 分支，而且每次都是「單一 commit 強制覆蓋」：
+      # 不會跟 main 混在一起，也不會因為每小時更新讓 repo 的 git 歷史越長越大。
+      - name: 發布到 market-data 分支
+        run: |
+          cd market-out
+          git init -q -b market-data
+          git config user.name "market-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -q -m "市場資料 $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" market-data
