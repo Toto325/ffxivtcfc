@@ -373,3 +373,8 @@ html[data-nav-mode="embed"]:not(.embed-ready) .royal-nav{display:none !important
 #mk-radar-filters .market-hot-status{flex:1 1 100%}
 /* 世界下拉選單的「顯示範圍」標題列：深底＋淡金字，跟一般選項（深底白字）有區別、又不刺眼；不再用整條實心金色 */
 #mk-world-filter optgroup{font-style:normal;font-weight:600;letter-spacing:.5px;color:#e6cf8f;background-color:#241a0b}
+
+/* 走勢圖圖例 */
+.market-trend-legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:2px 0 6px;font-size:11px;color:var(--dim)}
+.mk-legend-item{display:inline-flex;align-items:center;gap:5px}
+.mk-legend-sw{display:inline-block;width:14px;height:10px}
