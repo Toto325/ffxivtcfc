@@ -521,7 +521,7 @@
   async function getPrecomputedRow(scopeKey, itemId) {
     try {
       const r = await MarketData.loadPrecomputed(scopeKey);
-      if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return r.data.items[itemId] || null;
+      if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) { const row = r.data.items[itemId]; return row && (row[0] + row[1]) > 0 && row[6] ? row : null; } // 沒有賣速的列（只有掛單／最近成交）沒有窗口資料，走即時查詢
     } catch (e) { /* 讀不到就走即時查詢 */ }
     return null;
   }
@@ -915,6 +915,23 @@
       fQuality: 'all', fWorld: 'all', sortKey: 'time', sortDir: -1, tableShown: 100, skippedOut: 0, zoomed: false };
     const cv = els.canvas, tip = els.tip;
 
+    /* 圖例：用一般人看得懂的話說明每種顏色／形狀代表什麼，依目前實際用的畫法切換 */
+    let legendMode = '';
+    function updateLegend(mode) {
+      if (!els.legend || legendMode === mode) return;
+      legendMode = mode;
+      const sw = function (style, txt) { return '<span class="mk-legend-item"><i class="mk-legend-sw" style="' + style + '"></i>' + txt + '</span>'; };
+      els.legend.innerHTML = mode === 'band'
+        ? sw('background:rgba(197,160,89,.55)', '金色柱：這段時間內成交價從最低到最高') +
+          sw('background:#8fb3ff;height:2px;margin-top:6px', '藍線：NQ 的平均成交價') +
+          sw('border-top:2px dashed #fcf6ba;height:0;margin-top:6px', '金色虛線：HQ 的平均成交價') +
+          sw('background:rgba(143,179,255,.5)', '下方藍柱：這段時間賣出的件數') +
+          sw('border-top:2px dashed rgba(255,255,255,.7);height:0;margin-top:6px', '白色虛線：整個範圍的平均價')
+        : sw('background:#8fb3ff;border-radius:50%', 'NQ 成交') + sw('background:#fcf6ba;border-radius:2px', 'HQ 成交') +
+          sw('background:rgba(197,160,89,.7);height:2px;margin-top:6px', '成交順序連線') +
+          sw('border-top:2px dashed rgba(255,255,255,.7);height:0;margin-top:6px', '白色虛線：整個範圍的平均價');
+    }
+
     function refilter() {
       st.fpts = st.pts.filter(function (p) {
         if (st.fQuality === 'nq' && p.hq) return false;
@@ -960,6 +977,7 @@
       if (hi === lo) { hi = lo * 1.05 + 1; lo = Math.max(0, lo * 0.95 - 1); }
       const bandMode = st.drawMode === 'band' || (st.drawMode === 'auto' && vis.length > plotW / 8);
       st.mode = bandMode ? 'band' : 'dots';
+      updateLegend(st.mode);
       const volH = plotH * 0.2;
       const yOf = function (price) {
         const top = PADT, bottom = PADT + plotH - (bandMode ? volH + 4 : 0);
@@ -1026,6 +1044,7 @@
         st.buckets = bk; st.dotPts = null;
         const maxUnits = Math.max.apply(null, bk.map(function (b) { return b.units; })) || 1;
         const cw = plotW / B;
+        g.fillStyle = 'rgba(143,179,255,.8)'; g.textAlign = 'left'; g.fillText('賣出件數（最多 ' + maxUnits.toLocaleString() + ' 件）', PADL + 4, PADT + plotH - volH - 2);
         bk.forEach(function (b) {
           if (!b.n) return;
           const h = Math.max(1.5, (b.units / maxUnits) * volH);
@@ -1179,10 +1198,11 @@
         '<button type="button" class="market-history-btn" id="mk-trend-reset">重設縮放</button>' +
       '</div>' +
       '<p class="craft-muted market-trend-status" id="mk-trend-status"></p>' +
+      '<div class="market-trend-legend" id="mk-trend-legend"></div>' +
       '<div class="market-trend-canvaswrap"><canvas id="mk-trend-canvas" class="market-trend-canvas"></canvas><div id="mk-trend-tip" class="market-trend-tip" style="display:none"></div></div>' +
-      '<p class="craft-muted" style="font-size:11px;margin:4px 0 10px">○ NQ　★ HQ。滑鼠移到圖上（手機點一下）看那一筆的價格；拖曳選一段時間可放大（手機請水平拖曳），雙擊還原。點太多時自動改畫價格區間色帶（藍線＝NQ平均、金色虛線＝HQ平均）加下方成交量。</p>' +
+      '<p class="craft-muted" style="font-size:11px;margin:4px 0 10px">滑鼠移到圖上（手機點一下）看那一筆的價格；拖曳選一段時間可放大（手機請水平拖曳），雙擊還原。成交太多時，圖會自動改成「每段時間一根柱」的彙總畫法，放大後就會變回逐筆的點。</p>' +
       '<div id="mk-trend-table"></div>';
-    const chart = createTrendChart({ canvas: $('mk-trend-canvas'), tip: $('mk-trend-tip'), table: $('mk-trend-table') }, { scopeWorld: scopeWorld });
+    const chart = createTrendChart({ canvas: $('mk-trend-canvas'), tip: $('mk-trend-tip'), table: $('mk-trend-table'), legend: $('mk-trend-legend') }, { scopeWorld: scopeWorld });
     let activeRange = '7';
     let token = 0;
     function syncWorldOptions() {
@@ -1763,30 +1783,41 @@
     const persp = ui.persp, basis = ui.basis, pIdx = HOT_PERSP_IDX[persp];
     const rows = [];
     let skippedMat = 0, skippedSell = 0;
-    const resolve = makeCostResolver(dcData, basis, ui.matMode === 'auto');
+    // 兩種材料成本都算：畫面上要並排顯示「直接買」跟「自動選較便宜」，讓使用者知道自己做到底省多少
+    const resolveBuy = makeCostResolver(dcData, basis, false);
+    const resolveAuto = makeCostResolver(dcData, basis, true);
+    const useAuto = ui.matMode === 'auto';
     const jobRecipeIds = Object.keys(CRAFT_RECIPES).filter(function (rid) { return CRAFT_RECIPES[rid].jobId === jobId && isTwRecipe(CRAFT_RECIPES[rid]); });
     const seenItem = {};
+    function sumCost(recipe, resolve) {
+      let cost = 0, crafted = 0;
+      for (const ing of (recipe.ingredients || [])) {
+        const c = resolve(ing.itemId);
+        if (!c) return null;
+        cost += c.cost * ing.amount;
+        if (c.mode === 'craft') crafted++;
+      }
+      return { cost: cost, crafted: crafted };
+    }
     jobRecipeIds.forEach(function (rid) {
       const recipe = CRAFT_RECIPES[rid];
       if (seenItem[recipe.itemId]) return; // 同一個成品有多個配方時只算第一個
       seenItem[recipe.itemId] = true;
       const sellRow = sellData.items[recipe.itemId];
       const unit = radarUnitPrice(sellRow, persp, basis);
-      if (!unit) { skippedSell++; return; }
-      let cost = 0, ok = true, craftedN = 0;
-      (recipe.ingredients || []).forEach(function (ing) {
-        const c = resolve(ing.itemId);
-        if (!c) { ok = false; return; }
-        cost += c.cost * ing.amount;
-        if (c.mode === 'craft') craftedN++;
-      });
-      if (!ok) { skippedMat++; return; }
+      // 成品要「有在賣出」才有意義：只有掛單、近幾天完全沒成交的成品，賣得掉才是問題
+      if (!unit || !(hotVelocity(sellRow, persp) > 0)) { skippedSell++; return; }
+      const buy = sumCost(recipe, resolveBuy), auto = sumCost(recipe, resolveAuto);
+      const chosen = useAuto ? auto : buy;
+      if (!chosen) { skippedMat++; return; }
+      const cost = chosen.cost, craftedN = useAuto ? chosen.crafted : 0;
       const yields = recipe.yields || 1;
       const sell = unit * yields;
       const profit = sell - cost;
       const P = sellRow[pIdx];
       rows.push({
-        itemId: recipe.itemId, cost: cost, sell: sell, unit: unit, yields: yields, profit: profit, craftedN: craftedN,
+        rid: rid, itemId: recipe.itemId, cost: cost, sell: sell, unit: unit, yields: yields, profit: profit, craftedN: craftedN,
+        costBuy: buy ? buy.cost : null, costAuto: auto ? auto.cost : null,
         roi: cost > 0 ? (profit / cost) * 100 : 0, vel: hotVelocity(sellRow, persp), P: P,
         otherPrice: basis === 'listing' ? (P ? P[4] : null) : radarUnitPrice(sellRow, persp, 'listing'),
         change: P ? ((P[2] - P[4]) / P[4]) * 100 : null, band: hotBandIndex(unit),
@@ -1799,6 +1830,7 @@
     const list = rows.filter(function (r) {
       if (ui.band !== 'all') { const bi = HOT_BANDS.findIndex(function (b) { return b.key === ui.band; }); if (r.band !== bi) return false; }
       if (ui.medianOnly && r.vel < (medians[r.band] || 0)) return false;
+      if (ui.profitOnly && !(r.profit > 0)) return false;
       return true;
     });
     list.sort(function (a, b) { return b[ui.sort] - a[ui.sort]; });
@@ -1807,7 +1839,10 @@
 
   function renderRadarShell() {
     const box = $('mk-pane-radar');
-    const ui = { job: null, basis: 'listing', matMode: 'buy', sellScope: 'dc', persp: 'all', band: 'all', sort: 'profit', medianOnly: false, shown: 50, mode: 'pre' };
+    const ui = { job: null, basis: 'listing', matMode: 'buy', sellScope: 'dc', persp: 'all', band: 'all', sort: 'profit', medianOnly: false, profitOnly: false, shown: 50, mode: 'pre' };
+    // 即時掛單價（只在「掛單最低價」基準下用）：id -> { min, minN, minH, time }，材料用資料中心的、成品用成品範圍的
+    const liveDc = {}, liveSell = {};
+    let liveToken = 0, liveRounds = 0, liveNote = '';
     let pc = null; // { dc, sell, meta, ageMs }
     function row(label, key, options) {
       return '<div class="market-hot-row-filter"><span class="market-hot-filter-label">' + label + '</span>' +
@@ -1825,6 +1860,7 @@
         row('價格帶', 'band', HOT_UI_BTNS.band) +
         row('排序', 'sort', RADAR_SORTS) +
         '<label class="market-hot-median"><input type="checkbox" id="mk-radar-median"> 只看成品賣速在「同價格帶」中位數以上的配方</label>' +
+        '<label class="market-hot-median"><input type="checkbox" id="mk-radar-profit"> 只顯示有獲利的配方</label>' +
         '<p class="craft-muted market-hot-status" id="mk-radar-status" style="display:none"></p>' +
       '</div>' +
       '<div id="mk-radar-body" class="market-pane-scrollbody"><p class="craft-muted">選一個職業，找出材料成本低、成品行情高的配方。</p></div>';
@@ -1841,9 +1877,78 @@
       runRadarScan(ui.job, false);
       if (note) { const b = $('mk-radar-body'); b.insertAdjacentHTML('afterbegin', '<p class="craft-muted">' + note + '</p>'); }
     }
+    /* 把已經查到的即時掛單價蓋到預先計算的資料上（只複製有被更新的那幾列，不動原資料） */
+    function patchData(data, live) {
+      const ids = Object.keys(live);
+      if (!ids.length) return data;
+      const items = Object.assign({}, data.items);
+      ids.forEach(function (id) {
+        const row = items[id] ? items[id].slice() : [0, 0, null, null, null, null, null, null, null];
+        row[2] = live[id].min; row[7] = [live[id].minN, live[id].minH];
+        items[id] = row;
+      });
+      return { items: items };
+    }
+    /* 前 50 名配方用到的道具：成品＋材料（自動模式再往下展開自己做的中間材料） */
+    function idsForRows(rowsTop) {
+      const prod = {}, mats = {};
+      const byItem = ui.matMode === 'auto' ? getRecipesByItem() : null;
+      function addTree(id, depth) {
+        if (mats[id] || depth > 4 || Object.keys(mats).length > 500) return;
+        mats[id] = true;
+        if (byItem && byItem[id]) byItem[id].forEach(function (r) { (r.ingredients || []).forEach(function (ing) { addTree(ing.itemId, depth + 1); }); });
+      }
+      rowsTop.forEach(function (r) {
+        prod[r.itemId] = true;
+        (CRAFT_RECIPES[r.rid].ingredients || []).forEach(function (ing) { addTree(ing.itemId, 0); });
+      });
+      return { prod: Object.keys(prod).map(Number), mats: Object.keys(mats).map(Number) };
+    }
+    function liveFresh(store, id) { return store[id] && Date.now() - store[id].time < 5 * 60 * 1000; }
+    /* 「前 50 名用即時掛單價更新」：預先計算的掛單價是最多一小時前的快照，
+     * 這裡只針對畫面上排在前面的配方，去查它們的成品跟材料「現在」的掛單，更新後重算、重新排序。 */
+    async function refreshLive(rowsTop) {
+      if (ui.basis !== 'listing' || liveRounds >= 3 || !rowsTop.length) return;
+      const st = MarketData.getSettings();
+      const need = idsForRows(rowsTop);
+      const sellIsDc = ui.sellScope === 'dc';
+      const dcIds = need.mats.filter(function (id) { return !liveFresh(liveDc, id); }).concat(sellIsDc ? need.prod.filter(function (id) { return !liveFresh(liveDc, id) && need.mats.indexOf(id) === -1; }) : []);
+      const sellIds = sellIsDc ? [] : need.prod.filter(function (id) { return !liveFresh(liveSell, id); });
+      if (!dcIds.length && !sellIds.length) return;
+      liveRounds++;
+      const token = ++liveToken, myJob = ui.job;
+      liveNote = '正在用即時掛單價更新前 ' + rowsTop.length + ' 名⋯';
+      const noteEl = $('mk-radar-live'); if (noteEl) noteEl.textContent = liveNote;
+      let dcRes = {}, sellRes = {};
+      try {
+        const rs = await Promise.all([
+          dcIds.length ? MarketData.fetchListingsBatchForScope(dcIds, st.dcName) : {},
+          sellIds.length ? MarketData.fetchListingsBatchForScope(sellIds, st.worldName) : {},
+        ]);
+        dcRes = rs[0]; sellRes = rs[1];
+      } catch (e) { liveNote = '即時掛單價更新失敗，目前顯示的是預先計算的價格。'; const el = $('mk-radar-live'); if (el) el.textContent = liveNote; return; }
+      if (token !== liveToken || myJob !== ui.job) return; // 使用者已經換了職業或又觸發了新的更新
+      let stored = 0;
+      function store(dest, res, ids) {
+        ids.forEach(function (id) {
+          const ls = res[id];
+          if (!ls) return; // 這個道具沒查到（請求失敗），保留原本的價格
+          stored++;
+          const first = function (f) { const x = ls.find(f); return x ? x.pricePerUnit : null; };
+          dest[id] = { min: ls.length ? ls[0].pricePerUnit : null, minN: first(function (l) { return !l.hq; }), minH: first(function (l) { return l.hq; }), time: Date.now() };
+        });
+      }
+      store(liveDc, dcRes, dcIds); store(liveSell, sellRes, sellIds);
+      if (!stored) { liveNote = '即時掛單價查詢沒有回傳資料，目前顯示的是預先計算的價格。'; const el = $('mk-radar-live'); if (el) el.textContent = liveNote; return; }
+      const hh = new Date(); const pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+      liveNote = '已用即時掛單價更新前 ' + rowsTop.length + ' 名（' + pad(hh.getHours()) + ':' + pad(hh.getMinutes()) + '），名次以更新後為準。';
+      renderPre();
+    }
     function renderPre() {
       const body = $('mk-radar-body');
-      const res = computeRadarList(ui.job, ui, pc.dc, pc.sell);
+      const dcView = ui.basis === 'listing' ? patchData(pc.dc, liveDc) : pc.dc;
+      const sellView = ui.basis === 'listing' ? (ui.sellScope === 'dc' ? dcView : patchData(pc.sell, liveSell)) : pc.sell;
+      const res = computeRadarList(ui.job, ui, dcView, sellView);
       const top = res.list.slice(0, ui.shown);
       if (pc.ageMs > 24 * 3600 * 1000) {
         setStatus('⚠ 預先計算的市場資料已超過 24 小時沒有更新（最後更新：' + new Date(pc.meta.generatedAtMs).toLocaleString() + '）。 <button type="button" class="market-history-btn" id="mk-radar-to-live">改用即時掃描（僅供參考）</button>');
@@ -1856,12 +1961,19 @@
       const sellLabel = ui.sellScope === 'world' ? '你的世界' : '所有世界';
       const isListing = ui.basis === 'listing';
       body.innerHTML =
-        '<p class="craft-muted" style="margin-bottom:6px">符合條件 ' + res.list.length + ' 個配方（另有成品沒有這個基準的價格 ' + res.skippedSell + ' 個、材料沒有價格 ' + res.skippedMat + ' 個無法估價）。</p>' +
+        '<p class="craft-muted" style="margin-bottom:6px">符合條件 ' + res.list.length + ' 個配方（另有成品沒有價格或近幾天沒成交 ' + res.skippedSell + ' 個、材料沒有價格 ' + res.skippedMat + ' 個無法估價）。</p>' +
+        (isListing ? '<p class="craft-muted" id="mk-radar-live" style="margin-bottom:6px">' + (liveNote || '') + '</p>' : '') +
         '<div class="market-table-scroll"><table class="market-price-table"><thead><tr><th>淨利／次</th><th>投報率</th><th>材料成本</th><th>成品' + (isListing ? '最低價' : '成交均價') + '／次<span class="craft-muted" style="font-weight:normal">（' + sellLabel + '）</span></th><th>賣速</th><th>物品</th></tr></thead><tbody>' +
         top.map(function (r) {
           const yieldNote = r.yields > 1 ? fmtGil(r.unit) + '金×' + r.yields : '';
           const otherNote = r.otherPrice != null ? (isListing ? '成交均價 ' : '最低掛單價 ') + fmtGil(r.otherPrice) + '金' : '';
-          const craftNote = r.craftedN ? r.craftedN + ' 項材料自己做較便宜' : '';
+          // 「直接買」跟「自己做」的比較：自己做省太少的話，時間成本可能不划算，所以一定要讓使用者看到省了多少
+          let craftNote = '';
+          if (r.costBuy != null && r.costAuto != null) {
+            const save = r.costBuy - r.costAuto, pct = r.costBuy > 0 ? (save / r.costBuy) * 100 : 0;
+            if (save > 0.5) craftNote = (ui.matMode === 'auto' ? '比直接買省 ' : '若自己做材料可省 ') + fmtGil(save) + ' 金（' + pct.toFixed(1) + '%）' + (pct < 5 ? '，省得不多，直接買更省事' : '') + (ui.matMode === 'auto' && r.craftedN ? '；' + r.craftedN + ' 項材料自己做' : '');
+            else craftNote = '直接買材料就已經是最便宜的';
+          } else if (r.costBuy == null && r.costAuto != null) craftNote = '有些材料市場上沒有價格，只能自己做（自己做的成本 ' + fmtGil(r.costAuto) + ' 金）';
           const trendNote = r.P ? (r.P[0] === 1 ? '24/48小時' : '3/7天') + '・' + r.P[3] + '筆・漲跌 ' + (r.change >= 0 ? '+' : '') + r.change.toFixed(1) + '%' : '成交筆數太少，沒有漲跌';
           const note = [yieldNote, craftNote, otherNote, trendNote].filter(Boolean).join('　·　');
           return '<tr data-mk-radar-item="' + r.itemId + '" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (r.profit >= 0 ? '+' : '') + fmtGil(r.profit) + '金</td>' +
@@ -1873,6 +1985,7 @@
         '材料用整個資料中心的價格（買方可跨世界買，優先用 NQ）；成品用「' + sellLabel + '」的價格，可在上面切換。材料成本預設只算「直接買」；切到「自動選較便宜」時，每個材料會各自比較「直接買」和「自己做」取便宜的（最底層原料用市場價格）。都沒有考慮製作時間、買方稅和賣方稅。「淨利／次」是做一次配方（可能一次做出不只 1 件）的總損益。最後更新：' + new Date(pc.meta.generatedAtMs).toLocaleString() + '。</p>';
       body.querySelectorAll('[data-mk-radar-item]').forEach(function (tr) { tr.addEventListener('click', function () { openItemDetail(tr.dataset.mkRadarItem); }); });
       const more = $('mk-radar-more'); if (more) more.addEventListener('click', function () { ui.shown += 50; renderPre(); });
+      refreshLive(res.list.slice(0, 50));
     }
     async function show() {
       if (ui.job === null) return;
@@ -1905,14 +2018,15 @@
     }
     box.addEventListener('click', function (e) {
       const jb = e.target.closest('[data-mk-radar-job]');
-      if (jb) { ui.job = parseInt(jb.dataset.mkRadarJob, 10); ui.shown = 50; sync(); if (ui.mode === 'live') runRadarScan(ui.job); else show(); return; }
+      if (jb) { ui.job = parseInt(jb.dataset.mkRadarJob, 10); ui.shown = 50; liveRounds = 0; sync(); if (ui.mode === 'live') runRadarScan(ui.job); else show(); return; }
       const fb = e.target.closest('[data-rk]');
       if (fb) {
-        const v = fb.dataset.rv; ui[fb.dataset.rk] = v; ui.shown = 50; sync();
+        const v = fb.dataset.rv; ui[fb.dataset.rk] = v; ui.shown = 50; liveRounds = 0; sync();
         if (fb.dataset.rk === 'sellScope') show(); else if (pc && ui.mode === 'pre') renderPre();
       }
     });
-    $('mk-radar-median').addEventListener('change', function () { ui.medianOnly = this.checked; ui.shown = 50; if (pc && ui.mode === 'pre') renderPre(); });
+    $('mk-radar-median').addEventListener('change', function () { ui.medianOnly = this.checked; ui.shown = 50; liveRounds = 0; if (pc && ui.mode === 'pre') renderPre(); });
+    $('mk-radar-profit').addEventListener('change', function () { ui.profitOnly = this.checked; ui.shown = 50; liveRounds = 0; if (pc && ui.mode === 'pre') renderPre(); });
     // 設定（我的世界等）一改，畫面要重算
     radarRefreshHook = function () { if (ui.job !== null) { if (ui.mode === 'live') runRadarScan(ui.job, true); else show(); } };
   }
@@ -2044,6 +2158,7 @@
   const HOT_CACHE_VERSION = 4; // 資料結構改版（新增樣本數／NQHQ分開算）時遞增，舊快取自動作廢
   const HOT_METRICS = [
     { key: 'velocity', label: '賣速', fmt: function (v) { return v.toFixed(1) + ' 件/天'; }, hint: '流動性：多快能賣掉，數字越高代表越搶手（NQ+HQ合計，跟物品詳情頁同一套計算方式）' },
+    { key: 'rare', label: '成交稀少', fmt: function (v) { return fmtGil(v) + ' 金'; }, hint: '' },
     { key: 'turnover', label: '每日成交額', fmt: function (v) { return fmtGil(v) + ' 金/天'; }, hint: '' },
     { key: 'changePct', label: '漲跌幅度', fmt: function (v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }, hint: '短期動能：當前（24小時內）成交均價，比近1天（48小時內）成交均價貴/便宜多少（NQ／HQ一起算，成交筆數不足的不列入）' },
   ];
@@ -2081,7 +2196,38 @@
   function fmtGil(n) { return Math.round(n).toLocaleString(); }
 
   /* 依目前的篩選條件，從資料裡算出要顯示的清單（純計算，不碰畫面） */
+  function hotAgo(ts) {
+    if (!ts) return '時間不明';
+    const sec = Date.now() / 1000 - ts;
+    if (sec < 3600) return Math.max(1, Math.round(sec / 60)) + ' 分鐘前';
+    if (sec < 86400) return Math.round(sec / 3600) + ' 小時前';
+    if (sec < 86400 * 60) return Math.round(sec / 86400) + ' 天前';
+    return Math.round(sec / 86400 / 30) + ' 個月前';
+  }
+  /* 成交稀少：這個視角下湊不出足夠成交筆數（算不出漲跌）的道具，列出最近一筆成交價跟目前最低掛單價 */
+  function computeRareList(data, ui) {
+    const pIdx = HOT_PERSP_IDX[ui.persp];
+    const list = [];
+    Object.keys(data.items).forEach(function (id) {
+      const r = data.items[id];
+      if (r[pIdx]) return; // 有足夠成交的道具在別的指標裡找得到
+      const S = r[8] || [null, null, null, null];
+      let recent = { price: null, ts: null };
+      if (ui.persp === 'nq') recent = { price: S[0], ts: S[1] };
+      else if (ui.persp === 'hq') recent = { price: S[2], ts: S[3] };
+      else recent = (S[3] != null && (S[1] == null || (S[3] || 0) > (S[1] || 0))) ? { price: S[2], ts: S[3] } : { price: S[0], ts: S[1] };
+      const minL = radarUnitPrice(r, ui.persp, 'listing');
+      if (recent.price == null && minL == null) return;
+      const price = recent.price != null ? recent.price : minL;
+      const band = hotBandIndex(price);
+      if (ui.band !== 'all') { const bi = HOT_BANDS.findIndex(function (b) { return b.key === ui.band; }); if (band !== bi) return; }
+      list.push({ id: id, price: price, recent: recent, minL: minL, vel: hotVelocity(r, ui.persp), sortKey: ui.rsort === 'recent' ? (recent.ts || 0) : price });
+    });
+    list.sort(function (a, b) { return b.sortKey - a.sortKey; });
+    return { list: list, total: list.length, cntHigh: 0, cntLow: 0, cntNone: 0, rare: true };
+  }
   function computeHotList(data, ui) {
+    if (ui.metric === 'rare') return computeRareList(data, ui);
     const pIdx = HOT_PERSP_IDX[ui.persp];
     const tier = ui.freq === 'high' ? 1 : 2;
     const universe = [];
@@ -2120,16 +2266,18 @@
   }
 
   const HOT_UI_BTNS = {
-    metric: [['changePct', '漲跌幅度'], ['velocity', '賣速'], ['turnover', '每日成交額']],
+    metric: [['changePct', '漲跌幅度'], ['velocity', '賣速'], ['turnover', '每日成交額'], ['rare', '成交稀少']],
     persp: [['all', '全部（NQ+HQ）'], ['nq', 'NQ'], ['hq', 'HQ']],
-    freq: [['high', '高頻（24小時對48小時）'], ['low', '低頻（3天對7天）']],
+    freq: [['high', '賣速高'], ['low', '賣速低']],
+    rsort: [['price', '價格高→低'], ['recent', '最近成交']],
     dir: [['up', '看漲'], ['down', '看跌']],
     band: HOT_BANDS.map(function (b) { return [b.key, b.label]; }),
   };
   const HOT_METRIC_HINTS = {
-    changePct: '短期動能：短窗口成交均價比長窗口成交均價貴／便宜多少（窗口都從現在算起，長的包含短的；NQ／HQ預設一起算）',
+    changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少。「賣速高」＝最近成交夠多，拿 24 小時內對 48 小時內比較；「賣速低」＝成交較少，拿 3 天內對 7 天內比較（時間都從現在往前算）。',
     velocity: '流動性：每天賣出幾件，數字越高越搶手',
-    turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多',
+    turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多。「賣速高／低」的分法跟漲跌幅度一樣。',
+    rare: '成交太少、湊不出足夠的成交筆數算漲跌的道具（多半是高價、很久才賣出一件的東西）。這裡列出它們「最近一筆成交價」和「目前最低掛單價」，讓你仍然找得到它們。',
   };
 
   async function renderHotShell() {
@@ -2140,7 +2288,7 @@
     if (s.dcName) {
       try { worldNames = await MarketData.listWorldNamesInDc(s.dcName); } catch (e) { /* 抓不到就只顯示「所有世界」 */ }
     }
-    const ui = { scope: 'ALL', metric: 'changePct', persp: 'all', freq: 'high', dir: 'up', band: 'all', medianOnly: false, shown: 30, mode: 'pre' };
+    const ui = { scope: 'ALL', metric: 'changePct', persp: 'all', freq: 'high', dir: 'up', rsort: 'price', band: 'all', medianOnly: false, shown: 30, mode: 'pre' };
     let pcResult = null;
     function btnRow(label, key, rowId) {
       return '<div class="market-hot-row-filter" id="' + rowId + '"><span class="market-hot-filter-label">' + label + '</span>' +
@@ -2155,8 +2303,8 @@
         '<p class="craft-muted market-hot-scope-note"><strong>提醒：</strong>玩家只能從自己所屬的世界掛賣，「所有世界」的數字僅供參考，請優先選擇自己所屬的世界。</p>' +
         btnRow('指標', 'metric', 'mk-hf-metric') +
         '<div id="mk-hot-filters">' +
-          btnRow('視角', 'persp', 'mk-hf-persp') + btnRow('頻率', 'freq', 'mk-hf-freq') + btnRow('方向', 'dir', 'mk-hf-dir') + btnRow('價格帶', 'band', 'mk-hf-band') +
-          '<label class="market-hot-median"><input type="checkbox" id="mk-hot-median"> 只看賣速在「同價格帶」中位數以上的道具（成交冷清的先排除）</label>' +
+          btnRow('視角', 'persp', 'mk-hf-persp') + btnRow('賣速', 'freq', 'mk-hf-freq') + btnRow('方向', 'dir', 'mk-hf-dir') + btnRow('排序', 'rsort', 'mk-hf-rsort') + btnRow('價格帶', 'band', 'mk-hf-band') +
+          '<label class="market-hot-median" id="mk-hot-median-label"><input type="checkbox" id="mk-hot-median"> 只看賣速在「同價格帶」中位數以上的道具（成交冷清的先排除）</label>' +
         '</div>' +
         '<p class="craft-muted market-hot-status" id="mk-hot-status"></p>' +
       '</div>' +
@@ -2168,18 +2316,19 @@
       box.querySelectorAll('[data-mk-hot-scope]').forEach(function (b) { b.classList.toggle('active', b.dataset.mkHotScope === ui.scope); });
       const pre = ui.mode === 'pre';
       $('mk-hot-filters').style.display = pre ? '' : 'none';
-      $('mk-hf-freq').style.display = pre && ui.metric !== 'velocity' ? '' : 'none';
+      $('mk-hf-freq').style.display = pre && (ui.metric === 'changePct' || ui.metric === 'turnover') ? '' : 'none';
       $('mk-hf-dir').style.display = pre && ui.metric === 'changePct' ? '' : 'none';
+      $('mk-hf-rsort').style.display = pre && ui.metric === 'rare' ? '' : 'none';
+      $('mk-hot-median-label').style.display = pre && ui.metric !== 'rare' ? '' : 'none';
       // 即時掃描只有「漲跌幅度」「賣速」兩種指標
-      const turn = box.querySelector('[data-hk="metric"][data-hv="turnover"]');
-      if (turn) turn.style.display = pre ? '' : 'none';
+      ['turnover', 'rare'].forEach(function (k) { const b = box.querySelector('[data-hk="metric"][data-hv="' + k + '"]'); if (b) b.style.display = pre ? '' : 'none'; });
       const mb = box.querySelector('#mk-hf-metric'); if (mb) mb.title = HOT_METRIC_HINTS[ui.metric] || '';
     }
     function setStatus(html) { const el = $('mk-hot-status'); el.innerHTML = html || ''; el.style.display = html ? '' : 'none'; }
 
     function enterLive(noteHtml) {
       ui.mode = 'live';
-      if (ui.metric === 'turnover') ui.metric = 'changePct';
+      if (ui.metric === 'turnover' || ui.metric === 'rare') ui.metric = 'changePct';
       syncButtons();
       setStatus(noteHtml || '');
       const m = ui.metric;
@@ -2206,27 +2355,29 @@
       const tierLabel = function (P) { return P[0] === 1 ? '24/48小時' : '3/7天'; };
       body.innerHTML =
         '<p class="craft-muted" style="margin-bottom:6px">' + HOT_METRIC_HINTS[ui.metric] + '</p>' +
-        '<p class="craft-muted" style="margin-bottom:8px">符合條件 ' + res.list.length.toLocaleString() + ' 項（此視角下：高頻 ' + res.cntHigh + '、低頻 ' + res.cntLow + '、成交太少無法比較 ' + res.cntNone + '）。</p>' +
+        (res.rare ? '<p class="craft-muted" style="margin-bottom:8px">共 ' + res.list.length.toLocaleString() + ' 項成交稀少的道具（依' + (ui.rsort === 'recent' ? '最近成交時間' : '價格') + '排序）。</p>'
+                  : '<p class="craft-muted" style="margin-bottom:8px">符合條件 ' + res.list.length.toLocaleString() + ' 項（此視角下：賣速高 ' + res.cntHigh + '、賣速低 ' + res.cntLow + '、成交太少無法比較 ' + res.cntNone + '）。</p>') +
         '<div class="market-hot-list">' +
           top.map(function (e, i) {
-            const v = e.value;
+            const v = res.rare ? e.price : e.value;
             const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
             const barColor = v >= 0 ? '#c5a059' : '#f87171';
             let sub = '';
-            if (ui.metric === 'changePct') sub = '均價 ' + fmtGil(e.P[4]) + '→' + fmtGil(e.P[2]) + '（' + e.P[1] + '／' + e.P[3] + '筆・' + tierLabel(e.P) + '）　賣速 ' + e.vel.toFixed(1) + '/天';
+            if (res.rare) sub = (e.recent.price != null ? '最近一筆成交 ' + fmtGil(e.recent.price) + ' 金（' + hotAgo(e.recent.ts) + '）' : '沒有成交紀錄（只有掛單）') + '　目前最低掛單 ' + (e.minL != null ? fmtGil(e.minL) + ' 金' : '沒有') + (e.vel > 0 ? '　賣速 ' + e.vel.toFixed(1) + '/天' : '');
+            else if (ui.metric === 'changePct') sub = '均價 ' + fmtGil(e.P[4]) + '→' + fmtGil(e.P[2]) + '（' + e.P[1] + '／' + e.P[3] + '筆・' + tierLabel(e.P) + '）　賣速 ' + e.vel.toFixed(1) + '/天';
             else if (ui.metric === 'velocity') sub = 'NQ ' + e.nqV.toFixed(1) + '　HQ ' + e.hqV.toFixed(1) + (e.P ? '　均價 ' + fmtGil(e.P[4]) : '');
             else sub = '均價 ' + fmtGil(e.P[4]) + '（' + e.P[3] + '筆・' + tierLabel(e.P) + '）　賣速 ' + e.vel.toFixed(1) + '/天';
             return '<div class="market-hot-item" data-mk-hot-item="' + e.id + '"><div class="market-hot-row">' +
               '<span class="market-hot-rank">' + (i + 1) + '</span>' + itemIconHtml(e.id, 30) +
               '<span class="market-hot-name">' + (ITEM_NAMES_TW_ALL[e.id] || ('#' + e.id)) + (e.minP != null ? '<span class="market-hot-price" title="掛單資料要等玩家上傳才更新，可能已變動；只供參考，不參與任何計算">' + fmtGil(e.minP) + '金</span>' : '') + '</span>' +
               '<div class="market-hot-bar-track"><div class="market-hot-bar" style="width:' + barPct + '%;background:' + barColor + '"></div></div>' +
-              '<span class="market-hot-value">' + metricDef.fmt(v) + '</span>' +
+              '<span class="market-hot-value">' + (res.rare ? fmtGil(v) + ' 金' : metricDef.fmt(v)) + '</span>' +
             '</div><div class="market-hot-subline">' + sub + '</div></div>';
           }).join('') +
         '</div>' +
         (res.list.length > top.length ? '<button type="button" class="market-history-btn" id="mk-hot-more" style="margin-top:8px">顯示更多（還有 ' + (res.list.length - top.length).toLocaleString() + ' 項）</button>' : '') +
         '<p class="craft-muted" style="margin-top:8px">資料來源：Universalis 成交紀錄，由 GitHub Actions 每小時預先計算，涵蓋陸行鳥全部可交易道具（有成交才會列入）。' +
-        '漲跌＝短窗口成交均價對長窗口成交均價（長窗口包含短窗口，都從「現在」算起）；高頻＝24小時對48小時，低頻＝3天對7天（高頻成交筆數不夠才進低頻）；短窗口至少3筆、長窗口至少5筆成交才會列入。' +
+        '漲跌＝短窗口成交均價對長窗口成交均價（長窗口包含短窗口，都從「現在」算起）；賣速高＝24小時內對48小時內，賣速低＝3天內對7天內（賣速高的成交筆數不夠才歸到賣速低）；短窗口至少3筆、長窗口至少5筆成交才會列入，成交更少的道具在「成交稀少」裡找。' +
         '價格帶依長窗口均價分。綠色數字是掛單最低價，掛單資料可能已變動，只供參考。最後更新：' + generated.toLocaleString() + '。</p>';
       body.querySelectorAll('[data-mk-hot-item]').forEach(function (el) { el.addEventListener('click', function () { openItemDetail(el.dataset.mkHotItem); }); });
       const more = $('mk-hot-more'); if (more) more.addEventListener('click', function () { ui.shown += 30; renderPre(); });

@@ -135,11 +135,16 @@ window.MarketData = (function () {
   }
 
   async function listDcNames() { await ensureMeta(); return dcList.map(function (d) { return d.name; }); }
+  /* 系統上存在、但玩家不能加入的世界（例如拉姆）：所有「讓使用者選世界」的畫面（設定裡的我的世界、熱度排行、
+   * 物品詳情的世界下拉、生產頁的市場設定…）都是從這個函式取得世界清單，所以只要在這裡過濾一次就全部隱藏了。
+   * 資料本身（預先計算的資料檔、判斷某個世界是否屬於資料中心）不受影響；日後要重新顯示，把 SHOW_HIDDEN_WORLDS 改成 true。 */
+  const HIDDEN_WORLDS = ['拉姆'];
+  const SHOW_HIDDEN_WORLDS = false;
   async function listWorldNamesInDc(dcName) {
     await ensureMeta();
     const dc = dcList.find(function (d) { return d.name === dcName; });
     if (!dc) return [];
-    return dc.worlds.map(worldName);
+    return dc.worlds.map(worldName).filter(function (n) { return SHOW_HIDDEN_WORLDS || HIDDEN_WORLDS.indexOf(n) === -1; });
   }
 
   function getSettings() { return Object.assign({}, settings); }
@@ -205,9 +210,10 @@ window.MarketData = (function () {
       all = all.concat(entries);
       const earliest = entries[entries.length - 1].timestamp; // Universalis回傳是新到舊排序
       const reachedCutoff = earliest <= cutoff; // 已經翻到涵蓋目標天數了，不用再翻下去
-      if (onProgress) onProgress(all.filter(function (h) { return h.timestamp >= cutoff; }), reachedCutoff || entries.length < 1800);
+      if (onProgress) onProgress(all.filter(function (h) { return h.timestamp >= cutoff; }), false);
       if (reachedCutoff) break;
-      if (entries.length < 1800) break; // 這一頁沒滿＝已經是全部了
+      // 注意：這裡「不能」因為這一頁沒滿1800筆就停。Universalis 的第一頁預設只回最近7天的成交，
+      // 成交不多的道具7天內可能只有幾十筆（遠不到1800），但7天以前還有資料；只有「往更舊的方向再要一頁卻是空的」才代表真的沒有了。
       if (entriesUntil != null && earliest >= entriesUntil) break; // 保險：翻頁沒有前進，停下來避免無限迴圈
       entriesUntil = earliest - 1;
     }
