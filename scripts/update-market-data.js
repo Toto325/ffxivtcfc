@@ -16,12 +16,16 @@
  *   meta.json      產生時間、各範圍檔名與道具數、門檻設定、請求統計
  *   dc.json        所有世界（各世界成交合併）
  *   w<世界ID>.json 每個世界
- * 每個檔案：{ v:1, scope, items: { "<道具ID>": [賣速NQ, 賣速HQ, 最低掛單價|null, P全部, PNQ, PHQ, D, Q] } }
+ * 每個檔案：{ v:1, scope, items: { "<道具ID>": [賣速NQ, 賣速HQ, 最低掛單價|null, P全部, PNQ, PHQ, D|null, Q, S] } }
  *   P = null 或 [頻率(1高頻/2低頻), 短窗口筆數, 短窗口均價, 長窗口筆數, 長窗口均價, 長窗口成交金額(單價×數量加總)]
  *   D = 「全部」視角的四個窗口，給物品詳情頁的均價徽章用：[24小時筆數, 24小時均價, 48小時筆數, 48小時均價,
  *       3天筆數, 3天均價, 7天筆數, 7天均價]（沒有查7天資料的道具，後四個是 null；沒有成交的窗口均價是 null）
  *   Q = [NQ最低掛單價|null, HQ最低掛單價|null]（機會雷達切到「掛單最低價」基準、並選了NQ／HQ視角時用；
  *       第3欄的「最低掛單價」是兩者的較小值）。掛單資料要等玩家上傳才會更新，最多會有約一小時的延遲，只當價格參考。
+ *   S = [NQ最近一筆成交價|null, NQ成交時間(秒)|null, HQ最近一筆成交價|null, HQ成交時間(秒)|null]
+ *       （Universalis 記錄的「最近一筆成交」，不限時間範圍；給熱度排行的「成交稀少」清單用——高價、很久才賣出一件的道具，
+ *       窗口內湊不出足夠成交筆數算漲跌，但仍然要讓使用者找得到它們最近賣多少、現在掛多少）
+ *   沒有賣速的道具（近4天沒成交）只要有掛單或有最近成交紀錄，也會列進來（P、D 都是 null），否則這些道具就不見了。
  *
  * 安全機制：失敗率太高、或道具數量比上一次少太多，整支腳本以非0結束，workflow 就不會推送，
  * 舊資料原封不動（不會拿殘缺／空白的資料覆蓋掉好的資料）。
@@ -150,6 +154,14 @@ async function probeWorldEmpty(worldName, itemIds) {
   }
   return true;
 }
+/* 最近一筆成交：{price, ts(秒)}。timestamp 可能是毫秒或秒，統一成秒；欄位不存在就是 null（前端會容許沒有） */
+function parseRecent(node) {
+  const n = pickWorldNode(node);
+  if (!n || !(n.price > 0)) return null;
+  let ts = Number(n.timestamp) || null;
+  if (ts && ts > 1e12) ts = Math.floor(ts / 1000);
+  return { price: Math.round(n.price), ts: ts };
+}
 async function fetchAggregated(worldName, itemIds) {
   const info = {}; // id -> { vN, vH, minP }
   let failedChunks = 0;
@@ -164,6 +176,7 @@ async function fetchAggregated(worldName, itemIds) {
         const mN = pickWorldNode(nq.minListing), mH = pickWorldNode(hq.minListing);
         const prices = [mN && mN.price, mH && mH.price].filter(function (p) { return p > 0; });
         info[r.itemId] = {
+          rN: parseRecent(nq.recentPurchase), rH: parseRecent(hq.recentPurchase),
           vN: (vN && vN.quantity) || 0, vH: (vH && vH.quantity) || 0,
           minP: prices.length ? Math.min.apply(null, prices) : null,
           minN: mN && mN.price > 0 ? mN.price : null, minH: mH && mH.price > 0 ? mH.price : null,
@@ -324,7 +337,7 @@ async function main() {
       if (!h || h.failed) { failedItems++; return; }
       const acc = newAcc();
       accumulate(acc, h.entries, nowSec, false);
-      table[id] = { acc: acc, has7d: false };
+      table[id] = { acc: acc, has7d: false, active: true };
       // 全部視角連高頻都不夠 → 需要7天資料才有機會進低頻榜
       if (buildP(acc.all, false) === null) needB.push(id);
     });
@@ -337,16 +350,27 @@ async function main() {
         if (!h || h.failed || h.capped) return; // 沒抓全就不算低頻（寧可缺，不要算錯）
         const acc = newAcc();
         accumulate(acc, h.entries, nowSec, true);
-        table[id] = { acc: acc, has7d: true };
+        table[id] = { acc: acc, has7d: true, active: true };
       });
     }
     Object.keys(table).forEach(function (id) {
       const i = agg.info[id];
       table[id].vN = i.vN; table[id].vH = i.vH; table[id].minP = i.minP; table[id].minN = i.minN; table[id].minH = i.minH;
+      table[id].rN = i.rN; table[id].rH = i.rH;
+    });
+    // 近4天沒有成交的道具：只要有掛單或有「最近一筆成交」紀錄就保留（熱度排行的「成交稀少」清單要用）
+    let sparse = 0;
+    itemIds.forEach(function (id) {
+      if (table[id]) return;
+      const i = agg.info[id];
+      if (!i || (i.vN + i.vH) > 0) return; // 有賣速但歷史沒抓到的不算（避免把「抓失敗」當成「成交稀少」）
+      if (i.minP == null && !i.rN && !i.rH) return;
+      table[id] = { acc: newAcc(), has7d: false, active: false, vN: 0, vH: 0, minP: i.minP, minN: i.minN, minH: i.minH, rN: i.rN, rH: i.rH };
+      sparse++;
     });
     // 只有掛單、沒有賣速的道具：保留最低掛單價當畫面參考（不進排行，因為沒有成交）
     perWorld[w.id] = table;
-    console.log(w.name + '：有賣速 ' + active.length + ' 項，低頻補查 ' + needB.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
+    console.log(w.name + '：有賣速 ' + active.length + ' 項，成交稀少 ' + sparse + ' 項，低頻補查 ' + needB.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
   }
 
   // 4) 輸出各範圍
@@ -361,8 +385,9 @@ async function main() {
       const row = [
         Math.round(t.vN * 10) / 10, Math.round(t.vH * 10) / 10, t.minP == null ? null : Math.round(t.minP),
         buildP(t.acc.all, t.has7d), buildP(t.acc.nq, t.has7d), buildP(t.acc.hq, t.has7d),
-        buildD(t.acc.all, t.has7d),
+        t.active ? buildD(t.acc.all, t.has7d) : null,
         [t.minN == null ? null : Math.round(t.minN), t.minH == null ? null : Math.round(t.minH)],
+        [t.rN ? t.rN.price : null, t.rN ? t.rN.ts : null, t.rH ? t.rH.price : null, t.rH ? t.rH.ts : null],
       ];
       items[id] = row; count++;
     });
@@ -374,13 +399,16 @@ async function main() {
 
   const dcTable = {};
   dcWorlds.forEach(function (w) {
-    const tbl = perWorld[w.id];
+    const tbl = perWorld[w.id] || {};
     Object.keys(tbl).forEach(function (id) {
       const src = tbl[id];
       let dst = dcTable[id];
-      if (!dst) { dst = dcTable[id] = { acc: newAcc(), has7d: true, vN: 0, vH: 0, minP: null, minN: null, minH: null }; }
+      if (!dst) { dst = dcTable[id] = { acc: newAcc(), has7d: true, active: false, vN: 0, vH: 0, minP: null, minN: null, minH: null, rN: null, rH: null }; }
+      if (src.active) dst.active = true;
+      // 最近一筆成交：各世界取「時間最新」的那一筆
+      ['rN', 'rH'].forEach(function (k) { if (src[k] && (!dst[k] || (src[k].ts || 0) > (dst[k].ts || 0))) dst[k] = src[k]; });
       mergeAcc(dst.acc, src.acc);
-      dst.has7d = dst.has7d && src.has7d; // 只要有一個世界沒有7天資料，DC 範圍就不算低頻（寧缺勿錯）
+      if (src.active) dst.has7d = dst.has7d && src.has7d; // 只要有一個「有成交」的世界沒有7天資料，DC 範圍就不算低頻（寧缺勿錯）；只有掛單沒成交的世界不影響
       dst.vN += src.vN; dst.vH += src.vH;
       if (src.minP != null) dst.minP = dst.minP == null ? src.minP : Math.min(dst.minP, src.minP);
       if (src.minN != null) dst.minN = dst.minN == null ? src.minN : Math.min(dst.minN, src.minN);
