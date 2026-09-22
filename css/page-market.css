@@ -172,6 +172,12 @@
 .market-price-table{width:100%;border-collapse:collapse;font-size:13px}
 .market-price-table th{text-align:left;color:var(--dim);font-weight:normal;padding:5px 8px;
   background:var(--bg);border-bottom:1px solid var(--tb)}
+/* 製作商機表格：標題列固定在捲動容器頂端，往下捲很多列時仍看得到欄位名稱 */
+.market-radar-scroll{max-height:60vh;overflow:auto}
+.market-radar-scroll .market-price-table th{position:sticky;top:0;z-index:2}
+.market-radar-mat-toggle{background:none;border:none;color:var(--gold);cursor:pointer;padding:0 3px 0 0;font-size:10px}
+.market-radar-mat-toggle:hover{color:var(--gold-bright)}
+.market-radar-breakdown-wrap+.market-radar-breakdown-wrap{margin-top:6px}
 .market-price-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
 /* HQ標示：文字加亮＋外框，NQ不加任何符號 */
 .market-hq-tag{color:var(--gold-bright);font-size:10px;border:1px solid rgba(197,160,89,.5);border-radius:3px;padding:0 4px;font-weight:600;vertical-align:1px}
