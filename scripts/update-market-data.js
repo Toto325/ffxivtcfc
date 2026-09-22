@@ -51,7 +51,7 @@ const MAX_FAIL_RATIO = 0.05;
 const MIN_KEEP_RATIO = 0.7;
 const UA = 'xiv-craft-helper-market-bot' + (process.env.GITHUB_REPOSITORY ? ' (github.com/' + process.env.GITHUB_REPOSITORY + ')' : '');
 
-const H24 = 86400, H48 = 172800, D3 = 259200, D7 = 604800;
+const H24 = 86400, H48 = 172800, D3 = 259200, D7 = 604800, D30 = 2592000;
 const MIN_SHORT = 3, MIN_LONG = 5;
 const HISTORY_CAP = 1800; // 單次請求每個道具最多回傳的成交筆數
 const AGG_CHUNK = 100;    // 聚合端點一次最多 100 個道具
@@ -247,23 +247,29 @@ async function fetchHistory(worldName, ids, within, needCoverSec, nowSec) {
   return result;
 }
 
-/* ── 窗口統計：每個視角（全部／NQ／HQ）在 24h、48h、3d、7d 內的 筆數、單價加總、成交金額加總 ── */
+/* ── 窗口統計：每個視角（全部／NQ／HQ）在 24h、48h、3d、7d、30d 內的 筆數、單價加總、成交金額加總 ──
+ * 三段抓取、三個頻率級距，逐級退讓，不設一個固定的賣速門檻：
+ *   賣速高：24小時內 vs 48小時內（成交夠密集，看最近的變化就夠準）
+ *   賣速中：3天內 vs 7天內（賣速高那組筆數不夠時退這一步）
+ *   成交稀少：7天內 vs 30天內（賣速中還是不夠——例如高價道具好幾天才成交一次——用更長的時間換取足夠筆數，
+ *             但仍然是「有持續成交」的道具，跟完全沒人買的道具不一樣）
+ * accumulate 每次都把5個窗口全部填好，未涵蓋到的時間範圍自然不會有任何成交落進去（不會是錯誤的0，
+ * 只是還沒抓那麼遠），buildP 依序嘗試三個級距，遇到資料不足就試下一個更長的，全部不夠才回傳 null。 */
 const PERSP = ['all', 'nq', 'hq'];
 function emptyW() { return { n: 0, sp: 0, sv: 0 }; }
 function newAcc() {
   const a = {};
-  PERSP.forEach(function (p) { a[p] = [emptyW(), emptyW(), emptyW(), emptyW()]; }); // 24h, 48h, 3d, 7d
+  PERSP.forEach(function (p) { a[p] = [emptyW(), emptyW(), emptyW(), emptyW(), emptyW()]; }); // 24h, 48h, 3d, 7d, 30d
   return a;
 }
-function accumulate(acc, entries, nowSec, with7d) {
-  const limits = [H24, H48, D3, D7];
-  const maxIdx = with7d ? 4 : 2;
+function accumulate(acc, entries, nowSec) {
+  const limits = [H24, H48, D3, D7, D30];
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
     const age = nowSec - e.ts;
     if (age < -60) continue; // 時鐘誤差保護
     const targets = e.hq ? ['all', 'hq'] : ['all', 'nq'];
-    for (let w = 0; w < maxIdx; w++) {
+    for (let w = 0; w < limits.length; w++) {
       if (age <= limits[w]) {
         for (const p of targets) {
           const cell = acc[p][w];
@@ -275,21 +281,25 @@ function accumulate(acc, entries, nowSec, with7d) {
 }
 function mergeAcc(into, from) {
   PERSP.forEach(function (p) {
-    for (let w = 0; w < 4; w++) { into[p][w].n += from[p][w].n; into[p][w].sp += from[p][w].sp; into[p][w].sv += from[p][w].sv; }
+    for (let w = 0; w < 5; w++) { into[p][w].n += from[p][w].n; into[p][w].sp += from[p][w].sp; into[p][w].sv += from[p][w].sv; }
   });
 }
-/* 依窗口統計決定「這個道具在這個視角是高頻還是低頻」，並輸出精簡陣列。資料不夠就是 null。 */
-function buildP(win, has7d) {
-  const w24 = win[0], w48 = win[1], w3 = win[2], w7 = win[3];
-  if (w24.n >= MIN_SHORT && w48.n >= MIN_LONG) return [1, w24.n, Math.round(w24.sp / w24.n), w48.n, Math.round(w48.sp / w48.n), Math.round(w48.sv)];
-  if (has7d && w3.n >= MIN_SHORT && w7.n >= MIN_LONG) return [2, w3.n, Math.round(w3.sp / w3.n), w7.n, Math.round(w7.sp / w7.n), Math.round(w7.sv)];
+/* 依窗口統計決定這個道具落在哪個頻率級距，並輸出精簡陣列（P[0]：1=賣速高、2=賣速中、3=成交稀少）。
+ * 三個級距都不夠資料就回傳 null（連「成交稀少」都夠不上，代表這30天內幾乎沒有成交）。
+ * P[5]（成交金額）是窗口內的原始加總，沒有除以天數，交由讀取端依窗口天數自己換算成「每天」。 */
+function buildP(win) {
+  const w24 = win[0], w48 = win[1], w3 = win[2], w7 = win[3], w30 = win[4];
+  const avg = function (w) { return Math.round(w.sp / w.n); };
+  if (w24.n >= MIN_SHORT && w48.n >= MIN_LONG) return [1, w24.n, avg(w24), w48.n, avg(w48), Math.round(w48.sv)];
+  if (w3.n >= MIN_SHORT && w7.n >= MIN_LONG) return [2, w3.n, avg(w3), w7.n, avg(w7), Math.round(w7.sv)];
+  if (w7.n >= MIN_SHORT && w30.n >= MIN_LONG) return [3, w7.n, avg(w7), w30.n, avg(w30), Math.round(w30.sv)];
   return null;
 }
 
-/* 「全部」視角的四個窗口原始統計（詳情頁的均價徽章要的是「24小時內成交均價」，不管這個道具屬於高頻還是低頻） */
-function buildD(win, has7d) {
+/* 「全部」視角的四個窗口原始統計（詳情頁的均價徽章要的是「24小時內成交均價」，不管這個道具屬於哪個頻率級距） */
+function buildD(win, reachedD7) {
   const avg = function (w) { return w.n ? Math.round(w.sp / w.n) : null; };
-  return [win[0].n, avg(win[0]), win[1].n, avg(win[1]), has7d ? win[2].n : null, has7d ? avg(win[2]) : null, has7d ? win[3].n : null, has7d ? avg(win[3]) : null];
+  return [win[0].n, avg(win[0]), win[1].n, avg(win[1]), reachedD7 ? win[2].n : null, reachedD7 ? avg(win[2]) : null, reachedD7 ? win[3].n : null, reachedD7 ? avg(win[3]) : null];
 }
 
 async function main() {
@@ -325,9 +335,12 @@ async function main() {
       continue;
     }
     const agg = await fetchAggregated(w.name, itemIds);
-    const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH) > 0; });
+    // 「有交易跡象」的候選：賣速>0，或賣速被Universalis四捨五入成0但仍有「最近一筆成交」紀錄
+    // （幾天才成交一次的高價道具常常是這種情況——這正是「成交稀少」級距要抓住的對象，
+    // 不能只看賣速>0，不然這批道具連第一步的48小時查詢都不會被派到）。
+    const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH > 0 || i.rN || i.rH); });
 
-    // 階段A：48小時成交（有賣速的道具）
+    // 階段A：48小時成交（賣速高這個級距）
     const histA = await fetchHistory(w.name, active, H48, H48, nowSec);
     const table = {};
     const needB = [];
@@ -336,21 +349,34 @@ async function main() {
       const h = histA[id];
       if (!h || h.failed) { failedItems++; return; }
       const acc = newAcc();
-      accumulate(acc, h.entries, nowSec, false);
-      table[id] = { acc: acc, has7d: false, active: true };
-      // 全部視角連高頻都不夠 → 需要7天資料才有機會進低頻榜
-      if (buildP(acc.all, false) === null) needB.push(id);
+      accumulate(acc, h.entries, nowSec);
+      table[id] = { acc: acc, reachedD7: false, active: true };
+      if (buildP(acc.all) === null) needB.push(id); // 賣速高這個級距不夠資料 → 試著抓更長的範圍
     });
 
-    // 階段B：7天成交（只查低頻候選）
+    // 階段B：7天成交（賣速中這個級距）
+    const needC = [];
     if (needB.length) {
       const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
       needB.forEach(function (id) {
         const h = histB[id];
-        if (!h || h.failed || h.capped) return; // 沒抓全就不算低頻（寧可缺，不要算錯）
+        if (!h || h.failed || h.capped) return; // 沒抓全就不覆蓋（保留階段A的結果，寧可缺，不要算錯）
         const acc = newAcc();
-        accumulate(acc, h.entries, nowSec, true);
-        table[id] = { acc: acc, has7d: true, active: true };
+        accumulate(acc, h.entries, nowSec);
+        table[id] = { acc: acc, reachedD7: true, active: true };
+        if (buildP(acc.all) === null) needC.push(id); // 賣速中還是不夠 → 再試更長的30天
+      });
+    }
+
+    // 階段C：30天成交（成交稀少這個級距——賣速中都不夠資料，例如好幾天才賣出一件的高價道具）
+    if (needC.length) {
+      const histC = await fetchHistory(w.name, needC, D30, D30, nowSec);
+      needC.forEach(function (id) {
+        const h = histC[id];
+        if (!h || h.failed || h.capped) return;
+        const acc = newAcc();
+        accumulate(acc, h.entries, nowSec);
+        table[id] = { acc: acc, reachedD7: true, active: true };
       });
     }
     Object.keys(table).forEach(function (id) {
@@ -358,19 +384,8 @@ async function main() {
       table[id].vN = i.vN; table[id].vH = i.vH; table[id].minP = i.minP; table[id].minN = i.minN; table[id].minH = i.minH;
       table[id].rN = i.rN; table[id].rH = i.rH;
     });
-    // 近4天沒有成交的道具：只要有掛單或有「最近一筆成交」紀錄就保留（熱度排行的「成交稀少」清單要用）
-    let sparse = 0;
-    itemIds.forEach(function (id) {
-      if (table[id]) return;
-      const i = agg.info[id];
-      if (!i || (i.vN + i.vH) > 0) return; // 有賣速但歷史沒抓到的不算（避免把「抓失敗」當成「成交稀少」）
-      if (i.minP == null && !i.rN && !i.rH) return;
-      table[id] = { acc: newAcc(), has7d: false, active: false, vN: 0, vH: 0, minP: i.minP, minN: i.minN, minH: i.minH, rN: i.rN, rH: i.rH };
-      sparse++;
-    });
-    // 只有掛單、沒有賣速的道具：保留最低掛單價當畫面參考（不進排行，因為沒有成交）
     perWorld[w.id] = table;
-    console.log(w.name + '：有賣速 ' + active.length + ' 項，成交稀少 ' + sparse + ' 項，低頻補查 ' + needB.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
+    console.log(w.name + '：有交易跡象 ' + active.length + ' 項，中頻補查 ' + needB.length + ' 項，稀少補查 ' + needC.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
   }
 
   // 4) 輸出各範圍
@@ -384,8 +399,8 @@ async function main() {
       const t = table[id];
       const row = [
         Math.round(t.vN * 10) / 10, Math.round(t.vH * 10) / 10, t.minP == null ? null : Math.round(t.minP),
-        buildP(t.acc.all, t.has7d), buildP(t.acc.nq, t.has7d), buildP(t.acc.hq, t.has7d),
-        t.active ? buildD(t.acc.all, t.has7d) : null,
+        buildP(t.acc.all), buildP(t.acc.nq), buildP(t.acc.hq),
+        t.active ? buildD(t.acc.all, t.reachedD7) : null,
         [t.minN == null ? null : Math.round(t.minN), t.minH == null ? null : Math.round(t.minH)],
         [t.rN ? t.rN.price : null, t.rN ? t.rN.ts : null, t.rH ? t.rH.price : null, t.rH ? t.rH.ts : null],
       ];
@@ -403,12 +418,12 @@ async function main() {
     Object.keys(tbl).forEach(function (id) {
       const src = tbl[id];
       let dst = dcTable[id];
-      if (!dst) { dst = dcTable[id] = { acc: newAcc(), has7d: true, active: false, vN: 0, vH: 0, minP: null, minN: null, minH: null, rN: null, rH: null }; }
+      if (!dst) { dst = dcTable[id] = { acc: newAcc(), reachedD7: true, active: false, vN: 0, vH: 0, minP: null, minN: null, minH: null, rN: null, rH: null }; }
       if (src.active) dst.active = true;
       // 最近一筆成交：各世界取「時間最新」的那一筆
       ['rN', 'rH'].forEach(function (k) { if (src[k] && (!dst[k] || (src[k].ts || 0) > (dst[k].ts || 0))) dst[k] = src[k]; });
       mergeAcc(dst.acc, src.acc);
-      if (src.active) dst.has7d = dst.has7d && src.has7d; // 只要有一個「有成交」的世界沒有7天資料，DC 範圍就不算低頻（寧缺勿錯）；只有掛單沒成交的世界不影響
+      if (src.active) dst.reachedD7 = dst.reachedD7 && src.reachedD7; // 只要有一個「有成交」的世界沒有7天以上資料，DC 範圍就只能用賣速高這個級距（寧缺勿錯）；只有掛單沒成交的世界不影響
       dst.vN += src.vN; dst.vH += src.vH;
       if (src.minP != null) dst.minP = dst.minP == null ? src.minP : Math.min(dst.minP, src.minP);
       if (src.minN != null) dst.minN = dst.minN == null ? src.minN : Math.min(dst.minN, src.minN);
