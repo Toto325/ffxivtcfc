@@ -338,7 +338,12 @@ async function main() {
     // 「有交易跡象」的候選：賣速>0，或賣速被Universalis四捨五入成0但仍有「最近一筆成交」紀錄
     // （幾天才成交一次的高價道具常常是這種情況——這正是「成交稀少」級距要抓住的對象，
     // 不能只看賣速>0，不然這批道具連第一步的48小時查詢都不會被派到）。
-    const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH > 0 || i.rN || i.rH); });
+    // 「有交易跡象」的候選：以前只看「賣速>0」，這樣會漏掉高價、好幾天才成交一次的道具——
+    // Universalis 回報的賣速是四捨五入／取整的估計值，成交太少時常常直接顯示 0，即使那個道具
+    // 其實一直都有人在買賣。改成「賣速>0，或目前市場上有掛單」：只要有掛單，就代表買賣雙方
+    // 都還把這個道具當成活躍商品，值得花一次48小時查詢去確認到底有沒有成交、多久成交一次；
+    // 真正完全沒人要、連掛單都沒有的道具，才會被排除（這些道具本來就沒有漲跌可言）。
+    const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH > 0 || i.minP != null); });
 
     // 階段A：48小時成交（賣速高這個級距）
     const histA = await fetchHistory(w.name, active, H48, H48, nowSec);
