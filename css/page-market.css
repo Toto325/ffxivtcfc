@@ -173,7 +173,6 @@
 .market-price-table th{text-align:left;color:var(--dim);font-weight:normal;padding:5px 8px;
   background:var(--bg);border-bottom:1px solid var(--tb)}
 .market-price-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
-.market-price-table tbody tr:first-child td{color:#4ade80;font-weight:600}
 /* HQ標示：文字加亮＋外框，NQ不加任何符號 */
 .market-hq-tag{color:var(--gold-bright);font-size:10px;border:1px solid rgba(197,160,89,.5);border-radius:3px;padding:0 4px;font-weight:600;vertical-align:1px}
 
@@ -358,8 +357,17 @@ html[data-nav-mode="embed"]:not(.embed-ready) .royal-nav{display:none !important
 .market-hot-filter-label{font-size:12px;color:var(--gold);min-width:44px}
 .market-hot-median{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-top:2px}
 .market-hot-status{margin:0;padding:6px 10px;border-left:3px solid #f0b429;background:rgba(240,180,41,.08);border-radius:0 6px 6px 0;font-size:12px}
-.market-hot-item{cursor:pointer;border-radius:6px;padding-bottom:4px}
-.market-hot-item:hover{background:rgba(197,160,89,.08)}
+
+.market-hot-item{cursor:pointer;border-radius:6px;padding-bottom:4px;transition:background .1s}
+.market-hot-item:hover{background:rgba(197,160,89,.18)}
+tr.market-hot-item{border-radius:0}
+tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
+.market-radar-expand{background:none;border:none;color:var(--gold);font-size:10px;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+.market-radar-expand:hover{color:var(--gold-bright)}
+.market-radar-detail-row td{background:rgba(0,0,0,.25);padding:8px 8px 10px 24px !important}
+.market-radar-breakdown{width:100%;border-collapse:collapse;font-size:11px}
+.market-radar-breakdown th{text-align:left;color:var(--dim);font-weight:normal;padding:3px 6px;border-bottom:1px solid rgba(197,160,89,.15)}
+.market-radar-breakdown td{padding:3px 6px}
 .market-hot-item .market-hot-row:hover{background:none}
 .market-hot-subline{padding:0 8px 0 40px;font-size:11px;color:var(--dim);line-height:1.4}
 @media (max-width:560px){.market-hot-item .market-hot-name{width:110px}.market-hot-subline{padding-left:32px}}
