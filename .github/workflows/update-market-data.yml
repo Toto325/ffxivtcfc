@@ -18,7 +18,7 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - name: 簽出 repo（需要腳本跟繁中道具名稱表）
         uses: actions/checkout@v4
