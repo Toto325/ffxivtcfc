@@ -1784,7 +1784,22 @@
    * 用 itemId（不是配方編號）當入口，這樣同一個函式也能拿去遞迴展開「這項材料自己要用什麼材料做」，
    * 一路往下展開到不能再拆的原料——但只在使用者點開時才算、點開才建立下一層，預設全部收合，
    * 不會一次把整棵樹攤開造成畫面混亂。
-   * 回傳 null 表示這個道具本身沒有配方（不能製作），呼叫端就不會顯示展開按鈕。 */
+   * 回傳 null 表示這個道具本身沒有配方（不能製作），呼叫端就不會顯示展開按鈕。
+   * 重要：「做」欄一定會盡量算出數字，不會因為「買」比較便宜就故意不算——makeCostResolver 只記錄
+   * 「贏的那一個」，這裡改用 craftOnlyCost 另外把「自己做」這條路徑的成本單獨、完整地算一次，
+   * 不管它划不划算都要顯示出來，讓使用者自己比較，而不是只在做比較便宜時才給答案。 */
+  function craftOnlyCost(itemId, byItem, resolveSub) {
+    const recipe = byItem[itemId] && byItem[itemId][0];
+    if (!recipe) return null;
+    let total = 0, ok = true;
+    (recipe.ingredients || []).forEach(function (ing) {
+      const c = resolveSub(ing.itemId); // 更下一層的材料仍然各自選較便宜（買或做），這樣「做」的成本才是最低可能的自己做成本
+      if (!c) { ok = false; return; }
+      total += c.cost * ing.amount;
+    });
+    if (!ok) return null;
+    return total / (recipe.yields || 1);
+  }
   function materialBreakdown(itemId, dcData, basis) {
     const byItem = getRecipesByItem();
     const recipe = byItem[itemId] && byItem[itemId][0];
@@ -1794,11 +1809,12 @@
     const yields = recipe.yields || 1;
     const rows = (recipe.ingredients || []).map(function (ing) {
       const buy = resolveBuy(ing.itemId);
-      const auto = resolveAuto(ing.itemId);
+      const auto = resolveAuto(ing.itemId); // 「較便宜的那個」，決定「採用」欄要顯示買還是做
+      const craftCost = craftOnlyCost(ing.itemId, byItem, resolveAuto); // 「做」欄：不管划不划算，能算就一定顯示
       return {
         itemId: ing.itemId, amount: ing.amount,
         buy: buy ? buy.cost : null,
-        craft: auto && auto.mode === 'craft' ? auto.cost : null,
+        craft: craftCost,
         chosen: auto ? auto.mode : null,
         craftable: !!(byItem[ing.itemId] && byItem[ing.itemId][0]),
       };
@@ -1818,20 +1834,29 @@
       : (bd.totalAuto != null ? '每 1 個材料成本（部分材料市場沒有價格，只能算自動選較便宜）：<span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金</span>' : '<span class="craft-muted">材料成本無法完整估算（部分項目沒有價格）</span>');
     return '<div class="market-radar-breakdown-wrap" style="margin-left:' + (depth * 16) + 'px">' +
       (depth > 0 ? '<p class="craft-muted" style="font-size:10px;margin:2px 0">' + summary + '</p>' : '') +
-      '<table class="market-radar-breakdown"><thead><tr><th>材料</th><th>需求</th><th>買</th><th>做</th><th>採用</th></tr></thead><tbody>' +
+      '<table class="market-radar-breakdown"><thead><tr><th>材料</th><th>需求</th><th>買</th><th>差距</th><th>做</th><th>採用</th></tr></thead><tbody>' +
       bd.rows.map(function (p) {
         const buyTxt = p.buy != null ? fmtGil(p.buy) + ' 金' : '沒有價格';
-        const craftTxt = p.craft != null ? fmtGil(p.craft) + ' 金' : (p.craftable ? '算不出來' : '不能製作');
+        const craftTxt = p.craft != null ? fmtGil(p.craft) + ' 金' : (p.craftable ? '材料沒有價格，算不出來' : '不能製作');
         const buyWins = p.chosen === 'buy' || p.craft == null;
+        // 「差距」欄：買跟做兩個都有數字時，直接算出貴多少／省多少，不用使用者自己心算比較
+        let diffTxt = '<span class="craft-muted">－</span>';
+        if (p.buy != null && p.craft != null) {
+          const diff = p.buy - p.craft; // 正值＝做比較便宜（買比做貴diff），負值＝買比較便宜
+          if (Math.abs(diff) < 0.5) diffTxt = '<span class="craft-muted">打平</span>';
+          else if (diff > 0) diffTxt = '<span style="color:#4ade80">做省 ' + fmtGil(diff) + '</span>';
+          else diffTxt = '<span style="color:#4ade80">買省 ' + fmtGil(-diff) + '</span>';
+        }
         const canExpand = p.craftable && depth < MAT_BREAKDOWN_MAX_DEPTH;
         return '<tr class="market-radar-mat-row" data-mat-item="' + p.itemId + '" data-mat-depth="' + (depth + 1) + '">' +
           '<td>' + (canExpand ? '<button type="button" class="market-radar-mat-toggle" data-mat-toggle="' + p.itemId + '-' + depth + '">▸</button> ' : '') + (ITEM_NAMES_TW_ALL[p.itemId] || p.itemId) + '</td><td>×' + p.amount + '</td>' +
           '<td style="color:' + (buyWins && p.buy != null ? '#4ade80' : 'inherit') + '">' + buyTxt + '</td>' +
+          '<td>' + diffTxt + '</td>' +
           '<td style="color:' + (!buyWins && p.craft != null ? '#4ade80' : 'inherit') + '">' + craftTxt + '</td>' +
           '<td>' + (p.chosen === 'craft' ? '<span style="color:#4ade80">自己做</span>' : (p.chosen === 'buy' ? '直接買' : '－')) + '</td></tr>' +
-          (canExpand ? '<tr class="market-radar-mat-nested" data-mat-nested="' + p.itemId + '-' + depth + '" style="display:none"><td colspan="5"></td></tr>' : '');
+          (canExpand ? '<tr class="market-radar-mat-nested" data-mat-nested="' + p.itemId + '-' + depth + '" style="display:none"><td colspan="6"></td></tr>' : '');
       }).join('') + '</tbody></table>' +
-      (depth === 0 ? '<p class="craft-muted" style="font-size:10px;margin-top:4px">「買」「做」兩欄較便宜的那個標成綠色；點材料名稱前的 ▸ 可以再往下看那項材料自己要用什麼做、劃不划算（最多展開 ' + MAT_BREAKDOWN_MAX_DEPTH + ' 層）。</p>' : '') +
+      (depth === 0 ? '<p class="craft-muted" style="font-size:10px;margin-top:4px">「買」「做」兩欄較便宜的那個標成綠色，「差距」欄直接告訴你貴多少／省多少；點材料名稱前的 ▸ 可以再往下看那項材料自己要用什麼做、不划算（最多展開 ' + MAT_BREAKDOWN_MAX_DEPTH + ' 層）。</p>' : '') +
       '</div>';
   }
 
@@ -2030,7 +2055,7 @@
           if (r.costBuy != null && r.costAuto != null) {
             const save = r.costBuy - r.costAuto, pct = r.costBuy > 0 ? (save / r.costBuy) * 100 : 0;
             if (save <= 0.5) craftNote = BUY + '材料已經是最便宜的做法';
-            else if (pct < 5) craftNote = BUY + '材料就好（' + CRAFT_DIM + '只省 ' + fmtGil(save) + ' 金・' + pct.toFixed(1) + '%，划不來）';
+            else if (pct < 5) craftNote = BUY + '材料就好（' + CRAFT_DIM + '只省 ' + fmtGil(save) + ' 金・' + pct.toFixed(1) + '%，不划算）';
             else craftNote = CRAFT + '材料比較划算（比' + BUY_DIM + '省 ' + fmtGil(save) + ' 金・' + pct.toFixed(1) + '%）' + (ui.matMode === 'auto' && r.craftedN ? '，已套用（' + r.craftedN + ' 項）' : '，可切換「材料成本」試試');
           } else if (r.costBuy == null && r.costAuto != null) craftNote = '有些材料市場上沒有人賣，只能' + CRAFT + '（成本 ' + fmtGil(r.costAuto) + ' 金）';
           const trendColor = r.change >= 0 ? '#4ade80' : '#f87171';
