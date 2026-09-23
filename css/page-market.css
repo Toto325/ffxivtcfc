@@ -175,7 +175,7 @@
 /* 製作商機表格：標題列固定在捲動容器頂端，往下捲很多列時仍看得到欄位名稱 */
 .market-radar-scroll{max-height:60vh;overflow:auto}
 .market-radar-scroll .market-price-table th{position:sticky;top:0;z-index:2}
-.market-radar-mat-toggle{background:none;border:none;color:var(--gold);cursor:pointer;padding:0 3px 0 0;font-size:10px}
+.market-radar-mat-toggle{background:none;border:none;color:var(--gold);cursor:pointer;padding:1px 5px 1px 1px;font-size:13px;line-height:1}
 .market-radar-mat-toggle:hover{color:var(--gold-bright)}
 .market-radar-breakdown-wrap+.market-radar-breakdown-wrap{margin-top:6px}
 .market-price-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
@@ -368,7 +368,7 @@ html[data-nav-mode="embed"]:not(.embed-ready) .royal-nav{display:none !important
 .market-hot-item:hover{background:rgba(197,160,89,.18)}
 tr.market-hot-item{border-radius:0}
 tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
-.market-radar-expand{background:none;border:none;color:var(--gold);font-size:10px;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+.market-radar-expand{background:none;border:none;color:var(--gold);font-size:12px;cursor:pointer;padding:2px 4px;text-decoration:underline;text-underline-offset:2px}
 .market-radar-expand:hover{color:var(--gold-bright)}
 .market-radar-detail-row td{background:rgba(0,0,0,.25);padding:8px 8px 10px 24px !important}
 .market-radar-breakdown{width:100%;border-collapse:collapse;font-size:11px}
