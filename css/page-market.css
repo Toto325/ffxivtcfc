@@ -182,7 +182,17 @@
 /* 手機版整頁本來就自然往下長，沒有外層捲動區，維持原本自己捲的做法 */
 @media (max-width:720px){.market-radar-scroll{max-height:60vh;overflow:auto}}
 /* 材料明細裡的展開按鈕：加大點擊範圍（整列也可以點） */
-.market-radar-mat-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:28px;padding:0 8px;margin-right:6px;
+/* 展開按鈕獨立一欄：不佔用材料名稱的寬度，名稱不會被擠到換行 */
+.market-radar-breakdown-wrap{margin-left:calc(var(--d,0) * 16px);overflow-x:auto}
+.market-radar-breakdown .market-radar-togcol{width:1%;white-space:nowrap;padding-left:2px;padding-right:2px;text-align:center}
+.market-radar-breakdown .market-radar-matname{min-width:5em}
+@media (max-width:720px){
+  .market-radar-breakdown-wrap{margin-left:calc(var(--d,0) * 6px)}
+  .market-radar-detail-row td{padding-left:6px !important;padding-right:4px !important}
+  .market-radar-breakdown{font-size:10.5px}
+  .market-radar-breakdown th,.market-radar-breakdown td{padding:3px 3px}
+}
+.market-radar-mat-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:28px;padding:0;
   background:rgba(197,160,89,.12);border:1px solid rgba(197,160,89,.45);border-radius:6px;color:var(--gold);cursor:pointer;font-size:15px;line-height:1;vertical-align:middle}
 .market-radar-mat-toggle:hover{background:rgba(197,160,89,.25);color:var(--gold-bright)}
 @media (pointer:coarse){.market-radar-mat-toggle{min-width:40px;height:36px;font-size:17px}}
