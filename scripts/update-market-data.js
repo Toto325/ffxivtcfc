@@ -47,7 +47,14 @@ const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 100); // 約每秒
 // 這些世界會先用3個分散的小樣本探測，如果全部查不到東西就整個略過，不浪費時間、也不會被算成失敗。
 // 其他世界不在這個名單裡，仍然要完整查，查不到會算失敗（那代表真的出問題了）。
 const EMPTY_OK_WORLDS = (process.env.EMPTY_OK_WORLDS || '拉姆').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-const MAX_FAIL_RATIO = 0.05;
+// 「完整或不發布」：每個 (世界, 道具) 要嘛完整算出來，要嘛整個道具這一輪都不出現在任何範圍（世界、所有世界），
+// 不會有「一部分道具有完整統計、一部分只有殘缺資料」或「某個世界少算、所有世界卻照樣合併」的情況。
+// 補抓之後還是失敗的道具超過這個比例，就不發布這一輪（舊資料整份原封不動）。
+const MAX_UNRESOLVED_RATIO = Number(process.env.MAX_UNRESOLVED_RATIO || 0.003);
+const REPAIR_ROUNDS = Number(process.env.REPAIR_ROUNDS || 3);
+const REPAIR_CONCURRENCY = Number(process.env.REPAIR_CONCURRENCY || 3);
+const REPAIR_DEADLINE = Date.now() + Number(process.env.REPAIR_DEADLINE_MIN || 38) * 60 * 1000; // 超過就不再補抓（workflow 上限是55分鐘）
+const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 60000); // 沒有逾時的話，一個卡住的連線就能讓整支腳本掛到 workflow 上限
 const MIN_KEEP_RATIO = 0.7;
 const UA = 'xiv-craft-helper-market-bot' + (process.env.GITHUB_REPOSITORY ? ' (github.com/' + process.env.GITHUB_REPOSITORY + ')' : '');
 
@@ -80,7 +87,7 @@ async function fetchJson(url, tries) {
     await acquire();
     let res = null;
     try {
-      res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+      res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'application/json' }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
     } catch (e) { lastErr = e; }
     release();
     if (res) {
@@ -103,7 +110,7 @@ async function fetchJson(url, tries) {
 }
 
 /* 簡單的併發池：同時最多 MAX_CONCURRENT 個 job 在跑（實際限速在 fetchJson 裡） */
-async function runAll(jobs) {
+async function runAll(jobs, concurrency) {
   const results = new Array(jobs.length);
   let next = 0;
   async function worker() {
@@ -114,11 +121,30 @@ async function runAll(jobs) {
     }
   }
   const workers = [];
-  for (let k = 0; k < MAX_CONCURRENT; k++) workers.push(worker());
+  for (let k = 0; k < (concurrency || MAX_CONCURRENT); k++) workers.push(worker());
   await Promise.all(workers);
   return results;
 }
 
+/* 補抓：第一輪失敗的批次，用「完全一樣的請求」（同樣的端點、同樣的參數、同樣的批次內容）過一陣子再抓，
+ * 所以補抓成功的道具跟第一輪成功的道具，資料完全同一種算法、同一種完整度。
+ * 每輪之間先冷卻（讓限流恢復），併發降低，不會一直往同一個正在出問題的地方硬灌。
+ * attempt(unit, round) 回傳「這個 unit 還沒抓成功的道具 id 陣列」，空陣列＝完全成功。
+ * 第2輪起 attempt 會把批次拆小（一批裡只要有一個道具讓請求出錯，就不會連累同批的其他道具）；
+ * 拆小只是換一種請求方式拿「同一份資料」，每個道具的結果跟一起抓時完全一樣。 */
+async function repairRounds(pending, attempt, label) {
+  for (let round = 1; round <= REPAIR_ROUNDS && pending.length; round++) {
+    if (Date.now() > REPAIR_DEADLINE) { console.warn(label + '：已超過補抓時限，不再補抓'); break; }
+    console.log(label + '：第 ' + round + ' 輪補抓，' + pending.length + ' 批');
+    await sleep(round * 20000); // 冷卻 20 / 40 / 60 秒
+    const still = [];
+    await runAll(pending.map(function (u) {
+      return async function () { const left = await attempt(u, round); if (left.length) still.push({ ids: left }); };
+    }), REPAIR_CONCURRENCY);
+    pending = still;
+  }
+  return pending;
+}
 function chunkArray(arr, n) {
   const out = [];
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
@@ -164,37 +190,44 @@ function parseRecent(node) {
 }
 async function fetchAggregated(worldName, itemIds) {
   const info = {}; // id -> { vN, vH, minP }
-  let failedChunks = 0;
+  const urlOf = function (ids) { return BASE + '/aggregated/' + encodeURIComponent(worldName) + '/' + ids.join(','); };
+  function absorb(data) {
+    (data.results || []).forEach(function (r) {
+      const nq = r.nq || {}, hq = r.hq || {};
+      const vN = pickWorldNode(nq.dailySaleVelocity), vH = pickWorldNode(hq.dailySaleVelocity);
+      const mN = pickWorldNode(nq.minListing), mH = pickWorldNode(hq.minListing);
+      const prices = [mN && mN.price, mH && mH.price].filter(function (p) { return p > 0; });
+      info[r.itemId] = {
+        rN: parseRecent(nq.recentPurchase), rH: parseRecent(hq.recentPurchase),
+        vN: (vN && vN.quantity) || 0, vH: (vH && vH.quantity) || 0,
+        minP: prices.length ? Math.min.apply(null, prices) : null,
+        minN: mN && mN.price > 0 ? mN.price : null, minH: mH && mH.price > 0 ? mH.price : null,
+      };
+    });
+  }
+  const pending = [];
   const jobs = chunkArray(itemIds, AGG_CHUNK).map(function (chunk) {
-    // 整批（100個）失敗時，以前整批道具就這樣從資料裡消失（而且只要總失敗率低於5%就照常發布）。
-    // 現在失敗會拆成更小的批次重試（100→10→1），救回來的不算失敗，真的救不回來的才計入。
-    const run = async function (ids) {
-      const url = BASE + '/aggregated/' + encodeURIComponent(worldName) + '/' + ids.join(',');
-      const data = await fetchJson(url);
-      if (data === undefined && ids.length > 1) {
-        stats.failed--; // 這次失敗先不算，拆小重試；還是失敗的小批次會各自重新計入
-        const pieces = chunkArray(ids, ids.length > 10 ? 10 : 1);
-        for (const piece of pieces) await run(piece);
-        return;
-      }
-      if (data === undefined || data === null) { if (data === undefined) failedChunks++; return; }
-      (data.results || []).forEach(function (r) {
-        const nq = r.nq || {}, hq = r.hq || {};
-        const vN = pickWorldNode(nq.dailySaleVelocity), vH = pickWorldNode(hq.dailySaleVelocity);
-        const mN = pickWorldNode(nq.minListing), mH = pickWorldNode(hq.minListing);
-        const prices = [mN && mN.price, mH && mH.price].filter(function (p) { return p > 0; });
-        info[r.itemId] = {
-          rN: parseRecent(nq.recentPurchase), rH: parseRecent(hq.recentPurchase),
-          vN: (vN && vN.quantity) || 0, vH: (vH && vH.quantity) || 0,
-          minP: prices.length ? Math.min.apply(null, prices) : null,
-          minN: mN && mN.price > 0 ? mN.price : null, minH: mH && mH.price > 0 ? mH.price : null,
-        };
-      });
+    return async function () {
+      const data = await fetchJson(urlOf(chunk));
+      if (data === undefined) { pending.push({ ids: chunk }); return; }
+      if (data === null) return; // 這批沒有資料：正常，不算失敗
+      absorb(data);
     };
-    return function () { return run(chunk); };
   });
   await runAll(jobs);
-  return { info: info, failedChunks: failedChunks };
+  const left = await repairRounds(pending, async function (u, round) {
+    const failed = [];
+    const pieces = round === 1 ? [u.ids] : chunkArray(u.ids, round === 2 ? 10 : 1);
+    for (const piece of pieces) {
+      const data = await fetchJson(urlOf(piece), 3);
+      if (data === undefined) { piece.forEach(function (id) { failed.push(id); }); continue; }
+      if (data) absorb(data);
+    }
+    return failed;
+  }, worldName + ' 賣速／掛單');
+  const unresolved = [];
+  left.forEach(function (u) { u.ids.forEach(function (id) { unresolved.push(id); }); });
+  return { info: info, unresolved: unresolved };
 }
 
 /* ── 成交紀錄 ── */
@@ -221,53 +254,55 @@ function slimEntries(list) {
  * 撞到上限的道具，用 entriesUntil 往更舊的方向續抓，直到涵蓋到 needCoverSec（或沒有更舊的了）。 */
 async function fetchHistory(worldName, ids, within, needCoverSec, nowSec) {
   const result = {}; // id -> { entries, capped(仍然沒涵蓋到 needCover), failed }
+  /* 抓一批：成功的道具寫進 result，回傳「這一批裡沒抓成功的道具 id」（整個請求失敗＝整批；翻頁失敗＝那一個道具） */
+  async function processChunk(chunk) {
+    const url = BASE + '/history/' + encodeURIComponent(worldName) + '/' + chunk.join(',') +
+      '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP;
+    const data = await fetchJson(url, chunk.__repair ? 3 : 5);
+    if (data === undefined) return chunk.slice();
+    const parsed = parseHistoryResponse(data, chunk);
+    const failedIds = [];
+    for (const id of chunk) {
+      let entries = slimEntries(parsed[id] || []);
+      let capped = false;
+      if (entries.length >= HISTORY_CAP) {
+        // 撞到上限 → 往更舊的方向翻頁
+        let pagingFailed = false;
+        for (let page = 0; page < 12; page++) {
+          const oldest = entries.reduce(function (m, e) { return Math.min(m, e.ts); }, Infinity);
+          if (oldest <= nowSec - needCoverSec) break;
+          const more = await fetchJson(BASE + '/history/' + encodeURIComponent(worldName) + '/' + id +
+            '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP + '&entriesUntil=' + Math.floor(oldest), chunk.__repair ? 3 : 5);
+          if (more === undefined) { pagingFailed = true; break; }
+          const older = slimEntries(parseHistoryResponse(more, [id])[id] || []).filter(function (e) { return e.ts < oldest; });
+          if (!older.length) break;
+          entries = entries.concat(older);
+          if (older.length < HISTORY_CAP) break;
+        }
+        if (pagingFailed) { failedIds.push(id); continue; }
+        const oldest2 = entries.reduce(function (m, e) { return Math.min(m, e.ts); }, Infinity);
+        capped = oldest2 > nowSec - needCoverSec; // 翻完還是沒涵蓋到
+      }
+      result[id] = { entries: entries, capped: capped };
+    }
+    return failedIds;
+  }
+  const pending = [];
   const jobs = chunkArray(ids, HIST_CHUNK).map(function (chunk) {
-    return async function () {
-      const url = BASE + '/history/' + encodeURIComponent(worldName) + '/' + chunk.join(',') +
-        '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP;
-      const data = await fetchJson(url);
-      if (data === undefined) {
-        // 一批10個失敗（成交多的道具回應很大，最容易逾時）：不要整批放棄，改成一個一個重試
-        if (chunk.length > 1) {
-          stats.failed--;
-          for (const id of chunk) {
-            const one = await fetchJson(BASE + '/history/' + encodeURIComponent(worldName) + '/' + id + '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP);
-            if (one === undefined) { result[id] = { entries: [], failed: true }; continue; }
-            let entries1 = slimEntries(parseHistoryResponse(one, [id])[id] || []);
-            // 單一道具撞到筆數上限的情況很少，這裡不再翻頁，直接標記「沒涵蓋到」，讓上層保守處理（寧缺勿錯）
-            result[id] = { entries: entries1, capped: entries1.length >= HISTORY_CAP };
-          }
-          return;
-        }
-        chunk.forEach(function (id) { result[id] = { entries: [], failed: true }; });
-        return;
-      }
-      const parsed = parseHistoryResponse(data, chunk);
-      for (const id of chunk) {
-        let entries = slimEntries(parsed[id] || []);
-        let capped = false;
-        if (entries.length >= HISTORY_CAP) {
-          // 撞到上限 → 往更舊的方向翻頁
-          for (let page = 0; page < 12; page++) {
-            const oldest = entries.reduce(function (m, e) { return Math.min(m, e.ts); }, Infinity);
-            if (oldest <= nowSec - needCoverSec) break;
-            const more = await fetchJson(BASE + '/history/' + encodeURIComponent(worldName) + '/' + id +
-              '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP + '&entriesUntil=' + Math.floor(oldest));
-            if (more === undefined) { result[id] = { entries: entries, failed: true }; entries = null; break; }
-            const older = slimEntries(parseHistoryResponse(more, [id])[id] || []).filter(function (e) { return e.ts < oldest; });
-            if (!older.length) break;
-            entries = entries.concat(older);
-            if (older.length < HISTORY_CAP) break;
-          }
-          if (entries === null) continue;
-          const oldest2 = entries.reduce(function (m, e) { return Math.min(m, e.ts); }, Infinity);
-          capped = oldest2 > nowSec - needCoverSec; // 翻完還是沒涵蓋到
-        }
-        result[id] = { entries: entries, capped: capped };
-      }
-    };
+    return async function () { const failedIds = await processChunk(chunk); if (failedIds.length) pending.push({ ids: failedIds }); };
   });
   await runAll(jobs);
+  const left = await repairRounds(pending, async function (u, round) {
+    const failed = [];
+    const pieces = round === 1 ? [u.ids] : chunkArray(u.ids, 1);
+    for (const piece of pieces) {
+      const c = piece.slice(); c.__repair = true;
+      const f = await processChunk(c);
+      f.forEach(function (id) { failed.push(id); });
+    }
+    return failed;
+  }, worldName + ' 成交紀錄');
+  left.forEach(function (u) { u.ids.forEach(function (id) { result[id] = { entries: [], failed: true }; }); });
   return result;
 }
 
@@ -351,6 +386,7 @@ async function main() {
 
   // 3) 逐世界抓取並計算窗口統計（DC 範圍＝各世界統計相加）
   const perWorld = {};   // worldId -> { id -> { acc, has7d, vN, vH, minP } }
+  const unresolvedAll = new Set(); // 補抓後仍然抓不到的道具（任何世界、任何階段）——之後會從所有範圍一起拿掉，維持一致
   for (const w of dcWorlds) {
     const tw = Date.now();
     if (EMPTY_OK_WORLDS.indexOf(w.name) !== -1 && await probeWorldEmpty(w.name, itemIds)) {
@@ -358,7 +394,9 @@ async function main() {
       perWorld[w.id] = {};
       continue;
     }
-    const agg = await fetchAggregated(w.name, itemIds);
+    const aggRes = await fetchAggregated(w.name, itemIds);
+    const agg = { info: aggRes.info };
+    aggRes.unresolved.forEach(function (id) { unresolvedAll.add(id); });
     // 「有交易跡象」的候選：賣速>0，或賣速被Universalis四捨五入成0但仍有「最近一筆成交」紀錄
     // （幾天才成交一次的高價道具常常是這種情況——這正是「成交稀少」級距要抓住的對象，
     // 不能只看賣速>0，不然這批道具連第一步的48小時查詢都不會被派到）。
@@ -376,13 +414,7 @@ async function main() {
     let failedItems = 0;
     active.forEach(function (id) {
       const h = histA[id];
-      if (!h || h.failed) {
-        // 成交紀錄抓不到，但 aggregated 已經有這個道具的掛單價／賣速：仍然留一列（沒有成交統計），
-        // 這樣製作商機才查得到它的價格；以前這種道具會整個消失，導致材料被誤判成「沒有價格」。
-        failedItems++;
-        table[id] = { acc: newAcc(), reachedD7: false, active: false };
-        return;
-      }
+      if (!h || h.failed) { failedItems++; unresolvedAll.add(id); return; }
       const acc = newAcc();
       accumulate(acc, h.entries, nowSec);
       table[id] = { acc: acc, reachedD7: false, active: true };
@@ -395,7 +427,8 @@ async function main() {
       const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
       needB.forEach(function (id) {
         const h = histB[id];
-        if (!h || h.failed || h.capped) return; // 沒抓全就不覆蓋（保留階段A的結果，寧可缺，不要算錯）
+        if (!h || h.failed) { unresolvedAll.add(id); return; } // 補抓後還是抓不到：這個道具整輪都不出現，不要用「只有短窗口」的殘缺資料冒充完整
+        if (h.capped) return; // 成交多到連翻頁都涵蓋不到7天：維持階段A的結果（這是資料本身的限制，每一輪、每個世界都一樣處理）
         const acc = newAcc();
         accumulate(acc, h.entries, nowSec);
         table[id] = { acc: acc, reachedD7: true, active: true };
@@ -408,7 +441,8 @@ async function main() {
       const histC = await fetchHistory(w.name, needC, D30, D30, nowSec);
       needC.forEach(function (id) {
         const h = histC[id];
-        if (!h || h.failed || h.capped) return;
+        if (!h || h.failed) { unresolvedAll.add(id); return; }
+        if (h.capped) return;
         const acc = newAcc();
         accumulate(acc, h.entries, nowSec);
         table[id] = { acc: acc, reachedD7: true, active: true };
@@ -422,6 +456,13 @@ async function main() {
     perWorld[w.id] = table;
     console.log(w.name + '：有交易跡象 ' + active.length + ' 項，中頻補查 ' + needB.length + ' 項，稀少補查 ' + needC.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
   }
+
+  // 3.5) 完整性把關：補抓後仍然失敗的道具，從所有世界一起拿掉（每個道具的「所有世界」統計必須包含每個世界，少一個世界就是不準）
+  const unresolvedRatio = itemIds.length ? unresolvedAll.size / itemIds.length : 0;
+  console.log('補抓後仍然抓不到的道具：' + unresolvedAll.size + ' 個（' + (unresolvedRatio * 100).toFixed(2) + '%）' +
+    (unresolvedAll.size ? '，前 30 個 ID：' + Array.from(unresolvedAll).slice(0, 30).join(',') : ''));
+  if (unresolvedRatio > MAX_UNRESOLVED_RATIO) throw new Error('抓不到的道具太多（' + unresolvedAll.size + ' 個，' + (unresolvedRatio * 100).toFixed(2) + '%，上限 ' + (MAX_UNRESOLVED_RATIO * 100) + '%），這次結果不採用');
+  Object.keys(perWorld).forEach(function (wid) { unresolvedAll.forEach(function (id) { delete perWorld[wid][id]; }); });
 
   // 4) 輸出各範圍
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -468,9 +509,7 @@ async function main() {
   writeScope('ALL', 'dc.json', dcTable, '所有世界');
 
   // 5) 安全檢查：失敗率、跟上一次比道具數量
-  const failRatio = stats.requests ? stats.failed / stats.requests : 0;
-  console.log('請求 ' + stats.requests + ' 次，重試 ' + stats.retries + ' 次，最終失敗 ' + stats.failed + ' 次（' + (failRatio * 100).toFixed(2) + '%）');
-  if (failRatio > MAX_FAIL_RATIO) throw new Error('失敗率過高（' + (failRatio * 100).toFixed(1) + '%），這次結果不採用');
+  console.log('請求 ' + stats.requests + ' 次，重試 ' + stats.retries + ' 次，過程中失敗（含後來補抓成功的）' + stats.failed + ' 次');
   if (scopes.ALL.items < 100 && ITEM_LIMIT === 0) throw new Error('所有世界範圍只有 ' + scopes.ALL.items + ' 個道具，資料異常，這次結果不採用');
   if (PREV_META_URL) {
     try {
@@ -492,6 +531,7 @@ async function main() {
     scopes: scopes,
     rules: { minShort: MIN_SHORT, minLong: MIN_LONG, high: [H24, H48], low: [D3, D7] },
     stats: { requests: stats.requests, failed: stats.failed, retries: stats.retries, seconds: Math.round((Date.now() - t0) / 1000) },
+    unresolved: Array.from(unresolvedAll).slice(0, 200), unresolvedCount: unresolvedAll.size, // 這一輪整個不出現在資料裡的道具（前端可以據此知道「不是沒成交，是沒算到」）
   };
   fs.writeFileSync(path.join(OUT_DIR, 'meta.json'), JSON.stringify(meta));
   console.log('完成，共 ' + totalRows + ' 筆，耗時 ' + meta.stats.seconds + ' 秒，輸出到 ' + OUT_DIR);
