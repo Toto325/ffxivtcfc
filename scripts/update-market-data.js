@@ -42,19 +42,12 @@ const NAMES_FILE = process.env.NAMES_FILE || path.join('js', 'item-names-tw.js')
 const PREV_META_URL = process.env.PREV_META_URL || '';
 const ITEM_LIMIT = Number(process.env.ITEM_LIMIT || 0); // 只用於測試
 const MAX_CONCURRENT = Number(process.env.MAX_CONCURRENT || 6); // Universalis 同一 IP 最多 8 條同時連線，留一點餘裕
-const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 50); // 每秒約 20 個請求（官方上限約 25／秒，留一點餘裕）
+const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 100); // 約每秒 10 個請求（官方上限約 25）
 // 「系統上存在、但玩家不能加入」的世界（例如拉姆）：沒有任何成交／掛單資料是正常的。
 // 這些世界會先用3個分散的小樣本探測，如果全部查不到東西就整個略過，不浪費時間、也不會被算成失敗。
 // 其他世界不在這個名單裡，仍然要完整查，查不到會算失敗（那代表真的出問題了）。
 const EMPTY_OK_WORLDS = (process.env.EMPTY_OK_WORLDS || '拉姆').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
 const MAX_FAIL_RATIO = 0.05;
-// 賣速=0但目前有掛單的道具，掛單價要達到這個門檻才會另外花一次30天查詢去確認它是不是「偶爾才成交一次」。
-// 不設這道門檻的話，市場上一大堆賣速掛0的便宜雜物、滯銷品全部都要多查一次，請求數會暴增、整個流程跑不完。
-const HIGH_VALUE_MIN_PRICE = Number(process.env.HIGH_VALUE_MIN_PRICE || 200000);
-// 整支腳本的時間預算：留在 workflow 設定的 timeout-minutes 之內，快到時間就不要再展開新的世界／補查階段，
-// 先把已經查到的結果寫出來，好過被 workflow 直接砍掉、整次執行連一行資料都沒有輸出。
-const TOTAL_TIME_BUDGET_MS = Number(process.env.TOTAL_TIME_BUDGET_MS || 38 * 60 * 1000);
-const scriptStartMs = Date.now();
 const MIN_KEEP_RATIO = 0.7;
 const UA = 'xiv-craft-helper-market-bot' + (process.env.GITHUB_REPOSITORY ? ' (github.com/' + process.env.GITHUB_REPOSITORY + ')' : '');
 
@@ -63,12 +56,6 @@ const MIN_SHORT = 3, MIN_LONG = 5;
 const HISTORY_CAP = 1800; // 單次請求每個道具最多回傳的成交筆數
 const AGG_CHUNK = 100;    // 聚合端點一次最多 100 個道具
 const HIST_CHUNK = 10;
-// 賣速一般／賣速較低這兩級改成小批次（不是真的實際遊戲規模下用chunkSize=1）：
-// 上一版全部改成「一個道具一個請求」，理論上最準，但真實規模下這兩級加起來要查一萬多個道具，
-// 一個一個查會塞爆45分鐘的時間預算（上一次執行就是這樣失敗的）。改成一批4個道具，
-// 請求數降到四分之一，仍然比原本一批10個更能降低「同一批裡混進一個熱門道具、擠壓到其他道具筆數」的風險，
-// 在「準確」跟「跑得完」之間取一個務實的折衷。可以用 TIER23_CHUNK 環境變數調整。
-const TIER23_CHUNK = Number(process.env.TIER23_CHUNK || 4);
 
 const stats = { requests: 0, failed: 0, retries: 0 };
 
@@ -179,9 +166,17 @@ async function fetchAggregated(worldName, itemIds) {
   const info = {}; // id -> { vN, vH, minP }
   let failedChunks = 0;
   const jobs = chunkArray(itemIds, AGG_CHUNK).map(function (chunk) {
-    return async function () {
-      const url = BASE + '/aggregated/' + encodeURIComponent(worldName) + '/' + chunk.join(',');
+    // 整批（100個）失敗時，以前整批道具就這樣從資料裡消失（而且只要總失敗率低於5%就照常發布）。
+    // 現在失敗會拆成更小的批次重試（100→10→1），救回來的不算失敗，真的救不回來的才計入。
+    const run = async function (ids) {
+      const url = BASE + '/aggregated/' + encodeURIComponent(worldName) + '/' + ids.join(',');
       const data = await fetchJson(url);
+      if (data === undefined && ids.length > 1) {
+        stats.failed--; // 這次失敗先不算，拆小重試；還是失敗的小批次會各自重新計入
+        const pieces = chunkArray(ids, ids.length > 10 ? 10 : 1);
+        for (const piece of pieces) await run(piece);
+        return;
+      }
       if (data === undefined || data === null) { if (data === undefined) failedChunks++; return; }
       (data.results || []).forEach(function (r) {
         const nq = r.nq || {}, hq = r.hq || {};
@@ -196,6 +191,7 @@ async function fetchAggregated(worldName, itemIds) {
         };
       });
     };
+    return function () { return run(chunk); };
   });
   await runAll(jobs);
   return { info: info, failedChunks: failedChunks };
@@ -222,22 +218,30 @@ function slimEntries(list) {
   return out;
 }
 /* 取回某個世界一批道具「最近 within 秒」的成交。單次請求有筆數上限（每個道具 1800 筆，新到舊），
- * 撞到上限的道具，用 entriesUntil 往更舊的方向續抓，直到涵蓋到 needCoverSec（或沒有更舊的了）。
- * chunkSize：一次請求要塞幾個道具。批次查（>1）省請求數，但如果 Universalis 的 entriesToReturn
- * 是整批共用同一個上限（而不是每個道具各自有1800筆），批次裡混進一個成交熱絡的道具，
- * 會擠壓到同一批裡其他冷門道具能分到的筆數，導致那些道具的成交筆數被低估。
- * 賣速較高（數量最多、主力）維持 HIST_CHUNK＝10 批次；賣速一般／賣速較低這兩級改用較小的
- * TIER23_CHUNK（預設4），在請求數（跑不跑得完）和準確度（會不會被同批的熱門道具擠壓）
- * 之間取務實的折衷——真實規模下這兩級要查的道具數以千計，改成每個都不共用批次（chunkSize=1）
- * 完全準確，但請求數會多到超過時間預算，反而讓整批資料因為跑不完而失敗。 */
-async function fetchHistory(worldName, ids, within, needCoverSec, nowSec, chunkSize) {
+ * 撞到上限的道具，用 entriesUntil 往更舊的方向續抓，直到涵蓋到 needCoverSec（或沒有更舊的了）。 */
+async function fetchHistory(worldName, ids, within, needCoverSec, nowSec) {
   const result = {}; // id -> { entries, capped(仍然沒涵蓋到 needCover), failed }
-  const jobs = chunkArray(ids, chunkSize || HIST_CHUNK).map(function (chunk) {
+  const jobs = chunkArray(ids, HIST_CHUNK).map(function (chunk) {
     return async function () {
       const url = BASE + '/history/' + encodeURIComponent(worldName) + '/' + chunk.join(',') +
         '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP;
       const data = await fetchJson(url);
-      if (data === undefined) { chunk.forEach(function (id) { result[id] = { entries: [], failed: true }; }); return; }
+      if (data === undefined) {
+        // 一批10個失敗（成交多的道具回應很大，最容易逾時）：不要整批放棄，改成一個一個重試
+        if (chunk.length > 1) {
+          stats.failed--;
+          for (const id of chunk) {
+            const one = await fetchJson(BASE + '/history/' + encodeURIComponent(worldName) + '/' + id + '?entriesWithin=' + within + '&entriesToReturn=' + HISTORY_CAP);
+            if (one === undefined) { result[id] = { entries: [], failed: true }; continue; }
+            let entries1 = slimEntries(parseHistoryResponse(one, [id])[id] || []);
+            // 單一道具撞到筆數上限的情況很少，這裡不再翻頁，直接標記「沒涵蓋到」，讓上層保守處理（寧缺勿錯）
+            result[id] = { entries: entries1, capped: entries1.length >= HISTORY_CAP };
+          }
+          return;
+        }
+        chunk.forEach(function (id) { result[id] = { entries: [], failed: true }; });
+        return;
+      }
       const parsed = parseHistoryResponse(data, chunk);
       for (const id of chunk) {
         let entries = slimEntries(parsed[id] || []);
@@ -339,7 +343,7 @@ async function main() {
 
   // 2) 道具清單
   const marketable = await fetchJson(BASE + '/marketable');
-  if (!Array.isArray(marketable) || marketable.length < (Number(process.env.MIN_MARKETABLE) || 1000)) throw new Error('可交易道具清單異常（' + (marketable && marketable.length) + '）');
+  if (!Array.isArray(marketable) || marketable.length < 1000) throw new Error('可交易道具清單異常（' + (marketable && marketable.length) + '）');
   const twIds = new Set(loadTwNameIds());
   let itemIds = marketable.filter(function (id) { return twIds.has(id); }).sort(function (a, b) { return a - b; });
   if (ITEM_LIMIT > 0) itemIds = itemIds.slice(0, ITEM_LIMIT);
@@ -358,67 +362,57 @@ async function main() {
     // 「有交易跡象」的候選：賣速>0，或賣速被Universalis四捨五入成0但仍有「最近一筆成交」紀錄
     // （幾天才成交一次的高價道具常常是這種情況——這正是「成交稀少」級距要抓住的對象，
     // 不能只看賣速>0，不然這批道具連第一步的48小時查詢都不會被派到）。
-    // 「賣速>0」的道具：主力候選，數量最大，批次查詢（省請求數）。
-    // 賣速=0、但目前有掛單的高價道具（highValueZero）另外處理：Universalis 的賣速是取整的估計值，
-    // 好幾天才成交一次的道具常常直接顯示0，但這正是「賣速較低」這個級距要抓住的對象；
-    // 不過這樣的道具在整個市場裡數量可能非常多（大部份是沒人要的雜物），如果照單全收，
-    // 每個都要多查一次，會讓整個流程的請求數暴增、跑不完（上一版就是這樣才一直逾時失敗）。
-    // 所以只挑「現在還有掛單、而且掛單價不低」的——真正沒人要、連掛單都沒有的雜物本來就沒有漲跌可言，
-    // 便宜的零賣速道具多半也真的是滯銷品，不是「偶爾才成交一次」，兩者都不必浪費查詢額度。
-    const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH > 0); });
-    const highValueZero = itemIds.filter(function (id) {
-      const i = agg.info[id];
-      return i && !(i.vN + i.vH > 0) && i.minP != null && i.minP >= HIGH_VALUE_MIN_PRICE;
-    });
+    // 「有交易跡象」的候選：以前只看「賣速>0」，這樣會漏掉高價、好幾天才成交一次的道具——
+    // Universalis 回報的賣速是四捨五入／取整的估計值，成交太少時常常直接顯示 0，即使那個道具
+    // 其實一直都有人在買賣。改成「賣速>0，或目前市場上有掛單」：只要有掛單，就代表買賣雙方
+    // 都還把這個道具當成活躍商品，值得花一次48小時查詢去確認到底有沒有成交、多久成交一次；
+    // 真正完全沒人要、連掛單都沒有的道具，才會被排除（這些道具本來就沒有漲跌可言）。
+    const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH > 0 || i.minP != null); });
 
-    // 階段A：48小時成交（賣速較高這個級距）——數量最大的一批，用 HIST_CHUNK 批次查
-    const histA = await fetchHistory(w.name, active, H48, H48, nowSec, HIST_CHUNK);
+    // 階段A：48小時成交（賣速高這個級距）
+    const histA = await fetchHistory(w.name, active, H48, H48, nowSec);
     const table = {};
     const needB = [];
     let failedItems = 0;
     active.forEach(function (id) {
       const h = histA[id];
-      if (!h || h.failed) { failedItems++; return; }
+      if (!h || h.failed) {
+        // 成交紀錄抓不到，但 aggregated 已經有這個道具的掛單價／賣速：仍然留一列（沒有成交統計），
+        // 這樣製作商機才查得到它的價格；以前這種道具會整個消失，導致材料被誤判成「沒有價格」。
+        failedItems++;
+        table[id] = { acc: newAcc(), reachedD7: false, active: false };
+        return;
+      }
       const acc = newAcc();
       accumulate(acc, h.entries, nowSec);
       table[id] = { acc: acc, reachedD7: false, active: true };
-      if (buildP(acc.all) === null) needB.push(id); // 賣速較高這個級距不夠資料 → 試著抓更長的範圍
+      if (buildP(acc.all) === null) needB.push(id); // 賣速高這個級距不夠資料 → 試著抓更長的範圍
     });
 
-    // 階段B：3天／7天成交（賣速一般這個級距）——改成每個道具各查各的（chunkSize=1），
-    // 不要幾個道具擠在同一批請求裡，避免共用同一個筆數上限，把彼此的成交筆數擠壓、低估。
-    let needC = [];
-    const timeLeft = function () { return TOTAL_TIME_BUDGET_MS - (Date.now() - scriptStartMs); };
+    // 階段B：7天成交（賣速中這個級距）
+    const needC = [];
     if (needB.length) {
-      if (timeLeft() < 5 * 60 * 1000) { console.log(w.name + '：時間快到了，跳過賣速一般／較低這兩級的補查（' + needB.length + ' 項），先保住已經查到的結果'); }
-      else {
-        const histB = await fetchHistory(w.name, needB, D7, D7, nowSec, TIER23_CHUNK);
-        needB.forEach(function (id) {
-          const h = histB[id];
-          if (!h || h.failed || h.capped) return; // 沒抓全就不覆蓋（保留階段A的結果，寧可缺，不要算錯）
-          const acc = newAcc();
-          accumulate(acc, h.entries, nowSec);
-          table[id] = { acc: acc, reachedD7: true, active: true };
-          if (buildP(acc.all) === null) needC.push(id); // 賣速一般還是不夠 → 再試更長的30天
-        });
-      }
+      const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
+      needB.forEach(function (id) {
+        const h = histB[id];
+        if (!h || h.failed || h.capped) return; // 沒抓全就不覆蓋（保留階段A的結果，寧可缺，不要算錯）
+        const acc = newAcc();
+        accumulate(acc, h.entries, nowSec);
+        table[id] = { acc: acc, reachedD7: true, active: true };
+        if (buildP(acc.all) === null) needC.push(id); // 賣速中還是不夠 → 再試更長的30天
+      });
     }
 
-    // 階段C：7天／30天成交（賣速較低這個級距）——賣速一般都不夠資料的道具，加上前面挑出來的
-    // 高價零賣速道具，一起在這裡查（同樣每個道具各查各的，理由同階段B）。
-    const needCAll = needC.concat(highValueZero);
-    if (needCAll.length) {
-      if (timeLeft() < 3 * 60 * 1000) { console.log(w.name + '：時間快到了，跳過賣速較低這一級的補查（' + needCAll.length + ' 項），先保住已經查到的結果'); }
-      else {
-        const histC = await fetchHistory(w.name, needCAll, D30, D30, nowSec, TIER23_CHUNK);
-        needCAll.forEach(function (id) {
-          const h = histC[id];
-          if (!h || h.failed || h.capped) return;
-          const acc = newAcc();
-          accumulate(acc, h.entries, nowSec);
-          table[id] = { acc: acc, reachedD7: true, active: true };
-        });
-      }
+    // 階段C：30天成交（成交稀少這個級距——賣速中都不夠資料，例如好幾天才賣出一件的高價道具）
+    if (needC.length) {
+      const histC = await fetchHistory(w.name, needC, D30, D30, nowSec);
+      needC.forEach(function (id) {
+        const h = histC[id];
+        if (!h || h.failed || h.capped) return;
+        const acc = newAcc();
+        accumulate(acc, h.entries, nowSec);
+        table[id] = { acc: acc, reachedD7: true, active: true };
+      });
     }
     Object.keys(table).forEach(function (id) {
       const i = agg.info[id];
@@ -426,7 +420,7 @@ async function main() {
       table[id].rN = i.rN; table[id].rH = i.rH;
     });
     perWorld[w.id] = table;
-    console.log(w.name + '：賣速>0共 ' + active.length + ' 項，一般補查 ' + needB.length + ' 項，較低補查 ' + needCAll.length + ' 項（含高價零賣速 ' + highValueZero.length + ' 項），失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
+    console.log(w.name + '：有交易跡象 ' + active.length + ' 項，中頻補查 ' + needB.length + ' 項，稀少補查 ' + needC.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
   }
 
   // 4) 輸出各範圍
