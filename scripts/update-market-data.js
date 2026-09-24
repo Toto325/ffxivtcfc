@@ -42,7 +42,7 @@ const NAMES_FILE = process.env.NAMES_FILE || path.join('js', 'item-names-tw.js')
 const PREV_META_URL = process.env.PREV_META_URL || '';
 const ITEM_LIMIT = Number(process.env.ITEM_LIMIT || 0); // 只用於測試
 const MAX_CONCURRENT = Number(process.env.MAX_CONCURRENT || 6); // Universalis 同一 IP 最多 8 條同時連線，留一點餘裕
-const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 100); // 約每秒 10 個請求（官方上限約 25）
+const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 50); // 每秒約 20 個請求（官方上限約 25／秒，留一點餘裕）
 // 「系統上存在、但玩家不能加入」的世界（例如拉姆）：沒有任何成交／掛單資料是正常的。
 // 這些世界會先用3個分散的小樣本探測，如果全部查不到東西就整個略過，不浪費時間、也不會被算成失敗。
 // 其他世界不在這個名單裡，仍然要完整查，查不到會算失敗（那代表真的出問題了）。
@@ -63,6 +63,12 @@ const MIN_SHORT = 3, MIN_LONG = 5;
 const HISTORY_CAP = 1800; // 單次請求每個道具最多回傳的成交筆數
 const AGG_CHUNK = 100;    // 聚合端點一次最多 100 個道具
 const HIST_CHUNK = 10;
+// 賣速一般／賣速較低這兩級改成小批次（不是真的實際遊戲規模下用chunkSize=1）：
+// 上一版全部改成「一個道具一個請求」，理論上最準，但真實規模下這兩級加起來要查一萬多個道具，
+// 一個一個查會塞爆45分鐘的時間預算（上一次執行就是這樣失敗的）。改成一批4個道具，
+// 請求數降到四分之一，仍然比原本一批10個更能降低「同一批裡混進一個熱門道具、擠壓到其他道具筆數」的風險，
+// 在「準確」跟「跑得完」之間取一個務實的折衷。可以用 TIER23_CHUNK 環境變數調整。
+const TIER23_CHUNK = Number(process.env.TIER23_CHUNK || 4);
 
 const stats = { requests: 0, failed: 0, retries: 0 };
 
@@ -220,8 +226,10 @@ function slimEntries(list) {
  * chunkSize：一次請求要塞幾個道具。批次查（>1）省請求數，但如果 Universalis 的 entriesToReturn
  * 是整批共用同一個上限（而不是每個道具各自有1800筆），批次裡混進一個成交熱絡的道具，
  * 會擠壓到同一批裡其他冷門道具能分到的筆數，導致那些道具的成交筆數被低估。
- * 賣速中／賣速較低這兩個級距本來就是要精準判斷「筆數到底夠不夠」，所以這兩段改成 chunkSize=1，
- * 每個道具都拿到完整的請求額度，不跟別人共用；賣速較高那一段道具數量最多，維持批次查詢節省請求數。 */
+ * 賣速較高（數量最多、主力）維持 HIST_CHUNK＝10 批次；賣速一般／賣速較低這兩級改用較小的
+ * TIER23_CHUNK（預設4），在請求數（跑不跑得完）和準確度（會不會被同批的熱門道具擠壓）
+ * 之間取務實的折衷——真實規模下這兩級要查的道具數以千計，改成每個都不共用批次（chunkSize=1）
+ * 完全準確，但請求數會多到超過時間預算，反而讓整批資料因為跑不完而失敗。 */
 async function fetchHistory(worldName, ids, within, needCoverSec, nowSec, chunkSize) {
   const result = {}; // id -> { entries, capped(仍然沒涵蓋到 needCover), failed }
   const jobs = chunkArray(ids, chunkSize || HIST_CHUNK).map(function (chunk) {
@@ -384,7 +392,7 @@ async function main() {
     if (needB.length) {
       if (timeLeft() < 5 * 60 * 1000) { console.log(w.name + '：時間快到了，跳過賣速一般／較低這兩級的補查（' + needB.length + ' 項），先保住已經查到的結果'); }
       else {
-        const histB = await fetchHistory(w.name, needB, D7, D7, nowSec, 1);
+        const histB = await fetchHistory(w.name, needB, D7, D7, nowSec, TIER23_CHUNK);
         needB.forEach(function (id) {
           const h = histB[id];
           if (!h || h.failed || h.capped) return; // 沒抓全就不覆蓋（保留階段A的結果，寧可缺，不要算錯）
@@ -402,7 +410,7 @@ async function main() {
     if (needCAll.length) {
       if (timeLeft() < 3 * 60 * 1000) { console.log(w.name + '：時間快到了，跳過賣速較低這一級的補查（' + needCAll.length + ' 項），先保住已經查到的結果'); }
       else {
-        const histC = await fetchHistory(w.name, needCAll, D30, D30, nowSec, 1);
+        const histC = await fetchHistory(w.name, needCAll, D30, D30, nowSec, TIER23_CHUNK);
         needCAll.forEach(function (id) {
           const h = histC[id];
           if (!h || h.failed || h.capped) return;
