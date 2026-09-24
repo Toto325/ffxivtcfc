@@ -173,10 +173,21 @@
 .market-price-table th{text-align:left;color:var(--dim);font-weight:normal;padding:5px 8px;
   background:var(--bg);border-bottom:1px solid var(--tb)}
 /* 製作商機表格：標題列固定在捲動容器頂端，往下捲很多列時仍看得到欄位名稱 */
-.market-radar-scroll{max-height:60vh;overflow:auto}
-.market-radar-scroll .market-price-table th{position:sticky;top:0;z-index:2}
-.market-radar-mat-toggle{background:none;border:none;color:var(--gold);cursor:pointer;padding:1px 5px 1px 1px;font-size:13px;line-height:1}
-.market-radar-mat-toggle:hover{color:var(--gold-bright)}
+/* 桌面版：外層 .market-pane-scrollbody 已經是唯一的捲動區，這裡不再自己捲（以前 max-height+overflow 會多出第二條捲動條）。
+ * 表頭 sticky 會貼在外層捲動區的頂端。 */
+.market-radar-scroll{overflow:visible}
+/* 只選最外層表格自己的表頭（用 > 子選擇器）。以前用後代選擇器，連「材料明細」裡面那張小表的表頭也被套上 sticky+top:0，
+ * 兩層表頭疊在同一個位置，展開明細後往下捲，就把主表頭蓋住了。 */
+.market-radar-scroll > .market-price-table > thead > tr > th{position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--tb)}
+/* 手機版整頁本來就自然往下長，沒有外層捲動區，維持原本自己捲的做法 */
+@media (max-width:720px){.market-radar-scroll{max-height:60vh;overflow:auto}}
+/* 材料明細裡的展開按鈕：加大點擊範圍（整列也可以點） */
+.market-radar-mat-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:28px;padding:0 8px;margin-right:6px;
+  background:rgba(197,160,89,.12);border:1px solid rgba(197,160,89,.45);border-radius:6px;color:var(--gold);cursor:pointer;font-size:15px;line-height:1;vertical-align:middle}
+.market-radar-mat-toggle:hover{background:rgba(197,160,89,.25);color:var(--gold-bright)}
+@media (pointer:coarse){.market-radar-mat-toggle{min-width:40px;height:36px;font-size:17px}}
+.market-radar-mat-row.is-expandable{cursor:pointer}
+.market-radar-mat-row.is-expandable:hover td{background:rgba(197,160,89,.1)}
 .market-radar-breakdown-wrap+.market-radar-breakdown-wrap{margin-top:6px}
 .market-price-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
 /* HQ標示：文字加亮＋外框，NQ不加任何符號 */
@@ -372,7 +383,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-radar-expand:hover{color:var(--gold-bright)}
 .market-radar-detail-row td{background:rgba(0,0,0,.25);padding:8px 8px 10px 24px !important}
 .market-radar-breakdown{width:100%;border-collapse:collapse;font-size:11px}
-.market-radar-breakdown th{text-align:left;color:var(--dim);font-weight:normal;padding:3px 6px;border-bottom:1px solid rgba(197,160,89,.15)}
+.market-radar-breakdown th{text-align:left;color:var(--dim);font-weight:normal;padding:3px 6px;border-bottom:1px solid rgba(197,160,89,.15);background:transparent}
 .market-radar-breakdown td{padding:3px 6px}
 .market-hot-item .market-hot-row:hover{background:none}
 .market-hot-subline{padding:0 8px 0 40px;font-size:11px;color:var(--dim);line-height:1.4}
