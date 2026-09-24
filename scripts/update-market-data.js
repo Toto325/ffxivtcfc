@@ -407,46 +407,65 @@ async function main() {
     // 真正完全沒人要、連掛單都沒有的道具，才會被排除（這些道具本來就沒有漲跌可言）。
     const active = itemIds.filter(function (id) { const i = agg.info[id]; return i && (i.vN + i.vH > 0 || i.minP != null); });
 
-    // 階段A：48小時成交（賣速高這個級距）
-    const histA = await fetchHistory(w.name, active, H48, H48, nowSec);
+    /* 抓成交紀錄。
+     * 以前是「先抓48小時 → 不夠再抓7天 → 還不夠再抓30天」三段逐級加寬，但實際上絕大多數道具（約83%）
+     * 都會一路走到第三段，等於同一批道具被抓了三遍（每個世界約2800個請求），這才是執行時間過長的真正原因。
+     * 現在改成：所有道具先一次抓30天。
+     *   ‧ 30天內成交筆數沒有撞到單次上限的道具（絕大多數）：一次就拿到完整的30天紀錄，所有窗口（24h～30d）
+     *     都是完整的，直接決定頻率級距。
+     *   ‧ 撞到上限的（成交非常密集的熱門道具，30天的紀錄一次抓不完）：走原本「48小時 → 7天 → 30天」逐級加寬的流程。
+     *     這些道具一定屬於「賣速高」，48小時就夠了，不需要翻頁抓滿30天。
+     * 頻率級距的判斷（buildP）完全沒變，判斷所用的成交紀錄也是同一份，只是不再重複抓。
+     * 另外：以前「賣速高」的道具只有48小時資料，合併成「所有世界」時，其他世界有7天／30天資料，
+     * 窗口涵蓋範圍不一致；現在絕大多數道具在每個世界都是完整30天，這個不一致也一併消失。 */
     const table = {};
-    const needB = [];
+    const hot = [];
     let failedItems = 0;
+    const hist30 = await fetchHistory(w.name, active, D30, H48, nowSec);
     active.forEach(function (id) {
-      const h = histA[id];
+      const h = hist30[id];
       if (!h || h.failed) { failedItems++; unresolvedAll.add(id); return; }
+      if (h.entries.length >= HISTORY_CAP) { hot.push(id); return; } // 30天內成交多到一次抓不完 → 走逐級加寬流程
       const acc = newAcc();
       accumulate(acc, h.entries, nowSec);
-      table[id] = { acc: acc, reachedD7: false, active: true };
-      if (buildP(acc.all) === null) needB.push(id); // 賣速高這個級距不夠資料 → 試著抓更長的範圍
+      table[id] = { acc: acc, reachedD7: true, active: true };
     });
 
-    // 階段B：7天成交（賣速中這個級距）
-    const needC = [];
-    if (needB.length) {
-      const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
-      needB.forEach(function (id) {
-        const h = histB[id];
-        if (!h || h.failed) { unresolvedAll.add(id); return; } // 補抓後還是抓不到：這個道具整輪都不出現，不要用「只有短窗口」的殘缺資料冒充完整
-        if (h.capped) return; // 成交多到連翻頁都涵蓋不到7天：維持階段A的結果（這是資料本身的限制，每一輪、每個世界都一樣處理）
+    // 熱門道具：原本的逐級加寬流程（48小時 → 7天 → 30天），邏輯一字不改
+    let needB = [], needC = [];
+    if (hot.length) {
+      const histA = await fetchHistory(w.name, hot, H48, H48, nowSec);
+      hot.forEach(function (id) {
+        const h = histA[id];
+        if (!h || h.failed) { failedItems++; unresolvedAll.add(id); return; }
         const acc = newAcc();
         accumulate(acc, h.entries, nowSec);
-        table[id] = { acc: acc, reachedD7: true, active: true };
-        if (buildP(acc.all) === null) needC.push(id); // 賣速中還是不夠 → 再試更長的30天
+        table[id] = { acc: acc, reachedD7: false, active: true };
+        if (buildP(acc.all) === null) needB.push(id);
       });
-    }
-
-    // 階段C：30天成交（成交稀少這個級距——賣速中都不夠資料，例如好幾天才賣出一件的高價道具）
-    if (needC.length) {
-      const histC = await fetchHistory(w.name, needC, D30, D30, nowSec);
-      needC.forEach(function (id) {
-        const h = histC[id];
-        if (!h || h.failed) { unresolvedAll.add(id); return; }
-        if (h.capped) return;
-        const acc = newAcc();
-        accumulate(acc, h.entries, nowSec);
-        table[id] = { acc: acc, reachedD7: true, active: true };
-      });
+      if (needB.length) {
+        const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
+        needB.forEach(function (id) {
+          const h = histB[id];
+          if (!h || h.failed) { unresolvedAll.add(id); return; }
+          if (h.capped) return;
+          const acc = newAcc();
+          accumulate(acc, h.entries, nowSec);
+          table[id] = { acc: acc, reachedD7: true, active: true };
+          if (buildP(acc.all) === null) needC.push(id);
+        });
+      }
+      if (needC.length) {
+        const histC = await fetchHistory(w.name, needC, D30, D30, nowSec);
+        needC.forEach(function (id) {
+          const h = histC[id];
+          if (!h || h.failed) { unresolvedAll.add(id); return; }
+          if (h.capped) return;
+          const acc = newAcc();
+          accumulate(acc, h.entries, nowSec);
+          table[id] = { acc: acc, reachedD7: true, active: true };
+        });
+      }
     }
     Object.keys(table).forEach(function (id) {
       const i = agg.info[id];
@@ -454,7 +473,7 @@ async function main() {
       table[id].rN = i.rN; table[id].rH = i.rH;
     });
     perWorld[w.id] = table;
-    console.log(w.name + '：有交易跡象 ' + active.length + ' 項，中頻補查 ' + needB.length + ' 項，稀少補查 ' + needC.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
+    console.log(w.name + '：有交易跡象 ' + active.length + ' 項，其中成交密集（走逐級加寬）' + hot.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
   }
 
   // 3.5) 完整性把關：補抓後仍然失敗的道具，從所有世界一起拿掉（每個道具的「所有世界」統計必須包含每個世界，少一個世界就是不準）
