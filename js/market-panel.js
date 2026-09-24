@@ -1858,9 +1858,9 @@
       ? '每 1 個材料成本：<span class="' + (save > 0.5 ? '' : 'craft-muted') + '" style="' + (save > 0.5 ? 'color:#4ade80' : '') + '">直接買齊 ' + fmtGil(bd.totalBuy) + ' 金</span>' +
         (bd.totalAuto != null && save > 0.5 ? '　自動選較便宜 <span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金（省 ' + fmtGil(save) + '）</span>' : '')
       : (bd.totalAuto != null ? '每 1 個材料成本（部分材料市場沒有價格，只能算自動選較便宜）：<span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金</span>' : '<span class="craft-muted">材料成本無法完整估算（部分項目沒有價格）</span>');
-    return '<div class="market-radar-breakdown-wrap" style="margin-left:' + (depth * 16) + 'px">' +
+    return '<div class="market-radar-breakdown-wrap" style="--d:' + depth + '">' +
       (depth > 0 ? '<p class="craft-muted" style="font-size:10px;margin:2px 0">' + summary + '</p>' : '') +
-      '<table class="market-radar-breakdown"><thead><tr><th>材料</th><th>需求</th><th>買</th><th>差距</th><th>做</th><th>採用</th></tr></thead><tbody>' +
+      '<table class="market-radar-breakdown"><thead><tr><th class="market-radar-togcol"></th><th>材料</th><th>需求</th><th>買</th><th>差距</th><th>做</th><th>採用</th></tr></thead><tbody>' +
       bd.rows.map(function (p) {
         const buyTxt = p.buy != null ? fmtGil(p.buy) + ' 金' : '沒有價格';
         let craftTxt;
@@ -1882,12 +1882,13 @@
         }
         const canExpand = p.craftable && depth < MAT_BREAKDOWN_MAX_DEPTH;
         return '<tr class="market-radar-mat-row' + (canExpand ? ' is-expandable' : '') + '" data-mat-item="' + p.itemId + '" data-mat-depth="' + (depth + 1) + '">' +
-          '<td>' + (canExpand ? '<button type="button" class="market-radar-mat-toggle" data-mat-toggle="' + p.itemId + '-' + depth + '" aria-label="展開這項材料的材料明細" title="展開／收起這項材料的材料">▸</button>' : '') + (ITEM_NAMES_TW_ALL[p.itemId] || p.itemId) + '</td><td>×' + p.amount + '</td>' +
+          '<td class="market-radar-togcol">' + (canExpand ? '<button type="button" class="market-radar-mat-toggle" data-mat-toggle="' + p.itemId + '-' + depth + '" aria-label="展開這項材料的材料明細" title="展開／收起這項材料的材料">▸</button>' : '') + '</td>' +
+          '<td class="market-radar-matname">' + (ITEM_NAMES_TW_ALL[p.itemId] || p.itemId) + '</td><td>×' + p.amount + '</td>' +
           '<td style="color:' + (buyWins && p.buy != null ? '#4ade80' : 'inherit') + '">' + buyTxt + '</td>' +
           '<td>' + diffTxt + '</td>' +
           '<td style="color:' + (!buyWins && p.craft != null ? '#4ade80' : 'inherit') + '">' + craftTxt + '</td>' +
           '<td>' + (p.chosen === 'craft' ? '<span style="color:#4ade80">自己做</span>' : (p.chosen === 'buy' ? '直接買' : '－')) + '</td></tr>' +
-          (canExpand ? '<tr class="market-radar-mat-nested" data-mat-nested="' + p.itemId + '-' + depth + '" style="display:none"><td colspan="6"></td></tr>' : '');
+          (canExpand ? '<tr class="market-radar-mat-nested" data-mat-nested="' + p.itemId + '-' + depth + '" style="display:none"><td colspan="7"></td></tr>' : '');
       }).join('') + '</tbody></table>' +
       (depth === 0 ? '<p class="craft-muted" style="font-size:10px;margin-top:4px">「買」「做」兩欄較便宜的那個標成綠色，「差距」欄直接告訴你貴多少／省多少；點材料那一整列（或前面的 ▸ 按鈕）可以再往下看那項材料自己要用什麼做、不划算（最多展開 ' + MAT_BREAKDOWN_MAX_DEPTH + ' 層）。</p>' : '') +
       '</div>';
@@ -1956,6 +1957,7 @@
     const ui = { job: null, basis: 'listing', matMode: 'buy', sellScope: 'dc', persp: 'all', band: 'all', sort: 'profit', medianOnly: false, profitOnly: false, shown: 50, mode: 'pre' };
     // 即時掛單價（只在「掛單最低價」基準下用）：id -> { min, minN, minH, time }，材料用資料中心的、成品用成品範圍的
     const liveDc = {}, liveSell = {};
+    const liveTried = {}; // 展開明細時已經補查過即時掛單價的道具（查過一次就不重複查）
     let liveToken = 0, liveRounds = 0, liveNote = '';
     let pc = null; // { dc, sell, meta, ageMs }
     function row(label, key, options) {
@@ -2105,6 +2107,33 @@
         '<p class="craft-muted" style="margin-top:6px">價格基準：' + (isListing ? '「掛單最低價」是買方實際買得到的價格（預先計算的快照，最多約一小時前加上玩家上傳的延遲，僅供參考）。' : '「成交均價」是實際成交的行情，每個道具取自己的長窗口均價（高頻＝48 小時、低頻＝7 天）。') +
         '材料用整個資料中心的價格（買方可跨世界買，優先用 NQ）；成品用「' + sellLabel + '」的價格，可在上面切換。材料成本預設只算「直接買」；切到「自動選較便宜」時，每個材料會各自比較「直接買」和「自己做」取便宜的（最底層原料用市場價格）。都沒有考慮製作時間、買方稅和賣方稅。「淨利／次」是做一次配方（可能一次做出不只 1 件）的總損益。最後更新：' + new Date(pc.meta.generatedAtMs).toLocaleString() + '。</p>';
       body.querySelectorAll('[data-mk-radar-item]').forEach(function (tr) { tr.addEventListener('click', function () { openItemDetail(tr.dataset.mkRadarItem); }); });
+      // 展開明細：先用手上的資料畫出來；如果有材料沒有價格（預先計算資料沒收錄），再去查即時掛單價補上、重畫一次
+      function currentDcView() { return ui.basis === 'listing' ? patchData(pc.dc, liveDc) : pc.dc; }
+      async function fillBreakdown(td, itemId, depth, allowFetch) {
+        const bd = materialBreakdown(itemId, currentDcView(), ui.basis);
+        td.innerHTML = renderBreakdownHtml(bd, depth);
+        if (!allowFetch || !bd || ui.basis !== 'listing') return;
+        const need = [];
+        bd.rows.forEach(function (r) {
+          if (r.buy == null) need.push(r.itemId);
+          (r.missing || []).forEach(function (id) { need.push(id); });
+        });
+        const ids = need.filter(function (id, i) { return need.indexOf(id) === i && !liveFresh(liveDc, id) && !liveTried[id]; });
+        if (!ids.length) return;
+        ids.forEach(function (id) { liveTried[id] = true; });
+        const st = MarketData.getSettings();
+        let res = {};
+        try { res = await MarketData.fetchListingsBatchForScope(ids, st.dcName); } catch (e) { return; }
+        let got = 0;
+        ids.forEach(function (id) {
+          const ls = res[id];
+          if (!ls || !ls.length) return; // 查不到或真的沒有掛單：不覆蓋任何資料
+          got++;
+          const first = function (f) { const x = ls.find(f); return x ? x.pricePerUnit : null; };
+          liveDc[id] = { min: ls[0].pricePerUnit, minN: first(function (l) { return !l.hq; }), minH: first(function (l) { return l.hq; }), time: Date.now() };
+        });
+        if (got && td.isConnected) await fillBreakdown(td, itemId, depth, false);
+      }
       body.querySelectorAll('[data-mk-radar-expand]').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation(); // 不要順便觸發那一列的「打開物品詳情」
@@ -2114,8 +2143,7 @@
           const showing = detailRow.style.display !== 'none';
           if (showing) { detailRow.style.display = 'none'; btn.textContent = '▸ 材料明細'; return; }
           if (!detailRow.dataset.built) {
-            const bd = materialBreakdown(Number(btn.dataset.item), dcView, ui.basis);
-            detailRow.querySelector('td').innerHTML = renderBreakdownHtml(bd, 0);
+            fillBreakdown(detailRow.querySelector('td'), Number(btn.dataset.item), 0, true);
             detailRow.dataset.built = '1';
           }
           detailRow.style.display = '';
@@ -2128,15 +2156,14 @@
           const matRow = e.target.closest('tr.market-radar-mat-row.is-expandable');
           if (!matRow || !detailRow.contains(matRow)) return;
           const t = matRow.querySelector('[data-mat-toggle]');
-          const nested = matRow.nextElementSibling; // 展開內容固定是這一列的下一列（不用key去找，同一個材料出現在不同分支時才不會開錯）
+          const nested = matRow.nextElementSibling; // 展開內容固定是這一列的下一列
           if (!t || !nested || !nested.classList.contains('market-radar-mat-nested')) return;
           const keyParts = t.dataset.matToggle.split('-'); // "<itemId>-<depth>"
           const itemId = Number(keyParts[0]), depth = Number(keyParts[1]);
           const showing = nested.style.display !== 'none';
           if (showing) { nested.style.display = 'none'; t.textContent = '▸'; return; }
           if (!nested.dataset.built) {
-            const bd = materialBreakdown(itemId, dcView, ui.basis);
-            nested.querySelector('td').innerHTML = renderBreakdownHtml(bd, depth + 1);
+            fillBreakdown(nested.querySelector('td'), itemId, depth + 1, true);
             nested.dataset.built = '1';
           }
           nested.style.display = '';
@@ -2377,7 +2404,7 @@
         if (vel <= 0) return;
         e.price = P ? P[4] : (r[2] != null ? r[2] : null); e.value = vel;
       } else {
-        if (!P || (ui.freq !== 'any' && P[0] !== tier)) return; // 這個道具不屬於目前選的頻率級距（選「不限」就不篩級距）
+        if (!P || P[0] !== tier) return; // 這個道具不屬於目前選的頻率級距
         e.price = P[4];
         e.value = ui.metric === 'changePct' ? ((P[2] - P[4]) / P[4]) * 100 : P[5] / HOT_TIER_DAYS[P[0]];
       }
@@ -2412,12 +2439,12 @@
   const HOT_UI_BTNS = {
     metric: [['changePct', '漲跌幅度'], ['velocity', '賣速'], ['turnover', '每日成交額']],
     persp: [['all', '全部（NQ+HQ）'], ['nq', 'NQ'], ['hq', 'HQ']],
-    freq: [['any', '不限'], ['high', '較高'], ['low', '一般'], ['rare', '較低']],
+    freq: [['high', '較高'], ['low', '一般'], ['rare', '較低']],
     dir: [['all', '全部'], ['up', '看漲'], ['down', '看跌'], ['flat', '持平']],
     band: HOT_BANDS.map(function (b) { return [b.key, b.label]; }),
   };
   const HOT_METRIC_HINTS = {
-    changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少（時間都從現在往前算）。「賣速較高」拿 24 小時內對 48 小時內比較；「賣速一般」拿 3 天內對 7 天內比較；「賣速較低」拿 7 天內對 30 天內比較——這一級是給好幾天才賣出一件、但仍持續有人在買賣的道具用的，不然它們會因為湊不出短窗口的成交筆數而完全不見。每個道具只會落在其中一級（由成交筆數決定），選「不限」就不分級一起列出。漲跌幅度顯示為 0.0% 的算「持平」，不在看漲／看跌裡。',
+    changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少（時間都從現在往前算）。「賣速較高」拿 24 小時內對 48 小時內比較；「賣速一般」拿 3 天內對 7 天內比較；「賣速較低」拿 7 天內對 30 天內比較——這一級是給好幾天才賣出一件、但仍持續有人在買賣的道具用的，不然它們會因為湊不出短窗口的成交筆數而完全不見。每個道具只會落在其中一級（由成交筆數決定）。漲跌幅度顯示為 0.0% 的算「持平」，不在看漲／看跌裡。',
     velocity: '流動性：每天賣出幾件，數字越高越搶手',
     turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多。「賣速較高／一般／較低」的分法跟漲跌幅度一樣。',
     rare: '成交太少、湊不出足夠的成交筆數算漲跌的道具（多半是高價、很久才賣出一件的東西）。這裡列出它們「最近一筆成交價」和「目前最低掛單價」，讓你仍然找得到它們。',
@@ -2495,7 +2522,7 @@
       if (!top.length) {
         body.innerHTML = '<p class="craft-muted">目前的篩選條件下沒有符合的道具（符合指標與頻率的共 ' + res.total + ' 項）。' +
           (res.flatHidden ? '其中有 ' + res.flatHidden + ' 項漲跌幅是 0.0%（持平），沒有被算進看漲或看跌，可以把「方向」切到「持平」或「全部」。' : '') +
-          '可以放寬價格帶、換個視角，或把「賣速」切到「不限」試試。</p>';
+          '可以放寬價格帶，或換個視角、賣速級距試試。</p>';
         return;
       }
       const maxVal = Math.max.apply(null, top.map(function (e) { return Math.abs(e.value); })) || 1;
