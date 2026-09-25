@@ -198,6 +198,8 @@
 @media (pointer:coarse){.market-radar-mat-toggle{min-width:40px;height:36px;font-size:17px}}
 .market-radar-mat-row.is-expandable{cursor:pointer}
 .market-radar-mat-row.is-expandable:hover td{background:rgba(197,160,89,.1)}
+/* 第5點：展開材料明細時，這一列（含「▾ 收起明細」按鈕）貼在表頭下方，往下捲也看得到、點得到 */
+.market-price-table tbody tr.market-hot-item-sticky>td{position:sticky;top:var(--radar-sticky-top,32px);z-index:3;background:var(--bg);box-shadow:0 1px 0 var(--tb)}
 .market-radar-breakdown-wrap+.market-radar-breakdown-wrap{margin-top:6px}
 .market-price-table td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
 /* HQ標示：文字加亮＋外框，NQ不加任何符號 */
