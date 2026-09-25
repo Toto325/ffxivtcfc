@@ -321,7 +321,25 @@ function newAcc() {
   PERSP.forEach(function (p) { a[p] = [emptyW(), emptyW(), emptyW(), emptyW(), emptyW()]; }); // 24h, 48h, 3d, 7d, 30d
   return a;
 }
-function accumulate(acc, entries, nowSec) {
+/* 排除異常成交：跟這批成交的「中位數」比，同時差距超過100萬金且超過100倍才排除（用中位數而不是平均數，
+ * 這樣做的原因正是要抵抗離群值——平均數本身就會被一兩筆極端值拉走，中位數不會，除非離群值多到佔一半以上）。
+ * 用「每件」的單價比較（pricePerUnit 本來就是單價，不是總價），所以材料一次賣1個或99個不會被誤判成異常。
+ * 少於3筆時不判斷（2筆以下沒辦法定義「其他交易」，也容易誤殺剛好差很多的正常小樣本）。*/
+function excludeOutliers(entries) {
+  if (entries.length < 3) return entries;
+  const prices = entries.map(function (e) { return e.price; }).sort(function (a, b) { return a - b; });
+  const mid = Math.floor(prices.length / 2);
+  const median = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+  if (!median) return entries;
+  return entries.filter(function (e) {
+    const diff = Math.abs(e.price - median);
+    if (diff <= 1000000) return true;
+    const ratio = e.price >= median ? e.price / median : median / e.price;
+    return ratio <= 100;
+  });
+}
+function accumulate(acc, entriesRaw, nowSec) {
+  const entries = excludeOutliers(entriesRaw);
   const limits = [H24, H48, D3, D7, D30];
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
@@ -346,12 +364,18 @@ function mergeAcc(into, from) {
 /* 依窗口統計決定這個道具落在哪個頻率級距，並輸出精簡陣列（P[0]：1=賣速高、2=賣速中、3=成交稀少）。
  * 三個級距都不夠資料就回傳 null（連「成交稀少」都夠不上，代表這30天內幾乎沒有成交）。
  * P[5]（成交金額）是窗口內的原始加總，沒有除以天數，交由讀取端依窗口天數自己換算成「每天」。 */
-function buildP(win) {
+/* reachedD30：這個道具在「合併範圍」裡涉及的每個世界，是不是都真的抓滿了30天的成交紀錄。
+ * 只有 tier3（7天配30天）需要這個把關：如果某個世界這個道具在較短的階段就判定「夠用」而提早停止，
+ * 該世界對「7天」桶貢獻的是真實數字，對「30天」桶卻是0（不是沒交易，是根本沒抓那麼遠）。混進其他
+ * 抓滿30天的世界一起加總，「7天總和」跟「30天總和」就不是同一批世界的資料，均價會對不起來。
+ * tier1／tier2 不需要這個把關：兩者用到的窗口一定是「同一次抓取」得到的（不管抓幾天，24h／48h／3天／7天
+ * 一定是同批資料的子集合），不會有這種「有些世界只貢獻一部分」的問題。 */
+function buildP(win, reachedD30) {
   const w24 = win[0], w48 = win[1], w3 = win[2], w7 = win[3], w30 = win[4];
   const avg = function (w) { return Math.round(w.sp / w.n); };
   if (w24.n >= MIN_SHORT && w48.n >= MIN_LONG) return [1, w24.n, avg(w24), w48.n, avg(w48), Math.round(w48.sv)];
   if (w3.n >= MIN_SHORT && w7.n >= MIN_LONG) return [2, w3.n, avg(w3), w7.n, avg(w7), Math.round(w7.sv)];
-  if (w7.n >= MIN_SHORT && w30.n >= MIN_LONG) return [3, w7.n, avg(w7), w30.n, avg(w30), Math.round(w30.sv)];
+  if (reachedD30 && w7.n >= MIN_SHORT && w30.n >= MIN_LONG) return [3, w7.n, avg(w7), w30.n, avg(w30), Math.round(w30.sv)];
   return null;
 }
 
@@ -428,7 +452,7 @@ async function main() {
       if (h.entries.length >= HISTORY_CAP) { hot.push(id); return; } // 30天內成交多到一次抓不完 → 走逐級加寬流程
       const acc = newAcc();
       accumulate(acc, h.entries, nowSec);
-      table[id] = { acc: acc, reachedD7: true, active: true };
+      table[id] = { acc: acc, reachedD7: true, reachedD30: true, active: true }; // 一次抓滿30天，這個世界對這個道具的資料是完整的
     });
 
     // 熱門道具：原本的逐級加寬流程（48小時 → 7天 → 30天），邏輯一字不改
@@ -440,8 +464,8 @@ async function main() {
         if (!h || h.failed) { failedItems++; unresolvedAll.add(id); return; }
         const acc = newAcc();
         accumulate(acc, h.entries, nowSec);
-        table[id] = { acc: acc, reachedD7: false, active: true };
-        if (buildP(acc.all) === null) needB.push(id);
+        table[id] = { acc: acc, reachedD7: false, reachedD30: false, active: true }; // 只抓了48小時，還沒抓到30天
+        if (buildP(acc.all, false) === null) needB.push(id);
       });
       if (needB.length) {
         const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
@@ -451,8 +475,8 @@ async function main() {
           if (h.capped) return;
           const acc = newAcc();
           accumulate(acc, h.entries, nowSec);
-          table[id] = { acc: acc, reachedD7: true, active: true };
-          if (buildP(acc.all) === null) needC.push(id);
+          table[id] = { acc: acc, reachedD7: true, reachedD30: false, active: true }; // 只抓了7天，還沒抓到30天
+          if (buildP(acc.all, false) === null) needC.push(id);
         });
       }
       if (needC.length) {
@@ -463,7 +487,7 @@ async function main() {
           if (h.capped) return;
           const acc = newAcc();
           accumulate(acc, h.entries, nowSec);
-          table[id] = { acc: acc, reachedD7: true, active: true };
+          table[id] = { acc: acc, reachedD7: true, reachedD30: true, active: true }; // 抓滿30天了，這個世界對這個道具的資料是完整的
         });
       }
     }
@@ -494,7 +518,7 @@ async function main() {
       const t = table[id];
       const row = [
         Math.round(t.vN * 10) / 10, Math.round(t.vH * 10) / 10, t.minP == null ? null : Math.round(t.minP),
-        buildP(t.acc.all), buildP(t.acc.nq), buildP(t.acc.hq),
+        buildP(t.acc.all, t.reachedD30), buildP(t.acc.nq, t.reachedD30), buildP(t.acc.hq, t.reachedD30),
         t.active ? buildD(t.acc.all, t.reachedD7) : null,
         [t.minN == null ? null : Math.round(t.minN), t.minH == null ? null : Math.round(t.minH)],
         [t.rN ? t.rN.price : null, t.rN ? t.rN.ts : null, t.rH ? t.rH.price : null, t.rH ? t.rH.ts : null],
@@ -513,12 +537,13 @@ async function main() {
     Object.keys(tbl).forEach(function (id) {
       const src = tbl[id];
       let dst = dcTable[id];
-      if (!dst) { dst = dcTable[id] = { acc: newAcc(), reachedD7: true, active: false, vN: 0, vH: 0, minP: null, minN: null, minH: null, rN: null, rH: null }; }
+      if (!dst) { dst = dcTable[id] = { acc: newAcc(), reachedD7: true, reachedD30: true, active: false, vN: 0, vH: 0, minP: null, minN: null, minH: null, rN: null, rH: null }; }
       if (src.active) dst.active = true;
       // 最近一筆成交：各世界取「時間最新」的那一筆
       ['rN', 'rH'].forEach(function (k) { if (src[k] && (!dst[k] || (src[k].ts || 0) > (dst[k].ts || 0))) dst[k] = src[k]; });
       mergeAcc(dst.acc, src.acc);
       if (src.active) dst.reachedD7 = dst.reachedD7 && src.reachedD7; // 只要有一個「有成交」的世界沒有7天以上資料，DC 範圍就只能用賣速高這個級距（寧缺勿錯）；只有掛單沒成交的世界不影響
+      if (src.active) dst.reachedD30 = dst.reachedD30 && src.reachedD30; // 同理：tier3（7天配30天）需要「合併進來的每個世界」都真的抓滿30天
       dst.vN += src.vN; dst.vH += src.vH;
       if (src.minP != null) dst.minP = dst.minP == null ? src.minP : Math.min(dst.minP, src.minP);
       if (src.minN != null) dst.minN = dst.minN == null ? src.minN : Math.min(dst.minN, src.minN);
