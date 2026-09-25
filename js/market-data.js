@@ -18,7 +18,7 @@ window.MarketData = (function () {
   // 繁中台服目前唯一的DC就是「陸行鳥」，預設先選上它，玩家不用每次開抽屜都要手動選一次；
   // 世界則是個人選擇（哪個世界有角色），不預設，維持空值讓玩家自己挑。
   const DEFAULT_DC = '陸行鳥';
-  let settings = { dcName: DEFAULT_DC, worldName: null, sellCityKey: null };
+  let settings = { dcName: DEFAULT_DC, worldName: null, sellCityKey: null, excludeOutlierTrades: true }; // 排除異常成交預設打開
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) settings = Object.assign(settings, JSON.parse(raw));
@@ -587,6 +587,23 @@ window.MarketData = (function () {
     try { return await fetchTaxRatesRaw(worldNameStr); } catch (e) { return []; }
   }
   function setSellCity(cityKey) { settings.sellCityKey = cityKey || null; saveSettings(); }
+  function setExcludeOutlierTrades(on) { settings.excludeOutlierTrades = !!on; saveSettings(); }
+  /* 排除異常成交（即時查詢這邊用的版本，跟抓取腳本裡的邏輯規則完全一樣：中位數，同時差距超過100萬且超過100倍才排除）。
+   * 少於3筆不判斷。傳入的是每一筆的 pricePerUnit 陣列。 */
+  function excludeOutlierEntries(entries, priceOf) {
+    if (!settings.excludeOutlierTrades || entries.length < 3) return entries;
+    const prices = entries.map(priceOf).slice().sort(function (a, b) { return a - b; });
+    const mid = Math.floor(prices.length / 2);
+    const median = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
+    if (!median) return entries;
+    return entries.filter(function (e) {
+      const price = priceOf(e);
+      const diff = Math.abs(price - median);
+      if (diff <= 1000000) return true;
+      const ratio = price >= median ? price / median : median / price;
+      return ratio <= 100;
+    });
+  }
   async function getSellTaxInfo(worldNameStr) {
     const list = await listSellCities(worldNameStr);
     if (!list.length) return null;
@@ -771,6 +788,8 @@ window.MarketData = (function () {
     getSellTaxInfo: getSellTaxInfo,
     listSellCities: listSellCities,
     setSellCity: setSellCity,
+    setExcludeOutlierTrades: setExcludeOutlierTrades,
+    excludeOutlierEntries: excludeOutlierEntries,
     getSellDepth: getSellDepth,
     fetchListingsBatch: fetchListingsBatch,
     fetchListingsBatchForScope: fetchListingsBatchForScope,
