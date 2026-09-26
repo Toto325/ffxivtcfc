@@ -55,6 +55,18 @@ const REPAIR_ROUNDS = Number(process.env.REPAIR_ROUNDS || 3);
 const REPAIR_CONCURRENCY = Number(process.env.REPAIR_CONCURRENCY || 3);
 const REPAIR_DEADLINE = Date.now() + Number(process.env.REPAIR_DEADLINE_MIN || 38) * 60 * 1000; // 超過就不再補抓（workflow 上限是55分鐘）
 const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS || 60000); // 沒有逾時的話，一個卡住的連線就能讓整支腳本掛到 workflow 上限
+/* 除錯用：設定環境變數 DEBUG_ITEM_IDS="21762,13258" 就會把這幾個道具、每個世界抓到的
+ * 原始成交紀錄（時間、單價、數量、NQ/HQ、排除異常值前後）完整印到 log 裡，方便追離群均價的真正原因。
+ * 平常不設這個環境變數，不會印任何東西，也不影響效能。 */
+const DEBUG_ITEM_IDS = (process.env.DEBUG_ITEM_IDS || '').split(',').map(function (s) { return Number(s.trim()); }).filter(Boolean);
+function debugDump(worldName, id, rawEntries, filteredEntries) {
+  if (DEBUG_ITEM_IDS.indexOf(id) === -1) return;
+  console.log('=== DEBUG 道具 ' + id + ' @ ' + worldName + '：原始 ' + rawEntries.length + ' 筆，排除異常值後 ' + filteredEntries.length + ' 筆 ===');
+  rawEntries.forEach(function (e) {
+    const kept = filteredEntries.indexOf(e) !== -1;
+    console.log('  ' + new Date(e.ts * 1000).toISOString() + '  單價' + e.price + '金  數量' + e.qty + '  ' + (e.hq ? 'HQ' : 'NQ') + (kept ? '' : '  【被排除異常值】'));
+  });
+}
 const MIN_KEEP_RATIO = 0.7;
 const UA = 'xiv-craft-helper-market-bot' + (process.env.GITHUB_REPOSITORY ? ' (github.com/' + process.env.GITHUB_REPOSITORY + ')' : '');
 
@@ -338,8 +350,9 @@ function excludeOutliers(entries) {
     return ratio <= 100;
   });
 }
-function accumulate(acc, entriesRaw, nowSec) {
+function accumulate(acc, entriesRaw, nowSec, debugWorldName, debugId) {
   const entries = excludeOutliers(entriesRaw);
+  if (debugWorldName && debugId) debugDump(debugWorldName, debugId, entriesRaw, entries);
   const limits = [H24, H48, D3, D7, D30];
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
@@ -451,7 +464,7 @@ async function main() {
       if (!h || h.failed) { failedItems++; unresolvedAll.add(id); return; }
       if (h.entries.length >= HISTORY_CAP) { hot.push(id); return; } // 30天內成交多到一次抓不完 → 走逐級加寬流程
       const acc = newAcc();
-      accumulate(acc, h.entries, nowSec);
+      accumulate(acc, h.entries, nowSec, w.name, id);
       table[id] = { acc: acc, reachedD7: true, reachedD30: true, active: true }; // 一次抓滿30天，這個世界對這個道具的資料是完整的
     });
 
