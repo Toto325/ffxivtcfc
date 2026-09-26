@@ -513,14 +513,14 @@
         '<p class="market-avgprice-row"><span>近30天成交均價</span><strong>' + (avg30d != null ? avg30d.toLocaleString() + ' 金' : '無成交') + '</strong></p>' +
         '<p class="market-avgprice-row" id="mk-avgprice-listing"><span>目前掛單均價</span><strong>讀取中⋯</strong></p>' +
         '<p class="craft-muted" style="font-size:10px;margin-top:4px">「當前」是最近24小時內的成交；「近1天」是最近48小時內（當天＋昨天）；「近3/7/30天」是過去那整段時間所有成交的平均，都已排除異常成交（可在設定裡關閉）。「目前掛單均價」是現在架上還沒賣掉的掛單價格平均，不是成交價。</p>';
-      // 第3點：把「目前掛單均價」也列進來當參考——這是現在架上還沒賣掉的掛單價格平均，跟上面的「成交均價」是不同的東西
+      // 第3點：把「目前掛單均價」也列進來當參考——這是現在架上還沒賣掉的掛單價格平均，跟上面的「成交均價」是不同的東西。
+      // 這裡改成跟均價徽章用同一個來源（Universalis 官方算好的 currentAveragePrice），不要自己另外抓一批掛單
+      // 重新算平均——之前兩邊各自算，物品掛單一多，兩個「掛單均價」數字就會兜不起來，看起來像bug。
       try {
         const st = MarketData.getSettings();
-        const scopeName = scopeWorld || st.dcName;
-        const res = scopeName ? await MarketData.fetchListingsBatchForScope([Number(itemId)], scopeName) : {};
-        const ls = res[itemId] || [];
+        const ov2 = await MarketData.getItemMarketOverview(itemId, scopeWorld || st.dcName);
         const row = document.getElementById('mk-avgprice-listing');
-        if (row) row.querySelector('strong').textContent = ls.length ? Math.round(ls.reduce(function (t, l) { return t + l.pricePerUnit; }, 0) / ls.length).toLocaleString() + ' 金' : '目前無掛單';
+        if (row) row.querySelector('strong').textContent = (ov2 && ov2.avgPrice) ? Math.round(ov2.avgPrice).toLocaleString() + ' 金' : '目前無掛單';
       } catch (e) { const row = document.getElementById('mk-avgprice-listing'); if (row) row.querySelector('strong').textContent = '讀取失敗'; }
     } catch (e) {
       pop.innerHTML = '<p class="craft-mat-worlds-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px">讀取失敗，請稍後再試。</p>';
@@ -2154,12 +2154,9 @@
       /* 第5點：展開材料明細時，把「▾ 收起明細」那一列釘在表頭下方（跟表頭一樣是 position:sticky），
        * 往下捲動看明細內容時，這一列會一直貼在螢幕（或捲動區）最上緣，隨時點得到，不用捲回頂部。
        * 只有最外層（這裡）做 sticky，材料明細裡巢狀展開的部分不做，維持原本自然往下長的方式。
-       * 貼的位置（top）現場量表頭實際高度，不寫死px，桌面、手機字體大小不同也不會量錯。 */
-      function stickyTopPx(rowEl) {
-        const table = rowEl.closest('table');
-        const thead = table && table.querySelector('thead');
-        return thead ? thead.getBoundingClientRect().height : 0;
-      }
+       * 貼的位置（top）不再用 JS 現場量表頭高度——量出來的數字偶爾會跟實際渲染的高度差一兩像素（字型
+       * 度量的四捨五入），中間就會露出一條縫看到後面的背景。改成表頭高度和這裡的top都寫死同一個CSS數字
+       * （見 page-market.css 的 --radar-head-h），表頭字體不管桌面手機都固定不變，寫死不會有誤差。 */
       body.querySelectorAll('[data-mk-radar-expand]').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation(); // 不要順便觸發那一列的「打開物品詳情」
@@ -2171,6 +2168,7 @@
           if (showing) {
             detailRow.style.display = 'none'; btn.textContent = '▸ 材料明細';
             if (itemRow) itemRow.classList.remove('market-hot-item-sticky');
+
             return;
           }
           if (!detailRow.dataset.built) {
@@ -2179,10 +2177,7 @@
           }
           detailRow.style.display = '';
           btn.textContent = '▾ 收起明細';
-          if (itemRow) {
-            itemRow.style.setProperty('--radar-sticky-top', stickyTopPx(itemRow) + 'px');
-            itemRow.classList.add('market-hot-item-sticky');
-          }
+          if (itemRow) itemRow.classList.add('market-hot-item-sticky');
         });
       });
       // 巢狀展開（材料明細裡，某項材料自己也能製作，再往下看一層）：用事件代理，因為這些列是動態插入的
