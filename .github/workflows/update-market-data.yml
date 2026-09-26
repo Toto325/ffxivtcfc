@@ -5,7 +5,15 @@ name: 更新市場資料（熱度排行預先計算）
 on:
   schedule:
     - cron: '17 * * * *'
-  workflow_dispatch: {}
+  # 手動觸發時可以填「除錯道具ID」，例如 21762,13258，
+  # 這樣log裡就會印出這幾個道具在每個世界抓到的原始成交紀錄，方便追蹤離群均價的問題。
+  # 平常排程自動跑（上面的cron）不會有這個欄位，留空即可，不影響正常運作。
+  workflow_dispatch:
+    inputs:
+      debug_item_ids:
+        description: '除錯道具ID（用逗號分開，例如 21762,13258），平常留空即可'
+        required: false
+        default: ''
 
 # 同時只允許一個在跑：上一次還沒跑完時，下一次排程會排隊等，不會兩個同時打 Universalis。
 concurrency:
@@ -34,6 +42,7 @@ jobs:
         run: node scripts/update-market-data.js
         env:
           PREV_META_URL: https://raw.githubusercontent.com/${{ github.repository }}/market-data/market/meta.json
+          DEBUG_ITEM_IDS: ${{ github.event.inputs.debug_item_ids }}
 
       # 資料只在 market-data 分支，而且每次都是「單一 commit 強制覆蓋」：
       # 不會跟 main 混在一起，也不會因為每小時更新讓 repo 的 git 歷史越長越大。
