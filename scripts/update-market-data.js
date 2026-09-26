@@ -337,8 +337,20 @@ function newAcc() {
  * 這樣做的原因正是要抵抗離群值——平均數本身就會被一兩筆極端值拉走，中位數不會，除非離群值多到佔一半以上）。
  * 用「每件」的單價比較（pricePerUnit 本來就是單價，不是總價），所以材料一次賣1個或99個不會被誤判成異常。
  * 少於3筆時不判斷（2筆以下沒辦法定義「其他交易」，也容易誤殺剛好差很多的正常小樣本）。*/
+/* 修正一個實際發生過的漏洞：只有1、2筆成交時，原本「少於3筆完全不判斷」，等於放行任何價格，
+ * 曾經真的出現「某個世界只抓到2筆，一筆4,000金一筆3,100萬金」這種誇張情況，兩筆都沒被排除，
+ * 3,100萬金那筆混進「所有世界」合併平均，直接把均價拉到200多萬。
+ * 只有1筆的時候還是沒辦法判斷（沒有「其他交易」可以比較），維持不處理；
+ * 剛好2筆的時候，拿「兩筆之中比較便宜的那筆」當基準，另一筆如果同時符合差距超過100萬、超過100倍，就排除它
+ * ——這是唯一站得住腳的方向：正常情況不會有兩筆合法成交差到7000倍，便宜的那筆本來就比較貼近行情。 */
 function excludeOutliers(entries) {
-  if (entries.length < 3) return entries;
+  if (entries.length < 2) return entries;
+  if (entries.length === 2) {
+    const a = entries[0].price, b = entries[1].price;
+    const lo = Math.min(a, b), hi = Math.max(a, b);
+    if (hi - lo > 1000000 && hi / lo > 100) return a <= b ? [entries[0]] : [entries[1]];
+    return entries;
+  }
   const prices = entries.map(function (e) { return e.price; }).sort(function (a, b) { return a - b; });
   const mid = Math.floor(prices.length / 2);
   const median = prices.length % 2 ? prices[mid] : (prices[mid - 1] + prices[mid]) / 2;
@@ -350,9 +362,16 @@ function excludeOutliers(entries) {
     return ratio <= 100;
   });
 }
+/* accumulate() 保留給「熱門道具逐級加寬」那條路徑用（單一世界內部自己夠不夠判斷，維持原樣不動）。
+ * accumulateFiltered() 是拆出來的核心：接收「已經排除過異常值」的成交紀錄，只負責疊加進各個時間窗口，
+ * 不會再自己重跑一次排除異常值——因為主流程（單次抓30天）現在改成先把同一個道具、所有世界的原始成交
+ * 紀錄全部收集起來，一起算出「跨世界」的中位數再排除異常值，這裡只管疊加。 */
 function accumulate(acc, entriesRaw, nowSec, debugWorldName, debugId) {
   const entries = excludeOutliers(entriesRaw);
   if (debugWorldName && debugId) debugDump(debugWorldName, debugId, entriesRaw, entries);
+  accumulateFiltered(acc, entries, nowSec);
+}
+function accumulateFiltered(acc, entries, nowSec) {
   const limits = [H24, H48, D3, D7, D30];
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
