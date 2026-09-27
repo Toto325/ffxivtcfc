@@ -454,7 +454,8 @@ async function main() {
    * 樣本可以正確判斷；之後再按世界分開疊加進各自的窗口統計。
    * 「熱門道具逐級加寬」那條路徑（極少數成交密集到單次抓不完30天的道具）維持原本各世界自己判斷——
    * 這類道具在單一世界裡通常本來就有大量成交，樣本已經夠大，不太會出現「樣本太小被矇騙」的情況。 */
-  const rawByItem = {}; // id -> [{ wid, entries }]（單次抓30天路徑專用，還沒排除異常值、還沒疊加）
+  const rawByItem = {}; // id -> [{ wid, entries, reachedD7, reachedD30 }]，兩條路徑（單次抓30天／熱門道具逐級加寬）都共用，
+  // 還沒排除異常值、還沒疊加——排除異常值統一放到所有世界都抓完之後，一起用跨世界的資料判斷（見下面3.4節）
   const aggInfoByWorld = {}; // wid -> agg.info（要留到跨世界排除異常值算完之後，才把賣速/掛單價等資訊補回去）
   for (const w of dcWorlds) {
     const tw = Date.now();
@@ -488,7 +489,6 @@ async function main() {
      * 頻率級距的判斷（buildP）完全沒變，判斷所用的成交紀錄也是同一份，只是不再重複抓。
      * 另外：以前「賣速高」的道具只有48小時資料，合併成「所有世界」時，其他世界有7天／30天資料，
      * 窗口涵蓋範圍不一致；現在絕大多數道具在每個世界都是完整30天，這個不一致也一併消失。 */
-    const table = {};
     const hot = [];
     let failedItems = 0;
     const hist30 = await fetchHistory(w.name, active, D30, H48, nowSec);
@@ -498,7 +498,7 @@ async function main() {
       if (h.entries.length >= HISTORY_CAP) { hot.push(id); return; } // 30天內成交多到一次抓不完 → 走逐級加寬流程
       // 先只收集原始資料，不在這裡排除異常值、不疊加——要等所有世界都抓完，才跨世界一起判斷
       rawByItem[id] = rawByItem[id] || [];
-      rawByItem[id].push({ wid: w.id, entries: h.entries });
+      rawByItem[id].push({ wid: w.id, entries: h.entries, reachedD7: true, reachedD30: true });
     });
 
     // 熱門道具：原本的逐級加寬流程（48小時 → 7天 → 30天），邏輯一字不改
@@ -508,10 +508,13 @@ async function main() {
       hot.forEach(function (id) {
         const h = histA[id];
         if (!h || h.failed) { failedItems++; unresolvedAll.add(id); return; }
-        const acc = newAcc();
-        accumulate(acc, h.entries, nowSec);
-        table[id] = { acc: acc, reachedD7: false, reachedD30: false, active: true }; // 只抓了48小時，還沒抓到30天
-        if (buildP(acc.all, false) === null) needB.push(id);
+        // 這個acc只是用來判斷「48小時的資料夠不夠、要不要繼續往下抓7天/30天」，判斷完就丟掉，
+        // 不會拿來當最終結果——異常值排除、最終疊加統一延後到跨世界那一段做（見下面3.4節）
+        const probeAcc = newAcc();
+        accumulate(probeAcc, h.entries, nowSec);
+        if (buildP(probeAcc.all, false) === null) { needB.push(id); return; }
+        rawByItem[id] = rawByItem[id] || [];
+        rawByItem[id].push({ wid: w.id, entries: h.entries, reachedD7: false, reachedD30: false }); // 只抓了48小時，還沒抓到30天
       });
       if (needB.length) {
         const histB = await fetchHistory(w.name, needB, D7, D7, nowSec);
@@ -519,10 +522,11 @@ async function main() {
           const h = histB[id];
           if (!h || h.failed) { unresolvedAll.add(id); return; }
           if (h.capped) return;
-          const acc = newAcc();
-          accumulate(acc, h.entries, nowSec);
-          table[id] = { acc: acc, reachedD7: true, reachedD30: false, active: true }; // 只抓了7天，還沒抓到30天
-          if (buildP(acc.all, false) === null) needC.push(id);
+          const probeAcc = newAcc();
+          accumulate(probeAcc, h.entries, nowSec);
+          if (buildP(probeAcc.all, false) === null) { needC.push(id); return; }
+          rawByItem[id] = rawByItem[id] || [];
+          rawByItem[id].push({ wid: w.id, entries: h.entries, reachedD7: true, reachedD30: false }); // 只抓了7天，還沒抓到30天
         });
       }
       if (needC.length) {
@@ -531,18 +535,16 @@ async function main() {
           const h = histC[id];
           if (!h || h.failed) { unresolvedAll.add(id); return; }
           if (h.capped) return;
-          const acc = newAcc();
-          accumulate(acc, h.entries, nowSec);
-          table[id] = { acc: acc, reachedD7: true, reachedD30: true, active: true }; // 抓滿30天了，這個世界對這個道具的資料是完整的
+          rawByItem[id] = rawByItem[id] || [];
+          rawByItem[id].push({ wid: w.id, entries: h.entries, reachedD7: true, reachedD30: true }); // 抓滿30天了，這個世界對這個道具的資料是完整的
         });
       }
     }
-    Object.keys(table).forEach(function (id) {
-      const i = agg.info[id];
-      table[id].vN = i.vN; table[id].vH = i.vH; table[id].minP = i.minP; table[id].minN = i.minN; table[id].minH = i.minH;
-      table[id].rN = i.rN; table[id].rH = i.rH;
-    });
-    perWorld[w.id] = table; // 目前只有「熱門道具逐級加寬」的結果；單次抓30天的道具還沒放進來，等下面跨世界排除異常值算完再補上
+    // table 現在不再直接使用——不管是單次抓30天，還是熱門道具逐級加寬，最終的原始成交紀錄都先放進
+    // rawByItem，等所有世界都抓完，才在下面「3.4 跨世界排除異常成交」那一段統一排除異常值、統一疊加、
+    // 統一補上 vN/vH/掛單價等資訊（用 aggInfoByWorld）。這裡先給每個世界一個空物件佔位，避免其他地方
+    // 存取 perWorld[w.id] 時出錯；之後會在 3.4 那段被填入內容。
+    perWorld[w.id] = {};
     console.log(w.name + '：有交易跡象 ' + active.length + ' 項，其中成交密集（走逐級加寬）' + hot.length + ' 項，失敗 ' + failedItems + ' 項，' + ((Date.now() - tw) / 1000).toFixed(0) + ' 秒');
   }
 
@@ -560,7 +562,7 @@ async function main() {
       const acc = newAcc();
       accumulateFiltered(acc, filtered, nowSec); // 這裡不再重新排除異常值——上面已經用跨世界的結果排除過了
       const i = aggInfoByWorld[part.wid][id];
-      perWorld[part.wid][id] = { acc: acc, reachedD7: true, reachedD30: true, active: true, vN: i.vN, vH: i.vH, minP: i.minP, minN: i.minN, minH: i.minH, rN: i.rN, rH: i.rH };
+      perWorld[part.wid][id] = { acc: acc, reachedD7: part.reachedD7, reachedD30: part.reachedD30, active: true, vN: i.vN, vH: i.vH, minP: i.minP, minN: i.minN, minH: i.minH, rN: i.rN, rH: i.rH };
     });
   });
 
