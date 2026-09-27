@@ -41,8 +41,11 @@ const OUT_DIR = process.env.OUT_DIR || path.join('market-out', 'market');
 const NAMES_FILE = process.env.NAMES_FILE || path.join('js', 'item-names-tw.js');
 const PREV_META_URL = process.env.PREV_META_URL || '';
 const ITEM_LIMIT = Number(process.env.ITEM_LIMIT || 0); // 只用於測試
-const MAX_CONCURRENT = Number(process.env.MAX_CONCURRENT || 6); // Universalis 同一 IP 最多 8 條同時連線，留一點餘裕
-const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 100); // 約每秒 10 個請求（官方上限約 25）
+// 這三個數字（併發數、節流間隔、每批道具數）原本留了很大的安全邊際，導致抓取速度偏慢、容易撞到
+// workflow 55分鐘的執行上限。這裡調鬆到接近 Universalis 官方文件講的上限，如果之後又看到大量429
+// （被限流）或「拆小重試」次數明顯變多，代表調過頭了，可以把這幾個數字往回調，不用改動其他程式碼。
+const MAX_CONCURRENT = Number(process.env.MAX_CONCURRENT || 8); // Universalis 同一IP最多8條同時連線，這裡用滿
+const MIN_INTERVAL_MS = Number(process.env.MIN_INTERVAL_MS || 45); // 約每秒22個請求（官方上限約25，留一點餘裕）
 // 「系統上存在、但玩家不能加入」的世界（例如拉姆）：沒有任何成交／掛單資料是正常的。
 // 這些世界會先用3個分散的小樣本探測，如果全部查不到東西就整個略過，不浪費時間、也不會被算成失敗。
 // 其他世界不在這個名單裡，仍然要完整查，查不到會算失敗（那代表真的出問題了）。
@@ -74,7 +77,9 @@ const H24 = 86400, H48 = 172800, D3 = 259200, D7 = 604800, D30 = 2592000;
 const MIN_SHORT = 3, MIN_LONG = 5;
 const HISTORY_CAP = 1800; // 單次請求每個道具最多回傳的成交筆數
 const AGG_CHUNK = 100;    // 聚合端點一次最多 100 個道具
-const HIST_CHUNK = 10;
+const HIST_CHUNK = 20; // 原本10，加大到20：道具總數不變，但請求次數少一半，減少的是「來回等待」的總時間，
+// 不是每個道具查得更少——每批查20個道具的行為跟查10個完全一樣，只是一次問更多個。極少數「成交密集」的
+// 熱門道具混在同一批裡，會讓那一批的回應變大一點，但這種道具整個資料中心只有個位數，影響很小。
 
 const stats = { requests: 0, failed: 0, retries: 0 };
 
