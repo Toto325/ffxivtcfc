@@ -2375,6 +2375,7 @@
   const HOT_METRICS = [
     { key: 'velocity', label: '賣速', fmt: function (v) { return v.toFixed(1) + ' 件/天'; }, hint: '流動性：多快能賣掉，數字越高代表越搶手（NQ+HQ合計，跟物品詳情頁同一套計算方式）' },
     { key: 'turnover', label: '每日成交額', fmt: function (v) { return fmtGil(v) + ' 金/天'; }, hint: '' },
+    { key: 'txnFreq', label: '成交頻率', fmt: function (v) { return v.toFixed(2) + ' 筆/天'; }, hint: '' },
     { key: 'changePct', label: '漲跌幅度', fmt: function (v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '%'; }, hint: '短期動能：當前（24小時內）成交均價，比近1天（48小時內）成交均價貴/便宜多少（NQ／HQ一起算，成交筆數不足的不列入）' },
   ];
 
@@ -2436,7 +2437,9 @@
       } else {
         if (!P || P[0] !== tier) return; // 這個道具不屬於目前選的頻率級距
         e.price = P[4];
-        e.value = ui.metric === 'changePct' ? ((P[2] - P[4]) / P[4]) * 100 : P[5] / HOT_TIER_DAYS[P[0]];
+        e.value = ui.metric === 'changePct' ? ((P[2] - P[4]) / P[4]) * 100
+          : ui.metric === 'txnFreq' ? P[3] / HOT_TIER_DAYS[P[0]] // 成交頻率：這個窗口內「幾筆成交」除以天數（次數/天），不是數量也不是金額
+          : P[5] / HOT_TIER_DAYS[P[0]];
       }
       e.band = hotBandIndex(e.price);
       universe.push(e);
@@ -2467,7 +2470,7 @@
   }
 
   const HOT_UI_BTNS = {
-    metric: [['changePct', '漲跌幅度'], ['velocity', '賣速'], ['turnover', '每日成交額']],
+    metric: [['changePct', '漲跌幅度'], ['velocity', '賣速'], ['turnover', '每日成交額'], ['txnFreq', '成交頻率']],
     persp: [['all', '全部（NQ+HQ）'], ['nq', 'NQ'], ['hq', 'HQ']],
     freq: [['high', '較高'], ['low', '一般'], ['rare', '較低']],
     dir: [['all', '全部'], ['up', '看漲'], ['down', '看跌'], ['flat', '持平']],
@@ -2477,6 +2480,7 @@
     changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少（時間都從現在往前算）。「頻率較高」拿 24 小時內對 48 小時內比較；「頻率一般」拿 3 天內對 7 天內比較；「頻率較低」拿 7 天內對 30 天內比較——這一級是給好幾天才賣出一件、但仍持續有人在買賣的道具用的，不然它們會因為湊不出短窗口的成交筆數而完全不見。每個道具只會落在其中一級（由成交筆數決定，跟道具那一列顯示的「賣速」是兩回事——賣速是每天賣出幾件，堆疊販售的道具可能次數少但賣速數字很高）。漲跌幅度顯示為 0.0% 的算「持平」，不在看漲／看跌裡。',
     velocity: '流動性：每天賣出幾件，數字越高越搶手（跟「成交頻率」篩選的次數分級是兩回事，這裡看的是數量）',
     turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多。「頻率較高／一般／較低」的分法跟漲跌幅度一樣。',
+    txnFreq: '成交次數：平均每天成交幾筆（不是賣出幾件、也不是成交多少金額——一次賣99個算1筆，賣速可能很高，但這裡的成交頻率只看「發生過幾次交易」）。「頻率較高／一般／較低」的分法跟漲跌幅度一樣。',
     rare: '成交太少、湊不出足夠的成交筆數算漲跌的道具（多半是高價、很久才賣出一件的東西）。這裡列出它們「最近一筆成交價」和「目前最低掛單價」，讓你仍然找得到它們。',
   };
 
@@ -2564,10 +2568,20 @@
             const v = e.value;
             const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
             const barColor = v >= 0 ? '#c5a059' : '#f87171';
+            // 第1、2點：賣速、每日成交額這兩個指標，本來就有算好的價格漲跌（跟「漲跌幅度」指標是同一套算法），
+            // 只是原本沒有拿出來顯示；這裡不管選哪個指標，只要有P資料，都順便把價格漲跌標出來，方便對照。
+            function priceChangeTxt(P) {
+              if (!P || !P[4]) return '';
+              const pct = ((P[2] - P[4]) / P[4]) * 100;
+              const r1 = Math.round(pct * 10) / 10;
+              const arrow = r1 > 0 ? '▲' : (r1 < 0 ? '▼' : '－');
+              const cls = r1 > 0 ? 'market-hot-pricechg-up' : (r1 < 0 ? 'market-hot-pricechg-down' : '');
+              return '<span class="' + cls + '">' + arrow + Math.abs(r1).toFixed(1) + '%</span>';
+            }
             let sub = '';
             if (ui.metric === 'changePct') sub = '均價 ' + fmtGil(e.P[4]) + '→' + fmtGil(e.P[2]) + '（' + windowCoverageLabel(e.P) + '）　賣速 ' + e.vel.toFixed(1) + '/天';
-            else if (ui.metric === 'velocity') sub = 'NQ ' + e.nqV.toFixed(1) + '　HQ ' + e.hqV.toFixed(1) + (e.P ? '　均價 ' + fmtGil(e.P[4]) : '');
-            else sub = '均價 ' + fmtGil(e.P[4]) + '（' + windowCoverageLabel(e.P) + '）　賣速 ' + e.vel.toFixed(1) + '/天';
+            else if (ui.metric === 'velocity') sub = 'NQ ' + e.nqV.toFixed(1) + '　HQ ' + e.hqV.toFixed(1) + (e.P ? '　均價 ' + fmtGil(e.P[4]) + '　' + priceChangeTxt(e.P) : '');
+            else sub = '均價 ' + fmtGil(e.P[4]) + '（' + windowCoverageLabel(e.P) + '）　' + priceChangeTxt(e.P) + '　賣速 ' + e.vel.toFixed(1) + '/天';
             return '<div class="market-hot-item" data-mk-hot-item="' + e.id + '"><div class="market-hot-row">' +
               '<span class="market-hot-rank">' + (i + 1) + '</span>' + itemIconHtml(e.id, 30) +
               '<span class="market-hot-name">' + (ITEM_NAMES_TW_ALL[e.id] || ('#' + e.id)) + (e.minP != null ? '<span class="market-hot-price" title="掛單資料要等玩家上傳才更新，可能已變動；只供參考，不參與任何計算">' + fmtGil(e.minP) + '金</span>' : '') + '</span>' +
