@@ -295,6 +295,9 @@
 .market-hot-bar-track{flex:1;height:14px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;min-width:60px}
 .market-hot-bar{height:100%;border-radius:4px;transition:width .3s ease}
 .market-hot-value{width:110px;flex-shrink:0;text-align:right;font-size:12px;color:var(--main);white-space:nowrap}
+/* 第1、2點：賣速／每日成交額指標的子行也顯示價格漲跌，跟「漲跌幅度」指標用同一套配色 */
+.market-hot-pricechg-up{color:var(--gold)}
+.market-hot-pricechg-down{color:#f87171}
 .market-hot-sub{display:block;font-size:10px;color:var(--dim)}
 
 /* ── 製作求解彈窗（iframe）──
