@@ -2096,7 +2096,8 @@
       body.innerHTML =
         '<p class="craft-muted" style="margin-bottom:6px">符合條件 ' + res.list.length + ' 個配方（另有成品沒有價格或近幾天沒成交 ' + res.skippedSell + ' 個、材料沒有價格 ' + res.skippedMat + ' 個無法估價）。</p>' +
         (isListing ? '<p class="craft-muted" id="mk-radar-live" style="margin-bottom:6px">' + (liveNote || '') + '</p>' : '') +
-        '<div class="market-table-scroll market-radar-scroll"><table class="market-price-table"><thead><tr><th>淨利／次</th><th>投報率</th><th>材料成本</th><th>成品' + (isListing ? '最低價' : '成交均價') + '／次<span class="craft-muted" style="font-weight:normal">（' + sellLabel + '）</span></th><th>賣速</th><th>物品</th></tr></thead><tbody>' +
+        '<p class="craft-muted" style="margin-bottom:6px;font-size:11px">淨利、成本、售價皆為做一次配方的數字；售價＝成品' + (isListing ? '最低價' : '成交均價') + '（' + sellLabel + '）。</p>' +
+        '<div class="market-table-scroll market-radar-scroll"><table class="market-price-table"><thead><tr><th>淨利</th><th>投報率</th><th>成本</th><th>售價</th><th>賣速</th><th>物品</th></tr></thead><tbody>' +
         top.map(function (r) {
           const yieldNote = r.yields > 1 ? fmtGil(r.unit) + '金×' + r.yields : '';
           const otherNote = r.otherPrice != null ? (isListing ? '成交均價 ' : '最低掛單價 ') + fmtGil(r.otherPrice) + '金' : '';
@@ -2154,9 +2155,18 @@
       /* 第5點：展開材料明細時，把「▾ 收起明細」那一列釘在表頭下方（跟表頭一樣是 position:sticky），
        * 往下捲動看明細內容時，這一列會一直貼在螢幕（或捲動區）最上緣，隨時點得到，不用捲回頂部。
        * 只有最外層（這裡）做 sticky，材料明細裡巢狀展開的部分不做，維持原本自然往下長的方式。
-       * 貼的位置（top）不再用 JS 現場量表頭高度——量出來的數字偶爾會跟實際渲染的高度差一兩像素（字型
-       * 度量的四捨五入），中間就會露出一條縫看到後面的背景。改成表頭高度和這裡的top都寫死同一個CSS數字
-       * （見 page-market.css 的 --radar-head-h），表頭字體不管桌面手機都固定不變，寫死不會有誤差。 */
+       * 貼的位置（top）＝表頭實際高度，由下面 trackHeadHeight 持續量測（見 --radar-head-h）。 */
+      /* 貼齊位置（--radar-head-h）＝表頭「實際」高度，持續量測：表頭折成兩行就是兩行的高度，視窗大小改變會重量。
+       * 取整數往小取（floor），最壞多疊1px（貼齊那列的z-index比表頭高，蓋住表頭底部1px而已），不會露出縫隙。 */
+      (function trackHeadHeight() {
+        const wrap = body.querySelector('.market-radar-scroll');
+        const thead = wrap && wrap.querySelector('thead');
+        if (!thead) return;
+        const apply = function () { wrap.style.setProperty('--radar-head-h', Math.floor(thead.getBoundingClientRect().height) + 'px'); };
+        apply();
+        if (typeof ResizeObserver !== 'undefined') new ResizeObserver(apply).observe(thead);
+        else window.addEventListener('resize', apply);
+      })();
       body.querySelectorAll('[data-mk-radar-expand]').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation(); // 不要順便觸發那一列的「打開物品詳情」
