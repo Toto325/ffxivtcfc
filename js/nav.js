@@ -71,6 +71,30 @@
     if (h > 0) root.style.setProperty('--nav-top-h-actual', h + 'px');
   }
 
+  /* 頂部選單的「每排幾個」響應式計算：以後選單項目變多（例如變成10、11個）不用再手動改CSS數字。
+   * 只算最上層的項目（不含展開子選單「遠航探索」裡面那幾個，那些平常收起來不佔格子）。
+   * 做法：先依目前寬度換算「這排最多塞得下幾個」當上限，用這個上限反推「最少要幾排」，
+   * 再用「幾排」往回算出「平均分下來每排要幾個」——這樣算出來的每排數量，天生就不會讓最後一排
+   * 只單獨剩1個（比如9個項目，上限4個一排，最少要3排，3排平均下來剛好每排3個，不會有落單的）。
+   * NAV_TOP_WIDE_BP 要跟 page-content.css 那個 @media (min-width:920px) 的門檻數字一致，改一邊要一起改。 */
+  var NAV_TOP_WIDE_BP = 920;
+  function computeBalancedCols(total, maxCols) {
+    if (total <= 0 || maxCols <= 0) return maxCols || 1;
+    if (total <= maxCols) return total; // 塞得下一排就一排放完
+    var rows = Math.ceil(total / maxCols);
+    return Math.ceil(total / rows);
+  }
+  function syncTopNavCols() {
+    if (currentMode() !== 'top') return;
+    var nav = document.querySelector('.royal-nav');
+    if (!nav) return;
+    var items = nav.querySelectorAll(':scope > .nav-item').length; // 只算最上層，子選單裡的不算
+    if (!items) return;
+    var maxCols = window.innerWidth >= NAV_TOP_WIDE_BP ? 7 : 4; // 跟CSS兩個斷點各自原本的欄數上限一致
+    var cols = computeBalancedCols(items, maxCols);
+    root.style.setProperty('--nav-top-cols', String(cols));
+  }
+
   function updateBtnTitle() {
     if (!btn) return;
     var m = currentMode();
@@ -92,6 +116,7 @@
     root.setAttribute('data-nav-mode', mode);
     try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {}
     updateBtnTitle();
+    syncTopNavCols();
     // 換模式後版面要先套用完，下一禎再量測（換行與否會影響高度）
     requestAnimationFrame(syncTopNavHeight);
   }
@@ -139,10 +164,12 @@
 
   function handleResize() {
     checkAutoSwitch();
+    syncTopNavCols();
     syncTopNavHeight();
   }
 
   updateBtnTitle();
+  syncTopNavCols();
   syncTopNavHeight();
   window.addEventListener('resize', handleResize, { passive: true });
   window.addEventListener('load', handleResize);

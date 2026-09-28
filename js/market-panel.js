@@ -2155,18 +2155,9 @@
       /* 第5點：展開材料明細時，把「▾ 收起明細」那一列釘在表頭下方（跟表頭一樣是 position:sticky），
        * 往下捲動看明細內容時，這一列會一直貼在螢幕（或捲動區）最上緣，隨時點得到，不用捲回頂部。
        * 只有最外層（這裡）做 sticky，材料明細裡巢狀展開的部分不做，維持原本自然往下長的方式。
-       * 貼的位置（top）＝表頭實際高度，由下面 trackHeadHeight 持續量測（見 --radar-head-h）。 */
-      /* 貼齊位置（--radar-head-h）＝表頭「實際」高度，持續量測：表頭折成兩行就是兩行的高度，視窗大小改變會重量。
-       * 取整數往小取（floor），最壞多疊1px（貼齊那列的z-index比表頭高，蓋住表頭底部1px而已），不會露出縫隙。 */
-      (function trackHeadHeight() {
-        const wrap = body.querySelector('.market-radar-scroll');
-        const thead = wrap && wrap.querySelector('thead');
-        if (!thead) return;
-        const apply = function () { wrap.style.setProperty('--radar-head-h', Math.floor(thead.getBoundingClientRect().height) + 'px'); };
-        apply();
-        if (typeof ResizeObserver !== 'undefined') new ResizeObserver(apply).observe(thead);
-        else window.addEventListener('resize', apply);
-      })();
+       * 貼的位置（top）跟表頭高度都寫死同一個CSS數字（見 page-market.css 的 .market-radar-scroll thead th
+       * 和 .market-hot-item-sticky）。欄名已經精簡成很短的字（淨利/投報率/成本/售價/賣速/物品），不管手機
+       * 或電腦正常都不會被擠到換行，表頭高度很穩定，寫死比用JS現場量測更可靠、也更簡單。 */
       body.querySelectorAll('[data-mk-radar-expand]').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation(); // 不要順便觸發那一列的「打開物品詳情」
