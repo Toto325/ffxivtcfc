@@ -390,11 +390,107 @@
         '<div class="market-detail-section market-col-supply">' +
           '<div id="mk-detail-supply"></div>' +
         '</div>' +
-      '</div>';
+      '</div>' +
+      '<div class="market-detail-section market-obtain-section" id="mk-detail-obtain"></div>';
     bindWatchButton(itemId); // 跟名稱同一行，不用等市場資料回來才看得到，關注這件事跟查不查得到價格無關
     bindSolveButton(itemId);
     loadMarketSection(itemId);
     loadSupplyChainSection(itemId);
+    loadObtainSection(itemId);
+  }
+
+  /* 取得方式區塊：預設收合成一行標題（不知道有沒有內容前，先不佔版面），
+   * 點開才載入 shops-data.js 並顯示兌換清單／代幣最划算去向。跟供應鏈圖共用同一組
+   * 價格基準設定（getSupplySettings），使用者不用在兩個地方各調一次。 */
+  async function loadObtainSection(itemId) {
+    const box = $('mk-detail-obtain');
+    if (!box) return;
+    box.innerHTML = '<button type="button" class="market-obtain-toggle" id="mk-obtain-toggle">' +
+      '<i class="ph ph-caret-right"></i> 取得方式 <span class="craft-muted" id="mk-obtain-count"></span></button>' +
+      '<div class="market-obtain-body" id="mk-obtain-body" style="display:none"></div>';
+    const toggle = $('mk-obtain-toggle');
+    const body = $('mk-obtain-body');
+    let loaded = false;
+    toggle.addEventListener('click', async function () {
+      const open = body.style.display !== 'none';
+      if (open) { body.style.display = 'none'; toggle.querySelector('.ph').className = 'ph ph-caret-right'; return; }
+      body.style.display = 'block';
+      toggle.querySelector('.ph').className = 'ph ph-caret-down';
+      if (loaded) return;
+      loaded = true;
+      body.innerHTML = '<p class="craft-muted">讀取取得方式資料中⋯</p>';
+      const ok = await ensureShopsDataLoaded();
+      if (!ok) { body.innerHTML = '<p class="craft-muted">取得方式資料載入失敗，稍後再試。</p>'; return; }
+      renderObtainSection(itemId, box, body);
+    });
+    // 先安靜載入一次資料，只為了在標題上顯示「N種」，讓玩家不用點開就知道有沒有東西可看；
+    // 真正把內容畫出來還是留到玩家實際點開才做，避免每個物品都先花力氣畫一份沒人看的內容。
+    const ok = await ensureShopsDataLoaded();
+    if (ok) {
+      buildTradeIndices();
+      const n = (tradesByResultCache[itemId] || []).length;
+      $('mk-obtain-count').textContent = n ? '（' + n + '種）' : '（查無資料）';
+    }
+  }
+
+  function renderObtainSection(itemId, outerBox, body) {
+    const settings = getSupplySettings();
+    getPrecomputedAllData().then(function (dcData) {
+      const rows = dcData ? buildObtainRows(itemId, dcData, settings.basis) : buildObtainRows(itemId, { items: {} }, settings.basis);
+      const marketPrice = dcData ? tradeItemPrice(itemId, dcData, settings.basis) : null;
+      let html = '';
+      if (!rows.length) {
+        html += '<p class="craft-muted">沒有找到兌換／商店取得方式（可能是採集、任務獎勵、副本掉落等其他管道）。</p>';
+      } else {
+        rows.forEach(function (t) {
+          const curHtml = t.currencies.map(function (c) {
+            return '<button type="button" class="market-obtain-cur" data-mk-goto-item="' + c[0] + '">' +
+              itemIconHtml(c[0], 20) + '<span class="market-obtain-cur-name">' + (ITEM_NAMES_TW_ALL[c[0]] || ('#' + c[0])) + ' ×' + c[1] + '</span></button>';
+          }).join('<span class="market-obtain-plus">＋</span>');
+          let verdictHtml;
+          if (t.cost == null) {
+            verdictHtml = '<span class="market-stat-badge market-stat-badge-muted">限定道具，無法估算金幣成本</span>';
+          } else if (marketPrice != null) {
+            const save = marketPrice - t.cost;
+            verdictHtml = save > 0.5
+              ? '<span class="market-stat-badge market-stat-badge-strong">兌換划算，省 ' + Math.round(save).toLocaleString() + ' 金</span>'
+              : '<span class="market-stat-badge">兌換成本約 ' + Math.round(t.cost).toLocaleString() + ' 金，市場直購較划算</span>';
+          } else {
+            verdictHtml = '<span class="market-stat-badge">兌換成本約 ' + Math.round(t.cost).toLocaleString() + ' 金（此物品無市場行情可比較）</span>';
+          }
+          html += '<div class="market-obtain-row">' +
+            '<span class="market-obtain-type">' + (SHOP_TYPE_LABEL[t.type] || t.type) + '</span>' +
+            '<span class="market-obtain-currencies">' + curHtml + '</span>' +
+            verdictHtml +
+          '</div>';
+        });
+      }
+      // 這個道具本身如果也被拿來當代幣用，額外顯示「換什麼最划算」排行——這才是使用者真正在意的問題：
+      // 手上這批道具該怎麼花，而不是這批道具本身值多少錢（它通常沒有市場行情，這個問題本來就沒有答案）。
+      if (dcData) {
+        const best = buildCurrencyBestUses(itemId, dcData, settings.basis, 8);
+        if (best.length) {
+          html += '<p class="market-obtain-subtitle">用「' + (ITEM_NAMES_TW_ALL[itemId] || itemId) + '」兌換，最划算的排行</p>';
+          html += '<div class="market-obtain-best-list">';
+          best.forEach(function (r, i) {
+            const first = r.resultItems[0];
+            const label = r.resultItems.map(function (x) { return (ITEM_NAMES_TW_ALL[x[0]] || ('#' + x[0])) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
+            html += '<button type="button" class="market-obtain-best-row" data-mk-goto-item="' + first[0] + '">' +
+              '<span class="market-obtain-best-rank">' + (i + 1) + '</span>' +
+              itemIconHtml(first[0], 22) +
+              '<span class="market-obtain-best-name">' + label + '</span>' +
+              '<span class="market-obtain-best-value">每1個值 ' + Math.round(r.net).toLocaleString() + ' 金</span>' +
+            '</button>';
+          });
+          html += '</div>';
+        }
+      }
+      body.innerHTML = html || '<p class="craft-muted">沒有可顯示的取得方式資料。</p>';
+      // 讓清單裡的道具圖示／名稱可以點過去查那個道具自己的市場頁（例如點代幣，直接看這個代幣的取得方式）
+      body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
+        el.addEventListener('click', function () { openItemDetail(el.dataset.mkGotoItem); });
+      });
+    });
   }
 
   // 第7點：查這個物品能不能製作，能的話按下去直接跳到生產頁面、預先選好這個配方；
@@ -544,6 +640,28 @@
       velocity: { nqVelocityPerDay: row[0], hqVelocityPerDay: row[1], usedScope: 'pc' },
       avg24h: D && D[0] > 0 ? D[1] : null,
     };
+  }
+
+  /* 供應鏈圖的「自製 vs 直購」比較，跟製作商機共用同一份預先計算資料（dcData），
+   * 不用另外發一輪查價請求。資料超過24小時沒更新就當作沒有，呼叫端會顯示「暫無法比較」，
+   * 不會拿過期資料硬算出一個看起來很篤定、實際上已經是舊行情的數字。 */
+  async function getPrecomputedAllData() {
+    try {
+      const r = await MarketData.loadPrecomputed('ALL');
+      if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return r.data;
+    } catch (e) { /* 讀不到就回傳null，呼叫端自行處理 */ }
+    return null;
+  }
+
+  /* 供應鏈圖的買/做比較設定，記在本機、跨物品沿用同一組偏好，不用每次點開新物品都重設一次。 */
+  const SUPPLY_SETTINGS_KEY = 'ff14fc-supply-settings';
+  function getSupplySettings() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(SUPPLY_SETTINGS_KEY) || 'null'); } catch (e) {}
+    return Object.assign({ basis: 'listing', includeCrystal: true, matPersp: 'nq' }, s || {});
+  }
+  function saveSupplySettings(s) {
+    try { localStorage.setItem(SUPPLY_SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
   }
 
   async function loadMarketSection(itemId) {
@@ -1287,6 +1405,99 @@
     return craftDataLoadPromise;
   }
 
+  /* ── 取得方式（兌換／NPC商店）：跟 craft-data.js 同一套「點到才動態載入」的做法，
+   * SHOP_TRADES 只有點開物品詳情頁的「取得方式」區塊才會注入，平常完全不影響首次載入速度。 ── */
+  let shopsDataLoadPromise = null;
+  function ensureShopsDataLoaded() {
+    if (typeof SHOP_TRADES !== 'undefined') return Promise.resolve(true);
+    if (shopsDataLoadPromise) return shopsDataLoadPromise;
+    shopsDataLoadPromise = new Promise(function (resolve) {
+      const s = document.createElement('script');
+      s.src = 'js/shops-data.js';
+      s.onload = function () { resolve(typeof SHOP_TRADES !== 'undefined'); };
+      s.onerror = function () { resolve(false); };
+      document.body.appendChild(s);
+    });
+    return shopsDataLoadPromise;
+  }
+
+  /* 兩個方向各建一份索引，都只在第一次用到時建立、之後重複使用：
+   *  ・TRADES_BY_RESULT：查「這個物品能怎麼兌換／購買到」，key＝換到的道具id
+   *  ・TRADES_BY_CURRENCY：查「這個道具當代幣／兌換品時，能換到什麼」，key＝付出的道具id
+   * 一筆交易如果同時付出兩種道具（例如「代幣+金幣」換東西），會同時被兩個key收錄到。 */
+  let tradesByResultCache = null, tradesByCurrencyCache = null;
+  function buildTradeIndices() {
+    if (tradesByResultCache) return;
+    tradesByResultCache = {}; tradesByCurrencyCache = {};
+    SHOP_TRADES.forEach(function (shop) {
+      shop.trades.forEach(function (t) {
+        t.i.forEach(function (it) {
+          (tradesByResultCache[it[0]] = tradesByResultCache[it[0]] || []).push({ type: shop.type, currencies: t.c, items: t.i });
+        });
+        t.c.forEach(function (cu) {
+          if (cu[0] === 1) return; // Gil本身不用當成「代幣」去反查用途，意義不大且數量會多到無法排序
+          (tradesByCurrencyCache[cu[0]] = tradesByCurrencyCache[cu[0]] || []).push({ type: shop.type, currencies: t.c, items: t.i });
+        });
+      });
+    });
+  }
+  const SHOP_TYPE_LABEL = { GilShop: 'NPC商店', SpecialShop: '兌換', GCShop: '軍票商店', AnimaWeapon5TradeItem: '武器兌換' };
+
+  /* 這個道具的「市場等值單價」——Gil本身固定是1；其餘查預先計算資料，查不到就回傳null
+   * （代表這個道具沒有市場行情，可能是帳號綁定、不可交易，或近期沒有成交）。
+   * 不即時另外發查價請求：代幣/兌換清單裡經常一次列出十幾二十種道具，全部即時查會瞬間打爆查價限制，
+   * 用跟供應鏈圖同一份預先計算快照最穩定，缺點是價格新鮮度跟熱度排行一樣（最多約一小時前）。 */
+  function tradeItemPrice(id, dcData, basis) {
+    if (Number(id) === 1) return 1;
+    const mr = dcData.items[id];
+    if (!mr) return null;
+    return radarUnitPrice(mr, 'nq', basis) || radarUnitPrice(mr, 'all', basis);
+  }
+  /* 一筆交易「付出」的總金幣等值（所有currencies加總），只要有一項查不到價格就整筆視為無法估算，
+   * 不要用0頂替缺價的那項，那會讓成本被低估、變相顯得「兌換超划算」。 */
+  function tradeSideValue(sides, dcData, basis) {
+    let total = 0;
+    for (let i = 0; i < sides.length; i++) {
+      const p = tradeItemPrice(sides[i][0], dcData, basis);
+      if (p == null) return null;
+      total += p * sides[i][1];
+    }
+    return total;
+  }
+
+  /* 這個物品所有「換得方式」的比較清單：每種方式付出多少成本（金幣等值）、跟市場直購價比起來划不划算。 */
+  function buildObtainRows(itemId, dcData, basis) {
+    buildTradeIndices();
+    const trades = tradesByResultCache[itemId] || [];
+    return trades.map(function (t) {
+      const cost = tradeSideValue(t.currencies, dcData, basis);
+      const resultAmount = (t.items.find(function (x) { return x[0] === Number(itemId); }) || [0, 1])[1];
+      return { type: t.type, currencies: t.currencies, cost: cost != null ? cost / resultAmount : null, resultAmount: resultAmount };
+    });
+  }
+
+  /* 反過來：這個道具「當代幣花掉」的話，換哪個東西最划算——每筆用到它的交易，算出扣掉其他必要
+   * 付出（如果同時還要搭配金幣或其他道具）後，淨賺的市場價值，除以要花的這個道具數量，
+   * 得到「每花1個，換到的東西值多少」，由高到低排序。這才是使用者真正想知道的：
+   * 手上這批代幣該拿去換什麼，而不是這個代幣本身值多少錢（它通常沒有市場價，這個問題沒有答案）。 */
+  function buildCurrencyBestUses(itemId, dcData, basis, limit) {
+    buildTradeIndices();
+    const trades = tradesByCurrencyCache[itemId] || [];
+    const rows = [];
+    trades.forEach(function (t) {
+      const myAmount = (t.currencies.find(function (x) { return x[0] === Number(itemId); }) || [0, 0])[1];
+      if (!myAmount) return;
+      const otherCurrencies = t.currencies.filter(function (x) { return x[0] !== Number(itemId); });
+      const otherCost = tradeSideValue(otherCurrencies, dcData, basis); // 沒有其他付出時是空陣列，tradeSideValue回傳0
+      const resultValue = tradeSideValue(t.items, dcData, basis);
+      if (otherCost == null || resultValue == null) return; // 其他付出或換到的東西缺價，這筆無法公平比較，跳過不列入排序
+      const net = (resultValue - otherCost) / myAmount;
+      rows.push({ resultItems: t.items, net: net });
+    });
+    rows.sort(function (a, b) { return b.net - a.net; });
+    return rows.slice(0, limit || 8);
+  }
+
   async function loadSupplyChainSection(itemId) {
     const box = $('mk-detail-supply');
     if (typeof CRAFT_RECIPES === 'undefined') {
@@ -1295,7 +1506,65 @@
     }
     if (typeof CRAFT_RECIPES === 'undefined') { box.innerHTML = ''; return; }
     const rid = (buildToRecipesIndex()[itemId] || [])[0];
-    renderSupplyChain(itemId, rid, box);
+    await renderSupplyChainWithBreakdown(itemId, rid, box);
+  }
+
+  /* 供應鏈圖外面包一層：先讀設定＋預先計算資料，把「自製 vs 直購」的結論算出來，
+   * 再交給 renderSupplyChain 畫圖＋標結論。設定一改（水晶/價格基準/材料品質）就整個重算重畫，
+   * 不需要重新整理整個物品詳情頁。 */
+  async function renderSupplyChainWithBreakdown(itemId, rid, box) {
+    const settings = getSupplySettings();
+    box.innerHTML = '<p class="craft-muted">讀取供應鏈中⋯</p>';
+    const dcData = rid ? await getPrecomputedAllData() : null;
+    const bd = (rid && dcData) ? materialBreakdown(itemId, dcData, settings.basis, settings) : null;
+    const bdUnavailable = !!rid && !bd; // 有配方、但比較不出來（資料太舊或缺價），跟「這物品本來就不能製作」要分開顯示
+    renderSupplyChain(itemId, rid, box, bd, settings, bdUnavailable);
+    bindSupplySettingsPopover(box, itemId, rid);
+  }
+
+  /* 齒輪按鈕彈出的小面板：價格基準／材料品質／水晶成本，三個都是「調了會改變結論數字」的選項，
+   * 收在同一顆按鈕底下，平常不佔版面；跟均價比較彈窗用同一個 craft-settings-popover 樣式，
+   * 視覺語言全站保持一致。 */
+  function bindSupplySettingsPopover(box, itemId, rid) {
+    const btn = box.querySelector('[data-mk-supply-settings-btn]');
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const s = getSupplySettings();
+      const pop = ensureAvgPricePopoverDom(); // 沿用同一個共用彈窗DOM／定位／外面點擊關閉的機制
+      pop.innerHTML =
+        '<p class="craft-mat-worlds-title">供應鏈比較設定</p>' +
+        '<div class="market-supply-settings-row"><span>價格基準</span>' +
+          '<select id="mk-sup-basis" class="craft-select" style="font-size:11px">' +
+            '<option value="listing"' + (s.basis === 'listing' ? ' selected' : '') + '>掛單最低價</option>' +
+            '<option value="avg"' + (s.basis === 'avg' ? ' selected' : '') + '>成交均價</option>' +
+          '</select></div>' +
+        '<div class="market-supply-settings-row"><span>材料品質</span>' +
+          '<select id="mk-sup-persp" class="craft-select" style="font-size:11px">' +
+            '<option value="nq"' + (s.matPersp === 'nq' ? ' selected' : '') + '>NQ優先</option>' +
+            '<option value="hq"' + (s.matPersp === 'hq' ? ' selected' : '') + '>HQ優先</option>' +
+            '<option value="all"' + (s.matPersp === 'all' ? ' selected' : '') + '>不分品質</option>' +
+          '</select></div>' +
+        '<label class="market-supply-settings-row" style="cursor:pointer"><span>水晶算入成本</span>' +
+          '<input type="checkbox" id="mk-sup-crystal"' + (s.includeCrystal ? ' checked' : '') + '/></label>' +
+        '<p class="craft-muted" style="font-size:10px;margin-top:4px">水晶多半隨手可得，關掉「水晶算入成本」會把水晶當作免費，讓「自己做」的成本更貼近實際體感。</p>';
+      pop.style.display = 'block';
+      const r = btn.getBoundingClientRect();
+      pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 260)) + 'px';
+      pop.style.top = (r.bottom + 6) + 'px';
+      function apply() {
+        saveSupplySettings({
+          basis: $('mk-sup-basis').value,
+          matPersp: $('mk-sup-persp').value,
+          includeCrystal: $('mk-sup-crystal').checked,
+        });
+        pop.style.display = 'none';
+        renderSupplyChainWithBreakdown(itemId, rid, box);
+      }
+      $('mk-sup-basis').addEventListener('change', apply);
+      $('mk-sup-persp').addEventListener('change', apply);
+      $('mk-sup-crystal').addEventListener('change', apply);
+    });
   }
 
   const SUPPLY_NODE_LIMIT = 6; // 單一側（材料或用途）超過這個數量就收合成清單，不硬塞進圖裡
@@ -1330,11 +1599,14 @@
    *   拉寬變形的原因）。改成：先試著把字級縮小到能完整放下；如果縮到最小字級還是放不下，
    *   才截斷加「…」，並附上原生 <title> 提示，滑鼠移過去或點進項目本身都能看到完整名稱，
    *   不會出現整串字擠成一團看不清楚的情況。 ── */
-  function renderSupplyChain(itemId, rid, box) {
+  function renderSupplyChain(itemId, rid, box, bd, settings, bdUnavailable) {
     const recipe = rid ? CRAFT_RECIPES[rid] : null;
     const ings = recipe ? (recipe.ingredients || []) : [];
     const usedInRids = buildUsedInIndex()[itemId] || [];
     if (!ings.length && !usedInRids.length) { box.innerHTML = ''; return; }
+    // itemId(數字或字串都可能傳進來)→這項材料是買還是做，供下面畫材料卡片時查
+    const decisionByItem = {};
+    if (bd) { bd.rows.forEach(function (row) { decisionByItem[row.itemId] = row.chosen; }); }
 
     // 材料（下排）：可製作的點下去能繼續往下鑽
     const matNodes = ings.map(function (ing) {
@@ -1471,8 +1743,10 @@
       const line2Y = nameY + 13;
       const priceY = (line2 ? line2Y : nameY) + 13;
       const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 10.5, 8) : { text: '', fontSize: 10.5, titleAttr: '' };
-      const strokeColor = isOverflow ? '#7a736a' : (opts.highlight ? '#f0d9a0' : '#c5a059');
-      const strokeWidth = opts.highlight ? 2 : 1.2;
+      // decision='craft'：這項材料自己做比買便宜，邊框改成跟「省錢」同一個綠色，一眼認出「這個該自己做」；
+      // decision='buy' 或沒有比較結果：維持原本金色邊框，不用特別標記——「照原樣買」是預設情況，不需要額外提醒。
+      const strokeColor = isOverflow ? '#7a736a' : (opts.highlight ? '#f0d9a0' : (opts.decision === 'craft' ? '#4ade80' : '#c5a059'));
+      const strokeWidth = opts.highlight ? 2 : (opts.decision === 'craft' ? 1.8 : 1.2);
       return '<g class="mk-supply-node' + (opts.highlight ? ' mk-supply-node-center' : '') + '"' + clickAttrs + '>' + fit.titleAttr +
         '<rect x="' + (x - w / 2) + '" y="' + topY + '" width="' + w + '" height="' + h + '" rx="8" fill="' + (opts.highlight ? 'rgba(197,160,89,.18)' : 'rgba(0,0,0,.4)') + '" stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '"/>' +
         (isOverflow
@@ -1481,6 +1755,9 @@
         '<text x="' + x + '" y="' + nameY + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
         (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="12" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
         (isOverflow ? '' : '<text class="mk-card-price" data-price-item="' + iconId + '" x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
+        // 邊框顏色是主要判斷依據，這裡多加一個小圖示當第二重提示（色弱使用者、或畫面縮小顏色不明顯時仍看得出來），
+        // 放在卡片右上角，不干擾中間的圖示/名稱主要資訊。
+        (opts.decision === 'craft' ? '<text x="' + (x + w / 2 - 10) + '" y="' + (topY + 12) + '" text-anchor="middle" font-size="11">🔨</text>' : '') +
       '</g>';
     }
 
@@ -1493,7 +1770,10 @@
       const clickAttrs = n.rid
         ? ' data-mk-supply-item="' + n.itemId + '" data-mk-supply-rid="' + n.rid + '"'
         : ' data-mk-goto-item="' + n.itemId + '"'; // 不可製作的原料一樣可以點，只是跳去它自己的市場詳情頁，不是往下鑽
-      svgParts += cardHtml(x, matTop, n.itemId, n.name, '×' + n.amount, clickAttrs, false);
+      // 這項材料「買」還是「做」比較划算，用邊框顏色直接標出來——跟文字結論同一套顏色語言，
+      // 掃一眼卡片邊框就知道要買還是要做，不用先看完文字才懂。'craft'＝這項材料自己做比買便宜。
+      const decision = decisionByItem[n.itemId];
+      svgParts += cardHtml(x, matTop, n.itemId, n.name, '×' + n.amount, clickAttrs, false, { decision: decision });
     });
     // 成品／用途排（上）：箭頭從中心往上指向成品，光點屬於 'up' 段。
     // 第12點：這一排的卡片本身也有自己的配方（n.rid），所以點下去不再直接跳走離開這個頁面，
@@ -1516,12 +1796,35 @@
       svgParts += cardHtml(x, useTop, '', String(useNodesFull.length - useNodes.length) + '種', '', ' data-mk-usedin-more="1"', true);
     }
 
+    // 結論列：只有這物品本身有配方才需要顯示（用途清單/純原礦沒有「自製vs直購」這回事）。
+    // 用色塊+極短句取代長句子，符合左右並排版面空間有限、能用視覺就不用文字的原則；
+    // 完整每項材料的買/做細節留給「查看完整供應鏈清單」，這裡只給最後結論。
+    let headlineHtml = '';
+    if (rid) {
+      let concl;
+      if (bd && bd.totalBuy != null && bd.totalAuto != null) {
+        const save = bd.totalBuy - bd.totalAuto;
+        concl = save > 0.5
+          ? '<span class="market-stat-badge market-stat-badge-strong" style="background:rgba(74,222,128,.16);border-color:#4ade80;color:#8fd6a0">🔨 自製省 ' + Math.round(save).toLocaleString() + ' 金/個</span>'
+          : '<span class="market-stat-badge">直接買齊最划算</span>';
+      } else if (bdUnavailable) {
+        concl = '<span class="market-stat-badge market-stat-badge-muted">資料不足，暫無法比較買/做</span>';
+      } else {
+        concl = '';
+      }
+      headlineHtml = '<div class="market-supply-headrow">' +
+        '<button type="button" class="market-history-btn" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
+        concl +
+      '</div>';
+    }
+
     box.innerHTML =
+      headlineHtml +
       '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="market-supply-svg"><defs>' + svgDefs + '</defs>' +
         svgParts +
         cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, { w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true }) +
       '</svg>' +
-      '<p class="craft-muted market-supply-legend">上：這個物品被用在哪　下：這個物品需要的材料（可製作的點下去能繼續往下追）</p>' +
+      '<p class="craft-muted market-supply-legend">上：這個物品被用在哪　下：這個物品需要的材料（🔨標記＝這項材料自己做比買便宜，可製作的點下去能繼續往下追）</p>' +
       '<div class="market-fullchain-btn-row"><button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button></div>';
 
     box.querySelector('[data-mk-open-fullchain]').addEventListener('click', function () { openFullChainModal(itemId, rid); });
@@ -1763,14 +2066,27 @@
    *    取比較便宜的那個。這是「每個材料各自取最小值」，不是「全部買」對「全部做」二選一，
    *    所以買比較便宜的材料跟做比較便宜的材料可以同時出現在同一個配方裡，總成本一定不會比直接買貴。
    *  ・最底層不能再拆的原料（採集品、怪物掉落等）一律用市場價格；沒有市場價格又不能製作的材料就無法估價。
-   *  ・只算材料本身的價錢，沒有考慮製作時間、買方稅。 */
-  function makeCostResolver(dcData, basis, auto) {
+   *  ・只算材料本身的價錢，沒有考慮製作時間、買方稅。
+   *
+   * opts（物品詳情頁的供應鏈比較才會傳，製作商機沿用舊行為不受影響）：
+   *  ・includeCrystal=false：水晶系列材料（CRYSTAL_ITEM_IDS）當作免費，不計入成本——很多玩家覺得
+   *    水晶隨手採集就有、不該拉低「自己做」看起來的划算程度，這裡讓他們自己決定要不要算進去。
+   *  ・matPersp：材料要看哪個品質的價格，預設跟原本行為一樣「NQ優先、沒有才退回全部」；
+   *    傳 'hq' 則優先看HQ價格（配方要求HQ材料時用得到），傳 'all' 則不分品質一律用全部掛單的價格。 */
+  function makeCostResolver(dcData, basis, auto, opts) {
+    opts = opts || {};
+    const includeCrystal = opts.includeCrystal !== false; // 預設仍然把水晶算進去，跟原本行為一致
+    const matPersp = opts.matPersp || 'nq';
     const memo = {};
     let cycleCuts = 0; // 遞迴時因為「配方繞回自己」而被截斷的次數（截斷過的結果不能記進memo，否則會污染其他道具）
     const byItem = auto ? getRecipesByItem() : null;
     function marketPrice(id) {
+      if (!includeCrystal && typeof CRYSTAL_ITEM_IDS !== 'undefined' && CRYSTAL_ITEM_IDS.has(Number(id))) return 0;
       const mr = dcData.items[id];
-      return mr ? (radarUnitPrice(mr, 'nq', basis) || radarUnitPrice(mr, 'all', basis)) : null; // NQ 優先，沒有才用全部
+      if (!mr) return null;
+      if (matPersp === 'all') return radarUnitPrice(mr, 'all', basis);
+      if (matPersp === 'hq') return radarUnitPrice(mr, 'hq', basis) || radarUnitPrice(mr, 'all', basis);
+      return radarUnitPrice(mr, 'nq', basis) || radarUnitPrice(mr, 'all', basis); // NQ 優先，沒有才用全部
     }
     function cost(id, stack) {
       if (memo[id] !== undefined) return memo[id];
@@ -1833,12 +2149,12 @@
     (recipe.ingredients || []).forEach(function (ing) { out = out.concat(missingPriceItems(ing.itemId, byItem, resolve, seen)); });
     return out.length ? out : [itemId];
   }
-  function materialBreakdown(itemId, dcData, basis) {
+  function materialBreakdown(itemId, dcData, basis, opts) {
     const byItem = getRecipesByItem();
     const recipe = byItem[itemId] && byItem[itemId][0];
     if (!recipe) return null;
-    const resolveBuy = makeCostResolver(dcData, basis, false);
-    const resolveAuto = makeCostResolver(dcData, basis, true);
+    const resolveBuy = makeCostResolver(dcData, basis, false, opts);
+    const resolveAuto = makeCostResolver(dcData, basis, true, opts);
     const yields = recipe.yields || 1;
     const rows = (recipe.ingredients || []).map(function (ing) {
       const buy = resolveBuy(ing.itemId);
