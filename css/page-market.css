@@ -427,3 +427,16 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
   .market-radar-scroll>.market-price-table>thead>tr>th,
   .market-radar-scroll>.market-price-table>tbody>tr>td{padding-left:4px;padding-right:4px}
 }
+
+/* ⓘ更多說明：常駐區只留精簡文字，規則細節收進這個列點展開區，預設收起、不記狀態 */
+.market-more-info-btn{background:none;border:none;color:var(--dim);cursor:pointer;font-size:11px;padding:2px 0;
+  display:inline-flex;align-items:center;gap:4px;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.market-more-info-btn:hover{color:var(--gold)}
+.market-more-info-btn i{font-size:12px}
+.market-more-info-btn.is-open{color:var(--gold)}
+.market-more-info-list{list-style:none;margin:0 0 6px;padding:6px 10px;font-size:11px;color:var(--dim);
+  background:rgba(197,160,89,.06);border-left:2px solid rgba(197,160,89,.3);border-radius:0 4px 4px 0}
+.market-more-info-list li{padding:2px 0;line-height:1.5}
+@media (max-width:720px){
+  .market-more-info-list{font-size:10.5px;padding:5px 8px}
+}
