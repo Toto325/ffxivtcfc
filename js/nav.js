@@ -81,8 +81,16 @@
   function computeBalancedCols(total, maxCols) {
     if (total <= 0 || maxCols <= 0) return maxCols || 1;
     if (total <= maxCols) return total; // 塞得下一排就一排放完
-    var rows = Math.ceil(total / maxCols);
-    return Math.ceil(total / rows);
+    var minRows = Math.ceil(total / maxCols);
+    // 從最少需要的排數開始試，最多往後多試2排：只要那個排數換算出來的欄數，最後一排不會只單獨剩1個，就用它；
+    // 都試不到（例如總數是質數，怎麼分都會剩1個）才退回最初那個最省排數的算法，不強求。
+    for (var rows = minRows; rows <= minRows + 2; rows++) {
+      var cols = Math.ceil(total / rows);
+      if (cols > maxCols) continue;
+      var lastRow = total - (rows - 1) * cols;
+      if (lastRow !== 1 || total === 1) return cols;
+    }
+    return Math.ceil(total / minRows);
   }
   function syncTopNavCols() {
     if (currentMode() !== 'top') return;
@@ -92,7 +100,9 @@
     if (!items) return;
     var maxCols = window.innerWidth >= NAV_TOP_WIDE_BP ? 7 : 4; // 跟CSS兩個斷點各自原本的欄數上限一致
     var cols = computeBalancedCols(items, maxCols);
+    var rows = Math.ceil(items / cols); // 排數要跟著一起明確寫死，切換鍵（grid-row:1/-1）的「-1」才認得到真正的最後一排
     root.style.setProperty('--nav-top-cols', String(cols));
+    root.style.setProperty('--nav-top-rows', String(rows));
   }
 
   function updateBtnTitle() {
