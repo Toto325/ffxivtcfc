@@ -2093,10 +2093,11 @@
       }
       const sellLabel = ui.sellScope === 'world' ? '你的世界' : '所有世界';
       const isListing = ui.basis === 'listing';
+      const radarMore = moreInfoButton();
       body.innerHTML =
-        '<p class="craft-muted" style="margin-bottom:4px">符合 ' + res.list.length + ' 個配方（' + (res.skippedSell + res.skippedMat) + ' 個查無價格）。</p>' +
+        '<p class="craft-muted" style="margin-bottom:4px">符合 ' + res.list.length + ' 個配方（' + (res.skippedSell + res.skippedMat) + ' 個查無價格）。' + radarMore.html + '</p>' +
         (isListing ? '<p class="craft-muted" id="mk-radar-live" style="margin-bottom:4px">' + (liveNote || '') + '</p>' : '') +
-        moreInfoBlock([
+        moreInfoList(radarMore.id, [
           '售價：成品' + (isListing ? '最低價' : '成交均價') + '（' + sellLabel + '，可切換）',
           '材料：全資料中心最低價（優先NQ，可跨世界買）',
           '材料成本：預設只算直接買；「自動選較便宜」會比較直接買和自己做',
@@ -2425,14 +2426,16 @@
   }
   function fmtGil(n) { return Math.round(n).toLocaleString(); }
   /* 常駐只留「這次結果的統計數字」，規則細節（分級門檻、價格基準等）收進這個可以展開的列點區，
-   * 文字內容不刪減，只是預設收起、不佔畫面。每次都預設收合，不記狀態。 */
+   * 文字內容不刪減，只是預設收起、不佔畫面。每次都預設收合，不記狀態。
+   * moreInfoButton 只回傳按鈕本身，接在既有那句話的句尾，不另外佔一行；moreInfoList 回傳實際的列點內容，
+   * 放在按鈕所在的那個段落之後即可（兩者用同一個id串起來）。 */
   let moreInfoSeq = 0;
-  function moreInfoBlock(bullets) {
+  function moreInfoButton() {
     const id = 'mk-more-' + (moreInfoSeq++);
-    return '<p class="craft-muted market-more-info-line" style="margin-bottom:4px">' +
-        '<button type="button" class="market-more-info-btn" data-more-toggle="' + id + '" aria-expanded="false" title="更多說明"><i class="ph ph-info"></i> 更多說明</button>' +
-      '</p>' +
-      '<ul class="market-more-info-list" id="' + id + '" style="display:none">' +
+    return { id: id, html: ' <button type="button" class="market-more-info-btn" data-more-toggle="' + id + '" aria-expanded="false" title="更多說明"><i class="ph ph-info"></i> 更多說明</button>' };
+  }
+  function moreInfoList(id, bullets) {
+    return '<ul class="market-more-info-list" id="' + id + '" style="display:none">' +
         bullets.map(function (b) { return '<li>' + b + '</li>'; }).join('') +
       '</ul>';
   }
@@ -2509,7 +2512,7 @@
     band: HOT_BANDS.map(function (b) { return [b.key, b.label]; }),
   };
   const HOT_METRIC_HINTS = {
-    changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少（都從現在往前算，詳見下方「更多說明」）。',
+    changePct: '短期動能：均價比稍早貴或便宜多少（詳見更多說明）。',
     velocity: '流動性：每天賣出幾件，數字越高越搶手（跟「成交頻率」的次數分級是兩回事，這裡看的是數量）。',
     turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多。',
     txnFreq: '成交次數：平均每天成交幾筆（不是賣出幾件、也不是成交多少金額，一次賣99個算1筆）。',
@@ -2536,7 +2539,7 @@
           '<button type="button" class="craft-job-filter-btn active" data-mk-hot-scope="ALL">所有世界</button>' +
           worldNames.map(function (w) { return '<button type="button" class="craft-job-filter-btn" data-mk-hot-scope="' + w + '">' + w + '</button>'; }).join('') +
         '</div>' +
-        '<p class="craft-muted market-hot-scope-note"><strong>提醒：</strong>玩家只能從自己所屬的世界掛賣，「所有世界」的數字僅供參考，請優先選擇自己所屬的世界。</p>' +
+        '<p class="craft-muted market-hot-scope-note"><strong>提醒：</strong>只能在自己的世界掛賣，「所有世界」僅供參考。</p>' +
         btnRow('指標', 'metric', 'mk-hf-metric') +
         '<div id="mk-hot-filters">' +
           btnRow('視角', 'persp', 'mk-hf-persp') + btnRow('成交頻率', 'freq', 'mk-hf-freq') + btnRow('方向', 'dir', 'mk-hf-dir') + btnRow('價格帶', 'band', 'mk-hf-band') +
@@ -2592,13 +2595,13 @@
         return;
       }
       const maxVal = Math.max.apply(null, top.map(function (e) { return Math.abs(e.value); })) || 1;
+      const hotMore = moreInfoButton();
             body.innerHTML =
         '<p class="craft-muted" style="margin-bottom:6px">' + HOT_METRIC_HINTS[ui.metric] + '</p>' +
-        '<p class="craft-muted" style="margin-bottom:4px">符合 ' + res.list.length.toLocaleString() + ' 項（頻率：較高' + res.cntHigh + '／一般' + res.cntLow + '／較低' + res.cntRare + '／太少' + res.cntNone + '）。</p>' +
-        (res.flatHidden ? '<p class="craft-muted" style="margin-bottom:4px">另有 ' + res.flatHidden + ' 項持平未列入，切到「持平」或「全部」可看到。</p>' : '') +
-        moreInfoBlock([
+        '<p class="craft-muted" style="margin-bottom:4px">符合 ' + res.list.length.toLocaleString() + ' 項（頻率：較高' + res.cntHigh + '／一般' + res.cntLow + '／較低' + res.cntRare + '／太少' + res.cntNone + '）。' + hotMore.html + '</p>' +
+        moreInfoList(hotMore.id, [
           '資料來源：Universalis成交紀錄，每小時更新（陸行鳥全部可交易道具，有成交才列入）',
-          '漲跌：短窗口對長窗口成交均價（都從現在算起）',
+          '漲跌：短窗口對長窗口成交均價（都從現在算起）；看漲／看跌不含漲跌幅剛好0.0%（持平）的道具',
           '頻率分級：較高24小時／48小時、一般3天／7天、較低7天／30天；各自門檻至少3筆／5筆成交，不夠會試下一級或算「太少」',
           '賣速只作參考，不影響頻率分級',
           '價格帶依長窗口均價分；綠色數字為掛單最低價，可能已變動，僅供參考',
