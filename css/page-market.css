@@ -216,6 +216,41 @@
 .market-supply-svg{max-width:100%;width:auto;height:auto;display:block;margin:0 auto;overflow:visible}
 .market-supply-legend{margin-top:6px;font-size:11px;text-align:center}
 .market-fullchain-btn-row{text-align:center;margin-top:10px}
+/* 供應鏈圖頂部：齒輪設定鈕＋結論徽章同一行，齒輪固定在左、結論隨內容寬度，
+   空間不夠時（手機）自動換行，不會把徽章文字硬擠爆版。 */
+.market-supply-headrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.market-supply-headrow .market-history-btn{padding:4px 8px;font-size:13px}
+/* 供應鏈設定彈窗裡每一列（價格基準／材料品質／水晶開關）：標籤靠左、控制項靠右，
+   跟均價比較彈窗同一個字級與間距，維持全站彈窗視覺一致。 */
+.market-supply-settings-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;margin:6px 0}
+.market-supply-settings-row select{max-width:120px}
+
+/* 取得方式區塊：預設收合成一行標題，展開才佔版面，跟供應鏈圖那排一樣用視覺（圖示/顏色徽章）
+   取代長句子，文字只留給金額和名稱這種沒辦法用顏色表達的部分。 */
+.market-obtain-section{margin-top:14px}
+.market-obtain-toggle{width:100%;text-align:left;background:none;border:none;color:var(--main);
+  font-size:13px;font-family:inherit;cursor:pointer;padding:6px 2px;display:flex;align-items:center;gap:6px}
+.market-obtain-toggle:hover{color:var(--gold)}
+.market-obtain-body{padding-top:6px}
+.market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+.market-obtain-row:last-child{border-bottom:none}
+.market-obtain-type{font-size:10px;color:var(--dim);border:1px solid var(--tb);border-radius:5px;
+  padding:1px 6px;white-space:nowrap;flex-shrink:0}
+.market-obtain-currencies{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.market-obtain-cur{display:inline-flex;align-items:center;gap:4px;background:none;border:none;
+  color:var(--main);cursor:pointer;font-family:inherit;padding:2px 4px;border-radius:5px}
+.market-obtain-cur:hover{background:rgba(255,255,255,.06)}
+.market-obtain-cur-name{font-size:12px}
+.market-obtain-plus{color:var(--dim);font-size:11px}
+.market-obtain-subtitle{font-size:12px;color:var(--dim);margin:12px 0 6px}
+.market-obtain-best-list{display:flex;flex-direction:column;gap:2px}
+.market-obtain-best-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  background:none;border:none;color:var(--main);cursor:pointer;font-family:inherit;padding:5px 4px;border-radius:6px}
+.market-obtain-best-row:hover{background:rgba(255,255,255,.06)}
+.market-obtain-best-rank{width:16px;flex-shrink:0;text-align:center;font-size:11px;color:var(--gold)}
+.market-obtain-best-name{flex:1;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-obtain-best-value{font-size:11px;color:#8fd6a0;white-space:nowrap;flex-shrink:0}
 .market-fullchain-btn{font-size:13px;padding:8px 20px;border:1px solid var(--gold);background:rgba(197,160,89,.1);
   color:var(--gold-bright);border-radius:8px;cursor:pointer}
 .market-fullchain-btn:hover{background:rgba(197,160,89,.2)}
