@@ -630,11 +630,15 @@ html[data-nav-mode="top"] .royal-nav {
   transform: none !important;
   width: 100% !important;
   display: grid !important;
-  /* --nav-top-cols 由 nav.js 依實際項目數量算好、動態寫入（見 nav.js 的 syncTopNavCols），
-   * 每排會自動分配成不會落單的數量，以後選單項目變多變少都不用再手動改這裡的數字；
-   * 4 只是JS還沒跑之前、或極端情況下的預設值。這裡不再寫死「排數」，讓 grid 依實際項目數自動長出幾排都可以。 */
+  /* --nav-top-cols/--nav-top-rows 由 nav.js 依實際項目數量算好、動態寫入（見 nav.js 的 syncTopNavCols），
+   * 每排會自動分配成不會落單的數量，以後選單項目變多變少都不用再手動改這裡的數字。
+   * 切換鍵（.nav-mode-toggle）要貫穿全部排數（grid-row:1/-1），瀏覽器的「-1」只認「明確寫死的排數」，
+   * 不會去看內容自動長出來的排數，所以這裡改回明確寫死 grid-template-rows（用JS算好的排數），
+   * 不能只靠 grid-auto-rows 讓它自然長，否則切換鍵只會貫穿第1排，其他排會因為切換鍵「沒佔到」而多擠出一格、
+   * 跟第1排對不齊（這正是上一輪的問題）。4/2 只是JS還沒跑之前、或極端情況下的預設值。 */
   grid-template-columns: 56px repeat(var(--nav-top-cols, 4), 1fr);
-  grid-auto-rows: var(--nav-top-h);
+  grid-template-rows: repeat(var(--nav-top-rows, 2), var(--nav-top-h));
+  grid-auto-rows: var(--nav-top-h); /* 保險：萬一JS還沒跑完、算出來的排數暫時不夠，多出來的項目還是有合理高度可用，不會擠成0高 */
   gap: 2px 3px;
   align-items: stretch !important;
   background: rgba(5,4,10,.94) !important;
@@ -647,8 +651,9 @@ html[data-nav-mode="top"] .royal-nav {
 
 @media (min-width: 920px) {
 html[data-nav-mode="top"] .royal-nav {
-    /* 同上，--nav-top-cols 在寬螢幕這個斷點會用不同的上限（7）重新計算 */
+    /* 同上，--nav-top-cols/--nav-top-rows 在寬螢幕這個斷點會用不同的上限（7欄）重新計算 */
     grid-template-columns: 56px repeat(var(--nav-top-cols, 7), 1fr) !important;
+    grid-template-rows: repeat(var(--nav-top-rows, 2), var(--nav-top-h)) !important;
   }
 }
 
