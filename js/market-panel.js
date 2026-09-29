@@ -2094,9 +2094,17 @@
       const sellLabel = ui.sellScope === 'world' ? '你的世界' : '所有世界';
       const isListing = ui.basis === 'listing';
       body.innerHTML =
-        '<p class="craft-muted" style="margin-bottom:6px">符合條件 ' + res.list.length + ' 個配方（另有成品沒有價格或近幾天沒成交 ' + res.skippedSell + ' 個、材料沒有價格 ' + res.skippedMat + ' 個無法估價）。</p>' +
-        (isListing ? '<p class="craft-muted" id="mk-radar-live" style="margin-bottom:6px">' + (liveNote || '') + '</p>' : '') +
-        '<p class="craft-muted" style="margin-bottom:6px;font-size:11px">淨利、成本、售價皆為做一次配方的數字；售價＝成品' + (isListing ? '最低價' : '成交均價') + '（' + sellLabel + '）。</p>' +
+        '<p class="craft-muted" style="margin-bottom:4px">符合 ' + res.list.length + ' 個配方（' + (res.skippedSell + res.skippedMat) + ' 個查無價格）。</p>' +
+        (isListing ? '<p class="craft-muted" id="mk-radar-live" style="margin-bottom:4px">' + (liveNote || '') + '</p>' : '') +
+        moreInfoBlock([
+          '售價：成品' + (isListing ? '最低價' : '成交均價') + '（' + sellLabel + '，可切換）',
+          '材料：全資料中心最低價（優先NQ，可跨世界買）',
+          '材料成本：預設只算直接買；「自動選較便宜」會比較直接買和自己做',
+          '未計入製作時間、買方稅、賣方稅',
+          '淨利／次：做一次配方（可能不只1件）的總損益',
+          isListing ? '掛單價為快照，最多約1小時前＋玩家回報延遲，僅供參考' : '成交均價取每個道具自己的長窗口均價（較高＝48小時、較低＝7天）',
+          '最後更新：' + new Date(pc.meta.generatedAtMs).toLocaleString()
+        ]) +
         '<div class="market-table-scroll market-radar-scroll"><table class="market-price-table"><thead><tr><th>淨利</th><th>投報率</th><th>成本</th><th>售價</th><th>賣速</th><th>物品</th></tr></thead><tbody>' +
         top.map(function (r) {
           const yieldNote = r.yields > 1 ? fmtGil(r.unit) + '金×' + r.yields : '';
@@ -2121,9 +2129,8 @@
             '<td>' + (ITEM_NAMES_TW_ALL[r.itemId] || r.itemId) + expandBtn + '<div class="craft-muted" style="font-size:10px">' + note + '</div></td></tr>' +
             '<tr class="market-radar-detail-row" data-mk-radar-detail="' + r.rid + '" style="display:none"><td colspan="6"></td></tr>';
         }).join('') + '</tbody></table></div>' +
-        (res.list.length > top.length ? '<button type="button" class="market-history-btn" id="mk-radar-more" style="margin-top:8px">顯示更多（還有 ' + (res.list.length - top.length) + ' 個）</button>' : '') +
-        '<p class="craft-muted" style="margin-top:6px">價格基準：' + (isListing ? '「掛單最低價」是買方實際買得到的價格（預先計算的快照，最多約一小時前加上玩家上傳的延遲，僅供參考）。' : '「成交均價」是實際成交的行情，每個道具取自己的長窗口均價（高頻＝48 小時、低頻＝7 天）。') +
-        '材料用整個資料中心的價格（買方可跨世界買，優先用 NQ）；成品用「' + sellLabel + '」的價格，可在上面切換。材料成本預設只算「直接買」；切到「自動選較便宜」時，每個材料會各自比較「直接買」和「自己做」取便宜的（最底層原料用市場價格）。都沒有考慮製作時間、買方稅和賣方稅。「淨利／次」是做一次配方（可能一次做出不只 1 件）的總損益。最後更新：' + new Date(pc.meta.generatedAtMs).toLocaleString() + '。</p>';
+        (res.list.length > top.length ? '<button type="button" class="market-history-btn" id="mk-radar-more" style="margin-top:8px">顯示更多（還有 ' + (res.list.length - top.length) + ' 個）</button>' : '');
+      bindMoreInfoToggles(body);
       body.querySelectorAll('[data-mk-radar-item]').forEach(function (tr) { tr.addEventListener('click', function () { openItemDetail(tr.dataset.mkRadarItem); }); });
       // 展開明細：先用手上的資料畫出來；如果有材料沒有價格（預先計算資料沒收錄），再去查即時掛單價補上、重畫一次
       function currentDcView() { return ui.basis === 'listing' ? patchData(pc.dc, liveDc) : pc.dc; }
@@ -2417,6 +2424,30 @@
     return n % 2 ? a[(n - 1) / 2] : (a[n / 2 - 1] + a[n / 2]) / 2;
   }
   function fmtGil(n) { return Math.round(n).toLocaleString(); }
+  /* 常駐只留「這次結果的統計數字」，規則細節（分級門檻、價格基準等）收進這個可以展開的列點區，
+   * 文字內容不刪減，只是預設收起、不佔畫面。每次都預設收合，不記狀態。 */
+  let moreInfoSeq = 0;
+  function moreInfoBlock(bullets) {
+    const id = 'mk-more-' + (moreInfoSeq++);
+    return '<p class="craft-muted market-more-info-line" style="margin-bottom:4px">' +
+        '<button type="button" class="market-more-info-btn" data-more-toggle="' + id + '" aria-expanded="false" title="更多說明"><i class="ph ph-info"></i> 更多說明</button>' +
+      '</p>' +
+      '<ul class="market-more-info-list" id="' + id + '" style="display:none">' +
+        bullets.map(function (b) { return '<li>' + b + '</li>'; }).join('') +
+      '</ul>';
+  }
+  function bindMoreInfoToggles(root) {
+    root.querySelectorAll('[data-more-toggle]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const list = document.getElementById(btn.dataset.moreToggle);
+        if (!list) return;
+        const showing = list.style.display !== 'none';
+        list.style.display = showing ? 'none' : '';
+        btn.setAttribute('aria-expanded', showing ? 'false' : 'true');
+        btn.classList.toggle('is-open', !showing);
+      });
+    });
+  }
 
   /* 依目前的篩選條件，從資料裡算出要顯示的清單（純計算，不碰畫面） */
   /* 成交稀少：這個視角下湊不出足夠成交筆數（算不出漲跌）的道具，列出最近一筆成交價跟目前最低掛單價 */
@@ -2478,10 +2509,10 @@
     band: HOT_BANDS.map(function (b) { return [b.key, b.label]; }),
   };
   const HOT_METRIC_HINTS = {
-    changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少（時間都從現在往前算）。「頻率較高」拿 24 小時內對 48 小時內比較；「頻率一般」拿 3 天內對 7 天內比較；「頻率較低」拿 7 天內對 30 天內比較——這一級是給好幾天才賣出一件、但仍持續有人在買賣的道具用的，不然它們會因為湊不出短窗口的成交筆數而完全不見。每個道具只會落在其中一級（由成交筆數決定，跟道具那一列顯示的「賣速」是兩回事——賣速是每天賣出幾件，堆疊販售的道具可能次數少但賣速數字很高）。漲跌幅度顯示為 0.0% 的算「持平」，不在看漲／看跌裡。',
-    velocity: '流動性：每天賣出幾件，數字越高越搶手（跟「成交頻率」篩選的次數分級是兩回事，這裡看的是數量）',
-    turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多。「頻率較高／一般／較低」的分法跟漲跌幅度一樣。',
-    txnFreq: '成交次數：平均每天成交幾筆（不是賣出幾件、也不是成交多少金額——一次賣99個算1筆，賣速可能很高，但這裡的成交頻率只看「發生過幾次交易」）。「頻率較高／一般／較低」的分法跟漲跌幅度一樣。',
+    changePct: '短期動能：最近的成交均價比稍早的成交均價貴／便宜多少（都從現在往前算，詳見下方「更多說明」）。',
+    velocity: '流動性：每天賣出幾件，數字越高越搶手（跟「成交頻率」的次數分級是兩回事，這裡看的是數量）。',
+    turnover: '市場規模：每天實際成交的金額（單價×數量加總），看哪些道具的錢流得最多。',
+    txnFreq: '成交次數：平均每天成交幾筆（不是賣出幾件、也不是成交多少金額，一次賣99個算1筆）。',
     rare: '成交太少、湊不出足夠的成交筆數算漲跌的道具（多半是高價、很久才賣出一件的東西）。這裡列出它們「最近一筆成交價」和「目前最低掛單價」，讓你仍然找得到它們。',
   };
 
@@ -2563,7 +2594,16 @@
       const maxVal = Math.max.apply(null, top.map(function (e) { return Math.abs(e.value); })) || 1;
             body.innerHTML =
         '<p class="craft-muted" style="margin-bottom:6px">' + HOT_METRIC_HINTS[ui.metric] + '</p>' +
-        '<p class="craft-muted" style="margin-bottom:8px">符合條件 ' + res.list.length.toLocaleString() + ' 項（此視角下：成交頻率較高 ' + res.cntHigh + '、一般 ' + res.cntLow + '、較低 ' + res.cntRare + '、成交太少無法比較 ' + res.cntNone + '）。' + (res.flatHidden ? '另有 ' + res.flatHidden + ' 項漲跌幅為 0.0%（持平）沒有列在看漲／看跌裡，切到「持平」或「全部」可以看到。' : '') + '</p>' +
+        '<p class="craft-muted" style="margin-bottom:4px">符合 ' + res.list.length.toLocaleString() + ' 項（頻率：較高' + res.cntHigh + '／一般' + res.cntLow + '／較低' + res.cntRare + '／太少' + res.cntNone + '）。</p>' +
+        (res.flatHidden ? '<p class="craft-muted" style="margin-bottom:4px">另有 ' + res.flatHidden + ' 項持平未列入，切到「持平」或「全部」可看到。</p>' : '') +
+        moreInfoBlock([
+          '資料來源：Universalis成交紀錄，每小時更新（陸行鳥全部可交易道具，有成交才列入）',
+          '漲跌：短窗口對長窗口成交均價（都從現在算起）',
+          '頻率分級：較高24小時／48小時、一般3天／7天、較低7天／30天；各自門檻至少3筆／5筆成交，不夠會試下一級或算「太少」',
+          '賣速只作參考，不影響頻率分級',
+          '價格帶依長窗口均價分；綠色數字為掛單最低價，可能已變動，僅供參考',
+          '最後更新：' + generated.toLocaleString()
+        ]) +
         '<div class="market-hot-list">' +
           top.map(function (e, i) {
             const v = e.value;
@@ -2591,10 +2631,8 @@
             '</div><div class="market-hot-subline">' + sub + '</div></div>';
           }).join('') +
         '</div>' +
-        (res.list.length > top.length ? '<button type="button" class="market-history-btn" id="mk-hot-more" style="margin-top:8px">顯示更多（還有 ' + (res.list.length - top.length).toLocaleString() + ' 項）</button>' : '') +
-        '<p class="craft-muted" style="margin-top:8px">資料來源：Universalis 成交紀錄，由 GitHub Actions 每小時預先計算，涵蓋陸行鳥全部可交易道具（有成交才會列入）。' +
-        '漲跌＝短窗口成交均價對長窗口成交均價（長窗口包含短窗口，都從「現在」算起）；成交頻率較高＝24小時內對48小時內，一般＝3天內對7天內，較低＝7天內對30天內（較高的那一級資料不夠才試下一級）；短窗口至少3筆、長窗口至少5筆成交才會列入，三級都不夠代表這30天內幾乎沒有成交。這個分級只看「次數」，跟道具列表顯示的「賣速（數量/天）」是不同的兩件事，賣速只作參考，不影響分級。' +
-        '價格帶依長窗口均價分。綠色數字是掛單最低價，掛單資料可能已變動，只供參考。最後更新：' + generated.toLocaleString() + '。</p>';
+        (res.list.length > top.length ? '<button type="button" class="market-history-btn" id="mk-hot-more" style="margin-top:8px">顯示更多（還有 ' + (res.list.length - top.length).toLocaleString() + ' 項）</button>' : '');
+      bindMoreInfoToggles(body);
       body.querySelectorAll('[data-mk-hot-item]').forEach(function (el) { el.addEventListener('click', function () { openItemDetail(el.dataset.mkHotItem); }); });
       const more = $('mk-hot-more'); if (more) more.addEventListener('click', function () { ui.shown += 30; renderPre(); });
     }
