@@ -64,7 +64,7 @@
 .market-radar-jobtabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 
 /* 物品詳情頁 */
-.market-detail-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-shrink:0}
+.market-detail-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-shrink:0;flex-wrap:wrap}
 .market-detail-header h3{margin:0;color:var(--gold-bright)}
 .market-watch-btn-header{margin-left:auto;flex-shrink:0}
 .market-solve-btn{flex-shrink:0;font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;
@@ -227,11 +227,16 @@
 
 /* 取得方式區塊：預設收合成一行標題，展開才佔版面，跟供應鏈圖那排一樣用視覺（圖示/顏色徽章）
    取代長句子，文字只留給金額和名稱這種沒辦法用顏色表達的部分。 */
-.market-obtain-section{margin-top:14px}
-.market-obtain-toggle{width:100%;text-align:left;background:none;border:none;color:var(--main);
-  font-size:13px;font-family:inherit;cursor:pointer;padding:6px 2px;display:flex;align-items:center;gap:6px}
-.market-obtain-toggle:hover{color:var(--gold)}
-.market-obtain-body{padding-top:6px}
+/* 代幣兌換分頁：清單本身跟供應鏈設定彈窗同一套收合列樣式，展開才顯示排行內容。 */
+.market-token-list{display:flex;flex-direction:column;gap:2px}
+.market-token-row{border-bottom:1px solid rgba(255,255,255,.06)}
+.market-token-row:last-child{border-bottom:none}
+.market-token-head{width:100%;display:flex;align-items:center;gap:8px;background:none;border:none;
+  color:var(--main);font-family:inherit;font-size:13px;cursor:pointer;padding:7px 2px;text-align:left}
+.market-token-head:hover{color:var(--gold)}
+.market-token-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-token-count{font-size:11px;white-space:nowrap}
+.market-token-body{padding:2px 0 8px 24px}
 .market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
   border-bottom:1px solid rgba(255,255,255,.06)}
 .market-obtain-row:last-child{border-bottom:none}
