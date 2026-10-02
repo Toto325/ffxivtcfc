@@ -241,6 +241,11 @@
 .market-token-sort-btn{font-size:10px;padding:2px 8px;border:1px solid var(--tb);border-radius:999px;
   background:none;color:var(--dim);cursor:pointer;font-family:inherit}
 .market-token-sort-btn.active{border-color:var(--gold);color:var(--gold-bright)}
+/* 排行每列同時顯示三個指標，目前排序依據的那個用強調色凸顯，其餘淡化但仍看得到數字。 */
+.market-token-best-row{align-items:center}
+.market-token-metrics{display:flex;gap:8px;flex-shrink:0}
+.market-token-metric{font-size:10px;color:var(--dim);white-space:nowrap}
+.market-token-metric.active{color:#8fd6a0;font-weight:600}
 .market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
   border-bottom:1px solid rgba(255,255,255,.06)}
 .market-obtain-row:last-child{border-bottom:none}
