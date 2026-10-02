@@ -623,6 +623,43 @@
     }
   }
 
+  /* 供應鏈圖的5窗口均價（當前/1天/3天/7天/30天）——跟物品詳情頁那個均價彈窗同一套算法
+   * （一次抓30天完整成交紀錄，5個窗口都是本地端切的，不是5次API），只是這裡要給圖上
+   * 好幾張卡片共用，所以包成一個可以查快取的版本，同一個物品一個畫面裡只抓一次。
+   * 注意：這套窗口均價不分NQ/HQ（跟物品詳情頁那個彈窗一樣），跟「掛單最低價」會分NQ/HQ不同。 */
+  let liveAvgCache = {}; // itemId -> {current,'1d','3d','7d','30d'} | null(查詢失敗)
+  async function fetchLiveAvgWindows(itemId) {
+    if (liveAvgCache[itemId] !== undefined) return liveAvgCache[itemId];
+    try {
+      const full = await MarketData.fetchFullHistory(itemId, 30);
+      const now = Date.now() / 1000;
+      function inRange(fromH, toH) { return full.filter(function (h) { return h.timestamp >= now - toH * 3600 && h.timestamp < now - fromH * 3600; }); }
+      function withinDays(days) { return full.filter(function (h) { return h.timestamp >= now - days * 86400; }); }
+      function avgOf(list) {
+        const clean = MarketData.excludeOutlierEntries(list, function (h) { return h.pricePerUnit; });
+        return clean.length ? clean.reduce(function (s, h) { return s + h.pricePerUnit; }, 0) / clean.length : null;
+      }
+      const windows = { current: avgOf(inRange(0, 24)), '1d': avgOf(inRange(0, 48)), '3d': avgOf(withinDays(3)), '7d': avgOf(withinDays(7)), '30d': avgOf(withinDays(30)) };
+      liveAvgCache[itemId] = windows;
+      return windows;
+    } catch (e) { liveAvgCache[itemId] = null; return null; }
+  }
+  async function ensureLiveAvgForItems(itemIds) {
+    const need = itemIds.filter(function (id) { return liveAvgCache[id] === undefined; });
+    await Promise.all(need.map(fetchLiveAvgWindows));
+  }
+  /* 均價統一查詢入口：window='current'先試預先計算快照（快，涵蓋大部分熱門物品），
+   * 其餘窗口、或快照沒資料，查剛才準備好的即時快取。 */
+  function avgPriceOf(id, window, dcData) {
+    if (window === 'current') {
+      const mr = dcData && dcData.items[id];
+      const p = mr ? (radarUnitPrice(mr, 'nq', 'avg') || radarUnitPrice(mr, 'all', 'avg')) : null;
+      if (p != null) return p;
+    }
+    const live = liveAvgCache[id];
+    return live ? live[window] : null;
+  }
+
   /* 詳情頁的均價／賣速：優先用預先計算資料（每小時算好，包含完整24小時內所有成交，而且是整個範圍的，
    * 而不是「最近200筆」；讀已經下載過的檔案是瞬間的）。資料超過24小時沒更新、讀不到、或這個道具在該範圍沒有
    * 資料時回傳 null，呼叫的地方就走原本的即時查詢。這裡的「當前均價」跟預先計算的24小時窗口是同一個定義：
@@ -663,7 +700,11 @@
   function getSupplySettings() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(SUPPLY_SETTINGS_KEY) || 'null'); } catch (e) {}
-    return Object.assign({ materialsBasis: 'listing', purchaseBasis: 'listing', includeCrystal: true, matPersp: 'nq', hqOverrides: {} }, s || {});
+    return Object.assign({
+      materialsBasis: 'listing', purchaseBasis: 'listing',
+      materialsAvgWindow: 'current', purchaseAvgWindow: 'current', // 選了「成交均價」才有意義：當前/1天/3天/7天/30天
+      includeCrystal: true, matPersp: 'nq', hqOverrides: {},
+    }, s || {});
   }
   function saveSupplySettings(s) {
     try { localStorage.setItem(SUPPLY_SETTINGS_KEY, JSON.stringify(s)); } catch (e) {}
@@ -1448,28 +1489,20 @@
   }
   const SHOP_TYPE_LABEL = { GilShop: 'NPC商店', SpecialShop: '兌換', GCShop: '軍票商店', AnimaWeapon5TradeItem: '武器兌換' };
 
-  /* 已過期活動代幣，確認過名字帶年份、活動已結束，先手動排除，不列進代幣兌換清單。
-   * 之後如果又出現新的過期代幣，把id加進這個清單即可，不用動其他邏輯。 */
-  const EXPIRED_CURRENCY_IDS = new Set([10333 /* 紅蓮祭票據2016 */, 28650 /* 戀人巧克力2021 */]);
-
-  /* 「代幣兌換」清單的篩選標準：能換到的東西種類數要夠多，才算得上是「貨幣」，
-   * 不然會混進大量「拿這個特定道具跟NPC換另一個特定道具」的一次性交換，那些不是貨幣概念。
-   * 沒有繁中名稱的道具（通常是太新的版本內容，tw_dataminer還沒更新到）先不顯示，
-   * 但資料本身不刪除——底層 tradesByCurrencyCache 還是完整的，只是清單畫面上先跳過，
-   * 之後繁中名稱補上了會自動出現，不用再改這裡的邏輯。 */
-  const CURRENCY_MIN_RESULTS = 30;
+  /* 代幣兌換清單改成明確白名單（不是門檻篩選）——門檻會漏掉像銅獎/金獎這種常被關注、
+   * 但可兌換種類數剛好不到門檻的項目，也會混進一次性交換這種不是真正貨幣的東西，
+   * 直接手動點名清楚、好維護，之後要增減代幣，改這個陣列就好。 */
+  const CURATED_CURRENCY_IDS = [
+    28, 25, 33913, 26533, 29, 48, 10307, 36656, 33914, 22, 20, 21, 26807, 27,
+    28063, 41784, 37549, 45690, 41785, 30341, 21073, 22444, 37550, 26823, 22443,
+  ];
   function buildCurrencyDirectory() {
     buildTradeIndices();
-    // 篩選標準是「不重複能換到的物品種類數」，不是交易筆數（同一種東西可能在不同商店重複出現，
-    // 用筆數篩會失真）。過期代幣直接排除；沒有繁中名稱的先隱藏，資料本身還在，不用刪。
-    const ids = Object.keys(tradesByCurrencyCache).filter(function (id) {
-      return !EXPIRED_CURRENCY_IDS.has(Number(id)) && !!ITEM_NAMES_TW_ALL[id];
-    });
-    const withCount = ids.map(function (id) {
+    const withCount = CURATED_CURRENCY_IDS.filter(function (id) { return !!ITEM_NAMES_TW_ALL[id]; }).map(function (id) {
       const set = {};
-      tradesByCurrencyCache[id].forEach(function (t) { t.items.forEach(function (it) { set[it[0]] = 1; }); });
+      (tradesByCurrencyCache[id] || []).forEach(function (t) { t.items.forEach(function (it) { set[it[0]] = 1; }); });
       return { id: id, name: ITEM_NAMES_TW_ALL[id], count: Object.keys(set).length };
-    }).filter(function (x) { return x.count >= CURRENCY_MIN_RESULTS; });
+    });
     withCount.sort(function (a, b) { return b.count - a.count; });
     return withCount;
   }
@@ -1564,6 +1597,13 @@
     // 不是只有中心物品自己有配方時才需要（原礦類物品沒有配方，但一樣有「用在哪」的卡片要顯示比較）。
     const hasAnyGraph = !!rid || ((buildUsedInIndex()[itemId] || []).length > 0);
     const dcData = hasAnyGraph ? await getPrecomputedAllData() : null;
+    // 選了「成交均價」才需要查即時5窗口資料——即使停在「當前」窗口，也要備份一份即時資料，
+    // 不然快照裡這個物品剛好最近24小時沒成交、查到null，就會誤判成「完全沒均價可看」，
+    // 其實只是快照那個窗口沒資料，不代表其他窗口也沒有（這正是會卡住玩家的真正原因）。
+    if (dcData && (settings.purchaseBasis === 'avg' || settings.materialsBasis === 'avg')) {
+      const ids = getCurrentGraphItemIds(itemId, rid);
+      await ensureLiveAvgForItems(ids);
+    }
     const bd = (rid && dcData) ? materialBreakdown(itemId, dcData, settings.materialsBasis, settings) : null;
     const bdUnavailable = !!rid && !bd; // 有配方、但比較不出來（資料太舊或缺價），跟「這物品本來就不能製作」要分開顯示
     renderSupplyChain(itemId, rid, box, bd, dcData, settings, bdUnavailable);
@@ -1689,19 +1729,29 @@
     });
     return ids;
   }
+  /* 「材料品質」只能是真正的材料（下一層），不能把「用在哪」的上層物品也算進去——
+   * 製作邏輯本來就是看材料，上一層的成品要用什麼品質是另一回事，兩者不能混在同一份清單裡。 */
+  function getMaterialOnlyIds(rid) {
+    const recipe = rid ? CRAFT_RECIPES[rid] : null;
+    return (recipe ? (recipe.ingredients || []) : []).map(function (ing) { return ing.itemId; });
+  }
 
+  const AVG_WINDOW_OPTIONS = [['current', '當前'], ['1d', '1天'], ['3d', '3天'], ['7d', '7天'], ['30d', '30天']];
+  function avgWindowSelectHtml(id, cur) {
+    return '<select id="' + id + '" class="craft-select" style="font-size:11px">' +
+      AVG_WINDOW_OPTIONS.map(function (w) { return '<option value="' + w[0] + '"' + (cur === w[0] ? ' selected' : '') + '>' + w[1] + '</option>'; }).join('') +
+      '</select>';
+  }
   function bindSupplySettingsPopover(box, itemId, rid, dcData) {
     const btn = box.querySelector('[data-mk-supply-settings-btn]');
     if (!btn) return;
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
+    const pop = ensureAvgPricePopoverDom(); // 沿用同一個共用彈窗DOM／定位／外面點擊關閉的機制
+    // 調整設定後面板留著不收起（可以連續調好幾項），只有重畫面板內容本身＋背後的圖，
+    // 點外面或叉叉才真的關閉——跟之前「改一項就自動收起」的行為不同。
+    async function refresh() {
       const s = getSupplySettings();
-      const pop = ensureAvgPricePopoverDom(); // 沿用同一個共用彈窗DOM／定位／外面點擊關閉的機制
-      // 水晶開關改成圖示切換（不是文字說明）：亮＝算入成本，暗＝當作免費，點一下切換，
-      // 不用讀一段文字才懂現在是哪個狀態。
       const crystalOn = s.includeCrystal;
-      // 個別材料設定：只列圖上同時有NQ/HQ報價的物品，收合預設關閉，跟你要的「平常不佔版面」一致。
-      const graphIds = dcData ? getCurrentGraphItemIds(itemId, rid).filter(function (id) {
+      const graphIds = dcData ? getMaterialOnlyIds(rid).filter(function (id) {
         const mr = dcData.items[id];
         return mr && radarUnitPrice(mr, 'nq', s.materialsBasis) != null && radarUnitPrice(mr, 'hq', s.materialsBasis) != null;
       }) : [];
@@ -1721,12 +1771,14 @@
             '<option value="listing"' + (s.purchaseBasis === 'listing' ? ' selected' : '') + '>掛單最低價</option>' +
             '<option value="avg"' + (s.purchaseBasis === 'avg' ? ' selected' : '') + '>成交均價</option>' +
           '</select></div>' +
+        (s.purchaseBasis === 'avg' ? '<div class="market-supply-settings-row"><span>均價窗口</span>' + avgWindowSelectHtml('mk-sup-pwindow', s.purchaseAvgWindow) + '</div>' : '') +
         '<p class="craft-muted" style="font-size:10px;margin:-2px 0 6px">決定圖上每張卡片顯示的市場價</p>' +
         '<div class="market-supply-settings-row"><span>材料成本基準</span>' +
           '<select id="mk-sup-basis" class="craft-select" style="font-size:11px">' +
             '<option value="listing"' + (s.materialsBasis === 'listing' ? ' selected' : '') + '>掛單最低價</option>' +
             '<option value="avg"' + (s.materialsBasis === 'avg' ? ' selected' : '') + '>成交均價</option>' +
           '</select></div>' +
+        (s.materialsBasis === 'avg' ? '<div class="market-supply-settings-row"><span>均價窗口</span>' + avgWindowSelectHtml('mk-sup-mwindow', s.materialsAvgWindow) + '</div>' : '') +
         '<p class="craft-muted" style="font-size:10px;margin:-2px 0 6px">決定買/做比較時材料怎麼算</p>' +
         '<div class="market-supply-settings-row"><span>材料品質（全域預設）</span>' +
           '<select id="mk-sup-persp" class="craft-select" style="font-size:11px">' +
@@ -1740,19 +1792,27 @@
           '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質</span><i class="ph ph-caret-right"></i></button>' +
           '<div id="mk-sup-ov-body" style="display:none">' + overrideRows + '</div>'
         ) : '');
-      pop.style.display = 'block';
       const r = btn.getBoundingClientRect();
       pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 260)) + 'px';
       pop.style.top = (r.bottom + 6) + 'px';
-      function apply(patch) {
-        saveSupplySettings(Object.assign(getSupplySettings(), patch));
-        pop.style.display = 'none';
-        renderSupplyChainWithBreakdown(itemId, rid, box);
+      async function apply(patch) {
+        const next = Object.assign(getSupplySettings(), patch);
+        saveSupplySettings(next);
+        // 換成均價、或換了窗口，才需要先確認即時資料備好，不然新選的窗口可能還沒抓到就顯示「無報價」
+        if (next.purchaseBasis === 'avg' || next.materialsBasis === 'avg') {
+          await ensureLiveAvgForItems(getCurrentGraphItemIds(itemId, rid));
+        }
+        await renderSupplyChainWithBreakdown(itemId, rid, box); // 重畫背後的圖（這步驟結束時會用新資料重新綁一次齒輪按鈕）
+        // 面板留著不關，但要用「重畫後、新綁定」的那一份資料刷新內容，不能沿用這個函式外層的舊dcData
+        // （重畫時材料可能變了、也可能重新抓到更新鮮的預先計算資料），直接點一下新按鈕觸發它自己最新的refresh。
+        box.querySelector('[data-mk-supply-settings-btn]').click();
       }
       $('mk-sup-pbasis').addEventListener('change', function () { apply({ purchaseBasis: this.value }); });
       $('mk-sup-basis').addEventListener('change', function () { apply({ materialsBasis: this.value }); });
       $('mk-sup-persp').addEventListener('change', function () { apply({ matPersp: this.value }); });
       $('mk-sup-crystal').addEventListener('click', function () { apply({ includeCrystal: this.dataset.on !== '1' }); });
+      const pWin = $('mk-sup-pwindow'); if (pWin) pWin.addEventListener('change', function () { apply({ purchaseAvgWindow: this.value }); });
+      const mWin = $('mk-sup-mwindow'); if (mWin) mWin.addEventListener('change', function () { apply({ materialsAvgWindow: this.value }); });
       const ovToggle = $('mk-sup-ov-toggle');
       if (ovToggle) {
         ovToggle.addEventListener('click', function () {
@@ -1771,6 +1831,11 @@
           });
         });
       }
+    }
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      pop.style.display = 'block';
+      refresh();
     });
   }
 
@@ -1852,7 +1917,9 @@
 
     // 版面尺寸：卡片固定寬高，數量決定整排多寬，不會因為卡片一多就把單張卡片擠小
     const CARD_W = 96, CARD_H = 88, GAP = 16, PAD = 14;
-    const CENTER_W = 112, CENTER_H = 84; // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」
+    // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」；有配方時多顯示一行數量（×N），
+    // 要多留13px高度給這行字，不然價格文字會被擠到卡片外面（跟一般卡片line2的排版邏輯一致）。
+    const CENTER_W = 112, CENTER_H = rid ? 97 : 84;
     const rowCount = Math.max(matNodes.length, useNodes.length + (useOverflow ? 1 : 0), 1);
     const W = Math.max(360, rowCount * CARD_W + (rowCount - 1) * GAP + PAD * 2);
     const cx = W / 2;
@@ -2057,9 +2124,11 @@
       if (bd && bd.totalBuy != null && bd.totalAuto != null) {
         const save = (bd.totalBuy - bd.totalAuto) * craftMultiplier;
         const qtyTag = craftMultiplier > 1 ? '（' + craftMultiplier + '個）' : '';
+        // 即使結論沒變（還是建議直接買），也要把實際數字秀出來——不然切水晶開關、結論文字
+        // 沒變就會看起來像完全沒反應，玩家會搞不清楚設定到底有沒有生效。
         concl = save > 0.5
           ? '<span class="market-stat-badge market-stat-badge-strong" style="background:rgba(74,222,128,.16);border-color:#4ade80;color:#8fd6a0">🔨 自製省 ' + Math.round(save).toLocaleString() + ' 金' + qtyTag + '</span>'
-          : '<span class="market-stat-badge">直接買齊最划算</span>';
+          : '<span class="market-stat-badge">直接買齊最划算・多花 ' + Math.round(-save).toLocaleString() + ' 金' + qtyTag + '</span>';
       } else if (bdUnavailable) {
         concl = '<span class="market-stat-badge market-stat-badge-muted">資料不足，暫無法比較買/做</span>';
       } else {
@@ -2111,7 +2180,7 @@
     // 第10點＋第6點修正：圖上每張卡片的顯示價，改用跟買/做比較同一份快照資料、同一個purchaseBasis
     // 設定去填，不再另外即時查「永遠是最低價」——玩家選了「成交均價」，圖上所有卡片都要跟著換，
     // 不是只有材料成本計算換了、卡片上寫的數字還是舊的最低價，兩邊對不起來。
-    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.purchaseBasis);
+    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.purchaseBasis, settings.purchaseAvgWindow);
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
     bindSupplySettingsPopover(box, itemId, rid, dcData); // 每次重繪（含數量±）都要重新綁，舊的按鈕已經被換掉了
 
@@ -2144,12 +2213,17 @@
   // fillNodePrices——合併成一次批次請求，不要每張卡片各打一次API（一次撐爆Universalis流量限制）。
   /* 供應鏈圖專用：價格從已經載入的快照資料直接讀（不用再即時查一次），而且照玩家選的
    * purchaseBasis（最低／均價）決定要讀哪個欄位，全部卡片統一套用同一種算法。 */
-  function fillCardPricesFromSnapshot(container, dcData, purchaseBasis) {
+  function fillCardPricesFromSnapshot(container, dcData, purchaseBasis, purchaseAvgWindow) {
     const nodes = Array.prototype.slice.call(container.querySelectorAll('[data-price-item]'));
     nodes.forEach(function (el) {
       const id = el.dataset.priceItem;
-      const mr = dcData.items[id];
-      const p = mr ? (radarUnitPrice(mr, 'nq', purchaseBasis) || radarUnitPrice(mr, 'all', purchaseBasis)) : null;
+      let p;
+      if (purchaseBasis === 'avg') {
+        p = avgPriceOf(id, purchaseAvgWindow || 'current', dcData);
+      } else {
+        const mr = dcData.items[id];
+        p = mr ? (radarUnitPrice(mr, 'nq', purchaseBasis) || radarUnitPrice(mr, 'all', purchaseBasis)) : null;
+      }
       el.textContent = p != null ? Math.round(p).toLocaleString() + '金' : '無報價';
     });
   }
@@ -2388,6 +2462,9 @@
     const byItem = auto ? getRecipesByItem() : null;
     function marketPrice(id) {
       if (!includeCrystal && typeof CRYSTAL_ITEM_IDS !== 'undefined' && CRYSTAL_ITEM_IDS.has(Number(id))) return 0;
+      // 均價走5窗口查詢（可能來自即時快取），不分NQ/HQ，跟掛單價是分開的兩條路徑；
+      // 材料品質設定（matPersp/hqOverrides）只影響「掛單最低價」怎麼選NQ/HQ，均價本身沒有這個維度。
+      if (basis === 'avg') return avgPriceOf(id, opts.materialsAvgWindow || 'current', dcData);
       const mr = dcData.items[id];
       if (!mr) return null;
       // 這個物品有沒有被個別覆寫品質（跟全域matPersp不同），有的話優先用覆寫的
@@ -3192,7 +3269,7 @@
     }
     renderList('');
     $('mk-token-search').addEventListener('input', function () { renderList(this.value); });
-    const TOKEN_SORTS = [['net', '淨值'], ['vel', '賣速'], ['txnFreq', '成交頻率']];
+    const TOKEN_SORTS = [['net', '市價'], ['vel', '賣速'], ['txnFreq', '成交頻率']];
     pane.addEventListener('click', async function (e) {
       const sortBtn = e.target.closest('[data-token-sort]');
       if (sortBtn) {
@@ -3220,22 +3297,24 @@
       const dcData = await getPrecomputedAllData();
       if (!dcData) { body.innerHTML = '<p class="craft-muted">目前沒有可用的市場快照資料，暫時無法算出排行。</p>'; return; }
       const sortKey = body.dataset.sort || 'net';
-      const best = buildCurrencyBestUses(id, dcData, settings.materialsBasis, 15, sortKey);
+      const best = buildCurrencyBestUses(id, dcData, settings.materialsBasis, 20, sortKey);
       if (!best.length) { body.innerHTML = '<p class="craft-muted">找不到可以公平比較的兌換對象（可能是關聯的道具都缺乏市場行情）。</p>'; return; }
       const sortTabsHtml = '<div class="market-token-sort-tabs">' + TOKEN_SORTS.map(function (s) {
         return '<button type="button" class="market-token-sort-btn' + (s[0] === sortKey ? ' active' : '') + '" data-token-sort="' + s[0] + '">' + s[1] + '</button>';
       }).join('') + '</div>';
+      // 排序指標決定順序，但三個指標的數字都要秀出來（不是只秀排序用的那個），不然玩家
+      // 換個排序方式，想比較「市價雖然低但賣速快」這種取捨時，看不到另外兩個數字沒辦法比較。
       body.innerHTML = sortTabsHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
         const label = r.resultItems.map(function (x) { return (ITEM_NAMES_TW_ALL[x[0]] || ('#' + x[0])) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
-        const sub = sortKey === 'vel' ? r.vel.toFixed(1) + ' 件/天'
-          : sortKey === 'txnFreq' ? r.txnFreq.toFixed(2) + ' 筆/天'
-          : '每1個值 ' + Math.round(r.net).toLocaleString() + ' 金';
-        return '<button type="button" class="market-obtain-best-row" data-mk-goto-item="' + first[0] + '">' +
+        const metricsHtml = '<span class="market-token-metric' + (sortKey === 'net' ? ' active' : '') + '">市價 ' + Math.round(r.net).toLocaleString() + '</span>' +
+          '<span class="market-token-metric' + (sortKey === 'vel' ? ' active' : '') + '">賣速 ' + r.vel.toFixed(1) + '</span>' +
+          '<span class="market-token-metric' + (sortKey === 'txnFreq' ? ' active' : '') + '">頻率 ' + r.txnFreq.toFixed(2) + '</span>';
+        return '<button type="button" class="market-obtain-best-row market-token-best-row" data-mk-goto-item="' + first[0] + '">' +
           '<span class="market-obtain-best-rank">' + (i + 1) + '</span>' +
           itemIconHtml(first[0], 22) +
           '<span class="market-obtain-best-name">' + label + '</span>' +
-          '<span class="market-obtain-best-value">' + sub + '</span>' +
+          '<span class="market-token-metrics">' + metricsHtml + '</span>' +
         '</button>';
       }).join('');
       body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
