@@ -246,6 +246,7 @@
 .market-token-metrics{display:flex;gap:8px;flex-shrink:0}
 .market-token-metric{font-size:10px;color:var(--dim);white-space:nowrap}
 .market-token-metric.active{color:#8fd6a0;font-weight:600}
+.market-token-metric img{vertical-align:middle;margin:0 1px}
 .market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
   border-bottom:1px solid rgba(255,255,255,.06)}
 .market-obtain-row:last-child{border-bottom:none}
@@ -272,10 +273,12 @@
 .market-qty-btn text{fill:var(--gold-bright);font-size:15px;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
 .market-qty-btn:hover circle{fill:rgba(197,160,89,.18)}
 .market-qty-btn.disabled{opacity:.35;pointer-events:none}
+.market-qty-num{fill:var(--gold-bright);font-size:14px;font-weight:700;text-anchor:middle}
 
 /* 結論徽章旁的水晶圖示鈕：亮/暗兩態，不用文字說明現在算不算水晶成本。 */
 .market-supply-crystal-tag{background:none;border:none;font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.9}
 .market-supply-crystal-tag:hover{opacity:1}
+.market-crystal-delta{font-size:10px;color:#8fd6a0;margin-left:2px;vertical-align:middle}
 
 /* 齒輪彈窗裡的水晶切換列，本身也做成按鈕（不是checkbox+長句說明）。 */
 .market-crystal-toggle{width:100%;cursor:pointer;background:none;border:none;color:var(--main);font-family:inherit}
