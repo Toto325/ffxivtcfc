@@ -235,16 +235,16 @@
   color:var(--main);font-family:inherit;font-size:13px;cursor:pointer;padding:7px 2px;text-align:left}
 .market-token-head:hover{color:var(--gold)}
 .market-token-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.market-token-count{font-size:11px;white-space:nowrap}
+.market-token-count{font-size:12px;white-space:nowrap}
 .market-token-body{padding:2px 0 8px 24px}
 .market-token-sort-tabs{display:flex;gap:4px;margin-bottom:6px}
-.market-token-sort-btn{font-size:10px;padding:2px 8px;border:1px solid var(--tb);border-radius:999px;
+.market-token-sort-btn{font-size:12px;padding:3px 10px;border:1px solid var(--tb);border-radius:999px;
   background:none;color:var(--dim);cursor:pointer;font-family:inherit}
 .market-token-sort-btn.active{border-color:var(--gold);color:var(--gold-bright)}
 /* 排行每列同時顯示三個指標，目前排序依據的那個用強調色凸顯，其餘淡化但仍看得到數字。 */
 .market-token-best-row{align-items:center}
 .market-token-metrics{display:flex;gap:8px;flex-shrink:0}
-.market-token-metric{font-size:10px;color:var(--dim);white-space:nowrap}
+.market-token-metric{font-size:12px;color:var(--dim);white-space:nowrap}
 .market-token-metric.active{color:#8fd6a0;font-weight:600}
 .market-token-metric img{vertical-align:middle;margin:0 1px}
 .market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
@@ -264,8 +264,8 @@
   background:none;border:none;color:var(--main);cursor:pointer;font-family:inherit;padding:5px 4px;border-radius:6px}
 .market-obtain-best-row:hover{background:rgba(255,255,255,.06)}
 .market-obtain-best-rank{width:16px;flex-shrink:0;text-align:center;font-size:11px;color:var(--gold)}
-.market-obtain-best-name{flex:1;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.market-obtain-best-value{font-size:11px;color:#8fd6a0;white-space:nowrap;flex-shrink:0}
+.market-obtain-best-name{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-obtain-best-value{font-size:12px;color:#8fd6a0;white-space:nowrap;flex-shrink:0}
 
 /* 中心卡片旁的數量 −/＋ 按鈕：畫在SVG裡、卡片外側，按鈕夠大方便點，不會撐高卡片本身。 */
 .market-qty-btn{cursor:pointer}
@@ -276,9 +276,12 @@
 .market-qty-num{fill:var(--gold-bright);font-size:14px;font-weight:700;text-anchor:middle}
 
 /* 結論徽章旁的水晶圖示鈕：亮/暗兩態，不用文字說明現在算不算水晶成本。 */
-.market-supply-crystal-tag{background:none;border:none;font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.9}
-.market-supply-crystal-tag:hover{opacity:1}
-.market-crystal-delta{font-size:10px;color:#8fd6a0;margin-left:2px;vertical-align:middle}
+.market-supply-crystal-tag{background:rgba(255,255,255,.05);border:1px solid var(--tb);border-radius:999px;
+  font-size:13px;cursor:pointer;padding:3px 9px;line-height:1;display:inline-flex;align-items:center;gap:4px}
+.market-supply-crystal-tag:hover{border-color:var(--gold)}
+.market-supply-crystal-tag.is-off{filter:grayscale(1);opacity:.55}
+.market-crystal-label{font-size:11px;color:var(--dim)}
+.market-crystal-delta{font-size:11px;color:#8fd6a0;vertical-align:middle}
 
 /* 齒輪彈窗裡的水晶切換列，本身也做成按鈕（不是checkbox+長句說明）。 */
 .market-crystal-toggle{width:100%;cursor:pointer;background:none;border:none;color:var(--main);font-family:inherit}
