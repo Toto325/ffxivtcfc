@@ -1748,7 +1748,9 @@
     return (recipe ? (recipe.ingredients || []) : []).map(function (ing) { return ing.itemId; });
   }
 
-  const AVG_WINDOW_OPTIONS = [['current', '當前'], ['1d', '1天'], ['3d', '3天'], ['7d', '7天'], ['30d', '30天']];
+  // 30天窗口在供應鏈圖這裡先隱藏（即時抓取耗時，暫不開放選擇）；只影響這裡，
+  // 跟物品詳情頁本來就有的5窗口均價彈窗（openAvgPricePopover）是完全獨立的另一份UI，不受影響。
+  const AVG_WINDOW_OPTIONS = [['current', '當前'], ['1d', '1天'], ['3d', '3天'], ['7d', '7天']];
   function avgWindowSelectHtml(id, cur) {
     return '<select id="' + id + '" class="craft-select" style="font-size:11px">' +
       AVG_WINDOW_OPTIONS.map(function (w) { return '<option value="' + w[0] + '"' + (cur === w[0] ? ' selected' : '') + '>' + w[1] + '</option>'; }).join('') +
@@ -2063,17 +2065,22 @@
     /* 卡片收起狀態就要看得到的實際差額徽章（不是只有顏色）：綠色＝自己做這項省下這個數字，
      * 橘色＝直接買比較划算、做的話反而多花這個數字——兩個方向都給實際金額，玩家自己拿這個數字
      * 跟「做這個要花多少時間」比，才能真正判斷划不划算，不是只靠系統說「划算」兩個字。 */
+    const DELTA_NEGLIGIBLE_THRESHOLD = 10; // 差距在這個金額以內就當「價格接近」，不特別標方向，跟結論那句用同一個門檻
     function deltaBadgeSvg(x, topY, w, delta, badgeItemId) {
       if (delta == null) return '';
-      const negligible = Math.abs(delta) < 1;
+      const negligible = Math.abs(delta) < DELTA_NEGLIGIBLE_THRESHOLD;
       const color = negligible ? '#a39c8f' : (delta > 0 ? '#4ade80' : '#e0a05a');
       const bg = negligible ? 'rgba(255,255,255,.08)' : (delta > 0 ? 'rgba(74,222,128,.16)' : 'rgba(224,160,90,.14)');
-      const label = negligible ? '≈0' : fmtDeltaBadge(delta);
+      const label = negligible ? '≈' : fmtDeltaBadge(delta);
       const bw = Math.max(26, 8 + label.length * 6.2);
       const bx = x + w / 2 - bw - 3, by = topY + 3, bh = 14;
+      // 滑鼠停留顯示完整意思（原生title提示，不佔畫面空間，不是常駐文字）：正數＝自己做這項省多少，
+      // 負數＝直接買這項省多少，跟結論那句「自製省/直接買省」用同一套語言，不用另外發明說法。
+      const tip = negligible ? '這項材料買或做價格接近（差距<' + DELTA_NEGLIGIBLE_THRESHOLD + '金）'
+        : (delta > 0 ? '這項材料自己做比買省 ' + Math.round(delta).toLocaleString() + ' 金' : '這項材料直接買比做省 ' + Math.round(-delta).toLocaleString() + ' 金');
       // 徽章本身可以點，點了開明細面板——跟卡片本體的「點了跳轉」是分開的兩個互動區域，
       // 卡片本體click的時候要先判斷有沒有點在這個徽章上，點到了就不要再觸發跳轉（見cardClick綁定處）。
-      return '<g class="market-delta-badge" data-mk-detail-item="' + badgeItemId + '"><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="7" fill="' + bg + '" stroke="' + color + '" stroke-width="0.8"/>' +
+      return '<g class="market-delta-badge" data-mk-detail-item="' + badgeItemId + '"><title>' + tip + '</title><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="7" fill="' + bg + '" stroke="' + color + '" stroke-width="0.8"/>' +
         '<text x="' + (bx + bw / 2) + '" y="' + (by + bh / 2 + 3.5) + '" text-anchor="middle" font-size="9" fill="' + color + '" font-weight="600">' + label + '</text></g>';
     }
     function cardHtml(x, topY, iconId, line1, line2, clickAttrs, isOverflow, opts) {
@@ -2147,11 +2154,17 @@
       if (bd && bd.totalBuy != null && bd.totalAuto != null) {
         const save = (bd.totalBuy - bd.totalAuto) * craftMultiplier;
         const qtyTag = craftMultiplier > 1 ? '（' + craftMultiplier + '個）' : '';
-        // 即使結論沒變（還是建議直接買），也要把實際數字秀出來——不然切水晶開關、結論文字
-        // 沒變就會看起來像完全沒反應，玩家會搞不清楚設定到底有沒有生效。
-        concl = save > 0.5
-          ? '<span class="market-stat-badge market-stat-badge-strong" style="background:rgba(74,222,128,.16);border-color:#4ade80;color:#8fd6a0">🔨 自製省 ' + Math.round(save).toLocaleString() + ' 金' + qtyTag + '</span>'
-          : '<span class="market-stat-badge">直接買齊最划算・多花 ' + Math.round(-save).toLocaleString() + ' 金' + qtyTag + '</span>';
+        // 三種情況分開處理，不是只有「省」跟「其餘都算多花」兩種——差距小到可以忽略時，
+        // 用「-save」這種算法在save剛好是小額正數時會算出帶負號的極小值（顯示成「-0」這種語病），
+        // 根本原因是把「忽略」硬塞進「多花」分支，這裡拆成獨立的第三種情況就不會有這個問題。
+        const threshold = DELTA_NEGLIGIBLE_THRESHOLD * craftMultiplier; // 做多個的時候門檻也等比例放大，不然買10個時差9金還被當作「有感」
+        if (save > threshold) {
+          concl = '<span class="market-stat-badge market-stat-badge-strong" style="background:rgba(74,222,128,.16);border-color:#4ade80;color:#8fd6a0">🔨 自製省 ' + Math.round(save).toLocaleString() + ' 金' + qtyTag + '</span>';
+        } else if (save < -threshold) {
+          concl = '<span class="market-stat-badge">直接買齊最划算・省 ' + Math.round(-save).toLocaleString() + ' 金' + qtyTag + '</span>';
+        } else {
+          concl = '<span class="market-stat-badge market-stat-badge-muted">買／做價格接近（差距<' + Math.round(threshold).toLocaleString() + '金），皆可' + qtyTag + '</span>';
+        }
       } else if (bdUnavailable) {
         concl = '<span class="market-stat-badge market-stat-badge-muted">資料不足，暫無法比較買/做</span>';
       } else {
@@ -2163,7 +2176,9 @@
       if (crystalImpact != null && crystalImpact >= 1) {
         crystalDeltaLabel = '<span class="market-crystal-delta">' + Math.round(crystalImpact * craftMultiplier).toLocaleString() + '</span>';
       }
-      const crystalTag = '<button type="button" class="market-supply-crystal-tag" data-mk-supply-settings-btn="1" title="水晶成本約 ' + (crystalImpact != null ? Math.round(crystalImpact).toLocaleString() : '?') + ' 金，目前' + (settings.includeCrystal ? '已' : '未') + '算入，點擊調整">' + (settings.includeCrystal ? '💎' : '◇') + crystalDeltaLabel + '</button>';
+      // 開/關都用同一個emoji（避免換成另一個符號在深色底幾乎看不見），用顏色濃淡區分狀態，
+      // 旁邊加「水晶成本」四字標籤（不是解釋句，是名稱），讓數字知道自己在講什麼。
+      const crystalTag = '<button type="button" class="market-supply-crystal-tag' + (settings.includeCrystal ? '' : ' is-off') + '" data-mk-supply-settings-btn="1" title="水晶成本約 ' + (crystalImpact != null ? Math.round(crystalImpact).toLocaleString() : '?') + ' 金，目前' + (settings.includeCrystal ? '已' : '未') + '算入，點擊調整">💎<span class="market-crystal-label">水晶成本</span>' + crystalDeltaLabel + '</button>';
       headlineHtml = '<div class="market-supply-headrow">' +
         '<button type="button" class="market-history-btn" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
         concl + crystalTag +
@@ -2183,9 +2198,10 @@
       const minusX = numberX - numW / 2 - 3 - btnR;
       const canMinus = craftMultiplier > 1;
       qtyCtrlHtml =
-        '<g class="market-qty-btn' + (canMinus ? '' : ' disabled') + '" data-mk-qty-step="-1"><circle cx="' + minusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + minusX + '" y="' + (midY + 5) + '" text-anchor="middle">−</text></g>' +
-        '<text class="market-qty-num" x="' + numberX + '" y="' + (midY + 5) + '" text-anchor="middle">' + craftMultiplier + '</text>' +
-        '<g class="market-qty-btn" data-mk-qty-step="1"><circle cx="' + plusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + plusX + '" y="' + (midY + 5) + '" text-anchor="middle">＋</text></g>';
+        // 文字基準線偏移從+5調到+3——上一版數字偏下，是這個偏移量沒有針對−/＋這種窄高符號校準過。
+        '<g class="market-qty-btn' + (canMinus ? '' : ' disabled') + '" data-mk-qty-step="-1"><circle cx="' + minusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + minusX + '" y="' + (midY + 3) + '" text-anchor="middle">−</text></g>' +
+        '<text class="market-qty-num" x="' + numberX + '" y="' + (midY + 4) + '" text-anchor="middle">' + craftMultiplier + '</text>' +
+        '<g class="market-qty-btn" data-mk-qty-step="1"><circle cx="' + plusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + plusX + '" y="' + (midY + 3) + '" text-anchor="middle">＋</text></g>';
     }
 
     box.innerHTML =
@@ -2195,7 +2211,6 @@
         cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, { w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true }) +
         qtyCtrlHtml +
       '</svg>' +
-      '<p class="craft-muted market-supply-legend">↑用在哪　↓材料</p>' +
       '<div class="market-fullchain-btn-row"><button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button></div>';
 
     box.querySelector('[data-mk-open-fullchain]').addEventListener('click', function () { openFullChainModal(itemId, rid); });
@@ -2211,7 +2226,7 @@
     // 第10點＋第6點修正：圖上每張卡片的顯示價，改用跟買/做比較同一份快照資料、同一個purchaseBasis
     // 設定去填，不再另外即時查「永遠是最低價」——玩家選了「成交均價」，圖上所有卡片都要跟著換，
     // 不是只有材料成本計算換了、卡片上寫的數字還是舊的最低價，兩邊對不起來。
-    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.purchaseBasis, settings.purchaseAvgWindow);
+    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.purchaseBasis, settings.purchaseAvgWindow, settings.matPersp, settings.hqOverrides);
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
     bindSupplySettingsPopover(box, itemId, rid, dcData); // 每次重繪（含數量±）都要重新綁，舊的按鈕已經被換掉了
 
@@ -2244,7 +2259,7 @@
   // fillNodePrices——合併成一次批次請求，不要每張卡片各打一次API（一次撐爆Universalis流量限制）。
   /* 供應鏈圖專用：價格從已經載入的快照資料直接讀（不用再即時查一次），而且照玩家選的
    * purchaseBasis（最低／均價）決定要讀哪個欄位，全部卡片統一套用同一種算法。 */
-  function fillCardPricesFromSnapshot(container, dcData, purchaseBasis, purchaseAvgWindow) {
+  function fillCardPricesFromSnapshot(container, dcData, purchaseBasis, purchaseAvgWindow, matPersp, hqOverrides) {
     const nodes = Array.prototype.slice.call(container.querySelectorAll('[data-price-item]'));
     nodes.forEach(function (el) {
       const id = el.dataset.priceItem;
@@ -2253,7 +2268,12 @@
         p = avgPriceOf(id, purchaseAvgWindow || 'current', dcData);
       } else {
         const mr = dcData.items[id];
-        p = mr ? (radarUnitPrice(mr, 'nq', purchaseBasis) || radarUnitPrice(mr, 'all', purchaseBasis)) : null;
+        // 之前這裡寫死只看NQ，個別材料品質設定完全沒接到——這是確認過的bug，
+        // 現在跟買/做比較用同一套品質判斷（先看個別覆寫，沒有才用全域預設）。
+        const ov = hqOverrides && hqOverrides[id];
+        const persp = ov || matPersp || 'nq';
+        p = mr ? (persp === 'all' ? radarUnitPrice(mr, 'all', purchaseBasis)
+          : radarUnitPrice(mr, persp, purchaseBasis) || radarUnitPrice(mr, 'all', purchaseBasis)) : null;
       }
       el.textContent = p != null ? Math.round(p).toLocaleString() + '金' : '無報價';
     });
