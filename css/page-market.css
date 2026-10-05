@@ -247,6 +247,7 @@
 .market-token-metric{font-size:12px;color:var(--dim);white-space:nowrap}
 .market-token-metric.active{color:#8fd6a0;font-weight:600}
 .market-token-metric img{vertical-align:middle;margin:0 1px}
+.market-token-chain-tag{font-size:11px;margin-left:4px;opacity:.8}
 .market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
   border-bottom:1px solid rgba(255,255,255,.06)}
 .market-obtain-row:last-child{border-bottom:none}
