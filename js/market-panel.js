@@ -1560,6 +1560,38 @@
     const txnFreq = P ? (P[3] / (HOT_TIER_DAYS[P[0]] || 30)) : 0;
     return { vel: vel, txnFreq: txnFreq };
   }
+  const CHAIN_MAX_DEPTH = 3; // 最多追3層，避免無限遞迴也避免算太久
+  /* 這個物品值多少錢：能直接查到市場價就直接用；查不到（通常是不可交易的中繼道具，
+   * 例如神秘原石這類）但它自己又能再兌換別的東西，就往下追一層，一路追到有市場價的終點，
+   * 取「這條路徑能換到的東西裡，淨值最高的那個」當作這個中繼物品的等值。
+   * visited防止繞回自己形成無窮迴圈；depth耗盡就放棄這條路徑（回傳null，不是0，
+   * 0會被誤認為「這東西真的不值錢」，null才代表「算不出來，不要用這筆」）。 */
+  function resolveChainedValue(itemId, amountNeeded, dcData, basis, depth, visited) {
+    const direct = tradeItemPrice(itemId, dcData, basis);
+    if (direct != null) return direct * amountNeeded;
+    if (depth <= 0 || visited.has(itemId)) return null;
+    visited.add(itemId);
+    const trades = tradesByCurrencyCache[itemId] || [];
+    let best = null;
+    trades.forEach(function (t) {
+      const myAmt = (t.currencies.find(function (x) { return x[0] === Number(itemId); }) || [0, 0])[1];
+      if (!myAmt) return;
+      const otherCurrencies = t.currencies.filter(function (x) { return x[0] !== Number(itemId); });
+      const otherCost = tradeSideValue(otherCurrencies, dcData, basis); // 其他付出方只看直接市場價，不繼續遞迴，避免路徑爆炸
+      if (otherCost == null) return;
+      let resultValue = 0, ok = true;
+      t.items.forEach(function (it) {
+        const v = resolveChainedValue(it[0], it[1], dcData, basis, depth - 1, visited);
+        if (v == null) { ok = false; return; }
+        resultValue += v;
+      });
+      if (!ok) return;
+      const net = (resultValue - otherCost) / myAmt * amountNeeded;
+      if (best == null || net > best) best = net;
+    });
+    visited.delete(itemId); // 退出這個分支時解除標記，另一條不相關的路徑如果也經過同一個中繼物品，不該被誤判成循環
+    return best;
+  }
   function buildCurrencyBestUses(itemId, dcData, basis, limit, sortKey) {
     buildTradeIndices();
     const trades = tradesByCurrencyCache[itemId] || [];
@@ -1569,11 +1601,20 @@
       if (!myAmount) return;
       const otherCurrencies = t.currencies.filter(function (x) { return x[0] !== Number(itemId); });
       const otherCost = tradeSideValue(otherCurrencies, dcData, basis); // 沒有其他付出時是空陣列，tradeSideValue回傳0
-      const resultValue = tradeSideValue(t.items, dcData, basis);
-      if (otherCost == null || resultValue == null) return; // 其他付出或換到的東西缺價，這筆無法公平比較，跳過不列入排序
+      if (otherCost == null) return;
+      let resultValue = 0, ok = true, viaChain = false;
+      t.items.forEach(function (it) {
+        const direct = tradeItemPrice(it[0], dcData, basis);
+        if (direct != null) { resultValue += direct * it[1]; return; }
+        // 直接查不到市場價，不是馬上放棄，往下追一層看這個中繼物品能不能再換成有價的東西
+        const chained = resolveChainedValue(it[0], it[1], dcData, basis, CHAIN_MAX_DEPTH, new Set([Number(itemId)]));
+        if (chained == null) { ok = false; return; }
+        resultValue += chained; viaChain = true;
+      });
+      if (!ok) return;
       const net = (resultValue - otherCost) / myAmount;
       const liq = liquidityOf(t.items[0][0], dcData);
-      rows.push({ resultItems: t.items, net: net, vel: liq.vel, txnFreq: liq.txnFreq });
+      rows.push({ resultItems: t.items, net: net, vel: liq.vel, txnFreq: liq.txnFreq, viaChain: viaChain });
     });
     const key = sortKey || 'net';
     rows.sort(function (a, b) { return b[key] - a[key]; });
@@ -2071,8 +2112,11 @@
       const negligible = Math.abs(delta) < DELTA_NEGLIGIBLE_THRESHOLD;
       const color = negligible ? '#a39c8f' : (delta > 0 ? '#4ade80' : '#e0a05a');
       const bg = negligible ? 'rgba(255,255,255,.08)' : (delta > 0 ? 'rgba(74,222,128,.16)' : 'rgba(224,160,90,.14)');
-      const label = negligible ? '≈' : fmtDeltaBadge(delta);
-      const bw = Math.max(26, 8 + label.length * 6.2);
+      // 數字前面加一個固定圖示（🔨＝自己做划算、🛒＝直接買划算），不用停留滑鼠也能一眼看懂方向，
+      // 跟結論徽章、明細面板用同一套圖示語言，整個頁面對「做」「買」只有這兩個圖示，意思統一。
+      const icon = negligible ? '' : (delta > 0 ? '🔨' : '🛒');
+      const label = icon + (negligible ? '≈' : fmtDeltaBadge(delta));
+      const bw = Math.max(30, 16 + label.length * 6.2);
       const bx = x + w / 2 - bw - 3, by = topY + 3, bh = 14;
       // 滑鼠停留顯示完整意思（原生title提示，不佔畫面空間，不是常駐文字）：正數＝自己做這項省多少，
       // 負數＝直接買這項省多少，跟結論那句「自製省/直接買省」用同一套語言，不用另外發明說法。
@@ -2103,7 +2147,7 @@
           : itemIconSvg(iconId, x, iconY, r)) +
         '<text x="' + x + '" y="' + nameY + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
         (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="12" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
-        (isOverflow ? '' : '<text class="mk-card-price" data-price-item="' + iconId + '" x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
+        (isOverflow ? '' : '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '" x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
         deltaBadgeSvg(x, topY, w, opts.delta, iconId) +
       '</g>';
     }
@@ -2185,30 +2229,33 @@
       '</div>';
     }
 
-    // 中心卡片旁的數量調整：整組「−／數字／＋」畫在卡片左外側同一列，數字夾在兩個按鈕中間，
-    // 卡片本身完全不用加高、也不用在卡片裡多顯示一行文字——這是上一版擠壓卡片高度、
-    // 連帶讓整頁多一截無意義捲動的根因，這次直接把數量顯示整個移出卡片範圍。
+    // 中心卡片旁的數量調整：− 在卡片左邊、＋在卡片右邊（左右夾住卡片，視覺上比較自然），
+    // 數字本身放回卡片「裡面」——但不是新增一行撐高卡片，是接在價格文字同一行後面
+    // （例如「300金 ×2」），完全不佔用額外高度，上一版擠壓卡片高度的問題不會再發生。
     let qtyCtrlHtml = '';
     if (rid) {
-      const btnR = 13, gapX = 8, numW = 22;
+      const btnR = 13, gapX = 10;
+      const minusX = cx - CENTER_W / 2 - gapX - btnR, plusX = cx + CENTER_W / 2 + gapX + btnR;
       const midY = centerTop + CENTER_H / 2;
-      const clusterRightEdge = cx - CENTER_W / 2 - gapX;
-      const plusX = clusterRightEdge - btnR;
-      const numberX = plusX - btnR - 3 - numW / 2;
-      const minusX = numberX - numW / 2 - 3 - btnR;
       const canMinus = craftMultiplier > 1;
       qtyCtrlHtml =
-        // 文字基準線偏移從+5調到+3——上一版數字偏下，是這個偏移量沒有針對−/＋這種窄高符號校準過。
         '<g class="market-qty-btn' + (canMinus ? '' : ' disabled') + '" data-mk-qty-step="-1"><circle cx="' + minusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + minusX + '" y="' + (midY + 3) + '" text-anchor="middle">−</text></g>' +
-        '<text class="market-qty-num" x="' + numberX + '" y="' + (midY + 4) + '" text-anchor="middle">' + craftMultiplier + '</text>' +
         '<g class="market-qty-btn" data-mk-qty-step="1"><circle cx="' + plusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + plusX + '" y="' + (midY + 3) + '" text-anchor="middle">＋</text></g>';
     }
 
+    // 中心卡片現在也套用跟其他卡片一樣的角落徽章（🔨/🛒＋差額），跟結論徽章呈現同一組數字、
+    // 只是位置不同，不是互相矛盾——結論徽章是整句話講清楚，角落徽章是跟其他卡片一致的簡短版本。
+    let centerDecision, centerDelta;
+    if (bd && bd.totalBuy != null && bd.totalAuto != null) {
+      const centerSave = (bd.totalBuy - bd.totalAuto) * craftMultiplier;
+      centerDecision = centerSave > 0 ? 'craft' : 'buy';
+      centerDelta = centerSave;
+    }
     box.innerHTML =
       headlineHtml +
       '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="market-supply-svg"><defs>' + svgDefs + '</defs>' +
         svgParts +
-        cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, { w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true }) +
+        cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, { w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true, priceElId: 'mk-center-price', decision: centerDecision, delta: centerDelta }) +
         qtyCtrlHtml +
       '</svg>' +
       '<div class="market-fullchain-btn-row"><button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button></div>';
@@ -2227,6 +2274,12 @@
     // 設定去填，不再另外即時查「永遠是最低價」——玩家選了「成交均價」，圖上所有卡片都要跟著換，
     // 不是只有材料成本計算換了、卡片上寫的數字還是舊的最低價，兩邊對不起來。
     if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.purchaseBasis, settings.purchaseAvgWindow, settings.matPersp, settings.hqOverrides);
+    // 數量接在中心卡片的價格文字後面（例如「300金 ×2」），不是新增一行，卡片高度完全不受影響；
+    // 只有數量大於1才顯示，數量1是預設情況，不用特別標出來。
+    if (craftMultiplier > 1) {
+      const centerPriceEl = $('mk-center-price');
+      if (centerPriceEl && centerPriceEl.textContent) centerPriceEl.textContent += '　×' + craftMultiplier;
+    }
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
     bindSupplySettingsPopover(box, itemId, rid, dcData); // 每次重繪（含數量±）都要重新綁，舊的按鈕已經被換掉了
 
@@ -3363,10 +3416,14 @@
         const metricsHtml = '<span class="market-token-metric' + (sortKey === 'net' ? ' active' : '') + '">每1' + itemIconHtml(id, 13) + '≈' + Math.round(r.net).toLocaleString() + '</span>' +
           '<span class="market-token-metric' + (sortKey === 'vel' ? ' active' : '') + '">賣速 ' + r.vel.toFixed(1) + ' 件/天</span>' +
           '<span class="market-token-metric' + (sortKey === 'txnFreq' ? ' active' : '') + '">頻率 ' + r.txnFreq.toFixed(2) + ' 筆/天</span>';
+        // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
+        // 不是這個物品自己的市場價——用一個小圖示標出來，不然玩家點進去查這個物品會發現沒有市場價、
+        // 覺得數字是編的；滑鼠停留可以看到追查到哪個最終物品。
+        const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為追查其後續兌換得出">🔗</span>' : '';
         return '<button type="button" class="market-obtain-best-row market-token-best-row" data-mk-goto-item="' + first[0] + '">' +
           '<span class="market-obtain-best-rank">' + (i + 1) + '</span>' +
           itemIconHtml(first[0], 22) +
-          '<span class="market-obtain-best-name">' + label + '</span>' +
+          '<span class="market-obtain-best-name">' + label + chainTag + '</span>' +
           '<span class="market-token-metrics">' + metricsHtml + '</span>' +
         '</button>';
       }).join('');
