@@ -1575,42 +1575,53 @@
   }
   const CHAIN_MAX_DEPTH = 3; // 最多追3層，避免無限遞迴也避免算太久
   /* 這個物品值多少錢：能直接查到市場價就直接用；查不到（通常是不可交易的中繼道具，
-   * 例如神秘原石這類）但它自己又能再兌換別的東西，就往下追一層，一路追到有市場價的終點，
+   * 例如神秘原石這類）但它自己又能再兌換別的東西，就往下追，一路追到有市場價的終點為止，
    * 取「這條路徑能換到的東西裡，淨值最高的那個」當作這個中繼物品的等值。
-   * visited防止繞回自己形成無窮迴圈；depth耗盡就放棄這條路徑（回傳null，不是0，
-   * 0會被誤認為「這東西真的不值錢」，null才代表「算不出來，不要用這筆」）。 */
+   * 回傳 {v:等值金額, end:最終有市場價的終點物品id}，或 null（算不出來，不是0——
+   * 0會被誤認為「這東西真的不值錢」）。end 要一起回傳，是因為排行裡的賣速／成交頻率
+   * 必須看「最後真正賣出去的那個物品」，不是中繼物品（中繼物品不可交易，賣速永遠是0，
+   * 之前就是這個錯，讓鏈式結果在賣速／頻率排序下全部墊底、被擠出前20名）。
+   * visited防止繞回自己形成無窮迴圈。 */
   function resolveChainedValue(itemId, amountNeeded, dcData, basis, depth, visited) {
     const dbg = typeof window !== 'undefined' && window.__CHAIN_DEBUG__;
     const direct = tradeItemPrice(itemId, dcData, basis);
-    if (direct != null) { if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 直接有市場價:', direct); return direct * amountNeeded; }
-    if (depth <= 0) { if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 深度用盡，放棄'); return null; }
-    if (visited.has(itemId)) { if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 繞回自己，放棄（循環保護）'); return null; }
-    visited.add(itemId);
+    if (direct != null) return { v: direct * amountNeeded, end: Number(itemId) };
+    if (depth <= 0 || visited.has(itemId)) return null;
     const trades = tradesByCurrencyCache[itemId] || [];
-    if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 本身無市場價，找到可再兌換的交易筆數=' + trades.length);
+    if (!trades.length) return null; // 沒有任何後續兌換＝死路（例如改良型裝備），不用往下，也不印訊息避免洗版
+    visited.add(itemId);
     let best = null;
     trades.forEach(function (t) {
       const myAmt = (t.currencies.find(function (x) { return x[0] === Number(itemId); }) || [0, 0])[1];
-      if (!myAmt) { if (dbg) console.log('[CHAIN-DEBUG]     跳過一筆：找不到自己在currencies裡的數量'); return; }
+      if (!myAmt) return;
       const otherCurrencies = t.currencies.filter(function (x) { return x[0] !== Number(itemId); });
       const otherCost = tradeSideValue(otherCurrencies, dcData, basis); // 其他付出方只看直接市場價，不繼續遞迴，避免路徑爆炸
-      if (otherCost == null) { if (dbg) console.log('[CHAIN-DEBUG]     跳過一筆：還需要搭配其他道具付出，但那些道具缺市場價', otherCurrencies); return; }
-      let resultValue = 0, ok = true;
+      if (otherCost == null) return;
+      let resultValue = 0, ok = true, bestPart = -Infinity, endId = null;
       t.items.forEach(function (it) {
-        const v = resolveChainedValue(it[0], it[1], dcData, basis, depth - 1, visited);
-        if (v == null) { ok = false; return; }
-        resultValue += v;
+        const r = resolveChainedValue(it[0], it[1], dcData, basis, depth - 1, visited);
+        if (r == null) { ok = false; return; }
+        resultValue += r.v;
+        if (r.v > bestPart) { bestPart = r.v; endId = r.end; } // 一次換到多樣東西時，終點取價值最高的那個
       });
-      if (!ok) { if (dbg) console.log('[CHAIN-DEBUG]     跳過一筆：換到的東西裡有算不出價的'); return; }
+      if (!ok) return;
       const net = (resultValue - otherCost) / myAmt * amountNeeded;
-      if (best == null || net > best) best = net;
+      if (best == null || net > best.v) best = { v: net, end: endId };
     });
     visited.delete(itemId); // 退出這個分支時解除標記，另一條不相關的路徑如果也經過同一個中繼物品，不該被誤判成循環
-    if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 最終追查結果best=', best);
+    if (dbg) console.log('[CHAIN-DEBUG]   中繼物品 ' + (ITEM_NAMES_TW_ALL[itemId] || itemId) + '(id=' + itemId + ') 追查結果=', best);
     return best;
   }
   function buildCurrencyBestUses(itemId, dcData, basis, limit, sortKey) {
     buildTradeIndices();
+    const dbg = typeof window !== 'undefined' && window.__CHAIN_DEBUG__;
+    if (dbg) {
+      // 探針：直接印出神秘原石／3級薩納蘭土壤在目前資料裡的實際狀態，一眼看出缺不缺資料
+      console.log('[CHAIN-DEBUG] ===== 代幣' + itemId + ' 價格基準=' + basis);
+      [13586, 7766].forEach(function (pid) {
+        console.log('[CHAIN-DEBUG] 探針 ' + (ITEM_NAMES_TW_ALL[pid] || pid) + '(id=' + pid + ') 快照列=', JSON.stringify(dcData.items[pid]), ' 直接市價=', tradeItemPrice(pid, dcData, basis), ' 可再兌換筆數=', (tradesByCurrencyCache[pid] || []).length);
+      });
+    }
     const trades = tradesByCurrencyCache[itemId] || [];
     const rows = [];
     trades.forEach(function (t) {
@@ -1619,20 +1630,21 @@
       const otherCurrencies = t.currencies.filter(function (x) { return x[0] !== Number(itemId); });
       const otherCost = tradeSideValue(otherCurrencies, dcData, basis); // 沒有其他付出時是空陣列，tradeSideValue回傳0
       if (otherCost == null) return;
-      let resultValue = 0, ok = true, viaChain = false;
+      let resultValue = 0, ok = true, viaChain = false, chainEnd = null;
       t.items.forEach(function (it) {
         const direct = tradeItemPrice(it[0], dcData, basis);
         if (direct != null) { resultValue += direct * it[1]; return; }
-        // 直接查不到市場價，不是馬上放棄，往下追一層看這個中繼物品能不能再換成有價的東西
+        // 直接查不到市場價，不是馬上放棄，往下追看這個中繼物品能不能再換成有價的東西
         const chained = resolveChainedValue(it[0], it[1], dcData, basis, CHAIN_MAX_DEPTH, new Set([Number(itemId)]));
-        if (window.__CHAIN_DEBUG__) console.log('[CHAIN-DEBUG] 代幣' + itemId + ' 換 ' + (ITEM_NAMES_TW_ALL[it[0]] || it[0]) + '(id=' + it[0] + ')：直接查價=null，鏈式結果=', chained);
         if (chained == null) { ok = false; return; }
-        resultValue += chained; viaChain = true;
+        resultValue += chained.v; viaChain = true;
+        if (chainEnd == null) chainEnd = chained.end;
       });
       if (!ok) return;
       const net = (resultValue - otherCost) / myAmount;
-      const liq = liquidityOf(t.items[0][0], dcData);
-      rows.push({ resultItems: t.items, net: net, vel: liq.vel, txnFreq: liq.txnFreq, viaChain: viaChain });
+      // 賣速／成交頻率：鏈式結果看「終點物品」（真正會被賣掉的東西），一般結果維持看第一個換到的物品
+      const liq = liquidityOf(viaChain && chainEnd != null ? chainEnd : t.items[0][0], dcData);
+      rows.push({ resultItems: t.items, net: net, vel: liq.vel, txnFreq: liq.txnFreq, viaChain: viaChain, chainEnd: chainEnd });
     });
     const key = sortKey || 'net';
     rows.sort(function (a, b) { return b[key] - a[key]; });
@@ -1833,7 +1845,9 @@
     const crystalOn = s.includeCrystal;
     const graphIds = dcData ? getMaterialOnlyIds(rid).filter(function (id) {
       const mr = dcData.items[id];
-      return mr && radarUnitPrice(mr, 'nq', s.materialsBasis) != null && radarUnitPrice(mr, 'hq', s.materialsBasis) != null;
+      // 有沒有NQ/HQ兩種報價，一律看「掛單價」資料判斷，不跟著目前的價格基準走——
+      // 之前跟著基準走，切到成交均價（均價資料本來就不分品質）後這份清單就被判成空的、整塊消失。
+      return mr && radarUnitPrice(mr, 'nq', 'listing') != null && radarUnitPrice(mr, 'hq', 'listing') != null;
     }) : [];
     // 個別材料「自動」＝真的比較NQ/HQ取較低價，不是「跟隨全域」的意思，所以每個材料都可以選，
     // 不需要再有「預設（跟隨全域）」這個選項——沒特別調整的材料，看起來就是全域設定本身，
@@ -1867,7 +1881,7 @@
       '<button type="button" class="market-supply-settings-row market-crystal-toggle" id="mk-sup-crystal" data-on="' + (crystalOn ? '1' : '0') + '">' +
         '<span>忽略水晶成本</span><span class="market-crystal-icon">' + (crystalOn ? '💎' : '◇') + '</span></button>' +
       (graphIds.length ? (
-        '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
+        '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:10px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
         '<div id="mk-sup-ov-body" style="display:' + (supplyOverrideSectionOpen ? 'block' : 'none') + '">' + overrideRows + '</div>'
       ) : '');
     const r = btn.getBoundingClientRect();
@@ -2285,23 +2299,23 @@
     // 第10點＋第6點修正：圖上每張卡片的顯示價，改用跟買/做比較同一份快照資料、同一個materialsBasis
     // 設定去填，不再另外即時查「永遠是最低價」——玩家選了「成交均價」，圖上所有卡片都要跟著換，
     // 不是只有材料成本計算換了、卡片上寫的數字還是舊的最低價，兩邊對不起來。
+    // 這兩行必須是同一組if/else，中間不能插入其他程式碼——之前在中間插入了「數量>1」的區塊，
+    // 讓else變成接在那個if上，結果數量=1（預設）時每次都多跑一次「即時查最低掛單價」，
+    // 把剛填好的均價蓋掉，數量>1才不會被蓋，就是「切換均價沒反應、改數量才突然生效」的真正原因。
     if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.materialsBasis, settings.materialsAvgWindow, settings.matPersp, settings.hqOverrides);
-    // 數量接在中心卡片的價格文字後面（例如「300金 ×2」），不是新增一行，卡片高度完全不受影響；
-    // 只有數量大於1才顯示，數量1是預設情況，不用特別標出來。
+    else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
+
+    // 中心卡片：數量大於1時，價格文字後面接「×N」（金色，跟其他卡片數量同色）與總價
     if (craftMultiplier > 1) {
-      // 用tspan而不是直接接字串——直接接字串會讓「×N」繼承價格文字的綠色，跟其他卡片
-      // 數量一律用金色不一致（這是之前漏看的地方）；用tspan可以讓這段文字單獨指定金色。
-      // 數量大於1時也把總價算出來顯示（單價×N），不用玩家自己心算。
       const centerPriceEl = $('mk-center-price');
-      if (centerPriceEl && centerPriceEl.textContent && craftMultiplier > 1) {
+      if (centerPriceEl && centerPriceEl.textContent) {
         const unitPriceNum = parseFloat(centerPriceEl.textContent.replace(/[^\d.]/g, ''));
-        const totalTag = !isNaN(unitPriceNum) ? '＝' + Math.round(unitPriceNum * craftMultiplier).toLocaleString() + '金' : '';
+        const totalTag = !isNaN(unitPriceNum) ? '＝' + fmtTotalGil(unitPriceNum * craftMultiplier) : '';
         centerPriceEl.innerHTML = centerPriceEl.textContent +
           '<tspan fill="#fcf6ba" font-weight="700">　×' + craftMultiplier + '</tspan>' +
-          (totalTag ? '<tspan fill="#8fd6a0" font-weight="700">' + totalTag + '</tspan>' : '');
+          (totalTag ? '<tspan fill="#bfe8c8" font-size="11" font-weight="700">' + totalTag + '</tspan>' : '');
       }
     }
-    else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
     bindSupplySettingsPopover(box, itemId, rid, dcData); // 每次重繪（含數量±）都要重新綁，舊的按鈕已經被換掉了
 
     // 第3點抓到的真正原因：材料/用途卡片一直以來分兩條路——可製作的點了只更新這張圖本身
@@ -2334,6 +2348,10 @@
   /* 供應鏈圖專用：價格從已經載入的快照資料直接讀（不用再即時查一次）。跟買/做比較、明細面板
    * 共用同一個 materialsBasis 設定跟 listingPriceWithPersp 品質判斷邏輯，不是另一條獨立路徑，
    * 不會再有「這裡改了那裡沒反應」的情況。 */
+  /* 卡片上的總價：超過10萬改用「萬」簡寫，不然位數一多會撐出卡片寬度 */
+  function fmtTotalGil(n) {
+    return n >= 100000 ? (n / 10000).toFixed(1) + '萬' : Math.round(n).toLocaleString();
+  }
   function fillCardPricesFromSnapshot(container, dcData, basis, avgWindow, matPersp, hqOverrides) {
     const nodes = Array.prototype.slice.call(container.querySelectorAll('[data-price-item]'));
     nodes.forEach(function (el) {
@@ -2350,7 +2368,7 @@
       // 總價用tspan單獨上色，不要整句字色混在一起看不出哪段是單價哪段是總價。
       const amount = Number(el.dataset.amount);
       if (amount > 1) {
-        el.innerHTML = Math.round(p).toLocaleString() + '金<tspan fill="#6a9c7a">＝' + Math.round(p * amount).toLocaleString() + '</tspan>';
+        el.innerHTML = Math.round(p).toLocaleString() + '金<tspan fill="#bfe8c8" font-size="11" font-weight="700">＝' + fmtTotalGil(p * amount) + '</tspan>';
       } else {
         el.textContent = Math.round(p).toLocaleString() + '金';
       }
@@ -3434,13 +3452,16 @@
         const label = r.resultItems.map(function (x) { return (ITEM_NAMES_TW_ALL[x[0]] || ('#' + x[0])) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
         // 「每1[這個代幣的小圖示]≈金額」：用代幣自己的圖示＋數字1，明確表達這是換算一個單位的等值，
         // 不是這個成品本身的市場售價；賣速/頻率補回單位，不然看數字猜不出是以天算還是以次算。
-        const metricsHtml = '<span class="market-token-metric' + (sortKey === 'net' ? ' active' : '') + '">每1' + itemIconHtml(id, 13) + '≈' + Math.round(r.net).toLocaleString() + '</span>' +
+        const metricsHtml = '<span class="market-token-metric' + (sortKey === 'net' ? ' active' : '') + '">每1' + itemIconHtml(id, 13) + '≈' + (Math.abs(r.net) < 10 ? r.net.toFixed(1) : Math.round(r.net).toLocaleString()) + '</span>' +
           '<span class="market-token-metric' + (sortKey === 'vel' ? ' active' : '') + '">賣速 ' + r.vel.toFixed(1) + ' 件/天</span>' +
           '<span class="market-token-metric' + (sortKey === 'txnFreq' ? ' active' : '') + '">頻率 ' + r.txnFreq.toFixed(2) + ' 筆/天</span>';
         // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
         // 不是這個物品自己的市場價——用一個小圖示標出來，不然玩家點進去查這個物品會發現沒有市場價、
         // 覺得數字是編的；滑鼠停留可以看到追查到哪個最終物品。
-        const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為追查其後續兌換得出">🔗</span>' : '';
+        // 鏈式結果：🔗後面接終點物品的小圖示（例如神秘原石 🔗[土壤圖示]），不用文字就看得出
+        // 「這個中繼物品最後換成什麼才有價值」；停留可看終點名稱。
+        const endName = r.chainEnd != null ? (ITEM_NAMES_TW_ALL[r.chainEnd] || r.chainEnd) : '';
+        const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為再兌換成「' + endName + '」後的市價">🔗' + (r.chainEnd != null ? itemIconHtml(r.chainEnd, 16) : '') + '</span>' : '';
         return '<button type="button" class="market-obtain-best-row market-token-best-row" data-mk-goto-item="' + first[0] + '">' +
           '<span class="market-obtain-best-rank">' + (i + 1) + '</span>' +
           itemIconHtml(first[0], 22) +
