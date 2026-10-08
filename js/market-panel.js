@@ -654,6 +654,19 @@
   // [24h筆數,24h均價, 48h筆數,48h均價, 3天筆數,3天均價, 7天筆數,7天均價]——這四組窗口的均價
   // 其實已經在預先計算的快照裡算好了，不用即時抓；只有30天這組快照沒存，才需要查即時快取。
   const D_WINDOW_IDX = { current: [0, 1], '1d': [2, 3], '3d': [4, 5], '7d': [6, 7] };
+  /* 掛單最低價，依品質設定決定看NQ、HQ、還是自動選便宜的——'auto'是真的比較NQ跟HQ兩個價格取較低，
+   * 不是「跟隨全域」那種意思；這個函式統一給買/做比較、卡片顯示價、明細面板三個地方共用，
+   * 不要各自重寫一份，不然以後改規則又要三個地方分別改、容易漏改出新bug。 */
+  function listingPriceWithPersp(mr, persp) {
+    if (!mr) return null;
+    if (persp === 'all') return radarUnitPrice(mr, 'all', 'listing');
+    if (persp === 'auto') {
+      const nq = radarUnitPrice(mr, 'nq', 'listing'), hq = radarUnitPrice(mr, 'hq', 'listing');
+      if (nq != null && hq != null) return Math.min(nq, hq);
+      return nq != null ? nq : (hq != null ? hq : radarUnitPrice(mr, 'all', 'listing'));
+    }
+    return radarUnitPrice(mr, persp, 'listing') || radarUnitPrice(mr, 'all', 'listing');
+  }
   function avgPriceOf(id, window, dcData) {
     const mr = dcData && dcData.items[id];
     const D = mr && mr[6];
@@ -696,17 +709,17 @@
 
   /* 供應鏈圖的買/做比較設定，記在本機、跨物品沿用同一組偏好，不用每次點開新物品都重設一次。 */
   const SUPPLY_SETTINGS_KEY = 'ff14fc-supply-settings';
-  /* materialsBasis／purchaseBasis 是兩個獨立設定，不是同一個：
-   *  ・materialsBasis：買/做比較時，材料成本要用哪種價格算
-   *  ・purchaseBasis：圖上「每張卡片顯示的市場價」本身要秀哪種價格——這個是全部卡片統一套用，
-   *    不是只影響材料。兩個分開是因為「算成本」跟「單純想知道這東西現在賣多少」是兩件事。
-   * hqOverrides：{itemId: 'nq'|'hq'}，個別物品想覆寫matPersp全域預設時才會有值，沒覆寫的物品不會出現在這裡。 */
+  /* 原本 materialsBasis／purchaseBasis 是兩個獨立設定（算成本用一個、卡片顯示價用另一個），
+   * 但直購價那條路徑確認有bug、而且條件不明，與其繼續在那條路徑上找問題，直接整個拿掉，
+   * 全部統一共用 materialsBasis（已確認正常運作的那條路徑）——圖上所有價格顯示跟成本計算
+   * 都是同一個基準，不會再有「這裡改了那裡沒變」的不一致，這條路徑本身的bug風險也一併消除。
+   * matPersp／hqOverrides 現在支援 'nq'|'hq'|'auto'（自動＝比較NQ/HQ取較低價），
+   * hqOverrides：{itemId: 'nq'|'hq'|'auto'}，個別物品想覆寫全域設定時才會有值。 */
   function getSupplySettings() {
     let s = null;
     try { s = JSON.parse(localStorage.getItem(SUPPLY_SETTINGS_KEY) || 'null'); } catch (e) {}
     return Object.assign({
-      materialsBasis: 'listing', purchaseBasis: 'listing',
-      materialsAvgWindow: 'current', purchaseAvgWindow: 'current', // 選了「成交均價」才有意義：當前/1天/3天/7天/30天
+      materialsBasis: 'listing', materialsAvgWindow: 'current', // 選了「成交均價」才有意義：當前/1天/3天/7天
       includeCrystal: true, matPersp: 'nq', hqOverrides: {},
     }, s || {});
   }
@@ -1567,29 +1580,33 @@
    * visited防止繞回自己形成無窮迴圈；depth耗盡就放棄這條路徑（回傳null，不是0，
    * 0會被誤認為「這東西真的不值錢」，null才代表「算不出來，不要用這筆」）。 */
   function resolveChainedValue(itemId, amountNeeded, dcData, basis, depth, visited) {
+    const dbg = typeof window !== 'undefined' && window.__CHAIN_DEBUG__;
     const direct = tradeItemPrice(itemId, dcData, basis);
-    if (direct != null) return direct * amountNeeded;
-    if (depth <= 0 || visited.has(itemId)) return null;
+    if (direct != null) { if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 直接有市場價:', direct); return direct * amountNeeded; }
+    if (depth <= 0) { if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 深度用盡，放棄'); return null; }
+    if (visited.has(itemId)) { if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 繞回自己，放棄（循環保護）'); return null; }
     visited.add(itemId);
     const trades = tradesByCurrencyCache[itemId] || [];
+    if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 本身無市場價，找到可再兌換的交易筆數=' + trades.length);
     let best = null;
     trades.forEach(function (t) {
       const myAmt = (t.currencies.find(function (x) { return x[0] === Number(itemId); }) || [0, 0])[1];
-      if (!myAmt) return;
+      if (!myAmt) { if (dbg) console.log('[CHAIN-DEBUG]     跳過一筆：找不到自己在currencies裡的數量'); return; }
       const otherCurrencies = t.currencies.filter(function (x) { return x[0] !== Number(itemId); });
       const otherCost = tradeSideValue(otherCurrencies, dcData, basis); // 其他付出方只看直接市場價，不繼續遞迴，避免路徑爆炸
-      if (otherCost == null) return;
+      if (otherCost == null) { if (dbg) console.log('[CHAIN-DEBUG]     跳過一筆：還需要搭配其他道具付出，但那些道具缺市場價', otherCurrencies); return; }
       let resultValue = 0, ok = true;
       t.items.forEach(function (it) {
         const v = resolveChainedValue(it[0], it[1], dcData, basis, depth - 1, visited);
         if (v == null) { ok = false; return; }
         resultValue += v;
       });
-      if (!ok) return;
+      if (!ok) { if (dbg) console.log('[CHAIN-DEBUG]     跳過一筆：換到的東西裡有算不出價的'); return; }
       const net = (resultValue - otherCost) / myAmt * amountNeeded;
       if (best == null || net > best) best = net;
     });
     visited.delete(itemId); // 退出這個分支時解除標記，另一條不相關的路徑如果也經過同一個中繼物品，不該被誤判成循環
+    if (dbg) console.log('[CHAIN-DEBUG]   id=' + itemId + ' 最終追查結果best=', best);
     return best;
   }
   function buildCurrencyBestUses(itemId, dcData, basis, limit, sortKey) {
@@ -1608,6 +1625,7 @@
         if (direct != null) { resultValue += direct * it[1]; return; }
         // 直接查不到市場價，不是馬上放棄，往下追一層看這個中繼物品能不能再換成有價的東西
         const chained = resolveChainedValue(it[0], it[1], dcData, basis, CHAIN_MAX_DEPTH, new Set([Number(itemId)]));
+        if (window.__CHAIN_DEBUG__) console.log('[CHAIN-DEBUG] 代幣' + itemId + ' 換 ' + (ITEM_NAMES_TW_ALL[it[0]] || it[0]) + '(id=' + it[0] + ')：直接查價=null，鏈式結果=', chained);
         if (chained == null) { ok = false; return; }
         resultValue += chained; viaChain = true;
       });
@@ -1644,7 +1662,7 @@
     const dcData = hasAnyGraph ? await getPrecomputedAllData() : null;
     // 當前/1天/3天/7天 四個窗口都能從快照秒讀，不用即時抓——只有玩家主動選「30天」才需要查即時資料，
     // 而且只在那個時候才抓，不要每次開物品頁都預先抓一輪（那是上一版讓單一物品要等快1分鐘的原因）。
-    if (dcData && (settings.purchaseAvgWindow === '30d' || settings.materialsAvgWindow === '30d')) {
+    if (dcData && settings.materialsAvgWindow === '30d') {
       await ensureLiveAvgForItems(getCurrentGraphItemIds(itemId, rid));
     }
     const bd = (rid && dcData) ? materialBreakdown(itemId, dcData, settings.materialsBasis, settings) : null;
@@ -1709,10 +1727,9 @@
       body.innerHTML = '<p class="craft-muted">讀取中⋯</p>';
       const res = resolveItemBuyCraft(id, dcData, settings.materialsBasis, settings);
       const liq = liquidityOf(id, dcData);
-      const purchasePrice = (function () {
-        const mr = dcData.items[id];
-        return mr ? (radarUnitPrice(mr, 'nq', settings.purchaseBasis) || radarUnitPrice(mr, 'all', settings.purchaseBasis)) : null;
-      })();
+      const purchasePrice = settings.materialsBasis === 'avg'
+        ? avgPriceOf(id, settings.materialsAvgWindow || 'current', dcData)
+        : listingPriceWithPersp(dcData.items[id], (settings.hqOverrides && settings.hqOverrides[id]) || settings.matPersp || 'nq');
       let costHtml;
       if (res.buy != null && res.craft != null) {
         const better = res.chosen === 'craft';
@@ -1818,40 +1835,37 @@
       const mr = dcData.items[id];
       return mr && radarUnitPrice(mr, 'nq', s.materialsBasis) != null && radarUnitPrice(mr, 'hq', s.materialsBasis) != null;
     }) : [];
+    // 個別材料「自動」＝真的比較NQ/HQ取較低價，不是「跟隨全域」的意思，所以每個材料都可以選，
+    // 不需要再有「預設（跟隨全域）」這個選項——沒特別調整的材料，看起來就是全域設定本身，
+    // 想個別調整就直接三選一。
     const overrideRows = graphIds.map(function (id) {
-      const cur = s.hqOverrides[id] || '';
+      const cur = s.hqOverrides[id] || s.matPersp;
       return '<div class="market-supply-settings-row" data-override-item="' + id + '"><span>' + (ITEM_NAMES_TW_ALL[id] || id) + '</span>' +
         '<span class="market-hq-override-btns">' +
           '<button type="button" class="market-hq-btn' + (cur === 'nq' ? ' active' : '') + '" data-ov="nq">NQ</button>' +
           '<button type="button" class="market-hq-btn' + (cur === 'hq' ? ' active' : '') + '" data-ov="hq">HQ</button>' +
-          '<button type="button" class="market-hq-btn' + (cur === '' ? ' active' : '') + '" data-ov="">預設</button>' +
+          '<button type="button" class="market-hq-btn' + (cur === 'auto' ? ' active' : '') + '" data-ov="auto">自動</button>' +
         '</span></div>';
     }).join('');
     const windowLoading = pop.dataset.windowLoading === '1'; // 30天窗口正在抓取時顯示讀取中，不讓select消失造成「沒反應」的錯覺
     pop.innerHTML =
       '<p class="craft-mat-worlds-title">供應鏈比較設定</p>' +
-      '<div class="market-supply-settings-row"><span>直購價顯示</span>' +
-        '<select id="mk-sup-pbasis" class="craft-select" style="font-size:11px">' +
-          '<option value="listing"' + (s.purchaseBasis === 'listing' ? ' selected' : '') + '>掛單最低價</option>' +
-          '<option value="avg"' + (s.purchaseBasis === 'avg' ? ' selected' : '') + '>成交均價</option>' +
-        '</select></div>' +
-      (s.purchaseBasis === 'avg' ? '<div class="market-supply-settings-row"><span>均價窗口</span>' + avgWindowSelectHtml('mk-sup-pwindow', s.purchaseAvgWindow) + (windowLoading ? ' <span class="craft-muted" style="font-size:10px">讀取中⋯</span>' : '') + '</div>' : '') +
-      '<p class="craft-muted" style="font-size:10px;margin:-2px 0 6px">決定圖上每張卡片顯示的市場價</p>' +
-      '<div class="market-supply-settings-row"><span>材料成本基準</span>' +
+      '<div class="market-supply-settings-row"><span>價格基準</span>' +
         '<select id="mk-sup-basis" class="craft-select" style="font-size:11px">' +
           '<option value="listing"' + (s.materialsBasis === 'listing' ? ' selected' : '') + '>掛單最低價</option>' +
           '<option value="avg"' + (s.materialsBasis === 'avg' ? ' selected' : '') + '>成交均價</option>' +
         '</select></div>' +
       (s.materialsBasis === 'avg' ? '<div class="market-supply-settings-row"><span>均價窗口</span>' + avgWindowSelectHtml('mk-sup-mwindow', s.materialsAvgWindow) + (windowLoading ? ' <span class="craft-muted" style="font-size:10px">讀取中⋯</span>' : '') + '</div>' : '') +
-      '<p class="craft-muted" style="font-size:10px;margin:-2px 0 6px">決定買/做比較時材料怎麼算</p>' +
-      '<div class="market-supply-settings-row"><span>材料品質（全域預設）</span>' +
+      '<p class="craft-muted" style="font-size:10px;margin:-2px 0 6px">決定圖上所有卡片的顯示價，也決定買/做比較時材料怎麼算</p>' +
+      '<div class="market-supply-settings-row"><span>材料品質（全域）</span>' +
         '<select id="mk-sup-persp" class="craft-select" style="font-size:11px">' +
-          '<option value="nq"' + (s.matPersp === 'nq' ? ' selected' : '') + '>NQ優先</option>' +
-          '<option value="hq"' + (s.matPersp === 'hq' ? ' selected' : '') + '>HQ優先</option>' +
-          '<option value="all"' + (s.matPersp === 'all' ? ' selected' : '') + '>不分品質</option>' +
+          '<option value="nq"' + (s.matPersp === 'nq' ? ' selected' : '') + '>NQ</option>' +
+          '<option value="hq"' + (s.matPersp === 'hq' ? ' selected' : '') + '>HQ</option>' +
+          '<option value="auto"' + (s.matPersp === 'auto' ? ' selected' : '') + '>自動（比較NQ/HQ取較低）</option>' +
         '</select></div>' +
-      '<button type="button" class="market-supply-settings-row market-crystal-toggle" id="mk-sup-crystal" data-on="' + (crystalOn ? '1' : '0') + '" title="水晶算入成本">' +
-        '<span>水晶成本</span><span class="market-crystal-icon">' + (crystalOn ? '💎' : '◇') + '</span></button>' +
+      // 拿掉彈出提示（title），文字固定「忽略水晶成本」，圖示（💎/◇）負責表達目前開關狀態
+      '<button type="button" class="market-supply-settings-row market-crystal-toggle" id="mk-sup-crystal" data-on="' + (crystalOn ? '1' : '0') + '">' +
+        '<span>忽略水晶成本</span><span class="market-crystal-icon">' + (crystalOn ? '💎' : '◇') + '</span></button>' +
       (graphIds.length ? (
         '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
         '<div id="mk-sup-ov-body" style="display:' + (supplyOverrideSectionOpen ? 'block' : 'none') + '">' + overrideRows + '</div>'
@@ -1863,7 +1877,7 @@
       const next = Object.assign(getSupplySettings(), patch);
       saveSupplySettings(next);
       // 當前/1/3/7天都能從快照秒讀，不用等；只有切到「30天」才需要即時抓，這時才顯示讀取中。
-      if (next.purchaseAvgWindow === '30d' || next.materialsAvgWindow === '30d') {
+      if (next.materialsAvgWindow === '30d') {
         pop.dataset.windowLoading = '1';
         await openSupplySettingsPopover(box, itemId, rid, dcData); // 先把「讀取中」畫出來
         await ensureLiveAvgForItems(getCurrentGraphItemIds(itemId, rid));
@@ -1872,11 +1886,9 @@
       const freshDcData = await renderSupplyChainWithBreakdown(itemId, rid, box); // 重畫背後的圖
       await openSupplySettingsPopover(box, itemId, rid, freshDcData); // 面板留著，用最新資料／設定重新畫一次內容（不關閉）
     }
-    $('mk-sup-pbasis').addEventListener('change', function () { apply({ purchaseBasis: this.value }); });
     $('mk-sup-basis').addEventListener('change', function () { apply({ materialsBasis: this.value }); });
     $('mk-sup-persp').addEventListener('change', function () { apply({ matPersp: this.value }); });
     $('mk-sup-crystal').addEventListener('click', function () { apply({ includeCrystal: this.dataset.on !== '1' }); });
-    const pWin = $('mk-sup-pwindow'); if (pWin) pWin.addEventListener('change', function () { apply({ purchaseAvgWindow: this.value }); });
     const mWin = $('mk-sup-mwindow'); if (mWin) mWin.addEventListener('change', function () { apply({ materialsAvgWindow: this.value }); });
     const ovToggle = $('mk-sup-ov-toggle');
     if (ovToggle) {
@@ -2147,7 +2159,7 @@
           : itemIconSvg(iconId, x, iconY, r)) +
         '<text x="' + x + '" y="' + nameY + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
         (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="12" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
-        (isOverflow ? '' : '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '" x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
+        (isOverflow ? '' : '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
         deltaBadgeSvg(x, topY, w, opts.delta, iconId) +
       '</g>';
     }
@@ -2165,7 +2177,7 @@
       // 掃一眼卡片邊框就知道要買還是要做，不用先看完文字才懂。'craft'＝這項材料自己做比買便宜。
       const decision = decisionByItem[n.itemId];
       const delta = deltaByItem[n.itemId];
-      svgParts += cardHtml(x, matTop, n.itemId, n.name, '×' + n.amount, clickAttrs, false, { decision: decision, delta: delta });
+      svgParts += cardHtml(x, matTop, n.itemId, n.name, '×' + n.amount, clickAttrs, false, { decision: decision, delta: delta, amount: n.amount });
     });
     // 成品／用途排（上）：箭頭從中心往上指向成品，光點屬於 'up' 段。
     // 第12點：這一排的卡片本身也有自己的配方（n.rid），所以點下去不再直接跳走離開這個頁面，
@@ -2270,15 +2282,24 @@
         renderSupplyChain(itemId, rid, box, bd, dcData, settings, bdUnavailable, newMult, crystalImpact);
       });
     });
-    // 第10點＋第6點修正：圖上每張卡片的顯示價，改用跟買/做比較同一份快照資料、同一個purchaseBasis
+    // 第10點＋第6點修正：圖上每張卡片的顯示價，改用跟買/做比較同一份快照資料、同一個materialsBasis
     // 設定去填，不再另外即時查「永遠是最低價」——玩家選了「成交均價」，圖上所有卡片都要跟著換，
     // 不是只有材料成本計算換了、卡片上寫的數字還是舊的最低價，兩邊對不起來。
-    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.purchaseBasis, settings.purchaseAvgWindow, settings.matPersp, settings.hqOverrides);
+    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.materialsBasis, settings.materialsAvgWindow, settings.matPersp, settings.hqOverrides);
     // 數量接在中心卡片的價格文字後面（例如「300金 ×2」），不是新增一行，卡片高度完全不受影響；
     // 只有數量大於1才顯示，數量1是預設情況，不用特別標出來。
     if (craftMultiplier > 1) {
+      // 用tspan而不是直接接字串——直接接字串會讓「×N」繼承價格文字的綠色，跟其他卡片
+      // 數量一律用金色不一致（這是之前漏看的地方）；用tspan可以讓這段文字單獨指定金色。
+      // 數量大於1時也把總價算出來顯示（單價×N），不用玩家自己心算。
       const centerPriceEl = $('mk-center-price');
-      if (centerPriceEl && centerPriceEl.textContent) centerPriceEl.textContent += '　×' + craftMultiplier;
+      if (centerPriceEl && centerPriceEl.textContent && craftMultiplier > 1) {
+        const unitPriceNum = parseFloat(centerPriceEl.textContent.replace(/[^\d.]/g, ''));
+        const totalTag = !isNaN(unitPriceNum) ? '＝' + Math.round(unitPriceNum * craftMultiplier).toLocaleString() + '金' : '';
+        centerPriceEl.innerHTML = centerPriceEl.textContent +
+          '<tspan fill="#fcf6ba" font-weight="700">　×' + craftMultiplier + '</tspan>' +
+          (totalTag ? '<tspan fill="#8fd6a0" font-weight="700">' + totalTag + '</tspan>' : '');
+      }
     }
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
     bindSupplySettingsPopover(box, itemId, rid, dcData); // 每次重繪（含數量±）都要重新綁，舊的按鈕已經被換掉了
@@ -2310,25 +2331,29 @@
 
   // 第10點：幫任何有 data-price-item 標記的節點查「全世界最低價」，做法照抄生產頁材料圖譜的
   // fillNodePrices——合併成一次批次請求，不要每張卡片各打一次API（一次撐爆Universalis流量限制）。
-  /* 供應鏈圖專用：價格從已經載入的快照資料直接讀（不用再即時查一次），而且照玩家選的
-   * purchaseBasis（最低／均價）決定要讀哪個欄位，全部卡片統一套用同一種算法。 */
-  function fillCardPricesFromSnapshot(container, dcData, purchaseBasis, purchaseAvgWindow, matPersp, hqOverrides) {
+  /* 供應鏈圖專用：價格從已經載入的快照資料直接讀（不用再即時查一次）。跟買/做比較、明細面板
+   * 共用同一個 materialsBasis 設定跟 listingPriceWithPersp 品質判斷邏輯，不是另一條獨立路徑，
+   * 不會再有「這裡改了那裡沒反應」的情況。 */
+  function fillCardPricesFromSnapshot(container, dcData, basis, avgWindow, matPersp, hqOverrides) {
     const nodes = Array.prototype.slice.call(container.querySelectorAll('[data-price-item]'));
     nodes.forEach(function (el) {
       const id = el.dataset.priceItem;
       let p;
-      if (purchaseBasis === 'avg') {
-        p = avgPriceOf(id, purchaseAvgWindow || 'current', dcData);
+      if (basis === 'avg') {
+        p = avgPriceOf(id, avgWindow || 'current', dcData);
       } else {
-        const mr = dcData.items[id];
-        // 之前這裡寫死只看NQ，個別材料品質設定完全沒接到——這是確認過的bug，
-        // 現在跟買/做比較用同一套品質判斷（先看個別覆寫，沒有才用全域預設）。
         const ov = hqOverrides && hqOverrides[id];
-        const persp = ov || matPersp || 'nq';
-        p = mr ? (persp === 'all' ? radarUnitPrice(mr, 'all', purchaseBasis)
-          : radarUnitPrice(mr, persp, purchaseBasis) || radarUnitPrice(mr, 'all', purchaseBasis)) : null;
+        p = listingPriceWithPersp(dcData.items[id], ov || matPersp || 'nq');
       }
-      el.textContent = p != null ? Math.round(p).toLocaleString() + '金' : '無報價';
+      if (p == null) { el.textContent = '無報價'; return; }
+      // 需要的數量大於1時，單價旁邊補上總價（單價×數量），不用玩家自己心算；
+      // 總價用tspan單獨上色，不要整句字色混在一起看不出哪段是單價哪段是總價。
+      const amount = Number(el.dataset.amount);
+      if (amount > 1) {
+        el.innerHTML = Math.round(p).toLocaleString() + '金<tspan fill="#6a9c7a">＝' + Math.round(p * amount).toLocaleString() + '</tspan>';
+      } else {
+        el.textContent = Math.round(p).toLocaleString() + '金';
+      }
     });
   }
   function fillCardPrices(container) {
@@ -2569,14 +2594,10 @@
       // 均價走5窗口查詢（可能來自即時快取），不分NQ/HQ，跟掛單價是分開的兩條路徑；
       // 材料品質設定（matPersp/hqOverrides）只影響「掛單最低價」怎麼選NQ/HQ，均價本身沒有這個維度。
       if (basis === 'avg') return avgPriceOf(id, opts.materialsAvgWindow || 'current', dcData);
-      const mr = dcData.items[id];
-      if (!mr) return null;
-      // 這個物品有沒有被個別覆寫品質（跟全域matPersp不同），有的話優先用覆寫的
+      // 這個物品有沒有被個別覆寫品質（跟全域matPersp不同），有的話優先用覆寫的；
+      // 'auto' 是真的比較NQ/HQ兩個價格取較低，跟共用的 listingPriceWithPersp 同一套邏輯。
       const ov = opts.hqOverrides && opts.hqOverrides[id];
-      const persp = ov || matPersp;
-      if (persp === 'all') return radarUnitPrice(mr, 'all', basis);
-      if (persp === 'hq') return radarUnitPrice(mr, 'hq', basis) || radarUnitPrice(mr, 'all', basis);
-      return radarUnitPrice(mr, 'nq', basis) || radarUnitPrice(mr, 'all', basis); // NQ 優先，沒有才用全部
+      return listingPriceWithPersp(dcData.items[id], ov || matPersp);
     }
     function cost(id, stack) {
       if (memo[id] !== undefined) return memo[id];
