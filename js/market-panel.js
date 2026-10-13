@@ -203,7 +203,9 @@
     function runSearch() {
       const q = input.value.trim();
       if (!q) { box.innerHTML = ''; box.classList.remove('open'); fitMarketHeights(); return; }
-      const ids = Object.keys(ITEM_NAMES_TW_ALL);
+      // 只搜尋可在市場交易的物品（ITEM_MARKETABLE_TW 由 update-craft-data.js 產生）；
+      // 貨幣、不可交易的物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去。
+      const ids = (typeof ITEM_MARKETABLE_TW !== 'undefined' && ITEM_MARKETABLE_TW.length) ? ITEM_MARKETABLE_TW : Object.keys(ITEM_NAMES_TW_ALL);
       const matches = [];
       for (let i = 0; i < ids.length; i++) {
         const name = ITEM_NAMES_TW_ALL[ids[i]];
@@ -406,93 +408,47 @@
     bindObtainButton(itemId);
   }
 
-  /* 「兌換／商店購買」——名字刻意不叫「取得方式」，這個功能目前只涵蓋兌換跟NPC商店購買，
-   * 採集/任務/副本掉落等其他管道還沒做，取個範圍以內的名字，不要讓玩家誤以為涵蓋全部。
-   * 跟「查詢是否可製作」放同一排按鈕，點了才彈窗、才載入資料，不是常駐區塊。 */
-  async function bindObtainButton(itemId) {
+  /* 「取得方式」——彈窗本體在 js/obtain-ui.js，資料是 data/obtain.json（第一次點開才下載，之後留在記憶體）。
+   * 價格比較、物品名稱／圖示、製作配方這些「這個頁面才有的東西」由這裡透過 bridge 提供給彈窗，
+   * 價格怎麼算（市價基準、流動性）完全沿用這個檔案原有的函式，彈窗自己不重算任何價格。 */
+  function obtainBridge() {
+    return {
+      name: function (id) { return ITEM_NAMES_TW_ALL[id] || ('#' + id); },
+      icon: function (id, size) { return itemIconHtml(id, size); },
+      gotoItem: function (id) { openItemDetail(id); },
+      gotoCraft: function (rid) { openCraftSolverModal(rid); },
+      priceCtx: async function () {
+        const dcData = await getPrecomputedAllData();
+        return { settings: getSupplySettings(), dcData: dcData || { items: {} } };
+      },
+      /* 每個成品要花多少錢（成本／一次拿到的數量）跟市價比，沿用原本 tradeSideValue / tradeItemPrice。
+       * 任何一邊算不出來（例如沒有市價的貨幣）就不顯示，不亂猜。 */
+      verdict: function (ctx, costs, amount, itemId) {
+        const basis = ctx.settings.materialsBasis;
+        const raw = tradeSideValue(costs, ctx.dcData, basis);
+        const price = tradeItemPrice(itemId, ctx.dcData, basis);
+        if (raw == null || price == null || !amount) return '';
+        const unit = raw / amount;
+        const better = price > unit;
+        const g = function (n) { return Math.round(n).toLocaleString('zh-TW'); };
+        return '<span class=\"ob-verdict ' + (better ? 'good' : 'bad') + '\">兌換成本約 ' + g(unit) + ' 金（市價 ' + g(price) + ' 金）・' + (better ? '兌換較划算' : '直接買較便宜') + '</span>';
+      },
+      recipes: async function (itemId) {
+        await ensureCraftDataLoaded();
+        if (typeof CRAFT_RECIPES === 'undefined') return [];
+        return (buildToRecipesIndex()[itemId] || []).map(function (rid) { return { rid: rid, recipe: CRAFT_RECIPES[rid] }; });
+      },
+    };
+  }
+  function bindObtainButton(itemId) {
     const btn = $('mk-obtain-btn');
     if (!btn) return;
-    btn.addEventListener('click', async function () { openObtainModal(itemId); });
-    // 先安靜查一次數量，讓按鈕上直接看到「（N種）」，玩家不用點開才知道有沒有東西可看；
-    // 完全沒有的話按鈕還在，只是不特別強調，跟「查詢是否可製作」目前查不到的視覺份量一致。
-    const ok = await ensureShopsDataLoaded();
-    if (ok) {
-      buildTradeIndices();
-      const n = (tradesByResultCache[itemId] || []).length;
-      const countEl = $('mk-obtain-count');
-      if (countEl) countEl.textContent = n ? '（' + n + '）' : '';
-    }
-  }
-  function ensureObtainModalDom() {
-    let modal = $('mk-obtain-modal');
-    if (modal) return modal;
-    modal = document.createElement('div');
-    modal.id = 'mk-obtain-modal';
-    modal.className = 'market-modal-backdrop';
-    modal.style.display = 'none';
-    modal.innerHTML = '<div class="market-modal-box">' +
-      '<div class="market-modal-head"><h4 id="mk-obtain-title"></h4><button type="button" class="market-modal-close" data-mk-close-obtain="1"><i class="ph ph-x"></i></button></div>' +
-      '<div class="market-modal-body" id="mk-obtain-modal-body"></div>' +
-    '</div>';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', function (e) {
-      if (e.target === modal || e.target.closest('[data-mk-close-obtain]')) { modal.style.display = 'none'; }
-    });
-    return modal;
-  }
-  async function openObtainModal(itemId) {
-    const modal = ensureObtainModalDom();
-    $('mk-obtain-title').textContent = (ITEM_NAMES_TW_ALL[itemId] || itemId) + '——兌換／商店購買';
-    const body = $('mk-obtain-modal-body');
-    body.innerHTML = '<p class="craft-muted">讀取資料中⋯</p>';
-    modal.style.display = 'flex';
-    const ok = await ensureShopsDataLoaded();
-    if (!ok) { body.innerHTML = '<p class="craft-muted">資料載入失敗，稍後再試。</p>'; return; }
-    renderObtainSection(itemId, modal, body);
-  }
-
-  function renderObtainSection(itemId, outerBox, body) {
-    const settings = getSupplySettings();
-    getPrecomputedAllData().then(function (dcData) {
-      const rows = dcData ? buildObtainRows(itemId, dcData, settings.materialsBasis) : buildObtainRows(itemId, { items: {} }, settings.materialsBasis);
-      const marketPrice = dcData ? tradeItemPrice(itemId, dcData, settings.materialsBasis) : null;
-      let html = '';
-      if (!rows.length) {
-        html += '<p class="craft-muted">沒有找到兌換／商店取得方式（可能是採集、任務獎勵、副本掉落等其他管道）。</p>';
-      } else {
-        rows.forEach(function (t) {
-          const curHtml = t.currencies.map(function (c) {
-            return '<button type="button" class="market-obtain-cur" data-mk-goto-item="' + c[0] + '">' +
-              itemIconHtml(c[0], 20) + '<span class="market-obtain-cur-name">' + (ITEM_NAMES_TW_ALL[c[0]] || ('#' + c[0])) + ' ×' + c[1] + '</span></button>';
-          }).join('<span class="market-obtain-plus">＋</span>');
-          let verdictHtml;
-          if (t.cost == null) {
-            verdictHtml = '<span class="market-stat-badge market-stat-badge-muted">限定道具，無法估算金幣成本</span>';
-          } else if (marketPrice != null) {
-            const save = marketPrice - t.cost;
-            verdictHtml = save > 0.5
-              ? '<span class="market-stat-badge market-stat-badge-strong">兌換划算，省 ' + Math.round(save).toLocaleString() + ' 金</span>'
-              : '<span class="market-stat-badge">兌換成本約 ' + Math.round(t.cost).toLocaleString() + ' 金，市場直購較划算</span>';
-          } else {
-            verdictHtml = '<span class="market-stat-badge">兌換成本約 ' + Math.round(t.cost).toLocaleString() + ' 金（此物品無市場行情可比較）</span>';
-          }
-          html += '<div class="market-obtain-row">' +
-            '<span class="market-obtain-type">' + (SHOP_TYPE_LABEL[t.type] || t.type) + '</span>' +
-            '<span class="market-obtain-currencies">' + curHtml + '</span>' +
-            verdictHtml +
-          '</div>';
-        });
-      }
-      // 「這個代幣該換什麼最划算」的排行，搬到獨立的「代幣兌換」分頁專門處理——
-      // 那類代幣玩家通常是手上先有一批想知道怎麼花，不是先點進某個物品才想到，獨立查詢更符合實際用法。
-      body.innerHTML = html || '<p class="craft-muted">沒有可顯示的取得方式資料。</p>';
-      // 讓清單裡的道具圖示／名稱可以點過去查那個道具自己的市場頁（例如點代幣，直接看這個代幣的取得方式）
-      body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
-        el.addEventListener('click', function () { openItemDetail(el.dataset.mkGotoItem); });
-      });
+    btn.addEventListener('click', function () {
+      if (typeof ObtainUI === 'undefined') { alert('取得方式模組載入失敗，請重新整理頁面'); return; }
+      ObtainUI.setBridge(obtainBridge());
+      ObtainUI.open(itemId);
     });
   }
-
   // 第7點：查這個物品能不能製作，能的話按下去直接跳到生產頁面、預先選好這個配方；
   // 不能製作（原礦、打寶、兌換來的東西）就顯示「無法製作」，不能點。
   async function bindSolveButton(itemId) {
@@ -1471,17 +1427,33 @@
   /* ── 取得方式（兌換／NPC商店）：跟 craft-data.js 同一套「點到才動態載入」的做法，
    * SHOP_TRADES 只有點開物品詳情頁的「取得方式」區塊才會注入，平常完全不影響首次載入速度。 ── */
   let shopsDataLoadPromise = null;
+  /* 代幣兌換用的兌換資料：來自 data/obtain.json（資料管線已用台服資料表驗證，並排除已過期的貨幣、
+   * 限期活動的兌換），轉成下面原有價值計算（buildCurrencyBestUses／resolveChainedValue）使用的交易清單格式，
+   * 那些計算邏輯完全沒有改動。另外讀 data/exchange.json 只為了知道「還有哪些物品能換到有市價的東西」，
+   * 用來產生「更多代幣」清單（不在常用名單裡的）。 */
+  let tradeListCache = null, exchangeStartsCache = null, tradesLoadPromise = null;
   function ensureShopsDataLoaded() {
-    if (typeof SHOP_TRADES !== 'undefined') return Promise.resolve(true);
-    if (shopsDataLoadPromise) return shopsDataLoadPromise;
-    shopsDataLoadPromise = new Promise(function (resolve) {
-      const s = document.createElement('script');
-      s.src = 'js/shops-data.js';
-      s.onload = function () { resolve(typeof SHOP_TRADES !== 'undefined'); };
-      s.onerror = function () { resolve(false); };
-      document.body.appendChild(s);
-    });
-    return shopsDataLoadPromise;
+    if (tradeListCache) return Promise.resolve(true);
+    if (tradesLoadPromise) return tradesLoadPromise;
+    if (typeof ObtainUI === 'undefined') return Promise.resolve(false);
+    tradesLoadPromise = Promise.all([
+      ObtainUI.loadData(),
+      fetch('data/exchange.json').then(function (r) { if (!r.ok) throw new Error('exchange.json ' + r.status); return r.json(); }),
+    ]).then(function (res) {
+      const d = res[0], ex = res[1];
+      const list = [];
+      Object.keys(d.items).forEach(function (k) {
+        (d.items[k].trades || []).forEach(function (t) {
+          if (t.status !== 'active') return;                                   // 過期（dead）與限期活動（seasonal）不列入
+          if (t.costs.some(function (c) { return c.id === null; })) return;    // 貨幣解讀不出來的不算
+          list.push({ type: t.shopType, c: t.costs.map(function (c) { return [c.id, c.amount]; }), i: [[Number(k), t.amount]], locked: !!t.unlock });
+        });
+      });
+      tradeListCache = list;
+      exchangeStartsCache = Object.keys(ex.paths).map(function (id) { return Number(id); });
+      return true;
+    }).catch(function (e) { console.error('代幣兌換資料載入失敗', e); tradesLoadPromise = null; return false; });
+    return tradesLoadPromise;
   }
 
   /* 兩個方向各建一份索引，都只在第一次用到時建立、之後重複使用：
@@ -1492,15 +1464,12 @@
   function buildTradeIndices() {
     if (tradesByResultCache) return;
     tradesByResultCache = {}; tradesByCurrencyCache = {};
-    SHOP_TRADES.forEach(function (shop) {
-      shop.trades.forEach(function (t) {
-        t.i.forEach(function (it) {
-          (tradesByResultCache[it[0]] = tradesByResultCache[it[0]] || []).push({ type: shop.type, currencies: t.c, items: t.i });
-        });
-        t.c.forEach(function (cu) {
-          if (cu[0] === 1) return; // Gil本身不用當成「代幣」去反查用途，意義不大且數量會多到無法排序
-          (tradesByCurrencyCache[cu[0]] = tradesByCurrencyCache[cu[0]] || []).push({ type: shop.type, currencies: t.c, items: t.i });
-        });
+    tradeListCache.forEach(function (t) {
+      const entry = { type: t.type, currencies: t.c, items: t.i, locked: t.locked };
+      t.i.forEach(function (it) { (tradesByResultCache[it[0]] = tradesByResultCache[it[0]] || []).push(entry); });
+      t.c.forEach(function (cu) {
+        if (cu[0] === 1) return; // Gil本身不用當成「代幣」去反查用途，意義不大且數量會多到無法排序
+        (tradesByCurrencyCache[cu[0]] = tradesByCurrencyCache[cu[0]] || []).push(entry);
       });
     });
   }
@@ -1515,13 +1484,18 @@
   ];
   function buildCurrencyDirectory() {
     buildTradeIndices();
-    const withCount = CURATED_CURRENCY_IDS.filter(function (id) { return !!ITEM_NAMES_TW_ALL[id]; }).map(function (id) {
+    function row(id) {
       const set = {};
       (tradesByCurrencyCache[id] || []).forEach(function (t) { t.items.forEach(function (it) { set[it[0]] = 1; }); });
       return { id: id, name: ITEM_NAMES_TW_ALL[id], count: Object.keys(set).length };
-    });
-    withCount.sort(function (a, b) { return b.count - a.count; });
-    return withCount;
+    }
+    const pinnedSet = {};
+    CURATED_CURRENCY_IDS.forEach(function (id) { pinnedSet[id] = 1; });
+    const byCount = function (a, b) { return b.count - a.count; };
+    const pinned = CURATED_CURRENCY_IDS.filter(function (id) { return !!ITEM_NAMES_TW_ALL[id]; }).map(row).sort(byCount);
+    // 其餘：資料裡「有路徑能換到有市價物品」、且目前還有有效兌換的物品；已過期的貨幣不會出現
+    const more = (exchangeStartsCache || []).filter(function (id) { return !pinnedSet[id] && ITEM_NAMES_TW_ALL[id] && tradesByCurrencyCache[id]; }).map(row).sort(byCount);
+    return { pinned: pinned, more: more };
   }
 
   /* 這個道具的「市場等值單價」——Gil本身固定是1；其餘查預先計算資料，查不到就回傳null
@@ -1544,17 +1518,6 @@
       total += p * sides[i][1];
     }
     return total;
-  }
-
-  /* 這個物品所有「換得方式」的比較清單：每種方式付出多少成本（金幣等值）、跟市場直購價比起來划不划算。 */
-  function buildObtainRows(itemId, dcData, basis) {
-    buildTradeIndices();
-    const trades = tradesByResultCache[itemId] || [];
-    return trades.map(function (t) {
-      const cost = tradeSideValue(t.currencies, dcData, basis);
-      const resultAmount = (t.items.find(function (x) { return x[0] === Number(itemId); }) || [0, 1])[1];
-      return { type: t.type, currencies: t.currencies, cost: cost != null ? cost / resultAmount : null, resultAmount: resultAmount };
-    });
   }
 
   /* 反過來：這個道具「當代幣花掉」的話，換哪個東西最划算——每筆用到它的交易，算出扣掉其他必要
@@ -1644,7 +1607,7 @@
       const net = (resultValue - otherCost) / myAmount;
       // 賣速／成交頻率：鏈式結果看「終點物品」（真正會被賣掉的東西），一般結果維持看第一個換到的物品
       const liq = liquidityOf(viaChain && chainEnd != null ? chainEnd : t.items[0][0], dcData);
-      rows.push({ resultItems: t.items, net: net, vel: liq.vel, txnFreq: liq.txnFreq, viaChain: viaChain, chainEnd: chainEnd });
+      rows.push({ resultItems: t.items, net: net, vel: liq.vel, txnFreq: liq.txnFreq, viaChain: viaChain, chainEnd: chainEnd, locked: !!t.locked });
     });
     const key = sortKey || 'net';
     rows.sort(function (a, b) { return b[key] - a[key]; });
@@ -3388,27 +3351,34 @@
     pane.innerHTML = '<p class="craft-muted">讀取代幣資料中⋯</p>';
     const ok = await ensureShopsDataLoaded();
     if (!ok) { pane.innerHTML = '<p class="craft-muted">代幣資料載入失敗，稍後再試。</p>'; return; }
-    const list = buildCurrencyDirectory();
+    const dir = buildCurrencyDirectory();
+    const list = dir.pinned.concat(dir.more);
     // 第5點修正：內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，
     // 清單一長就整個被裁掉、完全不能捲動，其他分頁都有包這層、唯獨這裡漏了。
     pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？選一個代幣看排行。</p>' +
       '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:8px">' +
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
+    function tokenRowHtml(x) {
+      return '<div class="market-token-row" data-token-id="' + x.id + '">' +
+        '<button type="button" class="market-token-head" data-token-toggle="' + x.id + '">' +
+          '<i class="ph ph-caret-right"></i>' + itemIconHtml(x.id, 24) +
+          '<span class="market-token-name">' + x.name + '</span>' +
+          '<span class="craft-muted market-token-count">可換 ' + x.count + ' 種</span>' +
+        '</button>' +
+        '<div class="market-token-body" id="mk-token-body-' + x.id + '" style="display:none"></div>' +
+      '</div>';
+    }
     function renderList(filter) {
       const box = $('mk-token-list');
       const kw = (filter || '').trim();
-      const rows = kw ? list.filter(function (x) { return x.name.indexOf(kw) !== -1; }) : list;
-      if (!rows.length) { box.innerHTML = '<p class="craft-muted">沒有符合的代幣。</p>'; return; }
-      box.innerHTML = rows.map(function (x) {
-        return '<div class="market-token-row" data-token-id="' + x.id + '">' +
-          '<button type="button" class="market-token-head" data-token-toggle="' + x.id + '">' +
-            '<i class="ph ph-caret-right"></i>' + itemIconHtml(x.id, 24) +
-            '<span class="market-token-name">' + x.name + '</span>' +
-            '<span class="craft-muted market-token-count">可換 ' + x.count + ' 種</span>' +
-          '</button>' +
-          '<div class="market-token-body" id="mk-token-body-' + x.id + '" style="display:none"></div>' +
-        '</div>';
-      }).join('');
+      if (kw) {
+        const rows = list.filter(function (x) { return x.name.indexOf(kw) !== -1; });
+        box.innerHTML = rows.length ? rows.map(tokenRowHtml).join('') : '<p class="craft-muted">沒有符合的代幣。</p>';
+        return;
+      }
+      // 常用代幣（置頂名單）直接列出；其餘由資料自動產生的收在「更多代幣」裡，點開才看
+      box.innerHTML = dir.pinned.map(tokenRowHtml).join('') +
+        (dir.more.length ? '<details class="market-token-more"><summary>更多代幣（' + dir.more.length + '）</summary>' + dir.more.map(tokenRowHtml).join('') + '</details>' : '');
     }
     renderList('');
     $('mk-token-search').addEventListener('input', function () { renderList(this.value); });
@@ -3465,7 +3435,7 @@
         return '<button type="button" class="market-obtain-best-row market-token-best-row" data-mk-goto-item="' + first[0] + '">' +
           '<span class="market-obtain-best-rank">' + (i + 1) + '</span>' +
           itemIconHtml(first[0], 22) +
-          '<span class="market-obtain-best-name">' + label + chainTag + '</span>' +
+          '<span class="market-obtain-best-name">' + label + chainTag + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' +
           '<span class="market-token-metrics">' + metricsHtml + '</span>' +
         '</button>';
       }).join('');

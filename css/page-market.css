@@ -544,3 +544,86 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 @media (max-width:720px){
   .market-more-info-list{font-size:10.5px;padding:5px 8px}
 }
+
+/* ───────── 取得方式彈窗（js/obtain-ui.js）───────── */
+.ob-box { width: min(980px, 94vw); max-height: 88vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.ob-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--tb); }
+.ob-title { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; color: var(--gold-bright); min-width: 0; }
+.ob-title small { color: var(--dim); font-size: .8rem; margin-left: 4px; }
+.ob-title i { color: var(--gold); }
+.ob-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--tb); }
+.ob-tab { background: transparent; border: 1px solid var(--tb); color: var(--dim); border-radius: 999px; padding: 4px 12px; font-size: .85rem; cursor: pointer; }
+.ob-tab span { color: var(--gold-deep); margin-left: 2px; }
+.ob-tab:hover { color: var(--main); border-color: var(--gold); }
+.ob-tab.on { background: rgba(197,160,89,.16); border-color: var(--gold); color: var(--gold-bright); }
+.ob-body { overflow-y: auto; padding: 14px 18px 20px; display: flex; flex-direction: column; gap: 6px; }
+.ob-section { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; align-items: start; }
+.ob-sec-title { grid-column: 1 / -1; margin: 8px 0 0; font-size: .95rem; color: var(--gold); font-weight: 600; }
+.ob-sec-title span { color: var(--dim); font-weight: 400; font-size: .8rem; }
+.ob-card { background: rgba(255,255,255,.03); border: 1px solid var(--tb); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ob-clickable { cursor: pointer; }
+.ob-clickable:hover { border-color: var(--gold); background: rgba(197,160,89,.06); }
+.ob-hint { font-size: .75rem; color: var(--gold-deep); }
+.ob-trade { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ob-cost { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ob-plus { color: var(--dim); }
+.ob-arrow { color: var(--gold); }
+.ob-get b { color: var(--gold-bright); font-size: 1.05rem; }
+.ob-gil { color: var(--gold-bright); font-weight: 600; }
+.ob-chip { display: inline-flex; align-items: center; gap: 5px; background: rgba(197,160,89,.08); border: 1px solid var(--tb); color: var(--main); border-radius: 8px; padding: 2px 8px 2px 4px; cursor: pointer; font-size: .88rem; }
+.ob-chip:hover { border-color: var(--gold); }
+.ob-chip b { color: var(--gold-bright); font-weight: 600; }
+.ob-npcs { display: flex; flex-wrap: wrap; gap: 6px; }
+.ob-npc { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; background: rgba(0,0,0,.25); border: 1px solid var(--tb); border-radius: 8px; padding: 4px 9px; color: var(--main); cursor: pointer; max-width: 100%; }
+.ob-npc:hover:not(:disabled) { border-color: var(--gold); }
+.ob-npc:disabled { cursor: default; opacity: .6; }
+.ob-npc-name { font-size: .88rem; }
+.ob-npc-name small { color: var(--dim); margin-left: 6px; font-size: .72rem; }
+.ob-npc-where { font-size: .75rem; color: var(--dim); }
+.ob-link { background: none; border: none; color: var(--gold); cursor: pointer; font-size: .8rem; padding: 2px 6px; margin-left: auto; }
+.ob-link:hover { color: var(--gold-bright); text-decoration: underline; }
+.ob-note { font-size: .8rem; color: var(--dim); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.ob-note i { color: var(--gold); }
+.ob-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ob-line b { color: var(--main); font-weight: 500; }
+.ob-line b i { color: var(--gold); }
+.ob-dim { color: var(--dim); font-size: .8rem; }
+.ob-badge { background: rgba(197,160,89,.14); color: var(--gold); border-radius: 999px; padding: 0 8px; font-size: .72rem; line-height: 1.5; }
+.ob-badge-hot { background: rgba(214,110,90,.2); color: #e8a090; }
+.ob-craft-head { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: .85rem; flex-wrap: wrap; }
+.ob-craft-head b { color: var(--main); }
+.ob-verdict { font-size: .78rem; border-radius: 6px; padding: 2px 8px; align-self: flex-start; }
+.ob-verdict.good { background: rgba(110,190,130,.14); color: #8fd4a0; }
+.ob-verdict.bad { background: rgba(214,110,90,.14); color: #e8a090; }
+.ob-more { grid-column: 1 / -1; background: transparent; border: 1px dashed var(--tb); color: var(--gold); border-radius: 10px; padding: 8px; cursor: pointer; }
+.ob-more:hover { border-color: var(--gold); background: rgba(197,160,89,.06); }
+.ob-empty { color: var(--dim); text-align: center; padding: 36px 8px; display: flex; flex-direction: column; gap: 6px; }
+.ob-empty small { font-size: .8rem; }
+/* 地圖 */
+.ob-map-backdrop { z-index: 10060; }
+.ob-map-box { width: min(760px, 94vw); max-height: 92vh; display: flex; flex-direction: column; background: var(--bg); border: 1px solid var(--tb); border-radius: 14px; overflow: hidden; }
+.ob-viewport { position: relative; width: min(100%, 62vh); aspect-ratio: 1 / 1; background: #14110c; overflow: hidden; touch-action: none; cursor: grab; margin: 0 auto; }
+.ob-viewport.drag { cursor: grabbing; }
+.ob-layer { position: absolute; inset: 0; transform-origin: 0 0; }
+.ob-mapimg { width: 100%; height: 100%; object-fit: contain; user-select: none; pointer-events: none; }
+.ob-mapimg.ob-noimg { visibility: hidden; }
+.ob-pin { position: absolute; width: 22px; height: 22px; transform: translate(-50%, -50%) scale(calc(1 / var(--z, 1))); background: none; border: none; padding: 0; cursor: pointer; }
+.ob-pin-dot { display: block; width: 100%; height: 100%; border-radius: 50%; background: #e0574a; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.6); box-sizing: border-box; }
+.ob-pin.focus .ob-pin-dot { background: #ffd76a; box-shadow: 0 0 0 2px rgba(0,0,0,.55), 0 0 12px 4px rgba(255,215,106,.7); }
+.ob-pin.focus { z-index: 2; }
+.ob-noimg-msg { position: absolute; left: 0; right: 0; top: 46%; text-align: center; color: var(--dim); font-size: .85rem; padding: 0 20px; pointer-events: none; }
+.ob-zoom { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 4px; }
+.ob-zoom button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--tb); background: rgba(5,4,6,.8); color: var(--gold-bright); cursor: pointer; }
+.ob-loclist { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 14px; overflow-y: auto; max-height: 22vh; }
+.ob-locrow { display: inline-flex; gap: 8px; align-items: center; background: rgba(255,255,255,.04); border: 1px solid var(--tb); color: var(--main); border-radius: 8px; padding: 3px 10px; font-size: .82rem; cursor: pointer; }
+.ob-locrow b { color: var(--gold-bright); font-weight: 500; }
+.ob-locrow.on, .ob-locrow:hover { border-color: var(--gold); }
+@media (max-width: 640px) { .ob-section { grid-template-columns: 1fr; } .ob-box { max-height: 94vh; } }
+.ob-tabs:empty { display: none; }
+
+/* 代幣兌換：常用名單之外的「更多代幣」 */
+.market-token-more { margin-top: 10px; border-top: 1px solid var(--tb); padding-top: 8px; }
+.market-token-more > summary { cursor: pointer; color: var(--gold); font-size: .9rem; padding: 6px 2px; list-style: none; }
+.market-token-more > summary::-webkit-details-marker { display: none; }
+.market-token-more > summary::before { content: '＋ '; color: var(--gold-deep); }
+.market-token-more[open] > summary::before { content: '－ '; }

@@ -290,7 +290,8 @@ app._craftReady = function () {
               '<input id="cf-filter-lvl-max" type="number" class="craft-filter-lvl-input" placeholder="最高" min="1" max="100" />' +
             '</div>' +
           '</div>' +
-          '<input id="cf-recipe-search" class="craft-search" placeholder="搜尋配方名稱⋯" autocomplete="off" />' +
+          '<div class="craft-search-row"><input id="cf-recipe-search" class="craft-search" placeholder="搜尋配方名稱⋯" autocomplete="off" />' +
+            '<button type="button" id="cf-lunar-btn" class="craft-lunar-btn" title="依職業與任務等級瀏覽月球製作配方"><i class="ph ph-moon"></i>月球製作</button></div>' +
           '<div id="cf-recipe-results" class="craft-recipe-results"></div>' +
           '<div id="cf-recipe-selected" class="craft-recipe-selected"></div>' +
           '<div id="cf-add-batch-wrap" style="display:none" class="craft-add-batch-box">' +
@@ -311,6 +312,7 @@ app._craftReady = function () {
             '<label class="craft-check-inline" style="margin-left:0"><input id="cf-collectable" type="checkbox" />收藏品模式</label>' +
             '<div id="cf-collectable-goal-wrap" style="display:none;margin-left:auto" class="craft-row"><span class="craft-label">目標收藏度</span>' + numberField('cf-collectable-goal', 100, 10) + '</div>' +
           '</div>' +
+          '<div id="cf-collectable-slider" class="craft-collect-slider" style="display:none"></div>' +
           '<div id="cf-solve-target" class="craft-solve-target">尚未選擇配方</div>' +
           '<div id="cf-solve-nav" class="craft-solve-nav" style="display:none">' +
             '<div class="craft-solve-nav-mode-toggle" id="cf-solve-nav-mode">' +
@@ -1459,6 +1461,7 @@ app._craftReady = function () {
     manualRotation = []; renderManual(); // 換配方，手動模式的操作進度歸零重來
     $('cf-solve').disabled = false;
     $('cf-solve').innerHTML = '<i class="ph ph-play"></i>開始求解';
+    if (typeof updateCollectableSlider === 'function') updateCollectableSlider({ reset: true });
     return true;
   }
 
@@ -2865,7 +2868,86 @@ app._craftReady = function () {
 
   $('cf-collectable').addEventListener('change', function () {
     $('cf-collectable-goal-wrap').style.display = $('cf-collectable').checked ? 'flex' : 'none';
+    updateCollectableSlider({ reset: true });
   });
+
+  /* ── 目標收藏度滑桿 ──
+   * 收藏度＝品質÷10（向下取整），滿分是配方品質上限的十分之一。
+   *  ・月球製作：門檻是滿分的 20%／40%／70%（資料表裡找不到來源，兩筆實測吻合，比例放在 data/lunar.json）
+   *  ・一般收藏品：門檻是 Teamcraft 的三檔收藏度（CRAFT_COLLECTABLE_TIERS）
+   *  ・兩者都沒有：只有滑桿，不標門檻
+   * 滑桿和原本的數字輸入框（cf-collectable-goal）雙向同步，求解仍然讀那個輸入框，其他邏輯完全不動。 */
+  let lunarRecipeSet = null; let lunarRatios = [0.2, 0.4, 0.7];
+  (function loadLunarMeta() {
+    fetch('data/lunar.json').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) return;
+      lunarRecipeSet = new Set(d.recipes.map(function (r) { return String(r.id); }));
+      if (d.meta && d.meta.collectableTiers && d.meta.collectableTiers.ratios) lunarRatios = d.meta.collectableTiers.ratios;
+      updateCollectableSlider({ reset: false });
+    }).catch(function () { /* 沒有月球資料就只是不標月球門檻 */ });
+  })();
+
+  function collectableInfo() {
+    if (!selectedRecipe) return null;
+    const recipe = CRAFT_RECIPES[selectedRecipe.id];
+    if (!recipe) return null;
+    const max = Math.floor(recipe.quality / 10);
+    if (max <= 0) return null;
+    let tiers = null; let source = null;
+    if (lunarRecipeSet && lunarRecipeSet.has(String(selectedRecipe.id))) {
+      tiers = lunarRatios.map(function (r) { return Math.round(max * r); }); source = 'lunar';
+    } else if (typeof CRAFT_COLLECTABLE_TIERS !== 'undefined' && CRAFT_COLLECTABLE_TIERS[recipe.itemId]) {
+      tiers = CRAFT_COLLECTABLE_TIERS[recipe.itemId].slice(); source = 'scrip';
+    }
+    if (tiers) tiers = tiers.filter(function (v) { return v > 0 && v <= max; });
+    return { max: max, tiers: tiers && tiers.length ? tiers : null, source: source };
+  }
+  const TIER_COLORS = ['#3a4250', '#2aa3e0', '#8a5cf0', '#f0a020'];
+  function updateCollectableSlider(opts) {
+    const box = $('cf-collectable-slider');
+    if (!box) return;
+    const info = $('cf-collectable').checked ? collectableInfo() : null;
+    if (!info) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    const goalInput = $('cf-collectable-goal');
+    const tiers = info.tiers;
+    if (opts && opts.reset) goalInput.value = tiers ? tiers[tiers.length - 1] : Math.min(info.max, parseInt(goalInput.value, 10) || info.max);
+    let cur = parseInt(goalInput.value, 10); if (!Number.isFinite(cur)) cur = 0;
+    cur = Math.max(0, Math.min(info.max, cur));
+    const pct = function (v) { return (v / info.max) * 100; };
+    const stops = []; const edges = [0].concat(tiers || [], [info.max]);
+    for (let i = 0; i < edges.length - 1; i++) {
+      const color = tiers ? TIER_COLORS[Math.min(i, TIER_COLORS.length - 1)] : TIER_COLORS[3];
+      stops.push(color + ' ' + pct(edges[i]) + '%', color + ' ' + pct(edges[i + 1]) + '%');
+    }
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div class="ccs-head"><span class="craft-label">目標收藏度</span><b id="ccs-val">' + cur + '</b>' +
+      '<span class="craft-muted" id="ccs-hint"></span>' +
+      '<span class="craft-muted ccs-src">' + (info.source === 'lunar' ? '月球製作門檻（滿分的 ' + lunarRatios.map(function (r) { return Math.round(r * 100) + '%'; }).join('／') + '）' : info.source === 'scrip' ? '收藏品交易門檻' : '沒有已知的門檻') + '</span></div>' +
+      '<div class="ccs-wrap">' +
+        '<div class="ccs-scale ccs-scale-top">' + (tiers || []).map(function (v) { return '<span style="left:' + pct(v) + '%">品質' + (v * 10) + '</span>'; }).join('') + '</div>' +
+        '<input type="range" id="cf-collectable-range" min="0" max="' + info.max + '" step="1" value="' + cur + '" style="--ccs-track:linear-gradient(90deg,' + stops.join(',') + ')">' +
+        '<div class="ccs-scale ccs-scale-bottom">' + (tiers || []).map(function (v) { return '<button type="button" data-ccs-jump="' + v + '" style="left:' + pct(v) + '%" title="跳到這一檔">' + v + '</button>'; }).join('') + '<em style="left:100%">' + info.max + '</em></div>' +
+      '</div>';
+    const range = $('cf-collectable-range');
+    function refresh(v) {
+      $('ccs-val').textContent = v;
+      let reached = 0; if (tiers) tiers.forEach(function (t) { if (v >= t) reached += 1; });
+      $('ccs-hint').textContent = '（品質需 ' + (v * 10) + ' / ' + (info.max * 10) + (tiers ? '・' + (reached === 0 ? '未達第一檔' : reached === tiers.length ? '達到最高檔' : '達到第 ' + reached + ' 檔') : '') + '）';
+    }
+    refresh(cur);
+    range.addEventListener('input', function () { goalInput.value = range.value; refresh(parseInt(range.value, 10)); });
+    box.querySelectorAll('[data-ccs-jump]').forEach(function (b) {
+      b.addEventListener('click', function () { range.value = b.dataset.ccsJump; goalInput.value = range.value; refresh(parseInt(range.value, 10)); });
+    });
+  }
+  // 手動改輸入框（或按 −／＋）時，滑桿跟著動
+  ['input', 'change'].forEach(function (ev) { $('cf-collectable-goal').addEventListener(ev, function () { const r = $('cf-collectable-range'); if (!r) return; const v = Math.max(0, Math.min(parseInt(r.max, 10), parseInt($('cf-collectable-goal').value, 10) || 0)); r.value = v; r.dispatchEvent(new Event('ccs-sync')); const val = $('ccs-val'); if (val) val.textContent = v; }); });
+  $('cf-collectable-goal-wrap').addEventListener('click', function () { setTimeout(function () { $('cf-collectable-goal').dispatchEvent(new Event('change')); }, 0); });
+
+  window.__craftSelectRecipe = selectRecipeById;
+  window.__craftSetCollectable = function (on) { $('cf-collectable').checked = !!on; $('cf-collectable').dispatchEvent(new Event('change')); };
+  $('cf-lunar-btn').addEventListener('click', function () { if (typeof LunarUI !== 'undefined') LunarUI.open(); });
 
   /* 「使用個人設定檔」這個開關本身也記住，重新整理頁面不用重新勾一次 */
   const PROFILE_MODE_KEY = 'craftProfileModeOn:v1';

@@ -26,7 +26,14 @@ const URLS = {
   twActions: BASE + 'tw/tw-actions.json',
   zhActions: BASE + 'zh/zh-actions.json',
   itemBonuses: BASE + 'item-bonuses.json',
+  collectables: BASE + 'collectables.json', // 收藏品三檔收藏度門檻（低／中／高）
+  marketItems: BASE + 'market-items.json', // 可在市場交易的物品編號清單（市場頁搜尋只找得到這些）
 };
+
+/* 台服（繁中服）遊戲資料表。Teamcraft 的配方來自國際服（版本較新），國際服改過的配方素材
+ * （例如把染劑換成新物品）台服還沒有；台服可用的配方，素材與產量一律以台服配方表為準。
+ * 來源：thewakingsands/ffxiv-datamining-tc（SaintCoinach 解包的繁中服 CSV）。 */
+const TW_RECIPE_CSV = 'https://raw.githubusercontent.com/thewakingsands/ffxiv-datamining-tc/master/Recipe.csv';
 
 const OUT = {
   craftData: path.join(__dirname, '..', 'js', 'craft-data.js'),
@@ -59,9 +66,73 @@ function fetchJson(url) {
   });
 }
 
-function convertRecipes(raw, twIdSet) {
+function fetchText(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'ffxiv-craft-data-updater' }, timeout: 30000 }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) return resolve(fetchText(res.headers.location));
+      let data = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => {
+        if (res.statusCode !== 200) return reject(new Error(url + ' 回應 ' + res.statusCode));
+        resolve(data);
+      });
+    });
+    req.on('timeout', () => { req.destroy(new Error(url + ' 逾時（30秒）')); });
+    req.on('error', reject);
+  });
+}
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = []; let field = ''; let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (ch === '"') { if (quoted && text[i + 1] === '"') { field += '"'; i += 1; } else quoted = !quoted; }
+    else if (ch === ',' && !quoted) { row.push(field); field = ''; }
+    else if ((ch === '\n' || ch === '\r') && !quoted) {
+      if (ch === '\r' && text[i + 1] === '\n') i += 1;
+      row.push(field); field = '';
+      if (row.some((v) => v !== '')) rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+/* 台服 Recipe.csv → Map(配方id → { yields, ingredients:[{itemId, amount}] })。
+ * 格式：第1列 key,0,1,2…；第2列欄位名稱；第3列型別；之後為資料。欄位不見就直接丟錯，
+ * 不會用抓壞的資料覆蓋現有檔案（資料表改版時寧可讓這次更新失敗）。 */
+function parseTwRecipes(text) {
+  const rows = parseCsvRows(text.replace(/^\uFEFF/, ''));
+  const names = rows[1];
+  const col = (n) => names.indexOf(n);
+  const resultAmount = col('Amount{Result}');
+  const ingItem = []; const ingAmount = [];
+  for (let k = 0; k < 8; k += 1) { ingItem.push(col('Item{Ingredient}[' + k + ']')); ingAmount.push(col('Amount{Ingredient}[' + k + ']')); }
+  if (resultAmount < 0 || ingItem.some((c) => c < 0) || ingAmount.some((c) => c < 0)) {
+    throw new Error('台服 Recipe.csv 找不到預期欄位（Amount{Result}／Item{Ingredient}／Amount{Ingredient}），資料表可能已改版');
+  }
+  const map = new Map();
+  for (const r of rows.slice(3)) {
+    const id = parseInt(r[0], 10);
+    if (!Number.isFinite(id)) continue;
+    const ingredients = [];
+    for (let k = 0; k < 8; k += 1) {
+      const itemId = parseInt(r[ingItem[k]], 10); const amount = parseInt(r[ingAmount[k]], 10);
+      if (itemId > 0 && amount > 0) ingredients.push({ itemId, amount });
+    }
+    map.set(id, { yields: parseInt(r[resultAmount], 10) || 1, ingredients });
+  }
+  if (map.size < 5000) throw new Error('台服 Recipe.csv 只解析出 ' + map.size + ' 筆配方，數量異常，已停止（不覆蓋現有資料）');
+  return map;
+}
+
+function convertRecipes(raw, twIdSet, twRecipes) {
   const recipes = {};
   let skipped = 0;
+  const overrides = { ingredients: 0, yields: 0 };
   for (const arr of Object.values(raw)) {
     arr.forEach((r) => {
       if (r.job === -10) { skipped++; return; }
@@ -90,9 +161,20 @@ function convertRecipes(raw, twIdSet) {
           .filter((i) => i.id !== 0)
           .map((i) => ({ itemId: i.id, amount: i.amount, quality: i.quality || 0 })),
       };
+      const tw = recipes[r.id].twAvailable ? twRecipes.get(r.id) : null;
+      if (tw) {
+        const have = new Map(recipes[r.id].ingredients.map((i) => [i.itemId, i]));
+        const sig = (list) => list.map((i) => i.itemId + ':' + i.amount).sort().join(',');
+        if (sig(tw.ingredients) !== sig(recipes[r.id].ingredients)) {
+          // 同一個物品沿用 Teamcraft 的 quality（HQ 權重），台服獨有的素材沒有這項資料，設 0
+          recipes[r.id].ingredients = tw.ingredients.map((i) => ({ itemId: i.itemId, amount: i.amount, quality: have.has(i.itemId) ? have.get(i.itemId).quality : 0 }));
+          overrides.ingredients += 1;
+        }
+        if (tw.yields !== recipes[r.id].yields) { recipes[r.id].yields = tw.yields; overrides.yields += 1; }
+      }
     });
   }
-  return { recipes, skipped };
+  return { recipes, skipped, overrides };
 }
 
 function extractStatBonus(entry) {
@@ -194,13 +276,15 @@ async function main() {
   const [
     rawRecipes, twRecipesArr, items, twItems, zhItems,
     craftActions, twCraftActions, zhCraftActions,
-    actions, twActions, zhActions, itemBonuses,
+    actions, twActions, zhActions, itemBonuses, collectables, marketItems,
   ] = await Promise.all(Object.values(URLS).map(fetchJson));
-  console.log('  全部下載完成');
+  const twRecipes = parseTwRecipes(await fetchText(TW_RECIPE_CSV));
+  console.log('  全部下載完成（台服配方表', twRecipes.size, '筆）');
 
   /* ---------- 1. craft-data.js：配方 + 道具名稱 + 台服可用性 ---------- */
   const twIdSet = new Set(twRecipesArr.map((r) => r.id));
-  const { recipes, skipped } = convertRecipes(rawRecipes, twIdSet);
+  const { recipes, skipped, overrides } = convertRecipes(rawRecipes, twIdSet, twRecipes);
+  console.log('以台服配方表修正：素材', overrides.ingredients, '筆、產量', overrides.yields, '筆');
   console.log('配方:', Object.keys(recipes).length, '筆（跳過', skipped, '筆壞資料）｜ 台服可用:', twIdSet.size, '筆');
 
   const relevantItemIds = new Set();
@@ -263,17 +347,29 @@ async function main() {
     if (twItems[id] && twItems[id].tw) itemNamesTw[id] = twItems[id].tw;
   }
   console.log('道具繁中名稱:', Object.keys(itemNamesTw).length, '筆');
+  if (!Array.isArray(marketItems) || marketItems.length < 1000) throw new Error('market-items.json 內容異常（' + (marketItems && marketItems.length) + '筆），已停止');
+  const collectableTiers = {};
+  Object.keys(collectables).forEach(function (id) {
+    const c = collectables[id];
+    if (c && c.base && c.mid && c.high && c.base.rating > 0) collectableTiers[id] = [c.base.rating, c.mid.rating, c.high.rating];
+  });
+  const marketableTw = marketItems.filter(function (id) { return itemNamesTw[id]; }).sort(function (a, b) { return a - b; });
+  console.log('可交易（有繁中名稱）:', marketableTw.length, '筆');
 
   fs.writeFileSync(OUT.craftData,
     '/* craft-data.js — 生產製作「資料」：配方庫（含精確材料HQ權重/專家配方狀態旗標/台服可用性）、道具繁中名稱表。\n' +
     ' * 本檔案由 scripts/update-craft-data.js 自動產生，請勿手動編輯。\n' +
-    ' * 來源：ffxiv-teamcraft/ffxiv-teamcraft（MIT）。twAvailable 標記依 tw-recipes.json 是否收錄該配方id判斷。\n' +
+    ' * 來源：ffxiv-teamcraft/ffxiv-teamcraft（MIT）。twAvailable 標記依 tw-recipes.json 是否收錄該配方id判斷；\n' +
+    ' * 台服可用的配方，素材與產量以台服配方表（thewakingsands/ffxiv-datamining-tc）為準。\n' +
     ' * 最後更新時間：' + new Date().toISOString() + '\n' +
     ' */\n' +
     'const CRAFT_RECIPES=' + JSON.stringify(recipes) + ';\n' +
-    'const CRAFT_ITEM_NAMES_TW=' + JSON.stringify(itemNamesTw) + ';\n'
+    'const CRAFT_ITEM_NAMES_TW=' + JSON.stringify(itemNamesTw) + ';\n' +
+    '/* CRAFT_COLLECTABLE_TIERS：收藏品（可交給收藏品商人換票券）三檔收藏度門檻 { 物品id: [低, 中, 高] }，\n' +
+    ' * 供求解頁的「目標收藏度」滑桿標示門檻；月球製作的門檻另由 data/lunar.json 提供。 */\n' +
+    'const CRAFT_COLLECTABLE_TIERS=' + JSON.stringify(collectableTiers) + ';\n'
   );
-  console.log('已寫入', OUT.craftData);
+  console.log('已寫入', OUT.craftData, '（收藏品門檻', Object.keys(collectableTiers).length, '筆）');
 
   const i18nItems = {};
   for (const id of Object.keys(items)) {
@@ -291,7 +387,10 @@ async function main() {
     ' * 本檔案由 scripts/update-craft-data.js 自動產生，請勿手動編輯。來源：ffxiv-teamcraft/ffxiv-teamcraft（MIT）。\n' +
     ' * 最後更新時間：' + new Date().toISOString() + '\n' +
     ' */\n' +
-    'const ITEM_NAMES_TW_ALL=' + JSON.stringify(itemNamesTw) + ';\n'
+    'const ITEM_NAMES_TW_ALL=' + JSON.stringify(itemNamesTw) + ';\n' +
+    '/* ITEM_MARKETABLE_TW：可在市場交易（有繁中名稱）的物品編號。市場頁搜尋只列這些；貨幣、不可交易的\n' +
+    ' * 物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去查看。 */\n' +
+    'const ITEM_MARKETABLE_TW=' + JSON.stringify(marketableTw) + ';\n'
   );
   console.log('已寫入', OUT.itemNamesTw, '（全物品繁中名稱，', Object.keys(itemNamesTw).length, '筆，供市場頁搜尋用）');
 
