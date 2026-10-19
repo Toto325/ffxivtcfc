@@ -382,6 +382,15 @@
       : '<span class="market-item-icon market-item-icon-fallback" style="width:' + size + 'px;height:' + size + 'px"><i class="ph ph-cube"></i></span>';
   }
 
+  /* 物品名稱旁的「版本・分類」，例如「6.2・布料」：版本來自 Teamcraft、分類來自台服遊戲資料表（資料由 update-craft-data.js 產生） */
+  function itemMetaHtml(itemId) {
+    if (typeof ITEM_META_TW === 'undefined') return '';
+    const v = ITEM_META_TW[itemId]; if (!v) return '';
+    const patch = ITEM_PATCH_TW[Math.floor(v / 1000)]; const cat = ITEM_CATEGORY_TW[v % 1000];
+    const parts = []; if (patch) parts.push('版本 ' + patch); if (cat) parts.push(cat);
+    return parts.length ? '<small class=\"market-detail-meta\">' + parts.join('・') + '</small>' : '';
+  }
+
   function openItemDetail(itemId) {
     itemId = String(itemId);
     const name = ITEM_NAMES_TW_ALL[itemId] || ('#' + itemId);
@@ -390,10 +399,10 @@
     document.querySelector('[data-mk-tab="item"]').click();
     currentDetailItemId = itemId;
     $('mk-pane-item').innerHTML =
-      '<div class="market-detail-header">' + itemIconHtml(itemId, 40) + '<h3>' + name + '</h3>' +
+      '<div class="market-detail-header">' + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '</h3>' +
         '<button type="button" class="market-history-btn market-watch-btn-header" id="mk-watch-btn"></button>' +
         '<button type="button" class="market-solve-btn" id="mk-solve-btn" disabled><i class="ph ph-flask"></i> 查詢是否可製作⋯</button>' +
-        '<button type="button" class="market-solve-btn" id="mk-obtain-btn"><i class="ph ph-swap"></i> 兌換／商店購買<span class="craft-muted" id="mk-obtain-count"></span></button>' +
+        '<button type="button" class="market-solve-btn" id="mk-obtain-btn"><i class="ph ph-swap"></i> 取得方式</button>' +
       '</div>' +
       '<div class="market-detail-columns">' +
         '<div id="mk-detail-market" class="market-detail-section market-col-market"><p class="craft-muted">讀取市場資料中⋯</p></div>' +
@@ -3355,7 +3364,7 @@
     const list = dir.pinned.concat(dir.more);
     // 第5點修正：內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，
     // 清單一長就整個被裁掉、完全不能捲動，其他分頁都有包這層、唯獨這裡漏了。
-    pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？選一個代幣看排行。</p>' +
+    pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？選一個代幣看排行。　🔗 先換成不可交易的中繼物品，再用它能換到的東西估價　🔒 需先完成任務或成就才能兌換</p>' +
       '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:8px">' +
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
     function tokenRowHtml(x) {

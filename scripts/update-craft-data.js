@@ -26,6 +26,8 @@ const URLS = {
   twActions: BASE + 'tw/tw-actions.json',
   zhActions: BASE + 'zh/zh-actions.json',
   itemBonuses: BASE + 'item-bonuses.json',
+  itemPatch: BASE + 'item-patch.json',     // 物品加入的版本代碼
+  patchNames: BASE + 'patch-names.json',   // 版本代碼 → 版本號
   collectables: BASE + 'collectables.json', // 收藏品三檔收藏度門檻（低／中／高）
   marketItems: BASE + 'market-items.json', // 可在市場交易的物品編號清單（市場頁搜尋只找得到這些）
 };
@@ -33,6 +35,8 @@ const URLS = {
 /* 台服（繁中服）遊戲資料表。Teamcraft 的配方來自國際服（版本較新），國際服改過的配方素材
  * （例如把染劑換成新物品）台服還沒有；台服可用的配方，素材與產量一律以台服配方表為準。
  * 來源：thewakingsands/ffxiv-datamining-tc（SaintCoinach 解包的繁中服 CSV）。 */
+const TW_ITEM_CSV = 'https://raw.githubusercontent.com/thewakingsands/ffxiv-datamining-tc/master/Item.csv';
+const TW_ITEM_UI_CATEGORY_CSV = 'https://raw.githubusercontent.com/thewakingsands/ffxiv-datamining-tc/master/ItemUICategory.csv';
 const TW_RECIPE_CSV = 'https://raw.githubusercontent.com/thewakingsands/ffxiv-datamining-tc/master/Recipe.csv';
 
 const OUT = {
@@ -276,7 +280,7 @@ async function main() {
   const [
     rawRecipes, twRecipesArr, items, twItems, zhItems,
     craftActions, twCraftActions, zhCraftActions,
-    actions, twActions, zhActions, itemBonuses, collectables, marketItems,
+    actions, twActions, zhActions, itemBonuses, itemPatch, patchNames, collectables, marketItems,
   ] = await Promise.all(Object.values(URLS).map(fetchJson));
   const twRecipes = parseTwRecipes(await fetchText(TW_RECIPE_CSV));
   console.log('  全部下載完成（台服配方表', twRecipes.size, '筆）');
@@ -353,6 +357,30 @@ async function main() {
     const c = collectables[id];
     if (c && c.base && c.mid && c.high && c.base.rating > 0) collectableTiers[id] = [c.base.rating, c.mid.rating, c.high.rating];
   });
+  // 物品詳情要顯示的「版本・分類」：版本來自 Teamcraft（item-patch），分類是台服遊戲資料表的繁中分類名稱
+  const itemCsv = parseCsvRows((await fetchText(TW_ITEM_CSV)).replace(/^\uFEFF/, ''));
+  const uiCol = itemCsv[1].indexOf('ItemUICategory');
+  const uiCsv = parseCsvRows((await fetchText(TW_ITEM_UI_CATEGORY_CSV)).replace(/^\uFEFF/, ''));
+  if (uiCol < 0 || uiCsv[1].indexOf('Name') < 0) throw new Error('台服 Item.csv／ItemUICategory.csv 找不到預期欄位，資料表可能已改版');
+  const categoryName = {};
+  uiCsv.slice(3).forEach(function (r) { if (/^\d+$/.test(r[0]) && r[1]) categoryName[r[0]] = r[1]; });
+  const itemUi = {};
+  itemCsv.slice(3).forEach(function (r) { if (/^\d+$/.test(r[0])) itemUi[r[0]] = parseInt(r[uiCol], 10) || 0; });
+  const patchVersion = {};
+  Object.keys(patchNames).forEach(function (k) {
+    const v = patchNames[k] && patchNames[k].version;
+    const m = v && /^(\d+)\.(\d)/.exec(v);                 // 6.28 → 6.2、6.05 → 6.0（只取 X.Y）
+    if (m) patchVersion[patchNames[k].id != null ? patchNames[k].id : k] = m[1] + '.' + m[2];
+  });
+  const itemMeta = {}; const usedPatch = {}; const usedCat = {};
+  Object.keys(itemNamesTw).forEach(function (id) {
+    const pc = itemPatch[id] || 0; const c = itemUi[id] || 0;
+    if (!pc && !c) return;
+    itemMeta[id] = pc * 1000 + c;
+    if (pc && patchVersion[pc]) usedPatch[pc] = patchVersion[pc];
+    if (c && categoryName[c]) usedCat[c] = categoryName[c];
+  });
+  console.log('物品版本・分類:', Object.keys(itemMeta).length, '筆');
   const marketableTw = marketItems.filter(function (id) { return itemNamesTw[id]; }).sort(function (a, b) { return a - b; });
   console.log('可交易（有繁中名稱）:', marketableTw.length, '筆');
 
@@ -390,7 +418,12 @@ async function main() {
     'const ITEM_NAMES_TW_ALL=' + JSON.stringify(itemNamesTw) + ';\n' +
     '/* ITEM_MARKETABLE_TW：可在市場交易（有繁中名稱）的物品編號。市場頁搜尋只列這些；貨幣、不可交易的\n' +
     ' * 物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去查看。 */\n' +
-    'const ITEM_MARKETABLE_TW=' + JSON.stringify(marketableTw) + ';\n'
+    'const ITEM_MARKETABLE_TW=' + JSON.stringify(marketableTw) + ';\n' +
+    '/* ITEM_META_TW：{ 物品id: 加入版本代碼×1000 + 道具分類編號 }，用於市場頁物品詳情顯示「版本・分類」。\n' +
+    ' * ITEM_PATCH_TW：版本代碼 → 版本（只取 X.Y，例如 6.28 → 6.2）；ITEM_CATEGORY_TW：分類編號 → 繁中分類名稱（台服 ItemUICategory）。 */\n' +
+    'const ITEM_META_TW=' + JSON.stringify(itemMeta) + ';\n' +
+    'const ITEM_PATCH_TW=' + JSON.stringify(usedPatch) + ';\n' +
+    'const ITEM_CATEGORY_TW=' + JSON.stringify(usedCat) + ';\n'
   );
   console.log('已寫入', OUT.itemNamesTw, '（全物品繁中名稱，', Object.keys(itemNamesTw).length, '筆，供市場頁搜尋用）');
 

@@ -60,6 +60,8 @@ function composeObtain(obt, src, extra) {
       npcs: sortedByNumericKey(Object.fromEntries(Object.entries(obt.npcs).map(([id, n]) => [id, extra.npcTitles[id] ? { ...n, title: extra.npcTitles[id] } : n]))),
       shops: sortedByNumericKey(extra.shops),
       treasureMaps: extra.treasureMaps,
+      treasureMapGather: extra.treasureMapGather,
+      treasureHunt: extra.treasureHunt,
       places: sortedByNumericKey({ ...ent.places, ...obt.places }),
       maps: sortedByNumericKey({ ...ent.maps, ...obt.maps }),
       instances: sortedByNumericKey(ent.instances), fates: sortedByNumericKey(ent.fates), quests: sortedByNumericKey(ent.quests),
@@ -83,7 +85,7 @@ function composeExchange(graph) {
 
 // 補充顯示用資料：NPC 頭銜、兌換店名稱、藏寶圖物品清單（藏寶圖 = 尋寶玩法，其他「開箱獲得」的容器不是）
 async function loadExtra(obt) {
-  const [titles, treasures] = await Promise.all([teamcraftJson('json/tw/tw-npc-titles.json'), teamcraftJson('json/treasures.json')]);
+  const [titles, treasures, gatherItems] = await Promise.all([teamcraftJson('json/tw/tw-npc-titles.json'), teamcraftJson('json/treasures.json'), teamcraftJson('json/gathering-items.json')]);
   const npcTitles = {};
   for (const id of Object.keys(obt.npcs)) { const t = titles[id]?.tw; if (t) npcTitles[id] = t; }
   const used = new Set();
@@ -93,7 +95,20 @@ async function loadExtra(obt) {
   const nc = names.indexOf('Name');
   for (const r of rows) { const id = toInt(r[0]); if (used.has(id) && r[nc]) shops[id] = r[nc]; }
   const treasureMaps = [...new Set(treasures.filter((x) => x && typeof x === 'object' && x.item).map((x) => x.item))].sort((a, b) => a - b);
-  return { npcTitles, shops, treasureMaps };
+  // 寶物地圖本身是「採集時隨機取得」的物品：遊戲資料表與 Teamcraft 都沒有記錄固定的採集點，只有需要的採集等級
+  const mapSet = new Set(treasureMaps);
+  const treasureMapGather = {};
+  for (const g of Object.values(gatherItems)) if (mapSet.has(g.itemId)) treasureMapGather[g.itemId] = { level: g.level, stars: g.stars || 0 };
+  // 寶物地圖 → 開啟的尋寶副本（人工對照，見 config/treasure-hunt-links.json；編號對不上的會警告並略過）
+  const linkFile = path.join(here, 'config', 'treasure-hunt-links.json');
+  const treasureHunt = {};
+  if (fs.existsSync(linkFile)) {
+    for (const [mapItem, v] of Object.entries(readJson(linkFile).links || {})) {
+      if (!mapSet.has(Number(mapItem))) { console.warn(`⚠ treasure-hunt-links：${mapItem} 不是寶物地圖，已略過`); continue; }
+      treasureHunt[mapItem] = v.instance;
+    }
+  }
+  return { npcTitles, shops, treasureMaps, treasureMapGather, treasureHunt };
 }
 
 // ───────────────────────── 變動檢查 ─────────────────────────

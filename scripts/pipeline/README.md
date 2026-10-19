@@ -161,3 +161,11 @@ paths[起點物品] = [{ target, ratio, hops, via:[edges 索引…], extras?:[{i
 ## 無人島
 Teamcraft 的 `island-*.json`（animals、buildings、crops、landmarks、supply、craftworks…）是無人島的玩法資料，不是兌換條件。
 無人島的貨幣兌換若是一般 NPC 兌換店，已經包含在 trades 中；`islandPasture` / `islandCrop` 只標示來源。
+
+
+## 寶物地圖（藏寶圖）相關資料（obtain.json 的 entities）
+- `treasureMaps`：寶物地圖物品清單（來自 Teamcraft `treasures.json`；「開箱獲得」的其他容器不在內）。
+- `treasureMapGather`：寶物地圖「採集時隨機取得」所需的採集等級。遊戲資料表（GatheringPointBase）與 Teamcraft 都**沒有**記錄固定採集點，
+  只有 GatheringItem 的採集等級，所以網站只顯示「依採集等級隨機取得」。
+- `treasureHunt`：寶物地圖 → 開啟的尋寶副本。遊戲資料表只記錄「N級傳送魔紋」與推薦等級／品級同步，沒有直接指向副本，
+  所以來源是人工整理的 `config/treasure-hunt-links.json`（逐筆附證據；沒把握的放在「待確認」，網站不顯示）。

@@ -19,12 +19,13 @@
 
   const TAGS = [
     { id: 'trade', label: '兌換' }, { id: 'vendor', label: '商店' }, { id: 'craft', label: '製作' },
-    { id: 'gather', label: '採集' }, { id: 'drop', label: '掉落' }, { id: 'instance', label: '副本' },
+    { id: 'gather', label: '採集' }, { id: 'timed', label: '限時採集' }, { id: 'drop', label: '掉落' }, { id: 'instance', label: '副本' },
     { id: 'box', label: '開箱獲得' }, { id: 'map', label: '藏寶圖' }, { id: 'quest', label: '任務與成就' },
     { id: 'explore', label: '探索' }, { id: 'desynth', label: '分解與精選' }, { id: 'mog', label: '商城' },
     { id: 'seasonal', label: '限期活動' },
   ];
 
+  const HELP = { desynth: '道具分解：用道具分解技能分解其他道具而得到。精選：採集職業的技能，把採集到的素材轉換成其他素材。' };
   let bridge = null;
   let dataPromise = null;
   let DATA = null;
@@ -137,40 +138,43 @@
         (rc.stars ? ' ' + '★'.repeat(rc.stars) : '') + (rc.yields > 1 ? ' ・一次產出 ×' + rc.yields : '') +
         '<button type="button" class="ob-link" data-ob-craft="' + esc(r.rid) + '"><i class="ph ph-flask"></i> 製作求解</button></div>' +
         '<div class="ob-cost">' + rc.ingredients.map(function (i) { return itemChip(i.itemId, i.amount); }).join('') + '</div>' +
-        (books.length ? '<div class="ob-note"><i class="ph ph-book-bookmark"></i> 需要祕籍：' + books.map(function (b) { return itemChip(b); }).join('') + '</div>' : '') + '</div>';
+        (books.length ? '<div class="ob-note"><i class="ph ph-book-bookmark"></i> 需要秘笈：' + books.map(function (b) { return itemChip(b); }).join('') + '</div>' : '') + '</div>';
       groups.craft.push({ html: html, sort: 0 });
     });
 
-    // 採集（含限時、園藝）
-    const zones = {};
+    // 採集：一般節點、限時節點（出現時間固定）分開；寶物地圖是採集時隨機取得，沒有固定採集點
+    const zones = {}; const tzones = {};
+    const zoneOf = function (bucket, zoneId) { return (bucket[zoneId] = bucket[zoneId] || { zoneId: zoneId, nodes: [], alarms: [] }); };
     (e.gathering || []).forEach(function (g) {
-      (g.nodes || []).forEach(function (n) {
-        const z = (zones[n.zoneId] = zones[n.zoneId] || { zoneId: n.zoneId, nodes: [], timed: [] });
-        z.nodes.push({ n: n, g: g });
-      });
+      (g.nodes || []).forEach(function (n) { zoneOf(n.limited ? tzones : zones, n.zoneId).nodes.push(n); });
     });
-    (e.alarms || []).forEach(function (a) {
-      const z = (zones[a.zoneId] = zones[a.zoneId] || { zoneId: a.zoneId, nodes: [], timed: [] });
-      z.timed.push(a);
-    });
-    Object.keys(zones).forEach(function (zid) {
-      const z = zones[zid];
-      const locs = z.nodes.map(function (x) { return { mapId: x.n.map, zoneId: x.n.zoneId, x: x.n.x, y: x.n.y, label: 'Lv.' + x.n.level + (E().gatheringTypes[x.n.type] ? ' ' + E().gatheringTypes[x.n.type] : '') }; })
-        .concat(z.timed.filter(function (a) { return a.coords; }).map(function (a) { return { mapId: a.mapId, zoneId: a.zoneId, x: a.coords.x, y: a.coords.y, label: '限時節點' }; }));
-      const lv = z.nodes.map(function (x) { return x.n.level; });
+    (e.alarms || []).forEach(function (a) { zoneOf(tzones, a.zoneId).alarms.push(a); });
+    function gatherCard(z, timed) {
+      const nodeIds = {}; z.nodes.forEach(function (n) { nodeIds[n.id] = 1; });
+      const locs = z.nodes.map(function (n) { return { mapId: n.map, zoneId: n.zoneId, x: n.x, y: n.y, label: 'Lv.' + n.level + (E().gatheringTypes[n.type] ? ' ' + E().gatheringTypes[n.type] : '') }; })
+        .concat(z.alarms.filter(function (a) { return a.coords && !nodeIds[a.nodeId]; }).map(function (a) { return { mapId: a.mapId, zoneId: a.zoneId, x: a.coords.x, y: a.coords.y, label: '限時採集點' }; }));
+      const lv = z.nodes.map(function (n) { return n.level; });
       const flags = {};
-      z.nodes.forEach(function (x) { if (x.n.limited) flags['限時'] = 1; if (x.n.hidden) flags['隱藏'] = 1; if (x.n.legendary) flags['傳說'] = 1; });
-      const html = '<div class="ob-card ob-clickable" data-ob-locs=\'' + esc(JSON.stringify(locs)) + '\' data-ob-title="' + esc(itemName(itemId) + '・採集點') + '">' +
+      z.nodes.forEach(function (n) { if (n.hidden) flags['隱藏'] = 1; if (n.legendary) flags['傳說'] = 1; });
+      const times = z.alarms.map(function (a) { return (a.spawns || []).map(function (h) { return h + ':00'; }).join('、') + ' 出現，持續 ' + a.duration + ' 小時'; }).filter(function (t, i, arr) { return arr.indexOf(t) === i; });
+      const count = Math.max(z.nodes.length, z.alarms.length);
+      return '<div class="ob-card' + (locs.length ? ' ob-clickable' : '') + '"' + (locs.length ? ' data-ob-locs=\'' + esc(JSON.stringify(locs)) + '\' data-ob-title="' + esc(itemName(itemId) + (timed ? '・限時採集點' : '・採集點')) + '"' : '') + '>' +
         '<div class="ob-line"><b><i class="ph ph-map-pin"></i> ' + esc(placeName(z.zoneId) || '未知地點') + '</b>' +
-        '<span class="ob-dim">' + (z.nodes.length ? z.nodes.length + ' 個節點' : '') + (lv.length ? '・Lv.' + Math.min.apply(null, lv) + (Math.max.apply(null, lv) !== Math.min.apply(null, lv) ? '–' + Math.max.apply(null, lv) : '') : '') + '</span>' +
+        '<span class="ob-dim">' + count + ' 個節點' + (lv.length ? '・Lv.' + Math.min.apply(null, lv) + (Math.max.apply(null, lv) !== Math.min.apply(null, lv) ? '–' + Math.max.apply(null, lv) : '') : '') + '</span>' +
         Object.keys(flags).map(function (f) { return '<span class="ob-badge">' + f + '</span>'; }).join('') + '</div>' +
-        (z.timed.length ? '<div class="ob-note"><i class="ph ph-clock"></i> 限時節點（艾歐澤亞時間）：' + z.timed.map(function (a) { return (a.spawns || []).map(function (h) { return h + ':00'; }).join('、') + ' 出現，持續 ' + a.duration + ' 小時'; }).filter(function (t, i, arr) { return arr.indexOf(t) === i; }).join('；') + '</div>' : '') +
-        '<span class="ob-hint">點擊查看地圖</span></div>';
-      groups.gather.push({ html: html, sort: 0 });
-    });
+        (timed && times.length ? '<div class="ob-note"><i class="ph ph-clock"></i> 艾奧傑亞時間 ' + times.join('；') + '</div>' : '') +
+        (locs.length ? '<span class="ob-hint">點擊查看地圖</span>' : '') + '</div>';
+    }
+    Object.keys(zones).forEach(function (zid) { groups.gather.push({ html: gatherCard(zones[zid], false), sort: 0 }); });
+    Object.keys(tzones).forEach(function (zid) { groups.timed.push({ html: gatherCard(tzones[zid], true), sort: 0 }); });
     (e.gardening || []).forEach(function (g) {
       groups.gather.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-plant"></i> 園藝</b><span class="ob-dim">種子</span></div><div class="ob-cost">' + itemChip(g.seed) + '</div></div>', sort: 2 });
     });
+    const mg = (E().treasureMapGather || {})[itemId];
+    if (mg) {
+      groups.gather.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-shovel"></i> 採集時隨機取得</b><span class="ob-dim">採集等級 Lv.' + mg.level + '</span></div>' +
+        '<div class="ob-note">沒有固定的採集點，依採集等級在採集時隨機獲得</div></div>', sort: 1 });
+    }
 
     // 掉落（怪物）、危命任務
     const mobs = {};
@@ -186,23 +190,27 @@
     (e.fates || []).forEach(function (f) {
       const en = E().fates[f.id] || {};
       const locs = f.x != null ? [{ mapId: f.mapId, zoneId: f.zoneId, x: f.x, y: f.y, label: en.name }] : [];
-      groups.drop.push({ html: '<div class="ob-card' + (locs.length ? ' ob-clickable' : '') + '"' + (locs.length ? ' data-ob-locs=\'' + esc(JSON.stringify(locs)) + '\' data-ob-title="' + esc(en.name || '危命任務') + '"' : '') + '>' +
-        '<div class="ob-line"><b><i class="ph ph-flag-banner"></i> ' + esc(en.name || '#' + f.id) + '</b><span class="ob-badge">危命任務</span><span class="ob-dim">' + (en.level ? 'Lv.' + en.level + '・' : '') + esc(placeName(f.zoneId)) + '</span></div>' + (locs.length ? '<span class="ob-hint">點擊查看地圖</span>' : '') + '</div>', sort: 1 });
+      groups.drop.push({ html: '<div class="ob-card' + (locs.length ? ' ob-clickable' : '') + '"' + (locs.length ? ' data-ob-locs=\'' + esc(JSON.stringify(locs)) + '\' data-ob-title="' + esc(en.name || 'F.A.T.E.') + '"' : '') + '>' +
+        '<div class="ob-line"><b><i class="ph ph-flag-banner"></i> ' + esc(en.name || '#' + f.id) + '</b><span class="ob-badge">F.A.T.E.</span><span class="ob-dim">' + (en.level ? 'Lv.' + en.level + '・' : '') + esc(placeName(f.zoneId)) + '</span></div>' + (locs.length ? '<span class="ob-hint">點擊查看地圖</span>' : '') + '</div>', sort: 1 });
     });
 
     // 副本
     flat(e.instances || []).forEach(function (id) {
       const ins = E().instances[id]; if (!ins) return;
       const ct = E().contentTypes[ins.contentType] || '';
+      const opener = Object.keys(E().treasureHunt || {}).filter(function (m) { return E().treasureHunt[m] === Number(id); });
       groups.instance.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-castle-turret"></i> ' + esc(ins.name) + '</b>' + (ct ? '<span class="ob-badge' + (ct === '尋寶' ? ' ob-badge-hot' : '') + '">' + esc(ct) + '</span>' : '') +
-        '<span class="ob-dim">' + (ins.level ? 'Lv.' + ins.level : '') + (ins.ilvl ? '・iLv.' + ins.ilvl : '') + '</span></div></div>', sort: 0 });
+        '<span class="ob-dim">' + (ins.level ? 'Lv.' + ins.level : '') + (ins.ilvl ? '・iLv.' + ins.ilvl : '') + '</span></div>' +
+        (opener.length ? '<div class="ob-note"><i class="ph ph-map-trifold"></i> 由寶物地圖開啟：' + opener.map(function (m) { return itemChip(Number(m)); }).join('') + '</div>' : '') + '</div>', sort: 0 });
     });
 
     // 開箱獲得／藏寶圖
     const maps = new Set(E().treasureMaps || []);
     flat(e.treasures || []).forEach(function (id) {
       const isMap = maps.has(id);
-      groups[isMap ? 'map' : 'box'].push({ html: '<div class="ob-card"><div class="ob-line">' + itemChip(id) + '<span class="ob-dim">' + (isMap ? '解讀並挖掘藏寶圖可獲得' : '打開這個物品可獲得') + '</span></div></div>', sort: 0 });
+      const leads = isMap && (E().treasureHunt || {})[id] ? (E().instances[E().treasureHunt[id]] || {}).name : '';
+      groups[isMap ? 'map' : 'box'].push({ html: '<div class="ob-card"><div class="ob-line">' + itemChip(id) + '<span class="ob-dim">' + (isMap ? '解讀並挖掘藏寶圖可獲得' : '打開這個物品可獲得') + '</span></div>' +
+        (leads ? '<div class="ob-note"><i class="ph ph-castle-turret"></i> 這張地圖會開啟副本：' + esc(leads) + '</div>' : '') + '</div>', sort: 0 });
     });
 
     // 任務與成就
@@ -212,20 +220,28 @@
     // 探索：潛水艇／飛空艇、探險、無人島
     (e.voyages || []).forEach(function (k) {
       const v = E().voyages[k]; if (!v) return;
-      groups.explore.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-' + (v.kind === 'airship' ? 'airplane-tilt' : 'sailboat') + '"></i> ' + esc(v.name) + '</b><span class="ob-badge">' + (v.kind === 'airship' ? '飛空艇探索' : '潛水艇探索') + '</span></div></div>', sort: 0 });
+      // 探索點所屬的探索海域：沿用網站自己的潛水艇／飛空艇資料（SUB_SECTORS／MAP_NAMES），以探索點名稱對應
+      const zh = String(v.name).replace(/^[A-Za-z]+[\u3000 ]*/, '').trim();
+      let area = '';
+      if (v.kind === 'airship') area = '雲海';
+      else if (typeof SUB_SECTORS !== 'undefined' && typeof MAP_NAMES !== 'undefined') {
+        const sec = SUB_SECTORS.find(function (r) { return r[4] === zh; });
+        if (sec) area = MAP_NAMES[sec[1]] || '';
+      }
+      groups.explore.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-' + (v.kind === 'airship' ? 'airplane-tilt' : 'sailboat') + '"></i> ' + esc(zh || v.name) + '</b><span class="ob-badge">' + (v.kind === 'airship' ? '飛空艇探索' : '潛水艇探索') + '</span>' + (area ? '<span class="ob-dim">探索海域：' + esc(area) + '</span>' : '') + '</div></div>', sort: 0 });
     });
     (e.ventures || []).forEach(function (v) {
       const en = E().ventures[v.id] || {};
-      groups.explore.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-compass"></i> ' + esc(en.name || '探險') + '</b><span class="ob-badge">雇員探險</span><span class="ob-dim">' + (v.lvl ? 'Lv.' + v.lvl : '') + '</span></div></div>', sort: 1 });
+      groups.explore.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-compass"></i> ' + esc(en.name || '探險') + '</b><span class="ob-badge">僱員探險</span><span class="ob-dim">' + (v.lvl ? 'Lv.' + v.lvl : '') + '</span></div></div>', sort: 1 });
     });
     if ((e.islandPasture || []).length || (e.islandCrop || []).length) {
-      groups.explore.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-island"></i> 無人島</b><span class="ob-dim">' + ((e.islandPasture || []).length ? '牧場' : '') + ((e.islandPasture || []).length && (e.islandCrop || []).length ? '、' : '') + ((e.islandCrop || []).length ? '農地' : '') + '</span></div></div>', sort: 2 });
+      groups.explore.push({ html: '<div class="ob-card"><div class="ob-line"><b><i class="ph ph-island"></i> 無人島</b><span class="ob-dim">' + ((e.islandPasture || []).length ? '牧場' : '') + ((e.islandPasture || []).length && (e.islandCrop || []).length ? '、' : '') + ((e.islandCrop || []).length ? '耕地' : '') + '</span></div></div>', sort: 2 });
     }
 
     // 分解／精選
     ['desynth', 'reduction'].forEach(function (k) {
       flat(e[k] || []).forEach(function (id) {
-        groups.desynth.push({ html: '<div class="ob-card"><div class="ob-line">' + itemChip(id) + '<span class="ob-dim">' + (k === 'desynth' ? '分解可獲得' : '精選可獲得') + '</span></div></div>', sort: k === 'desynth' ? 0 : 1 });
+        groups.desynth.push({ html: '<div class="ob-card"><div class="ob-line">' + itemChip(id) + '<span class="ob-dim">' + (k === 'desynth' ? '道具分解後可獲得' : '精選後可獲得') + '</span></div></div>', sort: k === 'desynth' ? 0 : 1 });
       });
     });
 
@@ -279,7 +295,7 @@
     }
     body.innerHTML = tags.map(function (t) {
       const g = state.groups[t.id];
-      return '<section class="ob-section">' + (tag === 'all' ? '<h4 class="ob-sec-title">' + t.label + ' <span>' + g.length + '</span></h4>' : '') + renderEntries(g, t.id) + '</section>';
+      return '<section class="ob-section">' + (tag === 'all' ? '<h4 class="ob-sec-title">' + t.label + ' <span>' + g.length + '</span></h4>' : '') + (HELP[t.id] ? '<p class="ob-help">' + HELP[t.id] + '</p>' : '') + renderEntries(g, t.id) + '</section>';
     }).join('');
   }
   function renderTabs() {
@@ -317,8 +333,9 @@
     $('ob-tabs').innerHTML = '';
     $('ob-body').innerHTML = '<div class="ob-empty">載入中…</div>';
     m.style.display = 'flex';
+    const needSub = function () { return (DATA && (DATA.items[itemId] || {}).voyages && typeof SUB_SECTORS === 'undefined') ? new Promise(function (ok) { const sc = document.createElement('script'); sc.src = 'js/sub-data.js'; sc.onload = ok; sc.onerror = ok; document.head.appendChild(sc); }) : Promise.resolve(); };
     Promise.all([
-      loadData(),
+      loadData().then(function (d) { return needSub().then(function () { return d; }); }),
       Promise.resolve(bridge.priceCtx(itemId)).catch(function () { return null; }),
       Promise.resolve(bridge.recipes(itemId)).catch(function () { return []; }),
     ]).then(function (res) {

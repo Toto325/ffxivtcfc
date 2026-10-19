@@ -627,3 +627,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-token-more > summary::-webkit-details-marker { display: none; }
 .market-token-more > summary::before { content: '＋ '; color: var(--gold-deep); }
 .market-token-more[open] > summary::before { content: '－ '; }
+
+.ob-help { grid-column: 1 / -1; margin: 0; font-size: .78rem; color: var(--dim); }
+
+.market-detail-meta { margin-left: 10px; font-size: .72rem; font-weight: 400; color: var(--dim); letter-spacing: .02em; }

@@ -2936,7 +2936,19 @@ app._craftReady = function () {
       $('ccs-hint').textContent = '（品質需 ' + (v * 10) + ' / ' + (info.max * 10) + (tiers ? '・' + (reached === 0 ? '未達第一檔' : reached === tiers.length ? '達到最高檔' : '達到第 ' + reached + ' 檔') : '') + '）';
     }
     refresh(cur);
-    range.addEventListener('input', function () { goalInput.value = range.value; refresh(parseInt(range.value, 10)); });
+    // 拖曳時吸附到門檻（距離門檻約 1.5% 以內就吸過去，這樣才好剛好停在門檻上）；
+    // 按住 Shift 拖曳可微調不吸附，用鍵盤方向鍵或輸入框改數字時也不吸附。
+    let dragging = false; let noSnap = false;
+    const snapDist = Math.max(1, Math.round(info.max * 0.015));
+    range.addEventListener('pointerdown', function (ev) { dragging = true; noSnap = !!ev.shiftKey; });
+    ['pointerup', 'pointercancel', 'blur'].forEach(function (ev) { range.addEventListener(ev, function () { dragging = false; }); });
+    range.addEventListener('input', function () {
+      let v = parseInt(range.value, 10);
+      if (dragging && !noSnap && tiers) {
+        for (let i = 0; i < tiers.length; i++) { if (Math.abs(v - tiers[i]) <= snapDist) { v = tiers[i]; range.value = v; break; } }
+      }
+      goalInput.value = v; refresh(v);
+    });
     box.querySelectorAll('[data-ccs-jump]').forEach(function (b) {
       b.addEventListener('click', function () { range.value = b.dataset.ccsJump; goalInput.value = range.value; refresh(parseInt(range.value, 10)); });
     });
