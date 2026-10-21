@@ -20,20 +20,15 @@
     // 市場頁只需要「全物品名稱索引」＋「市場資料層」，不需要 craft-data.js 那份好幾MB的配方庫，
     // 除非之後要顯示供應鏈視覺化，那時候才臨時另外載入 craft-data.js（用 typeof 判斷避免重複載入）。
     const need = [];
-    if (typeof ITEM_NAMES_TW_ALL === 'undefined') need.push('js/item-names-tw.js');
-    if (typeof ITEM_ICONS_TW_ALL === 'undefined') need.push('js/item-icons-tw.js');
-    if (typeof MarketData === 'undefined') need.push('js/market-data.js');
+    if (typeof ITEM_NAMES_TW_ALL === 'undefined') need.push(['js/item-names-tw.js']);
+    if (typeof ITEM_ICONS_TW_ALL === 'undefined') need.push(['js/item-icons-tw.js']);
+    if (typeof MarketData === 'undefined') need.push(['js/market-data.js', function () { return typeof MarketData !== 'undefined'; }]);
 
     if (!need.length) { renderMarketSkeleton(); return; }
-    let loaded = 0;
-    need.forEach(function (src) {
-      const s = document.createElement('script');
-      s.src = src;
-      s.onload = function () { loaded++; if (loaded === need.length) renderMarketSkeleton(); };
-      s.onerror = function () {
-        root.innerHTML = '<div class="craft-loading craft-error">資料載入失敗，請重新整理再試一次。</div>';
-      };
-      document.body.appendChild(s);
+    // 走共用載入器（定義在 craft-panel.js）：market-data.js 生產頁也會載，不能各載各的
+    Promise.all(need.map(function (n) { return app.loadScriptOnce(n[0], n[1]); })).then(function (results) {
+      if (results.every(Boolean)) { renderMarketSkeleton(); return; }
+      root.innerHTML = '<div class="craft-loading craft-error">資料載入失敗，請重新整理再試一次。</div>';
     });
   };
 
@@ -719,21 +714,22 @@
      * 賣速徽章不受影響（它有自己的範圍標示）。 */
     function velBadgeHtml(v, scopeWorld) {
       if (v && (v.nqVelocityPerDay != null || v.hqVelocityPerDay != null)) {
-        return '<span class="market-stat-badge">賣速 NQ ' + (v.nqVelocityPerDay || 0).toFixed(1) + '/天　HQ ' + (v.hqVelocityPerDay || 0).toFixed(1) + '/天（' + (scopeWorld || '所有世界') + '）</span>';
+        // 「/天」寫在前面當單位標題，後面就不用重複兩次；範圍（所有世界／某世界）下拉選單已經標示且會連動，這裡不再重複
+        return '<span class="market-stat-badge" title="每天賣出幾件（' + (scopeWorld || '所有世界') + '）">賣速/天 NQ' + (v.nqVelocityPerDay || 0).toFixed(1) + ' HQ' + (v.hqVelocityPerDay || 0).toFixed(1) + '</span>';
       }
       if (v && v.usedScope === null) return '<span class="market-stat-badge market-stat-badge-muted">近4天查無成交' + (scopeWorld ? '（' + scopeWorld + '）' : '') + '</span>';
       return '';
     }
     function buildStatBarHtml(st) {
       const parts = [];
-      if (st.minPrice) parts.push('<span class="market-stat-badge market-stat-badge-strong">目前最低 ' + st.minPrice.toLocaleString() + '金</span>');
+      if (st.minPrice) parts.push('<span class="market-stat-badge market-stat-badge-strong" title="目前掛單中最低的單價（單位：金）">在售最低 ' + st.minPrice.toLocaleString() + '</span>');
       // 均價：近24小時實際成交均價，不是掛單快照均價（掛單均價容易被囤積的高價/低價單誤導）。
       // 24小時內沒有成交的冷門物品，退回用掛單均價並標＊，註明這不是真的成交均價。
       if (st.avgLoading) parts.push('<span class="market-stat-badge market-stat-badge-muted">均價 計算中⋯</span>');
       // 第3點：清楚分開「成交均價」（真的有成交紀錄算出來的）跟「掛單均價」（沒有成交紀錄可用，退而求其次，
       // 拿現在架上還沒賣掉的掛單價格取平均頂替），不要都叫「均價」混在一起，容易讓人誤以為是同一種東西。
-      else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-badge market-stat-badge-btn" id="mk-avgprice-badge">' + (st.avgIsFallback ? '掛單均價 ' : '成交均價 ') + st.avgDisplay.toLocaleString() + '金<i class="ph ph-caret-down" style="font-size:9px;margin-left:3px"></i></button>');
-      if (st.maxPrice) parts.push('<span class="market-stat-badge">最高 ' + st.maxPrice.toLocaleString() + '金</span>');
+      else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-badge market-stat-badge-btn" id="mk-avgprice-badge">' + (st.avgIsFallback ? '掛單均價 ' : '成交均價 ') + st.avgDisplay.toLocaleString() + '<i class="ph ph-caret-down" style="font-size:9px;margin-left:3px"></i></button>');
+      if (st.maxPrice) parts.push('<span class="market-stat-badge" title="目前掛單中最高的單價（單位：金）">在售最高 ' + st.maxPrice.toLocaleString() + '</span>');
       if (st.velLoading) parts.push('<span class="market-stat-badge market-stat-badge-muted">賣速 計算中⋯</span>');
       else { const vb = velBadgeHtml(st.velocity, st.scopeWorld); if (vb) parts.push(vb); }
       return parts.join('');
@@ -754,9 +750,11 @@
     const footNotes = [];
     if (taxInfo && overview && overview.minPrice) {
       const netMin = Math.round(overview.minPrice * (1 - taxInfo.ratePercent / 100));
-      footNotes.push('貼最低價在' + taxInfo.cityName + '寄售（稅率最低，扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%）約拿 <span style="color:#4ade80">' + netMin.toLocaleString() + ' 金</span>');
+      const taxPct = Math.round(taxInfo.ratePercent * 10) / 10;
+      // 畫面上只留「寄售稅後 ≈49（3%）」，完整意思（哪個城市、為什麼是這個稅率）放提示文字，不佔橫向空間
+      footNotes.push('<span title="貼最低價在' + taxInfo.cityName + '寄售（目前稅率最低，扣' + taxPct + '%），約拿 ' + netMin.toLocaleString() + ' 金">寄售稅後 ≈ <span style="color:#4ade80">' + netMin.toLocaleString() + '</span>（' + taxPct + '%）</span>');
     }
-    if (overview && overview.lastUploadTime) footNotes.push('資料更新於 ' + timeAgo(overview.lastUploadTime / 1000));
+    if (overview && overview.lastUploadTime) footNotes.push(timeAgo(overview.lastUploadTime / 1000) + '更新');
 
     html += '<div class="market-stat-bar" id="mk-stat-bar">' + buildStatBarHtml(dcStat) + '</div>';
     if (footNotes.length) html += '<p class="market-stat-foot craft-muted">' + footNotes.join('　·　') + '</p>';
@@ -771,6 +769,12 @@
     // 「魔晶石數量」是遊戲那邊跟這個查詢介面無關的欄位，照你的指示忽略掉。
     // 第8點：世界欄位改成篩選下拉，預設「所有世界」，選了特定世界就只顯示那個世界的掛單。
     const dcWorlds = MarketData.getSettings().dcName ? await MarketData.listWorldNamesInDc(MarketData.getSettings().dcName).catch(function () { return []; }) : [];
+    // 各世界目前最低價（取自整個資料中心「最便宜的100筆」）：玩家不用逐一切換世界，打開下拉就看得出哪個世界最便宜。
+    // 沒有出現在這100筆裡的世界，最低價一定比第100筆還高，不顯示數字（不會誤導成「沒有在賣」）。
+    const worldMinPrice = {};
+    overview.listings.forEach(function (l) {
+      if (worldMinPrice[l.world] == null || l.pricePerUnit < worldMinPrice[l.world]) worldMinPrice[l.world] = l.pricePerUnit;
+    });
     html += '<p class="market-subheading">目前掛單（共 ' + overview.listings.length + ' 筆） ' +
         '<button type="button" class="market-history-btn" data-mk-open-history="1">查看最近成交紀錄</button>' +
         '<button type="button" class="market-history-btn" id="mk-hq-filter-btn">只顯示HQ</button>' +
@@ -779,7 +783,7 @@
           // optgroup 的標題列看起來像分類、不能被選取，只當說明用；預設選中的仍是裡面第一個「所有世界」（標題的配色見 page-market.css）
           '<optgroup label="掛單、均價、賣速、成交及走勢圖顯示範圍">' +
             '<option value="ALL">所有世界</option>' +
-            dcWorlds.map(function (w) { return '<option value="' + w + '">' + w + '</option>'; }).join('') +
+            dcWorlds.map(function (w) { return '<option value="' + w + '">' + w + (worldMinPrice[w] != null ? '　' + worldMinPrice[w].toLocaleString() : '') + '</option>'; }).join('') +
           '</optgroup>' +
         '</select>' +
         '<label class="market-fee-toggle-inline"><input type="checkbox" id="mk-fee-toggle"' + (taxInfo && taxInfo.ratePercent ? '' : ' disabled') + '/> 總計價格算入跨城市手續費</label>' +
@@ -787,7 +791,7 @@
       // 第7點：表頭獨立在捲動區域外面（跟成交紀錄彈窗同一招），欄寬用同一組mfr-*class對齊，
       // 不再用<table><thead>，捲動時表頭固定不動，資料列在下面單獨捲動。
       '<div class="market-flexrow market-flexrow-head">' +
-        '<span class="mfr-hq">優質</span><span class="mfr-price">價格</span><span class="mfr-qty">數量</span><span class="mfr-total">總計價格</span><span class="mfr-buyer">僱員名</span><span class="mfr-world">世界</span>' +
+        '<span class="mfr-price mfr-r">價格(金)</span><span class="mfr-qty mfr-r">數量</span><span class="mfr-total mfr-r">總價</span><span class="mfr-buyer mfr-fit">僱員</span><span class="mfr-world">世界</span>' +
       '</div>' +
       '<div id="mk-listing-table-slot"></div>';
     box.innerHTML = html;
@@ -870,7 +874,10 @@
       const feeRate = (taxInfo && taxInfo.ratePercent) ? taxInfo.ratePercent / 100 : 0;
       $('mk-listing-table-slot').innerHTML = rows.length ? rows.map(function (l) {
         const total = l.pricePerUnit * l.quantity * (includeFee ? (1 + feeRate) : 1);
-        return '<div class="market-flexrow"><span class="mfr-hq">' + (l.hq ? hqIconHtml() : '') + '</span><span class="mfr-price">' + l.pricePerUnit.toLocaleString() + '金</span><span class="mfr-qty">' + l.quantity.toLocaleString() + '</span><span class="mfr-total">' + Math.round(total).toLocaleString() + '金</span><span class="mfr-buyer">' + (l.retainerName || '—') + '</span><span class="mfr-world">' + l.world + '</span></div>';
+        // 以前有獨立的「優質」欄，絕大多數列是空的，白白佔一整欄寬度；HQ標籤改放在價格格子的左側，數字維持靠右對齊。
+        // 僱員名不截斷（名字最長約6~7個字，空間夠就完整顯示），只有放不下才用…並且滑鼠停留看全名。
+        const buyerName = l.retainerName || '—';
+        return '<div class="market-flexrow"><span class="mfr-price mfr-pricehq"><span>' + (l.hq ? hqIconHtml() : '') + '</span><span>' + l.pricePerUnit.toLocaleString() + '</span></span><span class="mfr-qty mfr-r">' + l.quantity.toLocaleString() + '</span><span class="mfr-total mfr-r">' + Math.round(total).toLocaleString() + '</span><span class="mfr-buyer mfr-fit" title="' + buyerName + '">' + buyerName + '</span><span class="mfr-world">' + l.world + '</span></div>';
       }).join('') : '<p class="craft-muted" style="padding:8px 0">這個世界目前查無掛單</p>';
     }
     renderListingTableFromActiveSet();
@@ -1415,22 +1422,12 @@
     loadRange();
   }
 
-  // 第5點排查時發現的潛在問題：supply chain跟製作商機各自獨立判斷「CRAFT_RECIPES存在嗎」
-  // 再決定要不要注入<script>，如果使用者在第一份還沒下載完（3.9MB不小）時就觸發第二個入口，
-  // 兩邊都會判斷「不存在」而各自注入一次，變成同一個全域const被宣告兩次，會直接丟例外。
-  // 集中成一個共用的載入中promise，晚到的呼叫者等同一個promise，不會重複注入。
-  let craftDataLoadPromise = null;
+  // 第5點排查時發現的潛在問題：supply chain跟製作商機各自獨立判斷「CRAFT_RECIPES存在嗎」再注入<script>，
+  // 兩邊都會判斷「不存在」而各自注入一次。後來生產頁（buildCraft）也有同樣問題，所以不再自己維護promise，
+  // 全部集中到共用的 app.loadScriptOnce（craft-panel.js）：市場頁、生產頁、任何晚到的呼叫者都等同一個promise。
   function ensureCraftDataLoaded() {
-    if (typeof CRAFT_RECIPES !== 'undefined') return Promise.resolve(true);
-    if (craftDataLoadPromise) return craftDataLoadPromise;
-    craftDataLoadPromise = new Promise(function (resolve) {
-      const s = document.createElement('script');
-      s.src = 'js/craft-data.js';
-      s.onload = function () { resolve(typeof CRAFT_RECIPES !== 'undefined'); };
-      s.onerror = function () { resolve(false); }; // 抓不到就算了，退回不顯示供應鏈，不要卡住整個詳情頁
-      document.body.appendChild(s);
-    });
-    return craftDataLoadPromise;
+    return app.loadScriptOnce('js/craft-data.js', function () { return typeof CRAFT_RECIPES !== 'undefined'; })
+      .then(function (ok) { return ok && typeof CRAFT_RECIPES !== 'undefined'; }); // 抓不到就退回不顯示供應鏈，不要卡住詳情頁
   }
 
   /* ── 取得方式（兌換／NPC商店）：跟 craft-data.js 同一套「點到才動態載入」的做法，
@@ -1947,7 +1944,12 @@
     // 用途卡片一樣是「這個成品該自己做還是買」的獨立判斷，跟它是不是中心物品的材料無關。
     // 差額＝買要花多少−做要花多少，正數＝自己做比較省、負數＝直接買比較省，兩種情況都要讓玩家
     // 不展開明細就看到實際數字，自己判斷值不值得花時間做。
-    const decisionByItem = {}, deltaByItem = {};
+    const decisionByItem = {}, deltaByItem = {}, neglByItem = {};
+    // 「差距小到可以忽略就直接買」的門檻：做要花時間（無法用金額衡量），所以小差距不值得為它去做。
+    // 門檻＝10金 或 買價的5%，取較大的（買價幾十萬的東西，差10金當然算相近），再乘上要做的數量。
+    // 常數必須放在函式最前面：下面算每張卡片的差額時就要用到，放在後面會踩到「變數尚未宣告」。
+    const NEGL_MIN = 10, NEGL_PCT = 0.05;
+    function neglThreshold(unitBuy, qty) { return Math.max(NEGL_MIN, (unitBuy || 0) * NEGL_PCT) * (qty || 1); }
     if (dcData) {
       const allIds = ings.map(function (ing) { return ing.itemId; })
         .concat(usedInRids.map(function (urid) { const r = CRAFT_RECIPES[urid]; return r ? r.itemId : null; }).filter(Boolean));
@@ -1961,8 +1963,29 @@
           // 也不受中心物品的數量調整影響（調整的是中心物品要做幾個，不是這個用途成品要做幾個）。
           const ing = ings.find(function (x) { return x.itemId === id; });
           deltaByItem[id] = (res.buy - res.craft) * (ing ? ing.amount * craftMultiplier : 1);
+          neglByItem[id] = neglThreshold(res.buy, ing ? ing.amount * craftMultiplier : 1);
         }
       });
+    }
+
+    // 中心物品「本身」的買/做比較：成品直接買的價錢 vs 自己做（材料各自取較便宜）的成本。
+    // 以前這裡用的是 bd.totalBuy − bd.totalAuto，那是「材料全買 vs 材料各選較便宜」，只反映材料要不要再往下自製，
+    // 成品本身的市價從頭到尾沒拿來比，所以成品其實直接買便宜很多時，結論卻寫「買／做價格接近」。
+    // resolveItemBuyCraft 本來就能算任何物品（含產出數量與水晶開關），直接拿來用，不用另外寫演算法。
+    let centerCmp = null;
+    if (dcData && rid) {
+      const cres = resolveItemBuyCraft(itemId, dcData, settings.materialsBasis, settings);
+      if (cres.craftable && (cres.buy != null || cres.craft != null)) {
+        const buyT = cres.buy != null ? cres.buy * craftMultiplier : null;
+        const craftT = cres.craft != null ? cres.craft * craftMultiplier : null;
+        let winner, save = null;
+        if (buyT != null && craftT != null) {
+          save = buyT - craftT; // 正數＝自己做比較省
+          const negl = neglThreshold(cres.buy, craftMultiplier);
+          winner = save > negl ? 'craft' : (save < -negl ? 'buy' : 'tie'); // tie＝相近，建議直接買
+        } else winner = buyT != null ? 'buy' : 'craft'; // 只有一邊有價格，只能選那一邊
+        centerCmp = { buyT: buyT, craftT: craftT, save: save, winner: winner };
+      }
     }
 
     // 材料（下排）：可製作的點下去能繼續往下鑽
@@ -1976,14 +1999,18 @@
       if (!r) return null;
       return { itemId: r.itemId, rid: urid, name: ITEM_NAMES_TW_ALL[r.itemId] || r.itemId };
     }).filter(Boolean);
-    const useOverflow = useNodesFull.length > SUPPLY_NODE_LIMIT;
-    const useNodes = useOverflow ? useNodesFull.slice(0, SUPPLY_NODE_LIMIT - 1) : useNodesFull;
-
     // 版面尺寸：卡片固定寬高，數量決定整排多寬，不會因為卡片一多就把單張卡片擠小
     const CARD_W = 96, CARD_H = 88, GAP = 16, PAD = 14;
-    // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」；有配方時多顯示一行數量（×N），
-    // 要多留13px高度給這行字，不然價格文字會被擠到卡片外面（跟一般卡片line2的排版邏輯一致）。
-    const CENTER_W = 112, CENTER_H = 84; // 數量改顯示在−/＋按鈕中間（卡片外面），卡片本身不用再加高
+    // 上排（用途）一排最多放幾張：以前固定6張，欄位一窄整張SVG就等比例縮小，字也跟著縮到看不清楚。
+    // 改成依「這個欄位目前實際多寬」算放得下幾張（最少3、最多SUPPLY_NODE_LIMIT），放不下的收進「還有N種」，
+    // 這樣字級維持不變。量不到寬度（容器還沒顯示）時退回原本的上限。材料排不能收合（每項都是必要材料），維持原樣。
+    const availW = box.clientWidth || 0;
+    const fitCount = availW > 0 ? Math.floor((availW - PAD * 2 + GAP) / (CARD_W + GAP)) : SUPPLY_NODE_LIMIT;
+    const nodeLimit = Math.max(3, Math.min(SUPPLY_NODE_LIMIT, fitCount));
+    const useOverflow = useNodesFull.length > nodeLimit;
+    const useNodes = useOverflow ? useNodesFull.slice(0, nodeLimit - 1) : useNodesFull;
+    // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」；有買/做比較時多放一行（買一行、做一行），多留高度。
+    const CENTER_W = 112, CENTER_H = centerCmp ? 94 : 84;
     const rowCount = Math.max(matNodes.length, useNodes.length + (useOverflow ? 1 : 0), 1);
     const W = Math.max(360, rowCount * CARD_W + (rowCount - 1) * GAP + PAD * 2);
     const cx = W / 2;
@@ -2094,32 +2121,31 @@
     // 第8點：數量(×N)字級加大、換成更亮的顏色＋粗體，一眼就看得到，不用瞇眼看小字。
     // 第10點：卡片多留一行給「查最低價」，先顯示「查價中…」，實際數字由fillCardPrices()非同步填入。
     /* 差額壓縮成短字串，卡片角落空間有限，數字位數不固定（幾金到幾萬金都可能），
-     * 超過一萬就用「萬」簡寫，不然位數一多角落的小徽章會被撐爆。 */
-    function fmtDeltaBadge(n) {
-      const sign = n >= 0 ? '+' : '-';
+     * 超過一萬就用「萬」簡寫，不然位數一多角落的小徽章會被撐爆。
+     * 一萬以下一律加千分位（以前是 8024、9584 這種沒逗號，跟卡片上的 18,470 格式不一致，並排時很難比大小）。
+     * fmtDeltaAbs 不帶正負號（徽章用圖示表示方向）；fmtDeltaBadge 保留正負號（材料明細面板也在用，語意不變）。 */
+    function fmtDeltaAbs(n) {
       const abs = Math.abs(n);
-      const txt = abs >= 10000 ? (abs / 10000).toFixed(1) + '萬' : Math.round(abs).toString();
-      return sign + txt;
+      return abs >= 10000 ? (abs / 10000).toFixed(1) + '萬' : Math.round(abs).toLocaleString();
     }
-    /* 卡片收起狀態就要看得到的實際差額徽章（不是只有顏色）：綠色＝自己做這項省下這個數字，
-     * 橘色＝直接買比較划算、做的話反而多花這個數字——兩個方向都給實際金額，玩家自己拿這個數字
-     * 跟「做這個要花多少時間」比，才能真正判斷划不划算，不是只靠系統說「划算」兩個字。 */
-    const DELTA_NEGLIGIBLE_THRESHOLD = 10; // 差距在這個金額以內就當「價格接近」，不特別標方向，跟結論那句用同一個門檻
-    function deltaBadgeSvg(x, topY, w, delta, badgeItemId) {
+    function fmtDeltaBadge(n) {
+      return (n >= 0 ? '+' : '-') + fmtDeltaAbs(n);
+    }
+    /* 卡片上緣的實際差額徽章（不是只有顏色）：🔨＝自己做這項省下這個數字，🛒＝直接買比較划算、做的話反而多花這個數字。
+     * 跨在卡片上邊框上（一半在框外），不再壓住圖示；數字旁的圖示就是方向，所以不用正負號。
+     * negl＝這張卡片自己的「相近」門檻（買價的5%與10金取大者），差距小於它就顯示「≈」，不特別標方向。 */
+    function deltaBadgeSvg(x, topY, w, delta, badgeItemId, negl) {
       if (delta == null) return '';
-      const negligible = Math.abs(delta) < DELTA_NEGLIGIBLE_THRESHOLD;
+      const limit = negl != null ? negl : NEGL_MIN;
+      const negligible = Math.abs(delta) < limit;
       const color = negligible ? '#a39c8f' : (delta > 0 ? '#4ade80' : '#e0a05a');
-      const bg = negligible ? 'rgba(255,255,255,.08)' : (delta > 0 ? 'rgba(74,222,128,.16)' : 'rgba(224,160,90,.14)');
-      // 數字前面加一個固定圖示（🔨＝自己做划算、🛒＝直接買划算），不用停留滑鼠也能一眼看懂方向，
-      // 跟結論徽章、明細面板用同一套圖示語言，整個頁面對「做」「買」只有這兩個圖示，意思統一。
+      const bg = negligible ? '#2b2822' : (delta > 0 ? '#16301f' : '#33261a'); // 不透明底色：跨在邊框上，不能讓邊框線透出來
       const icon = negligible ? '' : (delta > 0 ? '🔨' : '🛒');
-      const label = icon + (negligible ? '≈' : fmtDeltaBadge(delta));
+      const label = icon + (negligible ? '≈' : fmtDeltaAbs(delta));
       const bw = Math.max(30, 16 + label.length * 6.2);
-      const bx = x + w / 2 - bw - 3, by = topY + 3, bh = 14;
-      // 滑鼠停留顯示完整意思（原生title提示，不佔畫面空間，不是常駐文字）：正數＝自己做這項省多少，
-      // 負數＝直接買這項省多少，跟結論那句「自製省/直接買省」用同一套語言，不用另外發明說法。
-      const tip = negligible ? '這項材料買或做價格接近（差距<' + DELTA_NEGLIGIBLE_THRESHOLD + '金）'
-        : (delta > 0 ? '這項材料自己做比買省 ' + Math.round(delta).toLocaleString() + ' 金' : '這項材料直接買比做省 ' + Math.round(-delta).toLocaleString() + ' 金');
+      const bx = x + w / 2 - bw - 3, by = topY - 7, bh = 14;
+      const tip = negligible ? '這項買或做價格接近（差距<' + Math.round(limit).toLocaleString() + '金），建議直接買'
+        : (delta > 0 ? '這項自己做比買省 ' + Math.round(delta).toLocaleString() + ' 金' : '這項直接買比做省 ' + Math.round(-delta).toLocaleString() + ' 金');
       // 徽章本身可以點，點了開明細面板——跟卡片本體的「點了跳轉」是分開的兩個互動區域，
       // 卡片本體click的時候要先判斷有沒有點在這個徽章上，點到了就不要再觸發跳轉（見cardClick綁定處）。
       return '<g class="market-delta-badge" data-mk-detail-item="' + badgeItemId + '"><title>' + tip + '</title><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="7" fill="' + bg + '" stroke="' + color + '" stroke-width="0.8"/>' +
@@ -2138,15 +2164,29 @@
       // decision='buy' 或沒有比較結果：維持原本金色邊框，不用特別標記——「照原樣買」是預設情況，不需要額外提醒。
       const strokeColor = isOverflow ? '#7a736a' : (opts.highlight ? '#f0d9a0' : (opts.decision === 'craft' ? '#4ade80' : '#c5a059'));
       const strokeWidth = opts.highlight ? 2 : (opts.decision === 'craft' ? 1.8 : 1.2);
-      return '<g class="mk-supply-node' + (opts.highlight ? ' mk-supply-node-center' : '') + '"' + clickAttrs + '>' + fit.titleAttr +
+      // 中心卡片：有買/做比較時，價格那行換成「買 X／做 Y」兩行（較便宜的亮色、另一行變暗），不寫句子，省橫向空間。
+      let priceHtml = '';
+      if (opts.centerLines) {
+        priceHtml = opts.centerLines.map(function (ln, k) {
+          return '<text x="' + x + '" y="' + (nameY + 14 + k * 14) + '" text-anchor="middle" font-size="11" fill="' + ln.fill + '" font-weight="' + ln.weight + '">' + ln.text + '</text>';
+        }).join('');
+      } else if (!isOverflow) {
+        priceHtml = '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>';
+      }
+      // 數量（×N）放在中心圖示右邊的空位，不另外佔位置
+      const qtyHtml = opts.qtyText ? '<text x="' + (x + r + 10) + '" y="' + (iconY + 4) + '" font-size="12" fill="#fcf6ba" font-weight="700">' + opts.qtyText + '</text>' : '';
+      // 水晶未計入成本：整張卡片變暗＋左上角一顆💎，不用另外放一個膠囊說明
+      const dimMark = opts.dim ? '<text x="' + (x - w / 2 + 5) + '" y="' + (topY + 13) + '" font-size="10">💎</text>' : '';
+      const titleHtml = opts.cardTitle ? '<title>' + opts.cardTitle + '</title>' : fit.titleAttr;
+      return '<g class="mk-supply-node' + (opts.highlight ? ' mk-supply-node-center' : '') + '"' + (opts.dim ? ' opacity=".5"' : '') + clickAttrs + '>' + titleHtml +
         '<rect x="' + (x - w / 2) + '" y="' + topY + '" width="' + w + '" height="' + h + '" rx="8" fill="' + (opts.highlight ? 'rgba(197,160,89,.18)' : 'rgba(0,0,0,.4)') + '" stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '"/>' +
         (isOverflow
           ? '<text x="' + x + '" y="' + iconY + '" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#ddd">還有</text>'
           : itemIconSvg(iconId, x, iconY, r)) +
         '<text x="' + x + '" y="' + nameY + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
         (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="12" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
-        (isOverflow ? '' : '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>') +
-        deltaBadgeSvg(x, topY, w, opts.delta, iconId) +
+        priceHtml + qtyHtml + dimMark +
+        deltaBadgeSvg(x, topY, w, opts.delta, iconId, opts.negl) +
       '</g>';
     }
 
@@ -2163,7 +2203,12 @@
       // 掃一眼卡片邊框就知道要買還是要做，不用先看完文字才懂。'craft'＝這項材料自己做比買便宜。
       const decision = decisionByItem[n.itemId];
       const delta = deltaByItem[n.itemId];
-      svgParts += cardHtml(x, matTop, n.itemId, n.name, '×' + n.amount, clickAttrs, false, { decision: decision, delta: delta, amount: n.amount });
+      const isCrystalMat = typeof CRYSTAL_ITEM_IDS !== 'undefined' && CRYSTAL_ITEM_IDS.has(Number(n.itemId));
+      const crystalOff = isCrystalMat && settings.includeCrystal === false; // 水晶未計入成本：卡片變暗，不顯示買/做徽章
+      svgParts += cardHtml(x, matTop, n.itemId, n.name, '×' + n.amount, clickAttrs, false, {
+        decision: crystalOff ? undefined : decision, delta: crystalOff ? null : delta, negl: neglByItem[n.itemId], amount: n.amount,
+        dim: crystalOff, cardTitle: crystalOff ? '水晶未計入成本（可在 ⚙ 設定調整）' : ''
+      });
     });
     // 成品／用途排（上）：箭頭從中心往上指向成品，光點屬於 'up' 段。
     // 第12點：這一排的卡片本身也有自己的配方（n.rid），所以點下去不再直接跳走離開這個頁面，
@@ -2176,7 +2221,7 @@
       const b = { x: x, y: useBottom };
       facetV(a, b, bendY1, 'up');
       svgParts += cardHtml(x, useTop, n.itemId, n.name, '', ' data-mk-supply-item="' + n.itemId + '" data-mk-supply-rid="' + n.rid + '"', false,
-        { decision: decisionByItem[n.itemId], delta: deltaByItem[n.itemId] });
+        { decision: decisionByItem[n.itemId], delta: deltaByItem[n.itemId], negl: neglByItem[n.itemId] });
     });
     if (useOverflow) {
       const count = useNodes.length + 1;
@@ -2187,44 +2232,16 @@
       svgParts += cardHtml(x, useTop, '', String(useNodesFull.length - useNodes.length) + '種', '', ' data-mk-usedin-more="1"', true);
     }
 
-    // 結論列：只有這物品本身有配方才需要顯示（用途清單/純原礦沒有「自製vs直購」這回事）。
-    // 用色塊+極短句取代長句子，符合左右並排版面空間有限、能用視覺就不用文字的原則；
-    // 完整每項材料的買/做細節留給「查看完整供應鏈清單」，這裡只給最後結論。
-    let headlineHtml = '';
-    if (rid) {
-      let concl;
-      if (bd && bd.totalBuy != null && bd.totalAuto != null) {
-        const save = (bd.totalBuy - bd.totalAuto) * craftMultiplier;
-        const qtyTag = craftMultiplier > 1 ? '（' + craftMultiplier + '個）' : '';
-        // 三種情況分開處理，不是只有「省」跟「其餘都算多花」兩種——差距小到可以忽略時，
-        // 用「-save」這種算法在save剛好是小額正數時會算出帶負號的極小值（顯示成「-0」這種語病），
-        // 根本原因是把「忽略」硬塞進「多花」分支，這裡拆成獨立的第三種情況就不會有這個問題。
-        const threshold = DELTA_NEGLIGIBLE_THRESHOLD * craftMultiplier; // 做多個的時候門檻也等比例放大，不然買10個時差9金還被當作「有感」
-        if (save > threshold) {
-          concl = '<span class="market-stat-badge market-stat-badge-strong" style="background:rgba(74,222,128,.16);border-color:#4ade80;color:#8fd6a0">🔨 自製省 ' + Math.round(save).toLocaleString() + ' 金' + qtyTag + '</span>';
-        } else if (save < -threshold) {
-          concl = '<span class="market-stat-badge">直接買齊最划算・省 ' + Math.round(-save).toLocaleString() + ' 金' + qtyTag + '</span>';
-        } else {
-          concl = '<span class="market-stat-badge market-stat-badge-muted">買／做價格接近（差距<' + Math.round(threshold).toLocaleString() + '金），皆可' + qtyTag + '</span>';
-        }
-      } else if (bdUnavailable) {
-        concl = '<span class="market-stat-badge market-stat-badge-muted">資料不足，暫無法比較買/做</span>';
-      } else {
-        concl = '';
-      }
-      // 水晶圖示放結論徽章旁邊：亮💎＝這個數字有算水晶成本，暗◇＝沒算；旁邊的數字固定代表
-      // 「水晶在這個總成本裡實際值多少」，不管現在開或關，數字意思都一樣，不用自己換算方向。
-      let crystalDeltaLabel = '';
-      if (crystalImpact != null && crystalImpact >= 1) {
-        crystalDeltaLabel = '<span class="market-crystal-delta">' + Math.round(crystalImpact * craftMultiplier).toLocaleString() + '</span>';
-      }
-      // 開/關都用同一個emoji（避免換成另一個符號在深色底幾乎看不見），用顏色濃淡區分狀態，
-      // 旁邊加「水晶成本」四字標籤（不是解釋句，是名稱），讓數字知道自己在講什麼。
-      const crystalTag = '<button type="button" class="market-supply-crystal-tag' + (settings.includeCrystal ? '' : ' is-off') + '" data-mk-supply-settings-btn="1" title="水晶成本約 ' + (crystalImpact != null ? Math.round(crystalImpact).toLocaleString() : '?') + ' 金，目前' + (settings.includeCrystal ? '已' : '未') + '算入，點擊調整">💎<span class="market-crystal-label">水晶成本</span>' + crystalDeltaLabel + '</button>';
-      headlineHtml = '<div class="market-supply-headrow">' +
-        '<button type="button" class="market-history-btn" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
-        concl + crystalTag +
-      '</div>';
+    // 兩排的小標題：放在橫向連接線最左端的空位（每張卡片的連線都從自己的x往中心拉，最左邊那張卡片的外側本來就沒有線），
+    // 不佔額外高度。上排是「這個物品可以做成什麼」，下排是「做這個物品需要什麼」，箭頭方向才不會讓人猜。
+    if (hasUp) svgParts += '<text x="4" y="' + (bendY1 + 3) + '" font-size="9" fill="#8b8578">可做成</text>';
+    if (hasDown) svgParts += '<text x="4" y="' + (bendY2 + 3) + '" font-size="9" fill="#8b8578">材料</text>';
+    // 每次製作產出多個（yields>1）：標在材料連到中心的線上。「做」的單價已經除過產出數，
+    // 不標的話玩家看下面材料加起來比「做」那行貴，會以為算錯。
+    if (hasDown && yields > 1) {
+      const py = centerBottom + 14, pw = 38;
+      svgParts += '<g><rect x="' + (cx - pw / 2) + '" y="' + (py - 7) + '" width="' + pw + '" height="14" rx="7" fill="#14110d" stroke="#c5a059" stroke-width="0.8"/>' +
+        '<text x="' + cx + '" y="' + (py + 3.5) + '" text-anchor="middle" font-size="9" fill="#fcf6ba" font-weight="700">產×' + yields + '<title>每次製作產出 ' + yields + ' 個；下方材料是做一次的用量，「做」的價格已經除以產出數</title></text></g>';
     }
 
     // 中心卡片旁的數量調整：− 在卡片左邊、＋在卡片右邊（左右夾住卡片，視覺上比較自然），
@@ -2241,22 +2258,43 @@
         '<g class="market-qty-btn" data-mk-qty-step="1"><circle cx="' + plusX + '" cy="' + midY + '" r="' + btnR + '"/><text x="' + plusX + '" y="' + (midY + 3) + '" text-anchor="middle">＋</text></g>';
     }
 
-    // 中心卡片現在也套用跟其他卡片一樣的角落徽章（🔨/🛒＋差額），跟結論徽章呈現同一組數字、
-    // 只是位置不同，不是互相矛盾——結論徽章是整句話講清楚，角落徽章是跟其他卡片一致的簡短版本。
-    let centerDecision, centerDelta;
-    if (bd && bd.totalBuy != null && bd.totalAuto != null) {
-      const centerSave = (bd.totalBuy - bd.totalAuto) * craftMultiplier;
-      centerDecision = centerSave > 0 ? 'craft' : 'buy';
-      centerDelta = centerSave;
+    // 中心卡片的「買／做」兩行：較便宜的那行亮色、另一行變暗。差距小到可以忽略（tie）時一律建議直接買，
+    // 所以亮的是「買」那行、而且不出現省多少的徽章——沒有徽章就代表「沒有值得為它去做的差距」。
+    // 以前這裡有一整排膠囊（結論＋水晶成本＋齒輪），現在全部拿掉，資訊直接放進卡片。
+    let centerLines = null, centerDelta = null, centerTitle = '';
+    if (centerCmp) {
+      const c = centerCmp;
+      const DIM = '#a39c8f';
+      const buyWins = c.winner === 'buy' || c.winner === 'tie';
+      const craftWins = c.winner === 'craft';
+      const bright = craftWins ? '#4ade80' : '#fcf6ba';
+      centerLines = [
+        { text: '買 ' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價'), fill: buyWins ? bright : DIM, weight: buyWins ? 700 : 400 },
+        { text: '做 ' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價'), fill: craftWins ? bright : DIM, weight: craftWins ? 700 : 400 }
+      ];
+      if (c.winner === 'craft' || c.winner === 'buy') centerDelta = c.save;
+      const verdict = c.save == null ? ''
+        : (c.winner === 'craft' ? '自己做省 ' + Math.round(c.save).toLocaleString() + ' 金'
+          : (c.winner === 'buy' ? '直接買省 ' + Math.round(-c.save).toLocaleString() + ' 金'
+            : '價格接近，建議直接買（做還要花時間）'));
+      centerTitle = '直接買 ' + (c.buyT != null ? Math.round(c.buyT).toLocaleString() : '無報價') + ' 金／自己做 ' +
+        (c.craftT != null ? Math.round(c.craftT).toLocaleString() : '無法估價') + ' 金（' + (settings.includeCrystal === false ? '不含水晶' : '含水晶') + '）' +
+        (craftMultiplier > 1 ? '，' + craftMultiplier + ' 個' : '') + (verdict ? '。' + verdict : '');
     }
     box.innerHTML =
-      headlineHtml +
       '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="market-supply-svg"><defs>' + svgDefs + '</defs>' +
         svgParts +
-        cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, { w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true, priceElId: 'mk-center-price', decision: centerDecision, delta: centerDelta }) +
+        cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, {
+          w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true, priceElId: 'mk-center-price',
+          delta: centerDelta, negl: 0, centerLines: centerLines, cardTitle: centerTitle, qtyText: rid ? '×' + craftMultiplier : ''
+        }) +
         qtyCtrlHtml +
       '</svg>' +
-      '<div class="market-fullchain-btn-row"><button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button></div>';
+      '<div class="market-fullchain-btn-row">' +
+        '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
+        '<button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button>' +
+      '</div>' +
+      '<p class="market-supply-key">🔨 做較省　🛒 買較省　≈ 相近（建議直接買）　單位：金</p>';
 
     box.querySelector('[data-mk-open-fullchain]').addEventListener('click', function () { openFullChainModal(itemId, rid); });
     box.querySelectorAll('[data-mk-qty-step]').forEach(function (btn) {
@@ -2340,9 +2378,9 @@
       // 總價用tspan單獨上色，不要整句字色混在一起看不出哪段是單價哪段是總價。
       const amount = Number(el.dataset.amount);
       if (amount > 1) {
-        el.innerHTML = Math.round(p).toLocaleString() + '金<tspan fill="#bfe8c8" font-size="11" font-weight="700">＝' + fmtTotalGil(p * amount) + '</tspan>';
+        el.innerHTML = Math.round(p).toLocaleString() + '<tspan fill="#bfe8c8" font-size="11" font-weight="700">＝' + fmtTotalGil(p * amount) + '</tspan>';
       } else {
-        el.textContent = Math.round(p).toLocaleString() + '金';
+        el.textContent = Math.round(p).toLocaleString(); // 單位「金」統一寫在圖例，卡片上不重複，省橫向空間
       }
     });
   }

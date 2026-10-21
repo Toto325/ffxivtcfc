@@ -338,22 +338,33 @@ function newAcc() {
   PERSP.forEach(function (p) { a[p] = [emptyW(), emptyW(), emptyW(), emptyW(), emptyW()]; }); // 24h, 48h, 3d, 7d, 30d
   return a;
 }
-/* 排除異常成交：跟這批成交的「中位數」比，同時差距超過100萬金且超過100倍才排除（用中位數而不是平均數，
- * 這樣做的原因正是要抵抗離群值——平均數本身就會被一兩筆極端值拉走，中位數不會，除非離群值多到佔一半以上）。
+/* 排除異常成交：跟這批成交的「中位數」比，同時「差距超過 OUTLIER_MIN_DIFF 金」且「超過 OUTLIER_RATIO 倍」才排除
+ * （用中位數當基準而不是平均數，是因為平均數本身會被一兩筆極端值拉走，中位數不會，除非離群值多到佔一半以上）。
+ *
+ * 【門檻從「100萬金且100倍」收緊成「1000金且10倍」】舊門檻只能擋掉明顯亂填的天價（例如3,100萬金），
+ * 但對便宜材料幾乎沒作用——材料中位數50金時，一筆2,222金（約44倍）的成交差距不到100萬，不會被排除，
+ * 照樣把均價拉高到193金，玩家看到「均價193、最低50」會誤以為行情比實際貴很多。
+ * 新規則是舊規則的超集合（凡是舊規則會排除的，新規則一定也排除），只是多擋了「便宜物品上的中度離群值」。
+ * 兩個條件缺一不可：倍數門檻擋離譜的比例，最小差距擋「1金 vs 20金」這種金額小到不影響判斷的雜訊。
+ * ⚠️ 這個規則必須跟 js/market-data.js 的 excludeOutlierEntries 完全一致，改一邊一定要改另一邊，
+ * 否則「每小時快照算出來的均價」跟「即時查詢算出來的均價」會對不上，看起來像 bug。
+ *
  * 用「每件」的單價比較（pricePerUnit 本來就是單價，不是總價），所以材料一次賣1個或99個不會被誤判成異常。
  * 少於3筆時不判斷（2筆以下沒辦法定義「其他交易」，也容易誤殺剛好差很多的正常小樣本）。*/
+const OUTLIER_RATIO = 10;      // 跟中位數差幾倍以上才算離群（大於這個值才排除）
+const OUTLIER_MIN_DIFF = 1000; // 而且價差至少要有這麼多金（大於這個值才排除）
 /* 修正一個實際發生過的漏洞：只有1、2筆成交時，原本「少於3筆完全不判斷」，等於放行任何價格，
  * 曾經真的出現「某個世界只抓到2筆，一筆4,000金一筆3,100萬金」這種誇張情況，兩筆都沒被排除，
  * 3,100萬金那筆混進「所有世界」合併平均，直接把均價拉到200多萬。
  * 只有1筆的時候還是沒辦法判斷（沒有「其他交易」可以比較），維持不處理；
- * 剛好2筆的時候，拿「兩筆之中比較便宜的那筆」當基準，另一筆如果同時符合差距超過100萬、超過100倍，就排除它
- * ——這是唯一站得住腳的方向：正常情況不會有兩筆合法成交差到7000倍，便宜的那筆本來就比較貼近行情。 */
+ * 剛好2筆的時候，拿「兩筆之中比較便宜的那筆」當基準，另一筆如果同時符合差距與倍數門檻，就排除它
+ * ——這是唯一站得住腳的方向：正常情況不會有兩筆合法成交差到這麼多，便宜的那筆本來就比較貼近行情。 */
 function excludeOutliers(entries) {
   if (entries.length < 2) return entries;
   if (entries.length === 2) {
     const a = entries[0].price, b = entries[1].price;
     const lo = Math.min(a, b), hi = Math.max(a, b);
-    if (hi - lo > 1000000 && hi / lo > 100) return a <= b ? [entries[0]] : [entries[1]];
+    if (hi - lo > OUTLIER_MIN_DIFF && hi / lo > OUTLIER_RATIO) return a <= b ? [entries[0]] : [entries[1]];
     return entries;
   }
   const prices = entries.map(function (e) { return e.price; }).sort(function (a, b) { return a - b; });
@@ -362,9 +373,9 @@ function excludeOutliers(entries) {
   if (!median) return entries;
   return entries.filter(function (e) {
     const diff = Math.abs(e.price - median);
-    if (diff <= 1000000) return true;
+    if (diff <= OUTLIER_MIN_DIFF) return true;
     const ratio = e.price >= median ? e.price / median : median / e.price;
-    return ratio <= 100;
+    return ratio <= OUTLIER_RATIO;
   });
 }
 /* accumulate() 保留給「熱門道具逐級加寬」那條路徑用（單一世界內部自己夠不夠判斷，維持原樣不動）。

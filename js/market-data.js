@@ -588,8 +588,12 @@ window.MarketData = (function () {
   }
   function setSellCity(cityKey) { settings.sellCityKey = cityKey || null; saveSettings(); }
   function setExcludeOutlierTrades(on) { settings.excludeOutlierTrades = !!on; saveSettings(); }
-  /* 排除異常成交（即時查詢這邊用的版本，跟抓取腳本裡的邏輯規則完全一樣：中位數，同時差距超過100萬且超過100倍才排除）。
+  /* 排除異常成交（即時查詢這邊用的版本，規則必須跟 scripts/update-market-data.js 的 excludeOutliers 完全一致）：
+   * 跟這批成交的中位數比，同時「差距超過 OUTLIER_MIN_DIFF 金」且「超過 OUTLIER_RATIO 倍」才排除。
+   * 為什麼是這組數字、為什麼兩邊要一致，說明寫在 scripts/update-market-data.js 同名函式上方，這裡不重複。
    * 少於3筆不判斷。傳入的是每一筆的 pricePerUnit 陣列。 */
+  const OUTLIER_RATIO = 10;      // ⚠️ 改這裡要同步改 scripts/update-market-data.js
+  const OUTLIER_MIN_DIFF = 1000; // ⚠️ 改這裡要同步改 scripts/update-market-data.js
   function excludeOutlierEntries(entries, priceOf) {
     if (!settings.excludeOutlierTrades || entries.length < 3) return entries;
     const prices = entries.map(priceOf).slice().sort(function (a, b) { return a - b; });
@@ -599,9 +603,9 @@ window.MarketData = (function () {
     return entries.filter(function (e) {
       const price = priceOf(e);
       const diff = Math.abs(price - median);
-      if (diff <= 1000000) return true;
+      if (diff <= OUTLIER_MIN_DIFF) return true;
       const ratio = price >= median ? price / median : median / price;
-      return ratio <= 100;
+      return ratio <= OUTLIER_RATIO;
     });
   }
   async function getSellTaxInfo(worldNameStr) {

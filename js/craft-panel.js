@@ -55,25 +55,51 @@ var SPECIAL_ACTIONS = [
  * 這類材料遊戲裡沒有HQ版本，介面上要整排鎖住只能選NQ，不是我們忘記給選項。 */
 var CRYSTAL_ITEM_IDS = new Set([2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]);
 
+/* 共用的「同一個檔案只注入一次」載入器，生產頁跟市場頁都用這支。
+ * 為什麼需要：craft-data.js／market-data.js 這類檔案是頂層 const 宣告，同一個頁面注入第二次就會丟
+ * 「Identifier 'CRAFT_RECIPES' has already been declared」。以前兩邊各自用自己的旗標判斷
+ * （生產頁只擋自己的重複點擊、市場頁只看 typeof），互相不知道對方已經載入或正在載入，
+ * 所以「先在市場頁看物品、再進生產頁」就會重複注入。
+ * 做法：以 src 為 key 保存 promise——已經載入完（isLoaded）直接回傳、正在載入就等同一個 promise、
+ * 失敗才清掉快取讓下次可以重試。不管哪一邊先呼叫、中途被另一邊呼叫，都只會有一個 <script>。 */
+app._scriptLoads = app._scriptLoads || {};
+app.loadScriptOnce = function (src, isLoaded) {
+  if (typeof isLoaded === 'function' && isLoaded()) return Promise.resolve(true);
+  if (app._scriptLoads[src]) return app._scriptLoads[src];
+  const p = new Promise(function (resolve) {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = function () { resolve(true); };
+    s.onerror = function () { delete app._scriptLoads[src]; s.remove(); resolve(false); };
+    document.body.appendChild(s);
+  });
+  app._scriptLoads[src] = p;
+  return p;
+};
+
 app.buildCraft = function () {
   const root = document.getElementById('craft-root');
   if (!root) return;
-  if (app._cLoading) return; // 已經在載入中，避免重複注入同一批<script>
+  if (app._cLoading) return; // 已經在載入中，避免重複進入
   app._cLoading = true;
 
   root.innerHTML =
     '<div class="craft-loading"><span class="craft-loading-icon">⚒</span><span>載入配方資料中⋯</span></div>';
 
-  const need = ['js/vendor/ffxiv-simulator.umd.js', 'js/craft-data.js', 'js/craft-icons.js', 'js/craft-action-icons.js', 'js/craft-action-names.js', 'js/craft-action-effects.js', 'js/market-data.js'];
-  let loaded = 0;
-  need.forEach(function (src) {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = function () { loaded++; if (loaded === need.length) app._craftReady(); };
-    s.onerror = function () {
-      root.innerHTML = '<div class="craft-loading craft-error">資料載入失敗，請重新整理再試一次。</div>';
-    };
-    document.body.appendChild(s);
+  /* [src, 已經載入的判斷]：craft-data.js／market-data.js 市場頁也會載，所以一定要帶判斷＋走共用載入器 */
+  const need = [
+    ['js/vendor/ffxiv-simulator.umd.js', function () { return typeof simulator !== 'undefined'; }],
+    ['js/craft-data.js', function () { return typeof CRAFT_RECIPES !== 'undefined'; }],
+    ['js/craft-icons.js'],
+    ['js/craft-action-icons.js'],
+    ['js/craft-action-names.js'],
+    ['js/craft-action-effects.js'],
+    ['js/market-data.js', function () { return typeof MarketData !== 'undefined'; }],
+  ];
+  Promise.all(need.map(function (n) { return app.loadScriptOnce(n[0], n[1]); })).then(function (results) {
+    if (results.every(Boolean)) { app._craftReady(); return; }
+    app._cLoading = false; // 失敗時放開旗標，讓使用者重新進入生產頁可以再試
+    root.innerHTML = '<div class="craft-loading craft-error">資料載入失敗，請重新整理再試一次。</div>';
   });
 };
 
