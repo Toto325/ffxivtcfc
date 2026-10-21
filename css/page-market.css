@@ -146,13 +146,28 @@
 .mfr-buyer{flex:1;min-width:0}
 .mfr-world{flex:0.9;min-width:0}
 .mfr-time{flex:0.9;min-width:0;text-align:right}
-/* 在售列表專用（成交紀錄彈窗不受影響）：數字欄靠右對齊，位數不同也能直接比大小；右側留間距跟下一欄分開 */
-.mfr-r{text-align:right;padding-right:14px}
+/* 在售／成交兩個分頁共用的欄位排版：價格→數量→總價是一組（總價＝價格×數量，是前兩欄的結果，所以三欄固定寬度、
+   緊靠在左邊），跟後面的僱員／買家、世界、時間之間留明顯間距，才分得出「數字區」跟「人／地點區」。
+   數字一律靠右對齊（位數不同也能直接比大小）。僱員名放得下就完整顯示（最長約6~7個字），放不下才用…截斷。 */
+.market-flexrow .mfl-price{flex:0 0 92px;min-width:0}
+.market-flexrow .mfl-qty{flex:0 0 46px;min-width:0}
+.market-flexrow .mfl-total{flex:0 0 80px;min-width:0}
+.market-flexrow .mfl-buyer{flex:1 1 0;min-width:0;margin-left:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 世界／時間欄用固定px，不用em：時間欄文字字級比較小（craft-muted），em會讓同一個class在表頭跟資料列算出不同寬度，欄位就對不齊 */
+.market-flexrow .mfl-world{flex:0 0 76px;min-width:0;padding-left:8px;white-space:nowrap}
+.market-flexrow .mfl-time{flex:0 0 76px;min-width:0;text-align:right;white-space:nowrap}
+.mfl-r{text-align:right}
 /* 價格格：HQ標籤在左、數字在右，沒有HQ時左側留空，數字位置不變 */
-.mfr-pricehq{display:flex;align-items:center;justify-content:space-between;gap:4px;padding-right:14px}
-/* 僱員名：放得下就完整顯示，放不下才截斷（全名用提示文字看） */
-/* flex放大：在售列表拿掉「優質」欄後釋出的寬度優先給雇員名（最長約6~7個字），右側留間距避免貼到世界欄 */
-.mfr-fit{flex:1.7;padding-right:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mfl-pricehq{display:flex;align-items:center;justify-content:space-between;gap:4px}
+/* 在售／成交／走勢 分頁（取代以前的兩個彈窗）：同一個區域切換檢視 */
+.market-listing-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 0 6px;font-size:12px;color:var(--dim)}
+.market-listing-bar .market-history-btn{margin-left:0}
+.market-listing-bar .craft-select{flex:0 1 auto;max-width:100%} /* 隱藏手續費勾選時，下拉也不要被拉成整排寬 */
+.market-tabs-mini{display:inline-flex;border:1px solid var(--tb);border-radius:7px;overflow:hidden}
+.market-tab-mini{font-size:12px;padding:4px 12px;background:transparent;color:var(--dim);border:0;border-right:1px solid var(--tb);cursor:pointer;font-family:inherit}
+.market-tab-mini:last-child{border-right:0}
+.market-tab-mini:hover{color:var(--gold)}
+.market-tab-mini.active{background:rgba(197,160,89,.18);color:var(--gold-bright);font-weight:600}
 .market-modal-body::-webkit-scrollbar{width:5px}
 .market-modal-body::-webkit-scrollbar-thumb{background:rgba(197,160,89,.35);border-radius:3px}
 .market-modal-body::-webkit-scrollbar-track{background:transparent}
@@ -222,11 +237,13 @@
  * 等於永遠是「窄」的情況，兩套判斷邏輯沒有意義）。 */
 .market-supply-svg{max-width:100%;width:auto;height:auto;display:block;margin:0 auto;overflow:visible}
 .market-supply-legend{margin-top:6px;font-size:11px;text-align:center}
-.market-fullchain-btn-row{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;text-align:center;margin-top:10px}
-/* 設定齒輪：以前在圖上方那排膠囊裡，那排拿掉後移到這裡，跟「查看完整供應鏈清單」同一列 */
+.market-fullchain-btn-row{text-align:center;margin-top:10px}
+/* 供應鏈底部操作列：齒輪＋「查看完整供應鏈清單」＋圖例同一列，黏在欄位底部——供應鏈欄會自己捲動，
+   圖比欄位高時，這一列仍然固定在視線內，不用捲到最下面才看得到按鈕跟圖例。
+   上緣用漸層淡出，圖從下面捲過去時不會有一條硬邊。欄位窄時圖例自動換行。 */
+.market-supply-bar{position:sticky;bottom:0;z-index:2;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px 10px;padding:14px 0 4px;margin-top:2px;background:linear-gradient(to bottom,rgba(5,4,6,0),var(--bg) 45%)}
 .market-supply-gear{padding:4px 8px;font-size:13px}
-/* 圖例：一行小字說明圖上的符號與單位（卡片上不再重複寫「金」） */
-.market-supply-key{margin:6px 0 0;font-size:11px;color:var(--dim);text-align:center}
+.market-supply-key{font-size:11px;color:var(--dim)}.market-supply-key{margin:6px 0 0;font-size:11px;color:var(--dim);text-align:center}
 /* 供應鏈圖頂部：齒輪設定鈕＋結論徽章同一行，齒輪固定在左、結論隨內容寬度，
    空間不夠時（手機）自動換行，不會把徽章文字硬擠爆版。 */
 .market-supply-headrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
