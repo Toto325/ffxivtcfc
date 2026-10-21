@@ -668,6 +668,9 @@ window.MarketData = (function () {
       const history = (data.recentHistory || []).map(function (h) {
         return { world: h.worldName, pricePerUnit: h.pricePerUnit, quantity: h.quantity, hq: !!h.hq, buyerName: h.buyerName, timestamp: h.timestamp };
       }).sort(function (a, b) { return b.timestamp - a.timestamp; });
+      // 各世界資料更新時間：API 給的 key 是世界ID，轉成世界名稱方便畫面直接用
+      const worldUploadTimes = {};
+      if (data.worldUploadTimes) Object.keys(data.worldUploadTimes).forEach(function (id) { worldUploadTimes[worldName(Number(id))] = data.worldUploadTimes[id]; });
       return {
         listings: listings,
         history: history,
@@ -675,6 +678,7 @@ window.MarketData = (function () {
         minPrice: data.minPrice || null,
         maxPrice: data.maxPrice || null,
         lastUploadTime: data.lastUploadTime || null, // 掛單資料的更新時間戳（毫秒），給「資料新鮮度」用
+        worldUploadTimes: worldUploadTimes,            // {世界名稱: 更新時間戳(毫秒)}，資料中心查詢時 Universalis 會一併回傳；沒給就是空物件
       };
     } catch (e) { return null; }
   }

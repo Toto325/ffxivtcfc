@@ -524,6 +524,26 @@
    * 顏色也不同，各自只連接自己品質的點，這樣兩條價格趨勢可以分開看，不會因為NQ/HQ交錯
    * 成交而讓同一條線在兩者之間跳來跳去、看不出真正的走勢。點的形狀維持圓形=NQ、星形=HQ。 */
   // 第4點：均價徽章點下去彈出不同天數的均價比較，不是只看「現在」這一個數字
+  /* 把浮動面板放在錨點旁邊：下方放得下就往下開；放不下就往上開；兩邊都放不下就選空間大的那邊，
+   * 並限制最大高度、面板內自己捲動。以前固定「錨點下方」，錨點靠近畫面底部（例如供應鏈底部的齒輪）
+   * 時，面板下半部就被畫面切掉看不到。內容高度改變時（展開子選單）要再呼叫一次。 */
+  function placePopover(pop, anchorRect) {
+    const margin = 8, gap = 6;
+    pop.style.overflowY = 'auto';
+    pop.style.maxHeight = (window.innerHeight - margin * 2) + 'px';
+    pop.style.left = Math.max(margin, Math.min(anchorRect.left, window.innerWidth - pop.offsetWidth - margin)) + 'px';
+    const h = pop.offsetHeight;
+    const below = window.innerHeight - anchorRect.bottom - gap - margin;
+    const above = anchorRect.top - gap - margin;
+    let top;
+    if (h <= below) top = anchorRect.bottom + gap;
+    else if (h <= above) top = anchorRect.top - gap - h;
+    else if (above > below) { pop.style.maxHeight = above + 'px'; top = anchorRect.top - gap - Math.min(h, above); }
+    else { pop.style.maxHeight = below + 'px'; top = anchorRect.bottom + gap; }
+    // 最後一道保險：不管錨點在哪（甚至已經捲出畫面外），面板一定夾回畫面內
+    const effH = Math.min(h, parseFloat(pop.style.maxHeight) || h);
+    pop.style.top = Math.max(margin, Math.min(top, window.innerHeight - margin - effH)) + 'px';
+  }
   function ensureAvgPricePopoverDom() {
     let pop = $('mk-avgprice-popover');
     if (pop) return pop;
@@ -754,7 +774,7 @@
       // 畫面上只留「寄售稅後 ≈49（3%）」，完整意思（哪個城市、為什麼是這個稅率）放提示文字，不佔橫向空間
       footNotes.push('<span title="貼最低價在' + taxInfo.cityName + '寄售（目前稅率最低，扣' + taxPct + '%），約拿 ' + netMin.toLocaleString() + ' 金">寄售稅後 ≈ <span style="color:#4ade80">' + netMin.toLocaleString() + '</span>（' + taxPct + '%）</span>');
     }
-    if (overview && overview.lastUploadTime) footNotes.push(timeAgo(overview.lastUploadTime / 1000) + '更新');
+    if (overview && overview.lastUploadTime) footNotes.push('<span id="mk-fresh" title="資料最後上傳時間，隨下方選的世界變動">' + timeAgo(overview.lastUploadTime / 1000) + '更新</span>');
 
     html += '<div class="market-stat-bar" id="mk-stat-bar">' + buildStatBarHtml(dcStat) + '</div>';
     if (footNotes.length) html += '<p class="market-stat-foot craft-muted">' + footNotes.join('　·　') + '</p>';
@@ -775,45 +795,46 @@
     overview.listings.forEach(function (l) {
       if (worldMinPrice[l.world] == null || l.pricePerUnit < worldMinPrice[l.world]) worldMinPrice[l.world] = l.pricePerUnit;
     });
-    html += '<p class="market-subheading">目前掛單（共 ' + overview.listings.length + ' 筆） ' +
-        '<button type="button" class="market-history-btn" data-mk-open-history="1">查看最近成交紀錄</button>' +
+    // 世界下拉：每個世界後面直接寫「該世界目前最低價」和「資料更新距今」，不用逐一切換世界就看得出哪個最便宜、哪個資料太舊。
+    // worldUploadTimes 是 Universalis 回傳的各世界更新時間（毫秒）；API沒給就只顯示價格。
+    const worldTimes = overview.worldUploadTimes || {};
+    const hasWorldTimes = Object.keys(worldTimes).length > 0;
+    function shortAgo(ms) {
+      const m = Math.floor((Date.now() - ms) / 60000);
+      if (m < 1) return '剛剛';
+      if (m < 60) return m + '分';
+      const h = Math.floor(m / 60);
+      return h < 24 ? h + '時' : Math.floor(h / 24) + '天';
+    }
+    // 在售／成交／走勢三個分頁取代以前的「查看最近成交紀錄」「查看走勢圖」兩個彈窗：
+    // 內容直接顯示在清單區域，不用開關視窗，也看得出「現在在哪個檢視」。
+    // 「只顯示HQ」是篩選、不是檢視，所以不放進分頁，獨立一顆；走勢圖自己有NQ/HQ選單，切到走勢時就藏起來。
+    html += '<div class="market-listing-bar">' +
+        '<div class="market-tabs-mini" id="mk-tabs" role="tablist">' +
+          '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true">在售 <span id="mk-tab-count">' + overview.listings.length + '</span></button>' +
+          '<button type="button" class="market-tab-mini" data-mk-tab="history" role="tab" aria-selected="false">成交</button>' +
+          '<button type="button" class="market-tab-mini" data-mk-tab="trend" role="tab" aria-selected="false">走勢</button>' +
+        '</div>' +
         '<button type="button" class="market-history-btn" id="mk-hq-filter-btn">只顯示HQ</button>' +
-        '<button type="button" class="market-history-btn" data-mk-open-trend="1">查看走勢圖</button>' +
-        '<select id="mk-world-filter" class="craft-select" style="margin-left:6px;font-size:11px">' +
+        '<select id="mk-world-filter" class="craft-select" style="font-size:11px">' +
           // optgroup 的標題列看起來像分類、不能被選取，只當說明用；預設選中的仍是裡面第一個「所有世界」（標題的配色見 page-market.css）
-          '<optgroup label="掛單、均價、賣速、成交及走勢圖顯示範圍">' +
+          '<optgroup label="顯示範圍・最低價' + (hasWorldTimes ? '・資料更新' : '') + '">' +
             '<option value="ALL">所有世界</option>' +
-            dcWorlds.map(function (w) { return '<option value="' + w + '">' + w + (worldMinPrice[w] != null ? '　' + worldMinPrice[w].toLocaleString() : '') + '</option>'; }).join('') +
+            dcWorlds.map(function (w) {
+              const parts = [w];
+              if (worldMinPrice[w] != null) parts.push(worldMinPrice[w].toLocaleString());
+              if (worldTimes[w]) parts.push(shortAgo(worldTimes[w]));
+              return '<option value="' + w + '">' + parts.join('　') + '</option>';
+            }).join('') +
           '</optgroup>' +
         '</select>' +
-        '<label class="market-fee-toggle-inline"><input type="checkbox" id="mk-fee-toggle"' + (taxInfo && taxInfo.ratePercent ? '' : ' disabled') + '/> 總計價格算入跨城市手續費</label>' +
-      '</p>' +
-      // 第7點：表頭獨立在捲動區域外面（跟成交紀錄彈窗同一招），欄寬用同一組mfr-*class對齊，
-      // 不再用<table><thead>，捲動時表頭固定不動，資料列在下面單獨捲動。
-      '<div class="market-flexrow market-flexrow-head">' +
-        '<span class="mfr-price mfr-r">價格(金)</span><span class="mfr-qty mfr-r">數量</span><span class="mfr-total mfr-r">總價</span><span class="mfr-buyer mfr-fit">僱員</span><span class="mfr-world">世界</span>' +
+        '<label class="market-fee-toggle-inline" id="mk-fee-label"><input type="checkbox" id="mk-fee-toggle"' + (taxInfo && taxInfo.ratePercent ? '' : ' disabled') + '/> 總計價格算入跨城市手續費</label>' +
       '</div>' +
+      // 表頭獨立在捲動區域外面，欄寬用同一組mfl-*class對齊（不用<table>），捲動時表頭固定不動，內容在下面單獨捲動
+      '<div id="mk-tab-head"></div>' +
       '<div id="mk-listing-table-slot"></div>';
     box.innerHTML = html;
 
-    const worldHistoryCache = {};
-    const historyBtn = box.querySelector('[data-mk-open-history]');
-    if (historyBtn) {
-      historyBtn.addEventListener('click', async function () {
-        // 跟世界下拉連動：所有世界＝整個資料中心的近期成交；選了世界就只看那個世界自己的成交
-        if (worldFilter === 'ALL') { openHistoryModal(itemId, overview.history, null); return; }
-        const w = worldFilter;
-        if (!worldHistoryCache[w]) {
-          try { worldHistoryCache[w] = await MarketData.getRecentHistoryForWorld(itemId, w, 50); }
-          catch (e) { worldHistoryCache[w] = []; }
-        }
-        openHistoryModal(itemId, worldHistoryCache[w], w);
-      });
-    }
-    const trendBtn = box.querySelector('[data-mk-open-trend]');
-    if (trendBtn) {
-      trendBtn.addEventListener('click', function () { openTrendModal(itemId, worldFilter === 'ALL' ? null : worldFilter); });
-    }
     let worldFilter = 'ALL'; // 目前選的範圍：'ALL'＝整個資料中心，否則是世界名稱
     function bindAvgBadge() {
       const avgBtn = box.querySelector('#mk-avgprice-badge');
@@ -863,49 +884,115 @@
       setStatBar(Object.assign({ avgDisplay: avgDisplay, avgIsFallback: avgIsFallback }, base));
     }
 
-    // hq-only／世界篩選／手續費都是純畫面篩選或計算（世界篩選除外，那個要重新查，見下面說明）
+    // hq-only／手續費是純畫面篩選或計算；世界篩選要重新查（見下面說明）
     let hqOnly = false, includeFee = false;
+    let activeTab = 'listing', tabToken = 0, currentHistory = [];
     const worldListingsCache = {}; // 同一次開啟頁面內，切換過的世界不用重複查
+    const worldHistoryCache = {};
     // 第4點：切換到特定世界時，不是從DC總覽（上限100筆全服最便宜）裡篩選，因為那樣篩出來的
     // 筆數會不完整——改成直接對那個世界重新查一次，拿到它自己真正完整的掛單清單。
     let activeListingSet = overview.listings;
+    function setActiveListingSet(list) {
+      activeListingSet = list;
+      const c = $('mk-tab-count'); if (c) c.textContent = list.length;
+    }
+    // 欄位排版：價格→數量→總價是一組（總價＝價格×數量，是前兩欄的結果，所以緊靠在一起），
+    // 跟後面的僱員／買家、世界之間留明顯間距，閱讀時才分得出「數字區」跟「人／地點區」。
+    const LISTING_HEAD = '<div class="market-flexrow market-flexrow-head"><span class="mfl-price mfl-r">價格(金)</span><span class="mfl-qty mfl-r">數量</span><span class="mfl-total mfl-r">總價</span><span class="mfl-buyer">僱員</span><span class="mfl-world">世界</span></div>';
+    const HISTORY_HEAD = '<div class="market-flexrow market-flexrow-head"><span class="mfl-price mfl-r">成交價(金)</span><span class="mfl-qty mfl-r">數量</span><span class="mfl-total mfl-r">總價</span><span class="mfl-buyer">買家</span><span class="mfl-world">世界</span><span class="mfl-time">時間</span></div>';
+    function escHtml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function priceCellHtml(hq, price) { return '<span class="mfl-price mfl-pricehq"><span>' + (hq ? hqIconHtml() : '') + '</span><span>' + price.toLocaleString() + '</span></span>'; }
     function renderListingTableFromActiveSet() {
       let rows = hqOnly ? activeListingSet.filter(function (l) { return l.hq; }) : activeListingSet;
       const feeRate = (taxInfo && taxInfo.ratePercent) ? taxInfo.ratePercent / 100 : 0;
       $('mk-listing-table-slot').innerHTML = rows.length ? rows.map(function (l) {
         const total = l.pricePerUnit * l.quantity * (includeFee ? (1 + feeRate) : 1);
-        // 以前有獨立的「優質」欄，絕大多數列是空的，白白佔一整欄寬度；HQ標籤改放在價格格子的左側，數字維持靠右對齊。
         // 僱員名不截斷（名字最長約6~7個字，空間夠就完整顯示），只有放不下才用…並且滑鼠停留看全名。
-        const buyerName = l.retainerName || '—';
-        return '<div class="market-flexrow"><span class="mfr-price mfr-pricehq"><span>' + (l.hq ? hqIconHtml() : '') + '</span><span>' + l.pricePerUnit.toLocaleString() + '</span></span><span class="mfr-qty mfr-r">' + l.quantity.toLocaleString() + '</span><span class="mfr-total mfr-r">' + Math.round(total).toLocaleString() + '</span><span class="mfr-buyer mfr-fit" title="' + buyerName + '">' + buyerName + '</span><span class="mfr-world">' + l.world + '</span></div>';
-      }).join('') : '<p class="craft-muted" style="padding:8px 0">這個世界目前查無掛單</p>';
+        const name = escHtml(l.retainerName || '—');
+        return '<div class="market-flexrow">' + priceCellHtml(l.hq, l.pricePerUnit) +
+          '<span class="mfl-qty mfl-r">' + l.quantity.toLocaleString() + '</span><span class="mfl-total mfl-r">' + Math.round(total).toLocaleString() +
+          '</span><span class="mfl-buyer" title="' + name + '">' + name + '</span><span class="mfl-world">' + l.world + '</span></div>';
+      }).join('') : '<p class="craft-muted" style="padding:8px 0">' + (hqOnly ? '沒有HQ的掛單' : '這個世界目前查無掛單') + '</p>';
     }
-    renderListingTableFromActiveSet();
+    function renderHistoryTable() {
+      const rows = (hqOnly ? currentHistory.filter(function (h) { return h.hq; }) : currentHistory).slice(0, 50);
+      $('mk-listing-table-slot').innerHTML = rows.length ? rows.map(function (h) {
+        const name = escHtml(h.buyerName || '—');
+        return '<div class="market-flexrow">' + priceCellHtml(h.hq, h.pricePerUnit) +
+          '<span class="mfl-qty mfl-r">' + h.quantity.toLocaleString() + '</span><span class="mfl-total mfl-r">' + (h.pricePerUnit * h.quantity).toLocaleString() +
+          '</span><span class="mfl-buyer" title="' + name + '">' + name + '</span><span class="mfl-world">' + h.world + '</span><span class="mfl-time craft-muted">' + timeAgo(h.timestamp) + '</span></div>';
+      }).join('') : '<p class="craft-muted" style="padding:8px 0">' + (hqOnly ? '近期沒有HQ的成交紀錄' : '近期查無成交紀錄') + '</p>';
+    }
+    // 依目前分頁＋世界範圍重畫清單區域。tabToken：連續切換分頁／世界時，慢回來的舊結果不要蓋掉新畫面。
+    async function renderActiveTab() {
+      const token = ++tabToken;
+      const head = $('mk-tab-head'), slot = $('mk-listing-table-slot');
+      if (activeTab === 'listing') { head.innerHTML = LISTING_HEAD; renderListingTableFromActiveSet(); return; }
+      if (activeTab === 'history') {
+        head.innerHTML = HISTORY_HEAD;
+        // 跟世界下拉連動：所有世界＝整個資料中心的近期成交；選了世界就只看那個世界自己的成交
+        if (worldFilter === 'ALL') currentHistory = overview.history || [];
+        else {
+          if (!worldHistoryCache[worldFilter]) {
+            slot.innerHTML = '<p class="craft-muted" style="padding:8px 0">讀取' + worldFilter + '成交紀錄中⋯</p>';
+            try { worldHistoryCache[worldFilter] = await MarketData.getRecentHistoryForWorld(itemId, worldFilter, 50); }
+            catch (e) { worldHistoryCache[worldFilter] = []; }
+            if (token !== tabToken) return;
+          }
+          currentHistory = worldHistoryCache[worldFilter];
+        }
+        renderHistoryTable();
+        return;
+      }
+      head.innerHTML = ''; // 走勢圖自己有完整的操作列，不需要表頭
+      renderTrendInto(slot, itemId, worldFilter === 'ALL' ? null : worldFilter);
+    }
+    function setTab(tab) {
+      activeTab = tab;
+      box.querySelectorAll('[data-mk-tab]').forEach(function (b) {
+        const on = b.dataset.mkTab === tab;
+        b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      $('mk-hq-filter-btn').style.display = tab === 'trend' ? 'none' : '';   // 走勢圖自己有NQ/HQ選單
+      $('mk-fee-label').style.display = tab === 'listing' ? '' : 'none';      // 手續費只影響在售表格的總價
+      renderActiveTab();
+    }
+    box.querySelectorAll('[data-mk-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.mkTab); }); });
+    renderActiveTab();
     $('mk-hq-filter-btn').addEventListener('click', function () {
       hqOnly = !hqOnly;
       this.classList.toggle('active', hqOnly);
-      renderListingTableFromActiveSet();
+      if (activeTab === 'history') renderHistoryTable(); else renderListingTableFromActiveSet();
     });
     $('mk-fee-toggle').addEventListener('change', function () { includeFee = this.checked; renderListingTableFromActiveSet(); });
+    // 小字裡的「更新時間」跟著範圍走：選了某個世界就顯示那個世界自己的資料更新時間（API有給的話），不然顯示整個資料中心最新的
+    function updateFreshness() {
+      const el = $('mk-fresh'); if (!el) return;
+      const ts = worldFilter === 'ALL' ? overview.lastUploadTime : worldTimes[worldFilter];
+      el.textContent = ts ? timeAgo(ts / 1000) + '更新' : '';
+    }
     $('mk-world-filter').addEventListener('change', async function () {
       worldFilter = this.value;
-      if (worldFilter === 'ALL') { activeListingSet = overview.listings; renderListingTableFromActiveSet(); updateStatBar(); return; }
-      if (worldListingsCache[worldFilter]) { activeListingSet = worldListingsCache[worldFilter]; renderListingTableFromActiveSet(); updateStatBar(); return; }
-      $('mk-listing-table-slot').innerHTML = '<p class="craft-muted" style="padding:8px 0">查詢' + worldFilter + '掛單中⋯</p>';
+      updateFreshness();
+      // 成交／走勢分頁立刻跟著新範圍重畫；掛單資料仍在背景更新（統計徽章要用）
+      if (activeTab !== 'listing') renderActiveTab();
+      if (worldFilter === 'ALL') { setActiveListingSet(overview.listings); if (activeTab === 'listing') renderListingTableFromActiveSet(); updateStatBar(); return; }
+      if (worldListingsCache[worldFilter]) { setActiveListingSet(worldListingsCache[worldFilter]); if (activeTab === 'listing') renderListingTableFromActiveSet(); updateStatBar(); return; }
+      if (activeTab === 'listing') $('mk-listing-table-slot').innerHTML = '<p class="craft-muted" style="padding:8px 0">查詢' + worldFilter + '掛單中⋯</p>';
       try {
         const listings = await MarketData.getListingsForWorld(itemId, worldFilter);
         worldListingsCache[worldFilter] = listings;
-        activeListingSet = listings;
+        setActiveListingSet(listings);
       } catch (e) {
-        activeListingSet = [];
+        setActiveListingSet([]);
       }
-      renderListingTableFromActiveSet();
+      if (activeTab === 'listing') renderListingTableFromActiveSet();
       if (worldFilter === this.value) updateStatBar(); // 查詢期間又切走了就不用更新
     });
   }
 
-  /* 最近成交紀錄是「輔助資訊」——玩家主要決策看的是目前掛單跟供應鏈，成交紀錄是想深入了解
-   * 時才需要的東西。直接攤開在主頁面會擠壓到更重要的資訊，改成點按鈕才彈出的浮層。 */
+  /* 成交紀錄跟走勢圖是「輔助資訊」——玩家主要決策看的是目前掛單跟供應鏈。以前為了不擠壓主要資訊做成彈窗，
+   * 現在改成跟「在售」並列的分頁：同一個區域切換檢視，不用開關視窗，主要資訊（徽章列、供應鏈）也不會被擠走。 */
   /* ── 關注清單：本機儲存，不用帳號。每個關注項目記「目標價」，開啟通知後每5分鐘悄悄檢查一次，
    * 現價低於目標價就跳系統通知——跟生產頁批次規劃的「持續關注」是同一套機制，只是這裡盯的是
    * 單一物品的價格，不是整批訂單的成本。 ── */
@@ -1015,46 +1102,8 @@
     fitMarketHeights();
   }
 
-  function ensureHistoryModalDom() {
-    let modal = $('mk-history-modal');
-    if (modal) return modal;
-    modal = document.createElement('div');
-    modal.id = 'mk-history-modal';
-    modal.className = 'market-modal-backdrop';
-    modal.style.display = 'none';
-    modal.innerHTML = '<div class="market-modal-box">' +
-      '<div class="market-modal-head"><h4>最近成交紀錄</h4><button type="button" class="market-modal-close" data-mk-close-history="1"><i class="ph ph-x"></i></button></div>' +
-      '<div class="market-flexrow market-flexrow-head">' +
-        '<span class="mfr-hq">優質</span><span class="mfr-price">成交價</span><span class="mfr-qty">數量</span><span class="mfr-total">總計價格</span><span class="mfr-buyer">買家</span><span class="mfr-world">世界</span><span class="mfr-time">時間</span>' +
-      '</div>' +
-      '<div id="mk-history-body" class="market-modal-body"></div>' +
-    '</div>';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
-    modal.querySelector('[data-mk-close-history]').addEventListener('click', function () { modal.style.display = 'none'; });
-    return modal;
-  }
-  function openHistoryModal(itemId, history, scopeWorld) {
-    const modal = ensureHistoryModalDom();
-    const titleEl = modal.querySelector('.market-modal-head h4');
-    if (titleEl) titleEl.textContent = '最近成交紀錄（' + (scopeWorld || '所有世界') + '）';
-    const body = $('mk-history-body');
-    if (!history || !history.length) {
-      body.innerHTML = '<p class="craft-muted">近期查無成交紀錄</p>';
-    } else {
-      // 第2點：表頭改成獨立在捲動區域「外面」的一列，不再用position:sticky貼在表格<th>上——
-      // sticky套用在table cell上，不同瀏覽器渲染很不穩定（重影/穿洞就是這樣來的）。
-      // 改成表頭跟資料列都用同一組class控制欄寬（flex排版，不是<table>），表頭固定在最上面
-      // 不隨內容捲動，資料列在下面單獨捲動，兩者欄寬對得齊，也不會有sticky那些渲染問題。
-      // 第7點：欄位改成跟掛單列表一樣的結構(優質/價格/數量/總計價格/○名/世界)，只是「僱員名」
-      // 換成「買家」——掛單是誰在賣，成交紀錄是誰買走的，概念上對應但不是同一個人。
-      body.innerHTML = history.slice(0, 50).map(function (h) {
-        const total = h.pricePerUnit * h.quantity;
-        return '<div class="market-flexrow"><span class="mfr-hq">' + (h.hq ? hqIconHtml() : '') + '</span><span class="mfr-price">' + h.pricePerUnit.toLocaleString() + '金</span><span class="mfr-qty">' + h.quantity.toLocaleString() + '</span><span class="mfr-total">' + total.toLocaleString() + '金</span><span class="mfr-buyer">' + (h.buyerName || '—') + '</span><span class="mfr-world">' + h.world + '</span><span class="mfr-time craft-muted">' + timeAgo(h.timestamp) + '</span></div>';
-      }).join('');
-    }
-    modal.style.display = 'flex';
-  }
+  // 成交紀錄原本是彈窗（ensureHistoryModalDom／openHistoryModal），現在改成物品頁的「成交」分頁，
+  // 直接顯示在清單區域，不用再開關視窗；表格欄位跟「在售」分頁共用同一套排版，見 loadMarketSection。
 
   // 第2點：走勢圖彈窗，按鈕跟「查看最近成交紀錄」放一起，不再直接佔用供應鏈欄的版面
   /* ── 走勢圖（Canvas）──
@@ -1356,7 +1405,11 @@
     const modal = ensureTrendModalDom();
     const titleEl = modal.querySelector('.market-modal-head h4');
     if (titleEl) titleEl.textContent = '近期成交走勢（' + (scopeWorld || '所有世界') + '）';
-    const body = $('mk-trend-body');
+    modal.style.display = 'flex'; // 先顯示再畫：canvas要有實際尺寸才畫得出來
+    renderTrendInto($('mk-trend-body'), itemId, scopeWorld);
+  }
+  // 走勢圖本體：寫進傳入的容器。市場頁的「走勢」分頁直接把它畫在清單區域，彈窗版本（app.openMarketTrend）也共用同一份。
+  function renderTrendInto(body, itemId, scopeWorld) {
     body.innerHTML =
       '<div class="market-trend-range-row" id="mk-trend-range-row">' + TREND_RANGES.map(function (r) { return '<button type="button" class="market-history-btn market-trend-range-btn" data-range="' + r.key + '">' + r.label + '</button>'; }).join('') + '</div>' +
       '<div class="market-trend-opts">' +
@@ -1418,7 +1471,6 @@
     $('mk-trend-out').addEventListener('change', function () { chart.setHideOut(this.checked); });
     $('mk-trend-reset').addEventListener('click', function () { chart.resetView(); });
     if (window.ResizeObserver) { new ResizeObserver(function () { chart.draw(); }).observe($('mk-trend-canvas')); }
-    modal.style.display = 'flex';
     loadRange();
   }
 
@@ -1853,9 +1905,7 @@
         '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:10px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
         '<div id="mk-sup-ov-body" style="display:' + (supplyOverrideSectionOpen ? 'block' : 'none') + '">' + overrideRows + '</div>'
       ) : '');
-    const r = btn.getBoundingClientRect();
-    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 260)) + 'px';
-    pop.style.top = (r.bottom + 6) + 'px';
+    placePopover(pop, btn.getBoundingClientRect());
     async function apply(patch) {
       const next = Object.assign(getSupplySettings(), patch);
       saveSupplySettings(next);
@@ -1879,6 +1929,7 @@
         supplyOverrideSectionOpen = !supplyOverrideSectionOpen;
         $('mk-sup-ov-body').style.display = supplyOverrideSectionOpen ? 'block' : 'none';
         this.querySelector('.ph').className = supplyOverrideSectionOpen ? 'ph ph-caret-down' : 'ph ph-caret-right';
+        placePopover(pop, btn.getBoundingClientRect()); // 展開／收合後高度變了，要重新算位置
       });
       pop.querySelectorAll('[data-override-item] [data-ov]').forEach(function (b) {
         b.addEventListener('click', function () {
@@ -2011,6 +2062,8 @@
     const useNodes = useOverflow ? useNodesFull.slice(0, nodeLimit - 1) : useNodesFull;
     // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」；有買/做比較時多放一行（買一行、做一行），多留高度。
     const CENTER_W = 112, CENTER_H = centerCmp ? 94 : 84;
+    // 卡片之間「垂直連接線→轉角→垂直連接線」每一段的高度。以前是28，圖偏高、欄位放不下要捲動，縮到22仍夠容納圓角（半徑約10）加箭頭
+    const LINK_GAP = 22;
     const rowCount = Math.max(matNodes.length, useNodes.length + (useOverflow ? 1 : 0), 1);
     const W = Math.max(360, rowCount * CARD_W + (rowCount - 1) * GAP + PAD * 2);
     const cx = W / 2;
@@ -2024,15 +2077,15 @@
     let useTop, useBottom, bendY1;
     if (hasUp) {
       useTop = cursorY; useBottom = useTop + CARD_H;
-      bendY1 = useBottom + 28;
-      cursorY = bendY1 + 28;
+      bendY1 = useBottom + LINK_GAP;
+      cursorY = bendY1 + LINK_GAP;
     }
     const centerTop = cursorY, centerBottom = centerTop + CENTER_H;
     cursorY = centerBottom;
     let bendY2, matTop, matBottom;
     if (hasDown) {
-      bendY2 = cursorY + 28;
-      matTop = bendY2 + 28; matBottom = matTop + CARD_H;
+      bendY2 = cursorY + LINK_GAP;
+      matTop = bendY2 + LINK_GAP; matBottom = matTop + CARD_H;
       cursorY = matBottom;
     }
     const H = cursorY + PAD;
@@ -2232,14 +2285,12 @@
       svgParts += cardHtml(x, useTop, '', String(useNodesFull.length - useNodes.length) + '種', '', ' data-mk-usedin-more="1"', true);
     }
 
-    // 兩排的小標題：放在橫向連接線最左端的空位（每張卡片的連線都從自己的x往中心拉，最左邊那張卡片的外側本來就沒有線），
-    // 不佔額外高度。上排是「這個物品可以做成什麼」，下排是「做這個物品需要什麼」，箭頭方向才不會讓人猜。
-    if (hasUp) svgParts += '<text x="4" y="' + (bendY1 + 3) + '" font-size="9" fill="#8b8578">可做成</text>';
-    if (hasDown) svgParts += '<text x="4" y="' + (bendY2 + 3) + '" font-size="9" fill="#8b8578">材料</text>';
+    // 不再標「可做成／材料」文字：連接線的箭頭一律往上、光點也沿著往上流動（材料→中心→成品），
+    // 方向本身就在說明上下兩排各是什麼，多寫文字只是重複，還要占位置。
     // 每次製作產出多個（yields>1）：標在材料連到中心的線上。「做」的單價已經除過產出數，
     // 不標的話玩家看下面材料加起來比「做」那行貴，會以為算錯。
     if (hasDown && yields > 1) {
-      const py = centerBottom + 14, pw = 38;
+      const py = centerBottom + 12, pw = 38;
       svgParts += '<g><rect x="' + (cx - pw / 2) + '" y="' + (py - 7) + '" width="' + pw + '" height="14" rx="7" fill="#14110d" stroke="#c5a059" stroke-width="0.8"/>' +
         '<text x="' + cx + '" y="' + (py + 3.5) + '" text-anchor="middle" font-size="9" fill="#fcf6ba" font-weight="700">產×' + yields + '<title>每次製作產出 ' + yields + ' 個；下方材料是做一次的用量，「做」的價格已經除以產出數</title></text></g>';
     }
@@ -2290,11 +2341,11 @@
         }) +
         qtyCtrlHtml +
       '</svg>' +
-      '<div class="market-fullchain-btn-row">' +
+      '<div class="market-supply-bar">' +
         '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
         '<button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button>' +
-      '</div>' +
-      '<p class="market-supply-key">🔨 做較省　🛒 買較省　≈ 相近（建議直接買）　單位：金</p>';
+        '<span class="market-supply-key">🔨 做較省　🛒 買較省　≈ 相近（建議直接買）　單位：金</span>' +
+      '</div>';
 
     box.querySelector('[data-mk-open-fullchain]').addEventListener('click', function () { openFullChainModal(itemId, rid); });
     box.querySelectorAll('[data-mk-qty-step]').forEach(function (btn) {
