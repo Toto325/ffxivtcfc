@@ -149,14 +149,17 @@
 /* 在售／成交兩個分頁共用的欄位排版：價格→數量→總價是一組（總價＝價格×數量，是前兩欄的結果，所以三欄固定寬度、
    緊靠在左邊），跟後面的僱員／買家、世界、時間之間留明顯間距，才分得出「數字區」跟「人／地點區」。
    數字一律靠右對齊（位數不同也能直接比大小）。僱員名放得下就完整顯示（最長約6~7個字），放不下才用…截斷。 */
-.market-flexrow .mfl-price{flex:0 0 92px;min-width:0}
-.market-flexrow .mfl-qty{flex:0 0 46px;min-width:0}
-.market-flexrow .mfl-total{flex:0 0 80px;min-width:0}
-.market-flexrow .mfl-buyer{flex:1 1 0;min-width:0;margin-left:28px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-flexrow .mfl-price{flex:0 0 104px;min-width:0}
+.market-flexrow .mfl-qty{flex:0 0 56px;min-width:0}
+.market-flexrow .mfl-total{flex:0 0 100px;min-width:0}
+/* 僱員／買家名最長約7個字：固定寬度剛好放得下（再長用…截斷、停留看全名），不再隨欄位拉長，世界欄才不會被推到很遠的右邊 */
+.market-flexrow .mfl-buyer{flex:0 0 140px;min-width:0;margin-left:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 世界／時間欄用固定px，不用em：時間欄文字字級比較小（craft-muted），em會讓同一個class在表頭跟資料列算出不同寬度，欄位就對不齊 */
-.market-flexrow .mfl-world{flex:0 0 76px;min-width:0;padding-left:8px;white-space:nowrap}
-.market-flexrow .mfl-time{flex:0 0 76px;min-width:0;text-align:right;white-space:nowrap}
+.market-flexrow .mfl-world{flex:0 0 80px;min-width:0;padding-left:8px;white-space:nowrap}
+.market-flexrow .mfl-time{flex:0 0 84px;min-width:0;text-align:right;white-space:nowrap}
 .mfl-r{text-align:right}
+/* 每一欄都是固定寬度，整列寬度就是各欄加起來：列跟表頭只做到內容那麼寬，不再拉滿整個欄位 */
+#mk-tab-head .market-flexrow,#mk-listing-table-slot .market-flexrow{width:max-content}
 /* 價格格：HQ標籤在左、數字在右，沒有HQ時左側留空，數字位置不變 */
 .mfl-pricehq{display:flex;align-items:center;justify-content:space-between;gap:4px}
 /* 在售／成交／走勢 分頁（取代以前的兩個彈窗）：同一個區域切換檢視 */
@@ -658,4 +661,8 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 
 .ob-help { grid-column: 1 / -1; margin: 0; font-size: .78rem; color: var(--dim); }
 
-.market-detail-meta { margin-left: 10px; font-size: .72rem; font-weight: 400; color: var(--dim); letter-spacing: .02em; }
+.market-detail-meta { display: inline-flex; gap: 5px; margin-left: 10px; vertical-align: middle; font-size: .72rem; font-weight: 400; letter-spacing: .02em; }
+/* 版本／分類小標籤：低調的膠囊，版本偏藍綠、分類偏金色，色調淡、字小，一眼認得出是屬性資訊，不搶名稱跟價格的風頭 */
+.market-meta-chip { padding: 1px 9px; border-radius: 999px; border: 1px solid; line-height: 1.6; white-space: nowrap; }
+.market-meta-ver { color: #8fc4d4; background: rgba(110,170,190,.12); border-color: rgba(110,170,190,.38); }
+.market-meta-cat { color: #d6bd86; background: rgba(197,160,89,.10); border-color: rgba(197,160,89,.34); }
