@@ -382,8 +382,12 @@
     if (typeof ITEM_META_TW === 'undefined') return '';
     const v = ITEM_META_TW[itemId]; if (!v) return '';
     const patch = ITEM_PATCH_TW[Math.floor(v / 1000)]; const cat = ITEM_CATEGORY_TW[v % 1000];
-    const parts = []; if (patch) parts.push('版本 ' + patch); if (cat) parts.push(cat);
-    return parts.length ? '<small class=\"market-detail-meta\">' + parts.join('・') + '</small>' : '';
+    // 以前是一行灰色小字「版本 7.0・木材」，混在名稱旁邊看起來像雜訊；改成兩顆低調的小標籤，
+    // 版本（藍綠色）跟分類（金色）用不同色調區分，一眼認得出「這是屬性資訊」，又不搶名稱跟價格的風頭。
+    const chips = [];
+    if (patch) chips.push('<span class="market-meta-chip market-meta-ver" title="這個物品新增於版本 ' + patch + '">版本 ' + patch + '</span>');
+    if (cat) chips.push('<span class="market-meta-chip market-meta-cat" title="物品分類">' + cat + '</span>');
+    return chips.length ? '<span class="market-detail-meta">' + chips.join('') + '</span>' : '';
   }
 
   function openItemDetail(itemId) {
@@ -889,6 +893,7 @@
     let activeTab = 'listing', tabToken = 0, currentHistory = [];
     const worldListingsCache = {}; // 同一次開啟頁面內，切換過的世界不用重複查
     const worldHistoryCache = {};
+    const trendViews = {};         // 各世界範圍的走勢圖：{世界或'ALL': {el, ts}}，見 renderActiveTab
     // 第4點：切換到特定世界時，不是從DC總覽（上限100筆全服最便宜）裡篩選，因為那樣篩出來的
     // 筆數會不完整——改成直接對那個世界重新查一次，拿到它自己真正完整的掛單清單。
     let activeListingSet = overview.listings;
@@ -945,7 +950,15 @@
         return;
       }
       head.innerHTML = ''; // 走勢圖自己有完整的操作列，不需要表頭
-      renderTrendInto(slot, itemId, worldFilter === 'ALL' ? null : worldFilter);
+      // 每個世界範圍各保留一份走勢圖（連同畫面狀態）：來回切換分頁時直接放回去，不重新讀取，
+      // 也不會丟掉玩家剛調好的天數、縮放、NQ/HQ選擇。放回去後畫布會自己重畫（ResizeObserver）。
+      const hit = trendViews[worldFilter];
+      slot.innerHTML = '';
+      if (hit && Date.now() - hit.ts < TREND_VIEW_TTL) { slot.appendChild(hit.el); return; }
+      const el = document.createElement('div');
+      slot.appendChild(el); // 先放進頁面再畫：畫布要有實際尺寸
+      trendViews[worldFilter] = { el: el, ts: Date.now() };
+      renderTrendInto(el, itemId, worldFilter === 'ALL' ? null : worldFilter);
     }
     function setTab(tab) {
       activeTab = tab;
@@ -1397,6 +1410,9 @@
     modal.querySelector('[data-mk-close-trend]').addEventListener('click', function () { modal.style.display = 'none'; });
     return modal;
   }
+  // 走勢圖整份保留的時間：這段時間內切回走勢分頁，直接放回原本那張圖（縮放、天數、NQ/HQ選擇都還在），
+  // 不重新讀取；超過就當資料可能過時，重新建一份。
+  const TREND_VIEW_TTL = 5 * 60 * 1000;
   const TREND_RANGES = [
     { key: '1', label: '1天', days: 1 }, { key: '3', label: '3天', days: 3 },
     { key: '7', label: '7天', days: 7 }, { key: '30', label: '30天', days: 30 },
@@ -1410,6 +1426,10 @@
   }
   // 走勢圖本體：寫進傳入的容器。市場頁的「走勢」分頁直接把它畫在清單區域，彈窗版本（app.openMarketTrend）也共用同一份。
   function renderTrendInto(body, itemId, scopeWorld) {
+    // 這個函式內所有的 $('mk-trend-…') 都只在「自己的容器」裡找，不去全頁面找：
+    // 走勢圖現在會被保留下來（切到別的分頁再切回來不用重讀），同時可能有好幾份各自的走勢圖（所有世界／某個世界）
+    // 存在記憶體裡，其中沒顯示的那幾份可能還在背景讀資料——如果用全頁面找ID，背景讀完的結果會寫到「現在正在看的那一份」去。
+    const $ = function (id) { return body.querySelector('#' + id); };
     body.innerHTML =
       '<div class="market-trend-range-row" id="mk-trend-range-row">' + TREND_RANGES.map(function (r) { return '<button type="button" class="market-history-btn market-trend-range-btn" data-range="' + r.key + '">' + r.label + '</button>'; }).join('') + '</div>' +
       '<div class="market-trend-opts">' +
