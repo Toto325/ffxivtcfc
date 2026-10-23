@@ -528,24 +528,29 @@
    * 顏色也不同，各自只連接自己品質的點，這樣兩條價格趨勢可以分開看，不會因為NQ/HQ交錯
    * 成交而讓同一條線在兩者之間跳來跳去、看不出真正的走勢。點的形狀維持圓形=NQ、星形=HQ。 */
   // 第4點：均價徽章點下去彈出不同天數的均價比較，不是只看「現在」這一個數字
-  /* 把浮動面板放在錨點旁邊：下方放得下就往下開；放不下就往上開；兩邊都放不下就選空間大的那邊，
-   * 並限制最大高度、面板內自己捲動。以前固定「錨點下方」，錨點靠近畫面底部（例如供應鏈底部的齒輪）
-   * 時，面板下半部就被畫面切掉看不到。內容高度改變時（展開子選單）要再呼叫一次。 */
-  function placePopover(pop, anchorRect) {
+  /* 把浮動面板放在錨點旁邊。
+   * 方向（往下／往上）只在「剛打開」的那一刻決定一次，之後固定：以前每次高度改變都重新判斷，
+   * 展開「個別材料品質」讓面板變高時，原本往下開的面板就突然翻到錨點上方、蓋住整張供應鏈圖，看起來像跳掉。
+   * 決定方向時用 reserveH（面板「全部展開」後的最高高度）來判斷放不放得下，這樣一開始選的那一邊，之後展開也一定放得下。
+   * 兩邊都放不下就選空間大的那邊，限制最大高度、在面板內自己捲動。
+   * 錨點下緣（往下開）或上緣（往上開）固定不動，展開時只往另一個方向長。 */
+  function placePopover(pop, anchorRect, reserveH) {
     const margin = 8, gap = 6;
     pop.style.overflowY = 'auto';
     pop.style.maxHeight = (window.innerHeight - margin * 2) + 'px';
     pop.style.left = Math.max(margin, Math.min(anchorRect.left, window.innerWidth - pop.offsetWidth - margin)) + 'px';
-    const h = pop.offsetHeight;
     const below = window.innerHeight - anchorRect.bottom - gap - margin;
     const above = anchorRect.top - gap - margin;
-    let top;
-    if (h <= below) top = anchorRect.bottom + gap;
-    else if (h <= above) top = anchorRect.top - gap - h;
-    else if (above > below) { pop.style.maxHeight = above + 'px'; top = anchorRect.top - gap - Math.min(h, above); }
-    else { pop.style.maxHeight = below + 'px'; top = anchorRect.bottom + gap; }
+    let dir = pop.dataset.dir;
+    if (!dir) {
+      const need = Math.max(pop.offsetHeight, reserveH || 0);
+      dir = need <= below ? 'below' : (need <= above ? 'above' : (above > below ? 'above' : 'below'));
+      pop.dataset.dir = dir;
+    }
+    pop.style.maxHeight = Math.max(80, Math.min(dir === 'below' ? below : above, window.innerHeight - margin * 2)) + 'px';
+    const effH = pop.offsetHeight; // 套用最大高度後的實際高度
+    const top = dir === 'below' ? anchorRect.bottom + gap : anchorRect.top - gap - effH;
     // 最後一道保險：不管錨點在哪（甚至已經捲出畫面外），面板一定夾回畫面內
-    const effH = Math.min(h, parseFloat(pop.style.maxHeight) || h);
     pop.style.top = Math.max(margin, Math.min(top, window.innerHeight - margin - effH)) + 'px';
   }
   function ensureAvgPricePopoverDom() {
@@ -563,6 +568,7 @@
   async function openAvgPricePopover(itemId, anchorBtn, fallbackAvg, scopeWorld) {
     const scopeLabel = scopeWorld ? '（' + scopeWorld + '）' : '（所有世界）';
     const pop = ensureAvgPricePopoverDom();
+    pop.dataset.owner = 'avg';
     pop.innerHTML = '<p class="craft-mat-worlds-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px">讀取歷史成交中⋯</p>';
     pop.style.display = 'block';
     const r = anchorBtn.getBoundingClientRect();
@@ -1881,6 +1887,9 @@
     const btn = box.querySelector('[data-mk-supply-settings-btn]'); // 每次都重新查，絕不沿用舊參照
     if (!btn) return;
     const pop = ensureAvgPricePopoverDom();
+    // 「剛打開」才重設方向；面板本來就開著（調整設定後重畫內容）就沿用原本的方向，位置不會跳動
+    if (!(pop.style.display === 'block' && pop.dataset.owner === 'supply')) delete pop.dataset.dir;
+    pop.dataset.owner = 'supply';
     pop.style.display = 'block';
     const s = getSupplySettings();
     const crystalOn = s.includeCrystal;
@@ -1925,7 +1934,24 @@
         '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:10px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
         '<div id="mk-sup-ov-body" style="display:' + (supplyOverrideSectionOpen ? 'block' : 'none') + '">' + overrideRows + '</div>'
       ) : '');
-    placePopover(pop, btn.getBoundingClientRect());
+    // 錨點：左右跟著齒輪，上下用「整列操作列」的上緣／下緣。齒輪比旁邊的「查看完整供應鏈清單」按鈕矮，
+    // 如果用齒輪自己的上緣，面板底線會剛好落在右邊那顆較高的按鈕上緣，兩個框線疊在一起很不好看。
+    function supplyAnchor() {
+      const g = btn.getBoundingClientRect();
+      const bar = (btn.closest('.market-supply-bar') || btn).getBoundingClientRect();
+      return { left: g.left, right: g.right, top: bar.top, bottom: bar.bottom };
+    }
+    // 子選單「個別材料品質」展開後的最高高度：先暫時展開量一次再收回（同步操作，畫面不會閃），
+    // 讓 placePopover 一開始就用「最大高度」決定往哪邊開
+    let reserveH = 0;
+    const ovBodyProbe = $('mk-sup-ov-body');
+    if (ovBodyProbe) {
+      const prevDisplay = ovBodyProbe.style.display;
+      pop.style.maxHeight = 'none'; ovBodyProbe.style.display = 'block';
+      reserveH = pop.offsetHeight;
+      ovBodyProbe.style.display = prevDisplay;
+    }
+    placePopover(pop, supplyAnchor(), reserveH);
     async function apply(patch) {
       const next = Object.assign(getSupplySettings(), patch);
       saveSupplySettings(next);
@@ -1949,7 +1975,7 @@
         supplyOverrideSectionOpen = !supplyOverrideSectionOpen;
         $('mk-sup-ov-body').style.display = supplyOverrideSectionOpen ? 'block' : 'none';
         this.querySelector('.ph').className = supplyOverrideSectionOpen ? 'ph ph-caret-down' : 'ph ph-caret-right';
-        placePopover(pop, btn.getBoundingClientRect()); // 展開／收合後高度變了，要重新算位置
+        placePopover(pop, supplyAnchor(), reserveH); // 展開／收合後高度變了：方向固定不變，只重新算位置
       });
       pop.querySelectorAll('[data-override-item] [data-ov]').forEach(function (b) {
         b.addEventListener('click', function () {
@@ -1967,6 +1993,9 @@
     if (!btn) return;
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
+      // 面板已經開著、而且是這顆齒輪開的 → 再點一次就收起來（以前只有點空白處才收得掉）
+      const pop = $('mk-avgprice-popover');
+      if (pop && pop.style.display === 'block' && pop.dataset.owner === 'supply') { pop.style.display = 'none'; return; }
       openSupplySettingsPopover(box, itemId, rid, dcData);
     });
   }
@@ -3464,6 +3493,29 @@
   /* 代幣兌換分頁：獨立的查詢入口，不掛在單一物品詳情頁底下——這類代幣（詩學、軍票、巧手票…）
    * 玩家通常是「手上有一批，想知道拿去換什麼最划算」，不是先想到某個特定物品才點進去看。
    * 預設只顯示清單（圖示/名稱/能換幾種），點下去才載入排行榜內容，避免一次全部展開。 */
+  /* 代幣分類：依「怎麼賺到、拿來做什麼」分，不用遊戲資料裡的分類（那邊只有「貨幣／其他／雜貨」三種，對玩家沒有幫助）。
+   * 用物品ID指定（名稱可能改，ID不會），只有「第N期重建用…」這種一整批同樣命名的才用名稱比對。
+   * 沒列到的一律進「其他」，所以新出現的代幣不會憑空消失，只是先歸在「其他」，之後補上分類就好。
+   * 分類資訊是玩家端的整理，不是遊戲資料，歸類不確定的（例如空賊／遠航通貨）標籤直接用物品名稱，不亂猜用途。 */
+  const TOKEN_GROUPS = [
+    { key: 'tomestone', label: '神典石', ids: [48, 28, 47], desc: '副本與團隊挑戰的獎勵貨幣' },
+    { key: 'gc', label: '軍票', ids: [22, 20, 21], desc: '三大軍團的軍票（不滅隊、黑渦團、雙蛇黨）' },
+    { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 45690], desc: '生產職、採集職的票券，以及宇宙探索的信用點數' },
+    { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533, 36656], desc: '狩獵（通緝）任務的獎勵貨幣' },
+    { key: 'battle', label: '戰鬥', ids: [26807, 35833, 43961, 30341, 25, 31351], desc: 'FATE 的雙色寶石、幻巧戰的幻巧葉、PvP 的狼印戰績、博茲雅古錢' },
+    { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472], desc: '友好部族任務的貨幣，每個部族各有一種' },
+    { key: 'variant', label: '多變／異聞迷宮', ids: [38533, 38534, 38535, 39884, 39885, 39886, 41078, 41079, 41080], desc: '希拉狄哈、六根山、阿羅阿羅島的遺物、書籍與貨幣' },
+    { key: 'island', label: '無人島', ids: [37549, 37550], desc: '無人島（謝爾達萊）產出的貨幣' },
+    { key: 'wondrous', label: '天書奇談', ids: [22443, 22444, 26823], desc: '天書奇談的庫洛獎狀（金、銀、銅）' },
+    { key: 'saucer', label: '金碟', ids: [29], desc: '金碟遊樂場的金碟幣' },
+    { key: 'airship', label: '空賊／遠航', ids: [13630, 13631, 15111, 15112], desc: '空賊、遠航系列的黃銅與白鋼通貨' },
+    { key: 'skybuilder', label: '蒼天街重建', ids: [28063], desc: '蒼天街重建的振興票，以及各期重建要繳交的物資', fold: true },
+    { key: 'other', label: '其他', ids: [], desc: '其餘可兌換的道具，多為製作用中繼材料與活動道具', fold: true },
+  ];
+  let tokenCatSel = 'all'; // 目前選的分類，重畫、切換分頁回來都維持
+  /* 代幣兌換分頁：獨立的查詢入口，不掛在單一物品詳情頁底下——這類代幣（詩學、軍票、巧手票…）
+   * 玩家通常是「手上有一批，想知道拿去換什麼最划算」，不是先想到某個特定物品才點進去看。
+   * 預設只顯示清單（圖示/名稱/能換幾種），點下去才載入排行榜內容，避免一次全部展開。 */
   async function renderTokensShell() {
     const pane = $('mk-pane-tokens');
     pane.innerHTML = '<p class="craft-muted">讀取代幣資料中⋯</p>';
@@ -3471,35 +3523,79 @@
     if (!ok) { pane.innerHTML = '<p class="craft-muted">代幣資料載入失敗，稍後再試。</p>'; return; }
     const dir = buildCurrencyDirectory();
     const list = dir.pinned.concat(dir.more);
-    // 第5點修正：內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，
-    // 清單一長就整個被裁掉、完全不能捲動，其他分頁都有包這層、唯獨這裡漏了。
-    pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？選一個代幣看排行。　🔗 先換成不可交易的中繼物品，再用它能換到的東西估價　🔒 需先完成任務或成就才能兌換</p>' +
+    // 分組：每個代幣歸到一個分類；組內依「可換種類數」多到少
+    const groupOf = {};
+    TOKEN_GROUPS.forEach(function (g) { g.ids.forEach(function (id) { groupOf[id] = g.key; }); });
+    list.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : 'other'); });
+    const byGroup = {};
+    list.forEach(function (x) { (byGroup[x.group] = byGroup[x.group] || []).push(x); });
+    Object.keys(byGroup).forEach(function (k) { byGroup[k].sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); }); });
+    const groups = TOKEN_GROUPS.filter(function (g) { return (byGroup[g.key] || []).length; }); // 沒有任何代幣的分類不顯示
+    if (tokenCatSel !== 'all' && !byGroup[tokenCatSel]) tokenCatSel = 'all';
+    const groupLabel = {}; groups.forEach(function (g) { groupLabel[g.key] = g.label; });
+
+    // 內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，清單一長就整個被裁掉、完全不能捲動。
+    // 分類按鈕放在搜尋框上方：先選「哪一類」再用名稱縮小範圍，是兩個層次的篩選。
+    pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？先選分類，再選一個代幣看排行。　🔗 先換成不可交易的中繼物品，再用它能換到的東西估價　🔒 需先完成任務或成就才能兌換</p>' +
+      '<div class="market-token-cats market-pane-fixed" id="mk-token-cats"></div>' +
       '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:8px">' +
+      '<p class="market-token-note market-pane-fixed" id="mk-token-note"></p>' +
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
-    function tokenRowHtml(x) {
+    function tokenRowHtml(x, showGroup) {
       return '<div class="market-token-row" data-token-id="' + x.id + '">' +
         '<button type="button" class="market-token-head" data-token-toggle="' + x.id + '">' +
           '<i class="ph ph-caret-right"></i>' + itemIconHtml(x.id, 24) +
           '<span class="market-token-name">' + x.name + '</span>' +
-          '<span class="craft-muted market-token-count">可換 ' + x.count + ' 種</span>' +
+          '<span class="market-token-count">可換 ' + x.count + ' 種</span>' +
+          (showGroup ? '<span class="market-token-gtag">' + groupLabel[x.group] + '</span>' : '') +
         '</button>' +
         '<div class="market-token-body" id="mk-token-body-' + x.id + '" style="display:none"></div>' +
       '</div>';
     }
-    function renderList(filter) {
+    function renderCats() {
+      $('mk-token-cats').innerHTML =
+        '<button type="button" class="craft-job-filter-btn' + (tokenCatSel === 'all' ? ' active' : '') + '" data-tcat="all">全部</button>' +
+        groups.map(function (g) {
+          return '<button type="button" class="craft-job-filter-btn' + (tokenCatSel === g.key ? ' active' : '') + '" data-tcat="' + g.key + '" title="' + g.desc + '">' +
+            g.label + '<span class="market-token-cat-n">' + byGroup[g.key].length + '</span></button>';
+        }).join('');
+    }
+    function renderList() {
       const box = $('mk-token-list');
-      const kw = (filter || '').trim();
+      const kw = ($('mk-token-search').value || '').trim();
+      const sel = groups.find(function (g) { return g.key === tokenCatSel; });
+      $('mk-token-note').textContent = sel ? sel.desc : '';
+      $('mk-token-note').style.display = sel ? '' : 'none';
       if (kw) {
-        const rows = list.filter(function (x) { return x.name.indexOf(kw) !== -1; });
-        box.innerHTML = rows.length ? rows.map(tokenRowHtml).join('') : '<p class="craft-muted">沒有符合的代幣。</p>';
+        // 搜尋：選了某個分類就只在該分類裡找；選「全部」就全部分類一起找，每列標出所屬分類
+        const pool = sel ? byGroup[sel.key] : list;
+        const rows = pool.filter(function (x) { return x.name.indexOf(kw) !== -1; });
+        if (rows.length) { box.innerHTML = rows.map(function (x) { return tokenRowHtml(x, !sel); }).join(''); return; }
+        const elsewhere = sel ? list.filter(function (x) { return x.name.indexOf(kw) !== -1; }).length : 0;
+        box.innerHTML = '<p class="craft-muted">' + (sel ? '「' + sel.label + '」裡沒有符合的代幣' + (elsewhere ? '，但其他分類有 ' + elsewhere + ' 個符合，切到「全部」可以看到。' : '。') : '沒有符合的代幣。') + '</p>';
         return;
       }
-      // 常用代幣（置頂名單）直接列出；其餘由資料自動產生的收在「更多代幣」裡，點開才看
-      box.innerHTML = dir.pinned.map(tokenRowHtml).join('') +
-        (dir.more.length ? '<details class="market-token-more"><summary>更多代幣（' + dir.more.length + '）</summary>' + dir.more.map(tokenRowHtml).join('') + '</details>' : '');
+      if (sel) { box.innerHTML = byGroup[sel.key].map(function (x) { return tokenRowHtml(x, false); }).join(''); return; }
+      // 「全部」：常見的分類各自一段（有標題），數量很多的（蒼天街重建的幾十種物資、其他雜項）不攤開，
+      // 只在最下面留入口，不然一打開就是上百列，真正常用的反而被淹沒。
+      const open = groups.filter(function (g) { return !g.fold; });
+      const folded = groups.filter(function (g) { return g.fold; });
+      box.innerHTML = open.map(function (g) {
+        return '<div class="market-token-group-title">' + g.label + '<span class="craft-muted">' + byGroup[g.key].length + '</span></div>' +
+          byGroup[g.key].map(function (x) { return tokenRowHtml(x, false); }).join('');
+      }).join('') + (folded.length ? '<div class="market-token-group-title">還有這些分類（數量較多，點進去看）</div><div class="market-token-fold-links">' +
+        folded.map(function (g) { return '<button type="button" class="craft-job-filter-btn" data-tcat="' + g.key + '">' + g.label + '<span class="market-token-cat-n">' + byGroup[g.key].length + '</span></button>'; }).join('') + '</div>' : '');
     }
-    renderList('');
-    $('mk-token-search').addEventListener('input', function () { renderList(this.value); });
+    renderCats(); renderList();
+    pane.addEventListener('click', function (e) {
+      const c = e.target.closest('[data-tcat]');
+      if (!c) return;
+      tokenCatSel = c.dataset.tcat;
+      renderCats(); renderList();
+      const sb = pane.querySelector('.market-pane-scrollbody'); if (sb) sb.scrollTop = 0;
+    });
+    $('mk-token-search').addEventListener('input', renderList);
+
     const TOKEN_SORTS = [['net', '市價'], ['vel', '賣速'], ['txnFreq', '成交頻率']];
     pane.addEventListener('click', async function (e) {
       const sortBtn = e.target.closest('[data-token-sort]');
@@ -3521,6 +3617,19 @@
       if (open || body.dataset.loaded) return;
       renderTokenBody(body, id);
     });
+    // 賣速／成交頻率的數字顯示：
+    // 0 不等於「沒人買」。快照裡的賣速只留到小數一位（每天賣0.04件會變成0.0），而成交頻率在
+    // 「30天內成交不到5筆」時資料會是空的（算不出來），舊的畫面把這兩種都寫成 0.0／0.00，
+    // 玩家點進物品明明看得到成交紀錄卻看到0，會以為資料錯了。改成：有數字就顯示（不到1件用兩位小數），
+    // 沒有數字就寫「稀少」並說明原因，不再用0冒充。
+    function fmtVelCell(v) {
+      if (!(v > 0)) return '<span class="mtr-null" title="近期賣出的量非常少（每天不到0.1件）">稀少</span>';
+      return v >= 1 ? v.toFixed(1) : v.toFixed(2);
+    }
+    function fmtFreqCell(f) {
+      if (!(f > 0)) return '<span class="mtr-null" title="近30天成交不到5筆，筆數太少，算不出可靠的頻率（不代表完全沒有成交）">稀少</span>';
+      return f.toFixed(2);
+    }
     async function renderTokenBody(body, id) {
       body.dataset.loaded = '1';
       body.innerHTML = '<p class="craft-muted">讀取排行中⋯</p>';
@@ -3530,33 +3639,38 @@
       const sortKey = body.dataset.sort || 'net';
       const best = buildCurrencyBestUses(id, dcData, settings.materialsBasis, 20, sortKey);
       if (!best.length) { body.innerHTML = '<p class="craft-muted">找不到可以公平比較的兌換對象（可能是關聯的道具都缺乏市場行情）。</p>'; return; }
-      const sortTabsHtml = '<div class="market-token-sort-tabs">' + TOKEN_SORTS.map(function (s) {
-        return '<button type="button" class="market-token-sort-btn' + (s[0] === sortKey ? ' active' : '') + '" data-token-sort="' + s[0] + '">' + s[1] + '</button>';
-      }).join('') + '</div>';
-      // 排序指標決定順序，但三個指標的數字都要秀出來（不是只秀排序用的那個），不然玩家
-      // 換個排序方式，想比較「市價雖然低但賣速快」這種取捨時，看不到另外兩個數字沒辦法比較。
-      body.innerHTML = sortTabsHtml + best.map(function (r, i) {
+      // 排行改成「表頭＋對齊的欄」：欄名只在表頭寫一次（以前每一列都重複寫「賣速 … 件/天」「頻率 … 筆/天」，
+      // 又長又擠，名稱跟數字之間還隔一大片空白），點表頭就能換排序，取代原本另外一排排序按鈕。
+      // 每列底下一條淡淡的長條＝目前排序指標的相對大小，不用逐列比數字就看得出差距。
+      const colOf = { net: 'net', vel: 'vel', txnFreq: 'txnFreq' };
+      const maxMetric = Math.max.apply(null, best.map(function (r) { return Math.max(0, r[colOf[sortKey]] || 0); })) || 1;
+      function sortHead(key, cls, html, tip) {
+        return '<button type="button" class="mtr-sort ' + cls + (sortKey === key ? ' active' : '') + '" data-token-sort="' + key + '" title="' + tip + '">' + html + '</button>';
+      }
+      const headHtml = '<div class="mtr-head"><span class="mtr-rank">#</span><span class="mtr-name">可以換到</span>' +
+        sortHead('net', 'mtr-val', '每1' + itemIconHtml(id, 13) + '價值', '用1個這種代幣，大約能換到多少金幣的東西（換成最划算的那一種）') +
+        sortHead('vel', 'mtr-vel', '賣速/天', '最近每天大約賣出幾件（看最近幾天）') +
+        sortHead('txnFreq', 'mtr-freq', '成交頻率/天', '近30天平均每天成交幾筆；成交不到5筆時算不出來，顯示「稀少」') +
+      '</div>';
+      body.innerHTML = '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
         const label = r.resultItems.map(function (x) { return (ITEM_NAMES_TW_ALL[x[0]] || ('#' + x[0])) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
-        // 「每1[這個代幣的小圖示]≈金額」：用代幣自己的圖示＋數字1，明確表達這是換算一個單位的等值，
-        // 不是這個成品本身的市場售價；賣速/頻率補回單位，不然看數字猜不出是以天算還是以次算。
-        const metricsHtml = '<span class="market-token-metric' + (sortKey === 'net' ? ' active' : '') + '">每1' + itemIconHtml(id, 13) + '≈' + (Math.abs(r.net) < 10 ? r.net.toFixed(1) : Math.round(r.net).toLocaleString()) + '</span>' +
-          '<span class="market-token-metric' + (sortKey === 'vel' ? ' active' : '') + '">賣速 ' + r.vel.toFixed(1) + ' 件/天</span>' +
-          '<span class="market-token-metric' + (sortKey === 'txnFreq' ? ' active' : '') + '">頻率 ' + r.txnFreq.toFixed(2) + ' 筆/天</span>';
         // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
         // 不是這個物品自己的市場價——用一個小圖示標出來，不然玩家點進去查這個物品會發現沒有市場價、
         // 覺得數字是編的；滑鼠停留可以看到追查到哪個最終物品。
-        // 鏈式結果：🔗後面接終點物品的小圖示（例如神秘原石 🔗[土壤圖示]），不用文字就看得出
-        // 「這個中繼物品最後換成什麼才有價值」；停留可看終點名稱。
         const endName = r.chainEnd != null ? (ITEM_NAMES_TW_ALL[r.chainEnd] || r.chainEnd) : '';
         const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為再兌換成「' + endName + '」後的市價">🔗' + (r.chainEnd != null ? itemIconHtml(r.chainEnd, 16) : '') + '</span>' : '';
-        return '<button type="button" class="market-obtain-best-row market-token-best-row" data-mk-goto-item="' + first[0] + '">' +
-          '<span class="market-obtain-best-rank">' + (i + 1) + '</span>' +
-          itemIconHtml(first[0], 22) +
-          '<span class="market-obtain-best-name">' + label + chainTag + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' +
-          '<span class="market-token-metrics">' + metricsHtml + '</span>' +
+        const net = Math.abs(r.net) < 10 ? r.net.toFixed(1) : Math.round(r.net).toLocaleString();
+        const pct = Math.max(0, Math.min(100, (Math.max(0, r[colOf[sortKey]] || 0) / maxMetric) * 100));
+        return '<button type="button" class="mtr-row" data-mk-goto-item="' + first[0] + '">' +
+          '<span class="mtr-bar" style="width:' + pct.toFixed(1) + '%"></span>' +
+          '<span class="mtr-rank">' + (i + 1) + '</span>' +
+          '<span class="mtr-name">' + itemIconHtml(first[0], 22) + '<span class="mtr-label">' + label + '</span>' + chainTag + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' +
+          '<span class="mtr-val' + (sortKey === 'net' ? ' active' : '') + '">' + net + '</span>' +
+          '<span class="mtr-vel' + (sortKey === 'vel' ? ' active' : '') + '">' + fmtVelCell(r.vel) + '</span>' +
+          '<span class="mtr-freq' + (sortKey === 'txnFreq' ? ' active' : '') + '">' + fmtFreqCell(r.txnFreq) + '</span>' +
         '</button>';
-      }).join('');
+      }).join('') + '</div>';
       body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
         el.addEventListener('click', function () { openItemDetail(el.dataset.mkGotoItem); });
       });
