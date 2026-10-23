@@ -265,19 +265,41 @@
 .market-token-head{width:100%;display:flex;align-items:center;gap:8px;background:none;border:none;
   color:var(--main);font-family:inherit;font-size:13px;cursor:pointer;padding:7px 2px;text-align:left}
 .market-token-head:hover{color:var(--gold)}
-.market-token-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.market-token-count{font-size:12px;white-space:nowrap}
+.market-token-name{flex:0 1 auto;min-width:0;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 「可換N種」緊貼在名稱旁邊（以前被推到整列最右邊，跟名稱隔很遠，視線要拉很長才對得上），做成低調的小標籤 */
+.market-token-count{font-size:11px;white-space:nowrap;color:var(--dim);padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.06)}
+.market-token-gtag{font-size:10px;white-space:nowrap;color:#d6bd86;padding:0 8px;border-radius:999px;border:1px solid rgba(197,160,89,.34);background:rgba(197,160,89,.10);line-height:1.7}
+/* 代幣分類：按鈕列在搜尋框上方；選到的分類下方一行小字說明這一類是什麼 */
+.market-token-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.market-token-cats .craft-job-filter-btn{font-size:12px;padding:4px 11px}
+.market-token-cat-n{margin-left:5px;font-size:10px;opacity:.6}
+.market-token-note{margin:0 0 8px;font-size:12px;color:var(--dim)}
+.market-token-group-title{display:flex;align-items:baseline;gap:8px;margin:16px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--tb);font-size:13px;font-weight:600;color:var(--gold)}
+.market-token-group-title:first-child{margin-top:2px}
+.market-token-group-title .craft-muted{font-size:11px;font-weight:400}
+.market-token-fold-links{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
 .market-token-body{padding:2px 0 8px 24px}
-.market-token-sort-tabs{display:flex;gap:4px;margin-bottom:6px}
-.market-token-sort-btn{font-size:12px;padding:3px 10px;border:1px solid var(--tb);border-radius:999px;
-  background:none;color:var(--dim);cursor:pointer;font-family:inherit}
-.market-token-sort-btn.active{border-color:var(--gold);color:var(--gold-bright)}
-/* 排行每列同時顯示三個指標，目前排序依據的那個用強調色凸顯，其餘淡化但仍看得到數字。 */
-.market-token-best-row{align-items:center}
-.market-token-metrics{display:flex;gap:8px;flex-shrink:0}
-.market-token-metric{font-size:12px;color:var(--dim);white-space:nowrap}
-.market-token-metric.active{color:#8fd6a0;font-weight:600}
-.market-token-metric img{vertical-align:middle;margin:0 1px}
+/* 兌換排行：表頭＋對齊的欄。欄名只在表頭寫一次，數字欄靠右；表頭可點，點了依該欄排序（取代以前另外一排排序按鈕）。
+   整張表限制最大寬度，名稱跟數字不要隔太遠。每列底下的淡色長條＝目前排序指標的相對大小。 */
+.mtr-wrap{max-width:780px}
+.mtr-head,.mtr-row{display:grid;grid-template-columns:26px minmax(0,1fr) 112px 84px 104px;align-items:center;gap:8px;padding:5px 8px}
+.mtr-head{font-size:11px;color:var(--dim);border-bottom:1px solid var(--tb);padding-top:2px}
+.mtr-row{position:relative;width:100%;background:none;border:0;border-radius:6px;text-align:left;color:var(--main);font-family:inherit;font-size:13px;cursor:pointer;overflow:hidden}
+.mtr-row:hover{background:rgba(255,255,255,.05)}
+.mtr-row>*{position:relative}
+.mtr-bar{position:absolute!important;left:0;top:3px;bottom:3px;background:rgba(143,214,160,.11);border-radius:4px;pointer-events:none}
+.mtr-rank{text-align:center;font-size:11px;color:var(--gold)}
+.mtr-name{display:flex;align-items:center;gap:7px;min-width:0}
+.mtr-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mtr-val,.mtr-vel,.mtr-freq{text-align:right;white-space:nowrap;color:var(--dim)}
+.mtr-val{color:#8fd6a0;font-weight:600}
+.mtr-val.active,.mtr-vel.active,.mtr-freq.active{color:#8fd6a0;font-weight:600}
+.mtr-null{color:var(--dim);font-weight:400;font-size:12px;opacity:.75}
+.mtr-sort{background:none;border:0;padding:0;font:inherit;color:var(--dim);cursor:pointer;text-align:right;white-space:nowrap}
+.mtr-sort:hover{color:var(--gold)}
+.mtr-sort img{vertical-align:middle;margin:0 1px}
+.mtr-sort.active{color:var(--gold-bright);font-weight:600}
+.mtr-sort.active::after{content:' ▼';font-size:8px}
 .market-token-chain-tag{font-size:11px;margin-left:4px;opacity:.8}
 .market-obtain-row{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:7px 4px;
   border-bottom:1px solid rgba(255,255,255,.06)}
