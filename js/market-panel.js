@@ -742,26 +742,32 @@
      * （跟以前一樣），選了某個世界＝只用那個世界自己的掛單跟成交紀錄計算；
      * 均價底下「當前／近1天／近3、7、30天」各自的時間邏輯完全不變，只是計算對象換掉。
      * 賣速徽章不受影響（它有自己的範圍標示）。 */
-    function velBadgeHtml(v, scopeWorld) {
+    // 賣速的數字：1件以上留一位小數，不到1件留兩位（以前一律一位，每天賣0.04件會顯示成0.0，像是完全沒人買）
+    function fmtVelNum(x) { x = x || 0; return x >= 1 ? x.toFixed(1) : (x > 0 ? x.toFixed(2) : '0'); }
+    function velTileHtml(v, scopeWorld) {
       if (v && (v.nqVelocityPerDay != null || v.hqVelocityPerDay != null)) {
-        // 「/天」寫在前面當單位標題，後面就不用重複兩次；範圍（所有世界／某世界）下拉選單已經標示且會連動，這裡不再重複
-        return '<span class="market-stat-badge" title="每天賣出幾件（' + (scopeWorld || '所有世界') + '）">賣速/天 NQ' + (v.nqVelocityPerDay || 0).toFixed(1) + ' HQ' + (v.hqVelocityPerDay || 0).toFixed(1) + '</span>';
+        return '<div class="market-stat-tile" title="每天賣出幾件（' + (scopeWorld || '所有世界') + '）"><span class="mst-label">賣速</span>' +
+          '<span class="mst-val"><span class="mst-q">NQ</span>' + fmtVelNum(v.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fmtVelNum(v.hqVelocityPerDay) + '<small>件/天</small></span></div>';
       }
-      if (v && v.usedScope === null) return '<span class="market-stat-badge market-stat-badge-muted">近4天查無成交' + (scopeWorld ? '（' + scopeWorld + '）' : '') + '</span>';
+      if (v && v.usedScope === null) return '<div class="market-stat-tile market-stat-tile-muted"><span class="mst-label">賣速</span><span class="mst-val">近4天無成交' + (scopeWorld ? '（' + scopeWorld + '）' : '') + '</span></div>';
       return '';
+    }
+    /* 統計摘要用「小標籤＋大數字」的方塊排成一列（以前是純文字膠囊，標籤跟數字同樣大小、同樣顏色，
+     * 要逐個讀才知道哪個是哪個）。標籤小而淡、數字大而醒目，單位（金、件/天）用更小的字跟在後面，
+     * 一眼掃過去先看到數字，需要時再看標籤。最低價最重要，用綠色強調。 */
+    function statTile(label, valHtml, cls, attrs) {
+      return '<div class="market-stat-tile' + (cls ? ' ' + cls : '') + '"' + (attrs || '') + '><span class="mst-label">' + label + '</span><span class="mst-val">' + valHtml + '</span></div>';
     }
     function buildStatBarHtml(st) {
       const parts = [];
-      if (st.minPrice) parts.push('<span class="market-stat-badge market-stat-badge-strong" title="目前掛單中最低的單價（單位：金）">在售最低 ' + st.minPrice.toLocaleString() + '</span>');
+      if (st.minPrice) parts.push(statTile('在售最低', st.minPrice.toLocaleString() + '<small>金</small>', 'market-stat-tile-strong', ' title="目前掛單中最低的單價"'));
       // 均價：近24小時實際成交均價，不是掛單快照均價（掛單均價容易被囤積的高價/低價單誤導）。
-      // 24小時內沒有成交的冷門物品，退回用掛單均價並標＊，註明這不是真的成交均價。
-      if (st.avgLoading) parts.push('<span class="market-stat-badge market-stat-badge-muted">均價 計算中⋯</span>');
-      // 第3點：清楚分開「成交均價」（真的有成交紀錄算出來的）跟「掛單均價」（沒有成交紀錄可用，退而求其次，
-      // 拿現在架上還沒賣掉的掛單價格取平均頂替），不要都叫「均價」混在一起，容易讓人誤以為是同一種東西。
-      else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-badge market-stat-badge-btn" id="mk-avgprice-badge">' + (st.avgIsFallback ? '掛單均價 ' : '成交均價 ') + st.avgDisplay.toLocaleString() + '<i class="ph ph-caret-down" style="font-size:9px;margin-left:3px"></i></button>');
-      if (st.maxPrice) parts.push('<span class="market-stat-badge" title="目前掛單中最高的單價（單位：金）">在售最高 ' + st.maxPrice.toLocaleString() + '</span>');
-      if (st.velLoading) parts.push('<span class="market-stat-badge market-stat-badge-muted">賣速 計算中⋯</span>');
-      else { const vb = velBadgeHtml(st.velocity, st.scopeWorld); if (vb) parts.push(vb); }
+      // 24小時內沒有成交的冷門物品，退回用掛單均價，並明確標成「掛單均價」，註明這不是真的成交均價。
+      if (st.avgLoading) parts.push(statTile('均價', '計算中⋯', 'market-stat-tile-muted'));
+      else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-tile market-stat-tile-btn" id="mk-avgprice-badge" title="點擊看不同天數的均價比較"><span class="mst-label">' + (st.avgIsFallback ? '掛單均價' : '成交均價') + '<i class="ph ph-caret-down"></i></span><span class="mst-val">' + st.avgDisplay.toLocaleString() + '<small>金</small></span></button>');
+      if (st.maxPrice) parts.push(statTile('在售最高', st.maxPrice.toLocaleString() + '<small>金</small>', '', ' title="目前掛單中最高的單價"'));
+      if (st.velLoading) parts.push(statTile('賣速', '計算中⋯', 'market-stat-tile-muted'));
+      else { const vt = velTileHtml(st.velocity, st.scopeWorld); if (vt) parts.push(vt); }
       return parts.join('');
     }
     const last24hRaw = (overview && overview.history) ? overview.history.filter(function (h) { return h.timestamp >= Date.now() / 1000 - 86400; }) : [];
@@ -819,6 +825,10 @@
     // 在售／成交／走勢三個分頁取代以前的「查看最近成交紀錄」「查看走勢圖」兩個彈窗：
     // 內容直接顯示在清單區域，不用開關視窗，也看得出「現在在哪個檢視」。
     // 「只顯示HQ」是篩選、不是檢視，所以不放進分頁，獨立一顆；走勢圖自己有NQ/HQ選單，切到走勢時就藏起來。
+    // 各世界最低價列：取代原本的下拉選單（選項藏在下拉裡，要點開才知道哪個世界最便宜）。
+    // 每個世界一格：名稱、該世界目前最低價、資料更新距今（超過6小時變橘色、超過1天變紅色）；
+    // 最便宜的世界價格標綠色。點一格＝切換整個頁面的範圍（在售／成交／走勢都跟著換）。內容在下面 renderWorldStrip 填入。
+    html += '<div class="market-world-strip" id="mk-world-strip"></div>';
     html += '<div class="market-listing-bar">' +
         '<div class="market-tabs-mini" id="mk-tabs" role="tablist">' +
           '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true">在售 <span id="mk-tab-count">' + overview.listings.length + '</span></button>' +
@@ -826,7 +836,7 @@
           '<button type="button" class="market-tab-mini" data-mk-tab="trend" role="tab" aria-selected="false">走勢</button>' +
         '</div>' +
         '<button type="button" class="market-history-btn" id="mk-hq-filter-btn">只顯示HQ</button>' +
-        '<select id="mk-world-filter" class="craft-select" style="font-size:11px">' +
+        '<select id="mk-world-filter" class="craft-select" style="display:none" aria-hidden="true" tabindex="-1">' +
           // optgroup 的標題列看起來像分類、不能被選取，只當說明用；預設選中的仍是裡面第一個「所有世界」（標題的配色見 page-market.css）
           '<optgroup label="顯示範圍・最低價' + (hasWorldTimes ? '・資料更新' : '') + '">' +
             '<option value="ALL">所有世界</option>' +
@@ -920,7 +930,7 @@
         const total = l.pricePerUnit * l.quantity * (includeFee ? (1 + feeRate) : 1);
         // 僱員名不截斷（名字最長約6~7個字，空間夠就完整顯示），只有放不下才用…並且滑鼠停留看全名。
         const name = escHtml(l.retainerName || '—');
-        return '<div class="market-flexrow">' + priceCellHtml(l.hq, l.pricePerUnit) +
+        return '<div class="market-flexrow' + (rows[0] === l ? ' market-flexrow-best' : '') + '">' + priceCellHtml(l.hq, l.pricePerUnit) +
           '<span class="mfl-qty mfl-r">' + l.quantity.toLocaleString() + '</span><span class="mfl-total mfl-r">' + Math.round(total).toLocaleString() +
           '</span><span class="mfl-buyer" title="' + name + '">' + name + '</span><span class="mfl-world">' + l.world + '</span></div>';
       }).join('') : '<p class="craft-muted" style="padding:8px 0">' + (hqOnly ? '沒有HQ的掛單' : '這個世界目前查無掛單') + '</p>';
@@ -990,8 +1000,34 @@
       const ts = worldFilter === 'ALL' ? overview.lastUploadTime : worldTimes[worldFilter];
       el.textContent = ts ? timeAgo(ts / 1000) + '更新' : '';
     }
+    function ageClass(ms) { const h = (Date.now() - ms) / 3600e3; return h >= 24 ? ' is-stale' : (h >= 6 ? ' is-old' : ''); }
+    function renderWorldStrip() {
+      const strip = $('mk-world-strip'); if (!strip) return;
+      const cells = [{ key: 'ALL', name: '全部', price: overview.minPrice || null, ts: overview.lastUploadTime }]
+        .concat(dcWorlds.map(function (w) { return { key: w, name: w, price: worldMinPrice[w] != null ? worldMinPrice[w] : null, ts: worldTimes[w] || null }; }));
+      const prices = cells.slice(1).map(function (c) { return c.price; }).filter(function (v) { return v != null; });
+      const best = prices.length ? Math.min.apply(null, prices) : null;
+      strip.innerHTML = cells.map(function (c) {
+        const isBest = c.key !== 'ALL' && c.price != null && c.price === best;
+        const tip = c.key === 'ALL' ? '整個資料中心' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價');
+        return '<button type="button" class="mws-cell' + (worldFilter === c.key ? ' active' : '') + (isBest ? ' is-best' : '') + '" data-world="' + c.key + '" title="' + tip + '">' +
+          '<span class="mws-name">' + c.name + '</span>' +
+          '<span class="mws-price">' + (c.price != null ? c.price.toLocaleString() : '—') + '</span>' +
+          (c.ts ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '前</span>' : '') +
+        '</button>';
+      }).join('');
+    }
+    $('mk-world-strip').addEventListener('click', function (e) {
+      const b = e.target.closest('[data-world]'); if (!b) return;
+      const sel = $('mk-world-filter');
+      if (sel.value === b.dataset.world) return;
+      sel.value = b.dataset.world;
+      sel.dispatchEvent(new Event('change')); // 隱藏的下拉仍然是「目前範圍」的唯一來源，邏輯照舊
+    });
+    renderWorldStrip();
     $('mk-world-filter').addEventListener('change', async function () {
       worldFilter = this.value;
+      renderWorldStrip();
       updateFreshness();
       // 成交／走勢分頁立刻跟著新範圍重畫；掛單資料仍在背景更新（統計徽章要用）
       if (activeTab !== 'listing') renderActiveTab();
@@ -1001,7 +1037,9 @@
       try {
         const listings = await MarketData.getListingsForWorld(itemId, worldFilter);
         worldListingsCache[worldFilter] = listings;
+        if (listings.length) worldMinPrice[worldFilter] = Math.min.apply(null, listings.map(function (l) { return l.pricePerUnit; }));
         setActiveListingSet(listings);
+        renderWorldStrip();
       } catch (e) {
         setActiveListingSet([]);
       }
@@ -2260,7 +2298,7 @@
       const iconY = topY + 8 + r;
       const nameY = iconY + r + 12;
       const line2Y = nameY + 13;
-      const priceY = (line2 ? line2Y : nameY) + 13;
+      const priceY = (line2 ? line2Y : nameY) + 16; // 價格是整張卡片最重要的資訊，字級放大後多留一點行距
       const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 10.5, 8) : { text: '', fontSize: 10.5, titleAttr: '' };
       // decision='craft'：這項材料自己做比買便宜，邊框改成跟「省錢」同一個綠色，一眼認出「這個該自己做」；
       // decision='buy' 或沒有比較結果：維持原本金色邊框，不用特別標記——「照原樣買」是預設情況，不需要額外提醒。
@@ -2270,10 +2308,10 @@
       let priceHtml = '';
       if (opts.centerLines) {
         priceHtml = opts.centerLines.map(function (ln, k) {
-          return '<text x="' + x + '" y="' + (nameY + 14 + k * 14) + '" text-anchor="middle" font-size="11" fill="' + ln.fill + '" font-weight="' + ln.weight + '">' + ln.text + '</text>';
+          return '<text x="' + x + '" y="' + (nameY + 14 + k * 14) + '" text-anchor="middle" font-size="12" fill="' + ln.fill + '" font-weight="' + ln.weight + '">' + ln.text + '</text>';
         }).join('');
       } else if (!isOverflow) {
-        priceHtml = '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="9" fill="#8fd6a0"></text>';
+        priceHtml = '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="14" font-weight="700" fill="#d6ffe0"></text>';
       }
       // 數量（×N）放在中心圖示右邊的空位，不另外佔位置
       const qtyHtml = opts.qtyText ? '<text x="' + (x + r + 10) + '" y="' + (iconY + 4) + '" font-size="12" fill="#fcf6ba" font-weight="700">' + opts.qtyText + '</text>' : '';
@@ -2473,14 +2511,21 @@
         const ov = hqOverrides && hqOverrides[id];
         p = listingPriceWithPersp(dcData.items[id], ov || matPersp || 'nq');
       }
-      if (p == null) { el.textContent = '無報價'; return; }
-      // 需要的數量大於1時，單價旁邊補上總價（單價×數量），不用玩家自己心算；
-      // 總價用tspan單獨上色，不要整句字色混在一起看不出哪段是單價哪段是總價。
+      // 價格字級：以前是9px、暗綠色，在深色卡片上幾乎看不清楚，而價格偏偏是玩家最想一眼看到的資訊。
+      // 現在數字用14px粗體、接近白的亮綠色；需要數量大於1時，單價（較小、較淡）×數量＝總價（大、亮）排成一行，
+      // 閱讀順序就是算式，不用自己心算。位數太多放不下卡片寬度（96）時整體等比縮小，不裁切。
+      el.setAttribute('font-size', '14'); el.setAttribute('font-weight', '700'); el.setAttribute('fill', '#d6ffe0');
+      if (p == null) { el.setAttribute('font-size', '11'); el.setAttribute('font-weight', '400'); el.setAttribute('fill', '#8b8578'); el.textContent = '無報價'; return; }
       const amount = Number(el.dataset.amount);
+      const unitStr = Math.round(p).toLocaleString();
       if (amount > 1) {
-        el.innerHTML = Math.round(p).toLocaleString() + '<tspan fill="#bfe8c8" font-size="11" font-weight="700">＝' + fmtTotalGil(p * amount) + '</tspan>';
+        const totStr = fmtTotalGil(p * amount);
+        const k = Math.max(0.7, Math.min(1, 12 / (unitStr.length + totStr.length + 1)));
+        el.innerHTML = '<tspan fill="#9fd9b0" font-size="' + (11 * k).toFixed(1) + '" font-weight="500">' + unitStr + '</tspan>' +
+          '<tspan fill="#d6ffe0" font-size="' + (14 * k).toFixed(1) + '" font-weight="700" dx="2">＝' + totStr + '</tspan>';
       } else {
-        el.textContent = Math.round(p).toLocaleString(); // 單位「金」統一寫在圖例，卡片上不重複，省橫向空間
+        el.setAttribute('font-size', (14 * Math.max(0.75, Math.min(1, 8 / unitStr.length))).toFixed(1));
+        el.textContent = unitStr; // 單位「金」統一寫在圖例，卡片上不重複，省橫向空間
       }
     });
   }
@@ -3500,11 +3545,14 @@
   const TOKEN_GROUPS = [
     { key: 'tomestone', label: '神典石', ids: [48, 28, 47], desc: '副本與團隊挑戰的獎勵貨幣' },
     { key: 'gc', label: '軍票', ids: [22, 20, 21], desc: '三大軍團的軍票（不滅隊、黑渦團、雙蛇黨）' },
-    { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 45690], desc: '生產職、採集職的票券，以及宇宙探索的信用點數' },
-    { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533, 36656], desc: '狩獵（通緝）任務的獎勵貨幣' },
-    { key: 'battle', label: '戰鬥', ids: [26807, 35833, 43961, 30341, 25, 31351], desc: 'FATE 的雙色寶石、幻巧戰的幻巧葉、PvP 的狼印戰績、博茲雅古錢' },
+    { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 41807, 45690], desc: '生產職、採集職的票券與信用點數，以及坐騎的交換票據' },
+    { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533], desc: '狩獵（通緝）任務的獎勵貨幣' },
+    { key: 'pvp', label: 'PvP', ids: [25, 36656, 21067], desc: 'PvP 對戰的獎勵貨幣：狼印戰績、戰利水晶、凶狼項圈' },
+    { key: 'battle', label: '戰鬥', ids: [26807, 35833, 43961, 30341, 31351], desc: 'FATE 的雙色寶石、幻巧戰的幻巧葉、博茲雅古錢' },
     { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472], desc: '友好部族任務的貨幣，每個部族各有一種' },
     { key: 'variant', label: '多變／異聞迷宮', ids: [38533, 38534, 38535, 39884, 39885, 39886, 41078, 41079, 41080], desc: '希拉狄哈、六根山、阿羅阿羅島的遺物、書籍與貨幣' },
+    { key: 'raid', label: '團隊副本', ids: [16545, 13583, 13585, 19117, 19122, 21780, 23969], desc: '亞歷山大、歐米茄系列團隊副本的兌換用道具' },
+    { key: 'materia', label: '魔晶石交換', ids: [], desc: '惰性晶簇／水晶系列，用來兌換魔晶石' },
     { key: 'island', label: '無人島', ids: [37549, 37550], desc: '無人島（謝爾達萊）產出的貨幣' },
     { key: 'wondrous', label: '天書奇談', ids: [22443, 22444, 26823], desc: '天書奇談的庫洛獎狀（金、銀、銅）' },
     { key: 'saucer', label: '金碟', ids: [29], desc: '金碟遊樂場的金碟幣' },
@@ -3526,7 +3574,7 @@
     // 分組：每個代幣歸到一個分類；組內依「可換種類數」多到少
     const groupOf = {};
     TOKEN_GROUPS.forEach(function (g) { g.ids.forEach(function (id) { groupOf[id] = g.key; }); });
-    list.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : 'other'); });
+    list.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : (/^惰性|魔晶石/.test(x.name) ? 'materia' : 'other')); });
     const byGroup = {};
     list.forEach(function (x) { (byGroup[x.group] = byGroup[x.group] || []).push(x); });
     Object.keys(byGroup).forEach(function (k) { byGroup[k].sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); }); });
@@ -3549,7 +3597,7 @@
           '<span class="market-token-count">可換 ' + x.count + ' 種</span>' +
           (showGroup ? '<span class="market-token-gtag">' + groupLabel[x.group] + '</span>' : '') +
         '</button>' +
-        '<div class="market-token-body" id="mk-token-body-' + x.id + '" style="display:none"></div>' +
+        '<div class="market-token-body" id="mk-token-body-' + x.id + '" data-count="' + x.count + '" style="display:none"></div>' +
       '</div>';
     }
     function renderCats() {
@@ -3617,18 +3665,18 @@
       if (open || body.dataset.loaded) return;
       renderTokenBody(body, id);
     });
-    // 賣速／成交頻率的數字顯示：
-    // 0 不等於「沒人買」。快照裡的賣速只留到小數一位（每天賣0.04件會變成0.0），而成交頻率在
-    // 「30天內成交不到5筆」時資料會是空的（算不出來），舊的畫面把這兩種都寫成 0.0／0.00，
-    // 玩家點進物品明明看得到成交紀錄卻看到0，會以為資料錯了。改成：有數字就顯示（不到1件用兩位小數），
-    // 沒有數字就寫「稀少」並說明原因，不再用0冒充。
+    // 賣速／成交頻率的數字顯示。重點：「0」不等於「沒人買」，所以不寫0，也不寫要讀懂定義的「稀少」，
+    // 直接寫出門檻本身：成交頻率不到「5筆/月」、賣速不到「0.05件/天」——自己就看得懂，不需要另外的說明文字。
+    // （原因：頻率在30天內成交不到5筆時算不出可靠的數字；賣速在快照裡只留到小數第二位。）
+    // 每個數字後面都帶單位（金／件/天／筆/天），單位用較小較淡的字，數字本身才是視覺重點。
+    function unit(t) { return '<small class="mtr-unit">' + t + '</small>'; }
     function fmtVelCell(v) {
-      if (!(v > 0)) return '<span class="mtr-null" title="近期賣出的量非常少（每天不到0.1件）">稀少</span>';
-      return v >= 1 ? v.toFixed(1) : v.toFixed(2);
+      if (!(v > 0)) return '<span class="mtr-null" title="最近每天賣不到0.05件，幾乎沒有成交">&lt;0.05</span>' + unit('件/天');
+      return (v >= 1 ? v.toFixed(1) : v.toFixed(2)) + unit('件/天');
     }
     function fmtFreqCell(f) {
-      if (!(f > 0)) return '<span class="mtr-null" title="近30天成交不到5筆，筆數太少，算不出可靠的頻率（不代表完全沒有成交）">稀少</span>';
-      return f.toFixed(2);
+      if (!(f > 0)) return '<span class="mtr-null" title="近30天成交不到5筆，筆數太少算不出可靠的頻率（不代表完全沒有成交）">&lt;5</span>' + unit('筆/月');
+      return f.toFixed(2) + unit('筆/天');
     }
     async function renderTokenBody(body, id) {
       body.dataset.loaded = '1';
@@ -3637,40 +3685,48 @@
       const dcData = await getPrecomputedAllData();
       if (!dcData) { body.innerHTML = '<p class="craft-muted">目前沒有可用的市場快照資料，暫時無法算出排行。</p>'; return; }
       const sortKey = body.dataset.sort || 'net';
-      const best = buildCurrencyBestUses(id, dcData, settings.materialsBasis, 20, sortKey);
-      if (!best.length) { body.innerHTML = '<p class="craft-muted">找不到可以公平比較的兌換對象（可能是關聯的道具都缺乏市場行情）。</p>'; return; }
-      // 排行改成「表頭＋對齊的欄」：欄名只在表頭寫一次（以前每一列都重複寫「賣速 … 件/天」「頻率 … 筆/天」，
-      // 又長又擠，名稱跟數字之間還隔一大片空白），點表頭就能換排序，取代原本另外一排排序按鈕。
+      const SHOW = 20;
+      const all = buildCurrencyBestUses(id, dcData, settings.materialsBasis, 99999, sortKey);
+      const best = all.slice(0, SHOW);
+      const totalTrades = Number(body.dataset.count) || 0;
+      if (!best.length) {
+        body.innerHTML = '<p class="craft-muted">這個代幣可換的 ' + totalTrades + ' 種東西都無法比價（多為不可交易的物品，或目前市場上沒有行情）。</p>';
+        return;
+      }
+      // 排行改成「表頭＋對齊的欄」：欄名只在表頭寫一次，點表頭就能換排序。
       // 每列底下一條淡淡的長條＝目前排序指標的相對大小，不用逐列比數字就看得出差距。
-      const colOf = { net: 'net', vel: 'vel', txnFreq: 'txnFreq' };
-      const maxMetric = Math.max.apply(null, best.map(function (r) { return Math.max(0, r[colOf[sortKey]] || 0); })) || 1;
+      const maxMetric = Math.max.apply(null, best.map(function (r) { return Math.max(0, r[sortKey] || 0); })) || 1;
       function sortHead(key, cls, html, tip) {
         return '<button type="button" class="mtr-sort ' + cls + (sortKey === key ? ' active' : '') + '" data-token-sort="' + key + '" title="' + tip + '">' + html + '</button>';
       }
       const headHtml = '<div class="mtr-head"><span class="mtr-rank">#</span><span class="mtr-name">可以換到</span>' +
         sortHead('net', 'mtr-val', '每1' + itemIconHtml(id, 13) + '價值', '用1個這種代幣，大約能換到多少金幣的東西（換成最划算的那一種）') +
-        sortHead('vel', 'mtr-vel', '賣速/天', '最近每天大約賣出幾件（看最近幾天）') +
-        sortHead('txnFreq', 'mtr-freq', '成交頻率/天', '近30天平均每天成交幾筆；成交不到5筆時算不出來，顯示「稀少」') +
+        sortHead('vel', 'mtr-vel', '賣速', '最近每天大約賣出幾件') +
+        sortHead('txnFreq', 'mtr-freq', '成交頻率', '近30天平均每天成交幾筆；30天內成交不到5筆時算不出來，顯示「<5筆/月」') +
       '</div>';
+      // 清單底下的一行小字：直接回答「可換399種，為什麼只看到1個」——只列得出行情的才會出現在排行裡，
+      // 其餘（不可交易的裝備、幻卡、樂譜，或可交易但目前市場沒有任何行情的）算不出價值，所以不列。
+      const notes = [];
+      notes.push(all.length > SHOW ? '列出前 ' + SHOW + ' 名，共 ' + all.length + ' 種可比價' : '共 ' + all.length + ' 種可比價');
+      if (totalTrades > all.length) notes.push('另有 ' + (totalTrades - all.length) + ' 種無法比價（不可交易或沒有市場行情）');
       body.innerHTML = '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
         const label = r.resultItems.map(function (x) { return (ITEM_NAMES_TW_ALL[x[0]] || ('#' + x[0])) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
         // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
-        // 不是這個物品自己的市場價——用一個小圖示標出來，不然玩家點進去查這個物品會發現沒有市場價、
-        // 覺得數字是編的；滑鼠停留可以看到追查到哪個最終物品。
+        // 不是這個物品自己的市場價——用一個小圖示標出來；滑鼠停留可以看到追查到哪個最終物品。
         const endName = r.chainEnd != null ? (ITEM_NAMES_TW_ALL[r.chainEnd] || r.chainEnd) : '';
         const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為再兌換成「' + endName + '」後的市價">🔗' + (r.chainEnd != null ? itemIconHtml(r.chainEnd, 16) : '') + '</span>' : '';
         const net = Math.abs(r.net) < 10 ? r.net.toFixed(1) : Math.round(r.net).toLocaleString();
-        const pct = Math.max(0, Math.min(100, (Math.max(0, r[colOf[sortKey]] || 0) / maxMetric) * 100));
+        const pct = Math.max(0, Math.min(100, (Math.max(0, r[sortKey] || 0) / maxMetric) * 100));
         return '<button type="button" class="mtr-row" data-mk-goto-item="' + first[0] + '">' +
           '<span class="mtr-bar" style="width:' + pct.toFixed(1) + '%"></span>' +
           '<span class="mtr-rank">' + (i + 1) + '</span>' +
           '<span class="mtr-name">' + itemIconHtml(first[0], 22) + '<span class="mtr-label">' + label + '</span>' + chainTag + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' +
-          '<span class="mtr-val' + (sortKey === 'net' ? ' active' : '') + '">' + net + '</span>' +
+          '<span class="mtr-val' + (sortKey === 'net' ? ' active' : '') + '">' + net + unit('金') + '</span>' +
           '<span class="mtr-vel' + (sortKey === 'vel' ? ' active' : '') + '">' + fmtVelCell(r.vel) + '</span>' +
           '<span class="mtr-freq' + (sortKey === 'txnFreq' ? ' active' : '') + '">' + fmtFreqCell(r.txnFreq) + '</span>' +
         '</button>';
-      }).join('') + '</div>';
+      }).join('') + '<p class="mtr-foot">' + notes.join('；') + '</p></div>';
       body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
         el.addEventListener('click', function () { openItemDetail(el.dataset.mkGotoItem); });
       });
