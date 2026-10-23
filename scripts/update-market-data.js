@@ -593,13 +593,17 @@ async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const scopes = {};
   let totalRows = 0;
+  /* 賣速的小數位數：1件/天以上留一位（跟以前一樣）；不到1件留兩位。
+   * 以前一律留一位，每天賣0.04件的道具會變成0.0，畫面上看起來像「完全沒人買」，
+   * 但這類道具（例如代幣換到的稀有材料）正是玩家最需要知道「賣得慢但不是0」的對象。 */
+  function roundVel(v) { return v >= 1 ? Math.round(v * 10) / 10 : Math.round(v * 100) / 100; }
   function writeScope(key, file, table, title) {
     const items = {};
     let count = 0;
     Object.keys(table).forEach(function (id) {
       const t = table[id];
       const row = [
-        Math.round(t.vN * 10) / 10, Math.round(t.vH * 10) / 10, t.minP == null ? null : Math.round(t.minP),
+        roundVel(t.vN), roundVel(t.vH), t.minP == null ? null : Math.round(t.minP),
         buildP(t.acc.all, t.reachedD30), buildP(t.acc.nq, t.reachedD30), buildP(t.acc.hq, t.reachedD30),
         t.active ? buildD(t.acc.all, t.reachedD7) : null,
         [t.minN == null ? null : Math.round(t.minN), t.minH == null ? null : Math.round(t.minH)],
