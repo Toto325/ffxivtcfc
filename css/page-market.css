@@ -138,6 +138,9 @@
 .market-modal-close:hover{color:var(--main)}
 .market-modal-body{padding:12px 16px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(197,160,89,.35) transparent}
 .market-flexrow{display:flex;align-items:center;padding:5px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05)}
+/* 在售／成交列表的列高再收緊：列表是這個頁面最重要的內容，同樣高度下要多露出幾筆 */
+#mk-tab-head .market-flexrow,#mk-listing-table-slot .market-flexrow{padding-top:3px;padding-bottom:3px}
+#mk-tab-head .market-flexrow-head{padding-top:5px;padding-bottom:5px}
 .market-flexrow-head{color:var(--dim);border-bottom:1px solid var(--tb);background:var(--bg);padding-top:8px;padding-bottom:8px}
 .mfr-hq{flex:0.6;min-width:0}
 .mfr-price{flex:1.1;min-width:0}
@@ -165,7 +168,7 @@
 /* 價格格：HQ標籤在左、數字在右，沒有HQ時左側留空，數字位置不變 */
 .mfl-pricehq{display:flex;align-items:center;justify-content:space-between;gap:4px}
 /* 在售／成交／走勢 分頁（取代以前的兩個彈窗）：同一個區域切換檢視 */
-.market-listing-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 0 6px;font-size:12px;color:var(--dim)}
+.market-listing-bar{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;margin:0 0 4px;font-size:12px;color:var(--dim)}
 .market-listing-bar .market-history-btn{margin-left:0}
 .market-listing-bar .craft-select{flex:0 1 auto;max-width:100%} /* 隱藏手續費勾選時，下拉也不要被拉成整排寬 */
 .market-tabs-mini{display:inline-flex;border:1px solid var(--tb);border-radius:7px;overflow:hidden}
@@ -180,21 +183,51 @@
 .market-stat-line{font-size:13px;margin-bottom:4px}
 /* 統計徽章列（第1點）：取代原本一數字一整行的<p>堆疊，同樣的資訊量換算成徽章後
  * 只佔一到兩行，省下來的高度直接讓下面的掛單清單多顯示好幾筆。 */
-.market-stat-bar{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px;margin-bottom:6px}
-/* 統計方塊：小而淡的標籤在上、大而醒目的數字在下，單位用更小的字跟在數字後面。
-   以前是純文字膠囊（「在售最低 199」整句同樣大小同樣顏色），要逐個讀才知道哪個是哪個；現在先看到數字，需要時再看標籤。 */
-.market-stat-tile{display:flex;flex-direction:column;gap:2px;padding:6px 14px 7px;border:1px solid var(--tb);border-radius:9px;background:rgba(255,255,255,.03);color:inherit;font-family:inherit;text-align:left}
-.mst-label{font-size:11px;color:var(--dim);white-space:nowrap}
+.market-stat-bar{display:flex;flex-wrap:wrap;align-items:stretch;margin-bottom:4px;border:1px solid var(--tb);border-radius:10px;background:rgba(255,255,255,.025);overflow:hidden}
+/* 統計列：一整條橫向資訊列，每一格是「小標籤＋大數字」排在同一行，格與格之間用細線分開。
+   上一版是四個獨立的方塊、標籤在上數字在下，高度約70px，把最重要的價格列表擠到只剩幾列；
+   現在高度約一半，數字一樣大一樣醒目，省下的高度全部還給列表。 */
+.market-stat-tile{display:flex;flex-direction:row;align-items:baseline;gap:6px;padding:5px 11px;border:0;border-right:1px solid var(--tb);background:none;color:inherit;font-family:inherit;text-align:left}
+.market-stat-tile:last-child{border-right:0}
+.mst-label{font-size:11.5px;color:var(--dim);white-space:nowrap}
 .mst-label .ph{font-size:9px;margin-left:3px}
-.mst-val{font-size:19px;font-weight:700;line-height:1.2;white-space:nowrap}
+.mst-val{font-size:17px;font-weight:700;line-height:1.25;white-space:nowrap}
 .mst-val small{font-size:11px;font-weight:400;color:var(--dim);margin-left:3px}
 .mst-q{font-size:10px;font-weight:600;color:var(--dim);margin-right:3px}
-.mst-sep{margin:0 7px;color:var(--dim);font-weight:400}
-.market-stat-tile-strong{border-color:rgba(74,222,128,.5);background:rgba(74,222,128,.06)}
+.mst-sep{margin:0 6px;color:var(--dim);font-weight:400}
+.market-stat-tile-strong{background:rgba(74,222,128,.08)}
 .market-stat-tile-strong .mst-val{color:#4ade80}
 .market-stat-tile-muted .mst-val{font-size:13px;font-weight:400;color:var(--dim)}
 .market-stat-tile-btn{cursor:pointer}
-.market-stat-tile-btn:hover{border-color:var(--gold);background:rgba(197,160,89,.08)}
+.market-stat-tile-btn:hover{background:rgba(197,160,89,.1)}
+/* 各世界最低價列：兩行（世界名／價格），比上一版少一行高度 */
+.market-world-strip{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 8px}
+/* 平均分配一排的寬度（8格剛好一排放得下），欄位真的太窄才換行 */
+.mws-cell{display:flex;flex-direction:column;align-items:center;gap:0;flex:1 1 66px;min-width:66px;padding:3px 6px 4px;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.025);color:inherit;font-family:inherit;cursor:pointer}
+.mws-cell:hover{border-color:var(--gold)}
+.mws-name{font-size:11px;line-height:1.35;color:var(--dim);white-space:nowrap}
+.mws-price{font-size:15px;font-weight:700;line-height:1.3;white-space:nowrap}
+.mws-age{margin-left:4px;font-size:10px;font-weight:600}
+.mws-age.is-old{color:#e0a05a}
+.mws-age.is-stale{color:#e0786a}
+.mws-cell.is-best{border-color:rgba(74,222,128,.45)}
+.mws-cell.is-best .mws-price{color:#4ade80}
+.mws-cell.active{border-color:var(--gold);background:rgba(197,160,89,.15)}
+.mws-cell.active .mws-name{color:var(--gold-bright)}
+/* 成交均價面板（緊湊版）：標籤＋長條＋數字，長條＝相對高低 */
+.mav-pop{min-width:224px;max-width:260px;padding:9px 12px 10px}
+.mav-title{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid var(--tb);font-size:11px;color:var(--dim)}
+.mav-help{margin-left:6px;display:inline-block;width:14px;height:14px;line-height:14px;text-align:center;border:1px solid var(--tb);border-radius:50%;font-size:9px;cursor:help}
+.mav-row{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:12.5px}
+.mav-l{flex:0 0 46px;color:var(--dim);white-space:nowrap}
+.mav-bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+.mav-bar i{display:block;height:100%;border-radius:3px;background:rgba(197,160,89,.55)}
+.mav-row.is-now .mav-bar i{background:#e8c878}
+.mav-row.is-now .mav-l{color:var(--gold-bright)}
+.mav-row strong{flex:0 0 auto;min-width:40px;text-align:right;font-size:14px}
+.mav-row small{flex:0 0 auto;font-size:10px;color:var(--dim)}
+.mav-listing{margin-top:5px;padding-top:6px;border-top:1px dashed var(--tb)}
+.mav-listing .mav-bar{background:none}
 /* 舊的膠囊樣式：材料明細面板（市場頁的子面板）還在用，保留 */
 .market-stat-badge{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--tb);
   background:rgba(255,255,255,.03);color:var(--main);white-space:nowrap}
@@ -202,21 +235,7 @@
 .market-stat-badge-muted{color:var(--dim)}
 .market-stat-badge-btn{cursor:pointer;font-family:inherit}
 .market-stat-badge-btn:hover{border-color:var(--gold)}
-/* 各世界最低價列：取代世界下拉選單，一眼看出哪個世界最便宜、哪個世界的資料太舊 */
-.market-world-strip{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
-/* 平均分配一排的寬度（8格剛好一排放得下），欄位真的太窄才換行 */
-.mws-cell{display:flex;flex-direction:column;align-items:center;gap:1px;flex:1 1 66px;min-width:66px;padding:5px 6px 4px;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.025);color:inherit;font-family:inherit;cursor:pointer}
-.mws-cell:hover{border-color:var(--gold)}
-.mws-name{font-size:11px;color:var(--dim);white-space:nowrap}
-.mws-price{font-size:15px;font-weight:700;line-height:1.3}
-.mws-age{font-size:10px;color:var(--dim)}
-.mws-age.is-old{color:#e0a05a}
-.mws-age.is-stale{color:#e0786a}
-.mws-cell.is-best{border-color:rgba(74,222,128,.45)}
-.mws-cell.is-best .mws-price{color:#4ade80}
-.mws-cell.active{border-color:var(--gold);background:rgba(197,160,89,.15)}
-.mws-cell.active .mws-name{color:var(--gold-bright)}
-.market-stat-foot{font-size:11px;margin:0 0 8px}
+.market-stat-foot{font-size:11px;margin:0 0 5px}
 .market-trend-range-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .market-trend-range-btn.active{border-color:var(--gold);color:var(--gold-bright);background:rgba(197,160,89,.15)}
 .market-trend-svg{width:100%;height:220px;display:block}
