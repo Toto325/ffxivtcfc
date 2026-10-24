@@ -568,12 +568,12 @@
   async function openAvgPricePopover(itemId, anchorBtn, fallbackAvg, scopeWorld) {
     const scopeLabel = scopeWorld ? '（' + scopeWorld + '）' : '（所有世界）';
     const pop = ensureAvgPricePopoverDom();
+    delete pop.dataset.dir; // 剛打開才重新決定往上還是往下開，之後內容變化沿用同一邊（見 placePopover）
     pop.dataset.owner = 'avg';
-    pop.innerHTML = '<p class="craft-mat-worlds-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px">讀取歷史成交中⋯</p>';
+    pop.classList.add('mav-pop');
+    pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取歷史成交中⋯</p>';
     pop.style.display = 'block';
-    const r = anchorBtn.getBoundingClientRect();
-    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 260)) + 'px';
-    pop.style.top = (r.bottom + 6) + 'px';
+    placePopover(pop, anchorBtn.getBoundingClientRect());
     try {
       const full = await MarketData.fetchFullHistory(itemId, 30, scopeWorld || undefined);
       const now = Date.now() / 1000;
@@ -591,14 +591,20 @@
       const current = avgOf(inRange(0, 24));
       const oneDay = avgOf(inRange(0, 48));
       const avg3d = avgOf(withinDays(3)), avg7d = avgOf(withinDays(7)), avg30d = avgOf(withinDays(30));
-      pop.innerHTML = '<p class="craft-mat-worlds-title">均價比較' + scopeLabel + '</p>' +
-        '<p class="market-avgprice-row"><span>當前成交均價</span><strong>' + (current != null ? current.toLocaleString() + ' 金' : '無成交') + '</strong></p>' +
-        '<p class="market-avgprice-row"><span>近1天成交均價</span><strong>' + (oneDay != null ? oneDay.toLocaleString() + ' 金' : '無成交') + '</strong></p>' +
-        '<p class="market-avgprice-row"><span>近3天成交均價</span><strong>' + (avg3d != null ? avg3d.toLocaleString() + ' 金' : '無成交') + '</strong></p>' +
-        '<p class="market-avgprice-row"><span>近7天成交均價</span><strong>' + (avg7d != null ? avg7d.toLocaleString() + ' 金' : '無成交') + '</strong></p>' +
-        '<p class="market-avgprice-row"><span>近30天成交均價</span><strong>' + (avg30d != null ? avg30d.toLocaleString() + ' 金' : '無成交') + '</strong></p>' +
-        '<p class="market-avgprice-row" id="mk-avgprice-listing"><span>目前掛單均價</span><strong>讀取中⋯</strong></p>' +
-        '<p class="craft-muted" style="font-size:10px;margin-top:4px">「當前」是最近24小時內的成交；「近1天」是最近48小時內（當天＋昨天）；「近3/7/30天」是過去那整段時間所有成交的平均，都已排除異常成交（可在設定裡關閉）。「目前掛單均價」是現在架上還沒賣掉的掛單價格平均，不是成交價。</p>';
+      // 以前是六行大字＋一大段說明，面板又高又寬，開起來會蓋掉下面的世界列跟一半的表格。
+      // 現在：每行「標籤＋長條＋數字」，長條長度＝跟這幾個數字裡最大的比，高低一眼就看得出來，不用逐行讀數字；
+      // 整個面板約一半高；原本那段說明文字收進標題的提示（滑鼠停在「？」上才看得到），不佔畫面。
+      const rows = [['當前', current, '最近24小時內的成交均價'], ['近1天', oneDay, '最近48小時內（當天＋昨天）的成交均價'],
+        ['近3天', avg3d, '過去3天所有成交的平均'], ['近7天', avg7d, '過去7天所有成交的平均'], ['近30天', avg30d, '過去30天所有成交的平均']];
+      const maxV = Math.max.apply(null, rows.map(function (r) { return r[1] || 0; })) || 1;
+      pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '<span class="mav-help" title="都是實際成交的平均，已排除異常成交（可在設定裡關閉）。「目前掛單」是現在架上還沒賣掉的掛單價格平均，不是成交價。">？</span></p>' +
+        rows.map(function (r, i) {
+          return '<div class="mav-row' + (i === 0 ? ' is-now' : '') + '" title="' + r[2] + '"><span class="mav-l">' + r[0] + '</span>' +
+            '<span class="mav-bar"><i style="width:' + (r[1] != null ? Math.max(4, r[1] / maxV * 100).toFixed(0) : 0) + '%"></i></span>' +
+            '<strong>' + (r[1] != null ? r[1].toLocaleString() : '—') + '</strong><small>金</small></div>';
+        }).join('') +
+        '<div class="mav-row mav-listing" id="mk-avgprice-listing" title="現在架上還沒賣掉的掛單價格平均，不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small></div>';
+      placePopover(pop, anchorBtn.getBoundingClientRect()); // 內容換了，高度變了：方向沿用，只重新算位置
       // 第3點：把「目前掛單均價」也列進來當參考——這是現在架上還沒賣掉的掛單價格平均，跟上面的「成交均價」是不同的東西。
       // 這裡改成跟均價徽章用同一個來源（Universalis 官方算好的 currentAveragePrice），不要自己另外抓一批掛單
       // 重新算平均——之前兩邊各自算，物品掛單一多，兩個「掛單均價」數字就會兜不起來，看起來像bug。
@@ -606,10 +612,10 @@
         const st = MarketData.getSettings();
         const ov2 = await MarketData.getItemMarketOverview(itemId, scopeWorld || st.dcName);
         const row = document.getElementById('mk-avgprice-listing');
-        if (row) row.querySelector('strong').textContent = (ov2 && ov2.avgPrice) ? Math.round(ov2.avgPrice).toLocaleString() + ' 金' : '目前無掛單';
-      } catch (e) { const row = document.getElementById('mk-avgprice-listing'); if (row) row.querySelector('strong').textContent = '讀取失敗'; }
+        if (row) { row.querySelector('strong').textContent = (ov2 && ov2.avgPrice) ? Math.round(ov2.avgPrice).toLocaleString() : '—'; if (!(ov2 && ov2.avgPrice)) row.querySelector('small').textContent = '無掛單'; }
+      } catch (e) { const row = document.getElementById('mk-avgprice-listing'); if (row) { row.querySelector('strong').textContent = '—'; row.querySelector('small').textContent = '讀取失敗'; } }
     } catch (e) {
-      pop.innerHTML = '<p class="craft-mat-worlds-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px">讀取失敗，請稍後再試。</p>';
+      pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取失敗，請稍後再試。</p>';
     }
   }
 
@@ -746,8 +752,8 @@
     function fmtVelNum(x) { x = x || 0; return x >= 1 ? x.toFixed(1) : (x > 0 ? x.toFixed(2) : '0'); }
     function velTileHtml(v, scopeWorld) {
       if (v && (v.nqVelocityPerDay != null || v.hqVelocityPerDay != null)) {
-        return '<div class="market-stat-tile" title="每天賣出幾件（' + (scopeWorld || '所有世界') + '）"><span class="mst-label">賣速</span>' +
-          '<span class="mst-val"><span class="mst-q">NQ</span>' + fmtVelNum(v.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fmtVelNum(v.hqVelocityPerDay) + '<small>件/天</small></span></div>';
+        return '<div class="market-stat-tile" title="每天賣出幾件（' + (scopeWorld || '所有世界') + '）"><span class="mst-label">賣速/天</span>' +
+          '<span class="mst-val"><span class="mst-q">NQ</span>' + fmtVelNum(v.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fmtVelNum(v.hqVelocityPerDay) + '</span></div>';
       }
       if (v && v.usedScope === null) return '<div class="market-stat-tile market-stat-tile-muted"><span class="mst-label">賣速</span><span class="mst-val">近4天無成交' + (scopeWorld ? '（' + scopeWorld + '）' : '') + '</span></div>';
       return '';
@@ -861,6 +867,8 @@
       if (!avgBtn) return;
       avgBtn.addEventListener('click', function (e) {
         e.stopPropagation(); // 沒有這行，點擊會冒泡到document把彈窗自己剛打開的畫面關掉，看起來像沒反應
+        const pop0 = $('mk-avgprice-popover');
+        if (pop0 && pop0.style.display === 'block' && pop0.dataset.owner === 'avg') { pop0.style.display = 'none'; return; } // 再點一次＝收起
         openAvgPricePopover(itemId, avgBtn, overview.avgPrice, worldFilter === 'ALL' ? null : worldFilter);
       });
     }
@@ -1007,13 +1015,16 @@
         .concat(dcWorlds.map(function (w) { return { key: w, name: w, price: worldMinPrice[w] != null ? worldMinPrice[w] : null, ts: worldTimes[w] || null }; }));
       const prices = cells.slice(1).map(function (c) { return c.price; }).filter(function (v) { return v != null; });
       const best = prices.length ? Math.min.apply(null, prices) : null;
+      // 每格兩行：世界名／最低價。資料更新距今只有「過舊」（超過6小時，橘色；超過1天，紅色）才在價格旁邊標出來，
+      // 新鮮的不標——新鮮是常態，每格都寫一次只是雜訊，還會讓每格多一行高度；完整時間放在滑鼠停留的提示裡。
       strip.innerHTML = cells.map(function (c) {
         const isBest = c.key !== 'ALL' && c.price != null && c.price === best;
-        const tip = c.key === 'ALL' ? '整個資料中心' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價');
+        const stale = c.key !== 'ALL' && c.ts && (Date.now() - c.ts) / 3600e3 >= 6;
+        const tip = c.key === 'ALL' ? '整個資料中心' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價') +
+          (c.ts && c.key !== 'ALL' ? '（資料更新於' + timeAgo(c.ts / 1000) + '）' : '');
         return '<button type="button" class="mws-cell' + (worldFilter === c.key ? ' active' : '') + (isBest ? ' is-best' : '') + '" data-world="' + c.key + '" title="' + tip + '">' +
           '<span class="mws-name">' + c.name + '</span>' +
-          '<span class="mws-price">' + (c.price != null ? c.price.toLocaleString() : '—') + '</span>' +
-          (c.ts ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '前</span>' : '') +
+          '<span class="mws-price">' + (c.price != null ? c.price.toLocaleString() : '—') + (stale ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '</span>' : '') + '</span>' +
         '</button>';
       }).join('');
     }
@@ -1928,6 +1939,7 @@
     // 「剛打開」才重設方向；面板本來就開著（調整設定後重畫內容）就沿用原本的方向，位置不會跳動
     if (!(pop.style.display === 'block' && pop.dataset.owner === 'supply')) delete pop.dataset.dir;
     pop.dataset.owner = 'supply';
+    pop.classList.remove('mav-pop');
     pop.style.display = 'block';
     const s = getSupplySettings();
     const crystalOn = s.includeCrystal;
@@ -3548,14 +3560,19 @@
     { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 41807, 45690], desc: '生產職、採集職的票券與信用點數，以及坐騎的交換票據' },
     { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533], desc: '狩獵（通緝）任務的獎勵貨幣' },
     { key: 'pvp', label: 'PvP', ids: [25, 36656, 21067], desc: 'PvP 對戰的獎勵貨幣：狼印戰績、戰利水晶、凶狼項圈' },
-    { key: 'battle', label: '戰鬥', ids: [26807, 35833, 43961, 30341, 31351], desc: 'FATE 的雙色寶石、幻巧戰的幻巧葉、博茲雅古錢' },
+    { key: 'battle', label: '戰鬥', ids: [26807, 35833, 43961, 30341, 31351, 44868, 44869], desc: 'FATE 的雙色寶石、幻巧戰的幻巧葉、博茲雅古錢，以及混沌聯盟副本的暗雲半魔晶石' },
     { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472], desc: '友好部族任務的貨幣，每個部族各有一種' },
     { key: 'variant', label: '多變／異聞迷宮', ids: [38533, 38534, 38535, 39884, 39885, 39886, 41078, 41079, 41080], desc: '希拉狄哈、六根山、阿羅阿羅島的遺物、書籍與貨幣' },
-    { key: 'raid', label: '團隊副本', ids: [16545, 13583, 13585, 19117, 19122, 21780, 23969], desc: '亞歷山大、歐米茄系列團隊副本的兌換用道具' },
-    { key: 'materia', label: '魔晶石交換', ids: [], desc: '惰性晶簇／水晶系列，用來兌換魔晶石' },
+    // 大型副本＝8人副本（XX之章），掉落的是「拿去換裝備的道具」。神秘貝殼／神秘原石是戈耳狄透鏡／彈簧換來的中繼物，同一條兌換鏈。
+    { key: 'raid', label: '大型副本', ids: [16545, 13583, 13584, 13585, 13586, 19117, 19122, 21780, 23969], desc: '亞歷山大、歐米茄等 8 人大型副本（XX之章）掉落的兌換用道具' },
+    { key: 'deep', label: '深層迷宮', ids: [15422, 23164, 38941], desc: '死者宮殿、天之御柱等深層迷宮的陶器碎片' },
+    // 魔晶石交換：依「換到什麼」判斷——這些道具能換到的幾乎都是魔晶石。注意名稱裡有「魔晶石」不代表是這一類
+    // （例如暗雲半魔晶石是混沌聯盟副本的獎勵、換到的是坐騎跟髮型），所以不用名稱比對「魔晶石」，只比對「惰性」開頭那一批。
+    { key: 'materia', label: '魔晶石交換', ids: [15110, 16783, 33870], desc: '用來兌換魔晶石的道具：惰性晶簇／水晶、瑪哈物質、慶典參加證書' },
     { key: 'island', label: '無人島', ids: [37549, 37550], desc: '無人島（謝爾達萊）產出的貨幣' },
     { key: 'wondrous', label: '天書奇談', ids: [22443, 22444, 26823], desc: '天書奇談的庫洛獎狀（金、銀、銅）' },
     { key: 'saucer', label: '金碟', ids: [29], desc: '金碟遊樂場的金碟幣' },
+    { key: 'achieve', label: '成就', ids: [21172], desc: '成就兌換用的貨幣（成就幣）' },
     { key: 'airship', label: '空賊／遠航', ids: [13630, 13631, 15111, 15112], desc: '空賊、遠航系列的黃銅與白鋼通貨' },
     { key: 'skybuilder', label: '蒼天街重建', ids: [28063], desc: '蒼天街重建的振興票，以及各期重建要繳交的物資', fold: true },
     { key: 'other', label: '其他', ids: [], desc: '其餘可兌換的道具，多為製作用中繼材料與活動道具', fold: true },
@@ -3574,7 +3591,7 @@
     // 分組：每個代幣歸到一個分類；組內依「可換種類數」多到少
     const groupOf = {};
     TOKEN_GROUPS.forEach(function (g) { g.ids.forEach(function (id) { groupOf[id] = g.key; }); });
-    list.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : (/^惰性|魔晶石/.test(x.name) ? 'materia' : 'other')); });
+    list.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : (/^惰性/.test(x.name) ? 'materia' : 'other')); });
     const byGroup = {};
     list.forEach(function (x) { (byGroup[x.group] = byGroup[x.group] || []).push(x); });
     Object.keys(byGroup).forEach(function (k) { byGroup[k].sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); }); });
