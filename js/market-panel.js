@@ -193,6 +193,15 @@
 
   /* 搜尋框：直接查 ITEM_NAMES_TW_ALL（全物品，不限配方相關），跟生產頁的配方搜尋是兩套獨立索引，
    * 市場頁本來就該看得到裝備/雜物/家具這些不會出現在配方庫裡的東西。 */
+  /* 物品能不能在市場交易：看更新腳本產生的可交易清單。沒有這份清單（資料沒載到）時一律當作可交易，
+   * 不亂下「不可交易」的結論。注意這份清單可能比遊戲新物品慢一步，所以「不可交易」只用在提示，
+   * 不拿來擋住查詢——有掛單就一定顯示（見 loadMarketSection）。 */
+  let marketableSet = null;
+  function isMarketable(id) {
+    if (typeof ITEM_MARKETABLE_TW === 'undefined' || !ITEM_MARKETABLE_TW.length) return true;
+    if (!marketableSet) marketableSet = new Set(ITEM_MARKETABLE_TW.map(String));
+    return marketableSet.has(String(id));
+  }
   function bindSearchBox() {
     const input = $('mk-search');
     const box = $('mk-search-results');
@@ -204,20 +213,22 @@
     function runSearch() {
       const q = input.value.trim();
       if (!q) { box.innerHTML = ''; box.classList.remove('open'); fitMarketHeights(); return; }
-      // 只搜尋可在市場交易的物品（ITEM_MARKETABLE_TW 由 update-craft-data.js 產生）；
-      // 貨幣、不可交易的物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去。
-      const ids = (typeof ITEM_MARKETABLE_TW !== 'undefined' && ITEM_MARKETABLE_TW.length) ? ITEM_MARKETABLE_TW : Object.keys(ITEM_NAMES_TW_ALL);
+      // 搜尋全部物品（含不可交易的物品與貨幣，例如各種神典石、軍票、金碟幣）。
+      // 以前只搜可在市場交易的物品（ITEM_MARKETABLE_TW），貨幣要先翻到別的物品的兌換清單才點得進去，找不到就以為沒有；
+      // 現在都找得到，不可交易的會在名稱後面標「不可交易」，點進去仍可看供應鏈與取得方式。
+      const ids = Object.keys(ITEM_NAMES_TW_ALL);
       const matches = [];
       for (let i = 0; i < ids.length; i++) {
         const name = ITEM_NAMES_TW_ALL[ids[i]];
-        if (name && name.indexOf(q) !== -1) matches.push({ id: ids[i], name: name });
+        if (name && name.indexOf(q) !== -1) matches.push({ id: ids[i], name: name, mk: isMarketable(ids[i]) });
       }
       // 第5點抓到的真正原因：純粹按物品ID排序，會讓「基礎材料」被自己衍生出來的一大堆裝備
       // 名稱排擠出前30名——例如「銀狼革」這個素材本身的ID，剛好比拿它做出來的33件裝備的ID都大，
       // 純ID排序下，光是這些裝備就佔滿了前30名，真正要找的素材反而看不到。不是抓不到資料
       // （這個物品在供應鏈圖上能正確顯示價格，證明資料完全存在），純粹是排序方式的問題。
       // 改成先比對「符合程度」：完全等於搜尋字串 > 開頭符合 > 只是包含在中間；
-      // 同等級再比名字長度（越短越接近你在找的東西），最後才用ID排序當保底。
+      // 同等級「可交易的排在不可交易的前面」（放開搜尋後不可交易的物品多了一倍以上，不能讓它們把可查價的擠到後面），
+      // 再比名字長度（越短越接近你在找的東西），最後才用ID排序當保底。
       function rank(name) {
         if (name === q) return 0;
         if (name.indexOf(q) === 0) return 1;
@@ -226,20 +237,22 @@
       matches.sort(function (a, b) {
         const ra = rank(a.name), rb = rank(b.name);
         if (ra !== rb) return ra - rb;
+        if (a.mk !== b.mk) return a.mk ? -1 : 1;
         if (a.name.length !== b.name.length) return a.name.length - b.name.length;
         return Number(a.id) - Number(b.id);
       });
-      // 原本這裡會砍到只留前30筆，是我自己加的上限，怕一次塞太多DOM節點卡頓。
-      // 現在下拉清單本身有自己的捲軸能正常捲動，這個限制沒必要，拿掉——搜尋結果要列出全部。
+      // 搜尋結果原則上全部列出（下拉清單有自己的捲軸）。放開不可交易物品後，輸入單一個字可能一次有幾千筆，
+      // 多到影響操作時才截斷在 SEARCH_CAP 筆並提示「再輸入更多字」，一般搜尋不會碰到。
+      const SEARCH_CAP = 1500;
       if (!matches.length) { box.innerHTML = '<div class="craft-muted" style="padding:8px">查無符合的物品</div>'; box.classList.add('open'); fitMarketHeights(); return; }
-      box.innerHTML = matches.map(function (m) {
-        return '<div class="craft-search-item" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + m.name + '</span></div>';
-      }).join('');
+      box.innerHTML = matches.slice(0, SEARCH_CAP).map(function (m) {
+        return '<div class="craft-search-item" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + m.name + '</span>' + (m.mk ? '' : '<span class="craft-search-tag" title="這個物品不能在市場上買賣">不可交易</span>') + '</div>';
+      }).join('') + (matches.length > SEARCH_CAP ? '<div class="craft-muted" style="padding:8px">還有 ' + (matches.length - SEARCH_CAP) + ' 筆沒有列出，請再多輸入幾個字縮小範圍。</div>' : '');
       box.classList.add('open');
       fitMarketHeights();
       box.querySelectorAll('[data-mk-pick]').forEach(function (el) {
         el.addEventListener('click', function () {
-          input.value = el.textContent;
+          input.value = el.querySelector('span').textContent; // 只取名稱，不要把後面的「不可交易」標籤也填進搜尋框
           box.innerHTML = ''; box.classList.remove('open');
           fitMarketHeights();
           openItemDetail(el.dataset.mkPick);
@@ -315,10 +328,34 @@
       localStorage.setItem(RECENT_KEY, JSON.stringify(list));
     } catch (e) { /* localStorage被封鎖（例如私密瀏覽）就靜默放棄，不影響其他功能 */ }
   }
+  /* 價格太長時的簡寫（只用在空間很窄的地方：各世界最低價格子、統計列）：
+   * 100萬以上改用「萬」、1億以上改用「億」，台服玩家看價格本來就習慣萬為單位；一千萬以內保留到小數點一位，
+   * 以上取整數（1190萬、5億）。完整數字永遠放在滑鼠提示跟下方表格裡，簡寫只是為了「放得下、看得清楚」。 */
+  function fmtCompactGil(n) {
+    if (n >= 1e8) { const v = n / 1e8; return (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10) + '億'; }
+    if (n >= 1e6) { const v = n / 1e4; return (v >= 1000 ? Math.round(v) : Math.round(v * 10) / 10) + '萬'; }
+    return n.toLocaleString();
+  }
   /* 最近查看：以前是自動換行的一大片標籤（20個物品在一般視窗寬度下會掉成兩排、約66px高），
    * 現在固定單行（約32px高），放不下的往右捲：滑鼠滾輪直接橫向捲動、左右各有一顆小箭頭、
    * 邊緣用漸層淡出提示「後面還有」。省下的高度還給下面的內容。
    * 目前正在看的那個物品用金色框標出來，一眼知道「我現在在哪一個」。最右邊可以清除紀錄。 */
+  /* 滑鼠按住最近查看那一排左右拖動（觸控螢幕本來就能直接滑，這裡只處理滑鼠）。
+   * 拖動超過4px才算「在拖」，這時放開滑鼠不能順便觸發標籤的點擊（不然拖完會誤開一個物品）；
+   * 監聽器只在載入時掛一次（renderRecentlyViewed 每開一個物品就重畫一次，不能在裡面掛，否則會越疊越多）。 */
+  let recentDrag = null, recentSuppressClick = false;
+  window.addEventListener('pointermove', function (e) {
+    if (!recentDrag) return;
+    const dx = e.clientX - recentDrag.x;
+    if (!recentDrag.moved && Math.abs(dx) > 4) { recentDrag.moved = true; recentDrag.sc.classList.add('is-dragging'); }
+    if (recentDrag.moved) recentDrag.sc.scrollLeft = recentDrag.left - dx;
+  });
+  window.addEventListener('pointerup', function () {
+    if (!recentDrag) return;
+    const d = recentDrag; recentDrag = null;
+    d.sc.classList.remove('is-dragging');
+    if (d.moved) { recentSuppressClick = true; setTimeout(function () { recentSuppressClick = false; }, 0); } // click 事件緊接在 pointerup 之後，同一輪就會被擋掉
+  });
   function renderRecentlyViewed() {
     const row = $('mk-recent-row');
     const list = getRecentlyViewed();
@@ -340,6 +377,11 @@
       row.classList.toggle('can-right', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
     }
     sc.addEventListener('scroll', edges);
+    sc.addEventListener('pointerdown', function (e) {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      recentDrag = { x: e.clientX, left: sc.scrollLeft, sc: sc, moved: false };
+    });
+    sc.addEventListener('dragstart', function (e) { e.preventDefault(); }); // 不要讓瀏覽器把圖示當圖片拖走
     sc.addEventListener('wheel', function (e) { // 滾輪直接橫向捲動（只有真的放不下時才攔截，不影響頁面本身的捲動）
       if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
       sc.scrollLeft += e.deltaY; e.preventDefault();
@@ -351,7 +393,7 @@
       renderRecentlyViewed();
     });
     row.querySelectorAll('[data-mk-recent]').forEach(function (el) {
-      el.addEventListener('click', function () { openItemDetail(el.dataset.mkRecent); });
+      el.addEventListener('click', function () { if (recentSuppressClick) return; openItemDetail(el.dataset.mkRecent); });
     });
     requestAnimationFrame(edges); // 要等排版完成才量得到寬度
   }
@@ -445,6 +487,7 @@
         '</div>' +
       '</div>';
     bindWatchButton(itemId); // 跟名稱同一行，不用等市場資料回來才看得到，關注這件事跟查不查得到價格無關
+    if (!isMarketable(itemId)) { const wb = $('mk-watch-btn'); if (wb) { wb.disabled = true; wb.title = '不能在市場交易的物品沒有價格可以關注'; } }
     bindSolveButton(itemId);
     loadMarketSection(itemId);
     loadSupplyChainSection(itemId);
@@ -801,12 +844,16 @@
     }
     function buildStatBarHtml(st) {
       const parts = [];
-      if (st.minPrice) parts.push(statTile('在售最低', st.minPrice.toLocaleString() + '<small>金</small>', 'market-stat-tile-strong', ' title="目前掛單中最低的單價"'));
+      // 三個價格裡只要有一個到千萬以上，三個一起改用萬／億簡寫（一起改才看得出大小關係），完整數字放在滑鼠提示
+      const compact = Math.max(st.minPrice || 0, st.avgDisplay || 0, st.maxPrice || 0) >= 1e7;
+      const fmtP = function (n) { return compact ? fmtCompactGil(n) : n.toLocaleString(); };
+      const U = compact ? '' : '<small>金</small>'; // 簡寫（萬／億）本身就是金幣的習慣單位，再加「金」是重複，還會把賣速擠到第二行
+      if (st.minPrice) parts.push(statTile('在售最低', fmtP(st.minPrice) + U, 'market-stat-tile-strong', ' title="目前掛單中最低的單價：' + st.minPrice.toLocaleString() + ' 金"'));
       // 均價：近24小時實際成交均價，不是掛單快照均價（掛單均價容易被囤積的高價/低價單誤導）。
       // 24小時內沒有成交的冷門物品，退回用掛單均價，並明確標成「掛單均價」，註明這不是真的成交均價。
       if (st.avgLoading) parts.push(statTile('均價', '計算中⋯', 'market-stat-tile-muted'));
-      else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-tile market-stat-tile-btn" id="mk-avgprice-badge" title="點擊看不同天數的均價比較"><span class="mst-label">' + (st.avgIsFallback ? '掛單均價' : '成交均價') + '<i class="ph ph-caret-down"></i></span><span class="mst-val">' + st.avgDisplay.toLocaleString() + '<small>金</small></span></button>');
-      if (st.maxPrice) parts.push(statTile('在售最高', st.maxPrice.toLocaleString() + '<small>金</small>', '', ' title="目前掛單中最高的單價"'));
+      else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-tile market-stat-tile-btn" id="mk-avgprice-badge" title="' + st.avgDisplay.toLocaleString() + ' 金・點擊看不同天數的均價比較"><span class="mst-label">' + (st.avgIsFallback ? '掛單均價' : '成交均價') + '<i class="ph ph-caret-down"></i></span><span class="mst-val">' + fmtP(st.avgDisplay) + U + '</span></button>');
+      if (st.maxPrice) parts.push(statTile('在售最高', fmtP(st.maxPrice) + U, '', ' title="目前掛單中最高的單價：' + st.maxPrice.toLocaleString() + ' 金"'));
       if (st.velLoading) parts.push(statTile('賣速', '計算中⋯', 'market-stat-tile-muted'));
       else { const vt = velTileHtml(st.velocity, st.scopeWorld); if (vt) parts.push(vt); }
       return parts.join('');
@@ -837,7 +884,9 @@
     if (footNotes.length) html += '<p class="market-stat-foot craft-muted">' + footNotes.join('　·　') + '</p>';
 
     if (!overview || !overview.listings.length) {
-      html += '<p class="craft-muted">目前查無掛單（可能沒有人在賣）</p>';
+      html += isMarketable(itemId)
+        ? '<p class="craft-muted">目前查無掛單（可能沒有人在賣）</p>'
+        : '<div class="market-untradable"><i class="ph ph-prohibit"></i><div><b>這個物品不能在市場交易</b><span>所以沒有掛單、成交紀錄跟市價可以查。右邊可以看它的供應鏈，上方「取得方式」會告訴你要去哪裡拿。</span></div></div>';
       box.innerHTML = html;
       return;
     }
@@ -1055,11 +1104,11 @@
       strip.innerHTML = cells.map(function (c) {
         const isBest = c.key !== 'ALL' && c.price != null && c.price === best;
         const stale = c.key !== 'ALL' && c.ts && (Date.now() - c.ts) / 3600e3 >= 6;
-        const tip = c.key === 'ALL' ? '整個資料中心' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價') +
+        const tip = c.key === 'ALL' ? '整個資料中心' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價 ' + c.price.toLocaleString() + ' 金') +
           (c.ts && c.key !== 'ALL' ? '（資料更新於' + timeAgo(c.ts / 1000) + '）' : '');
         return '<button type="button" class="mws-cell' + (worldFilter === c.key ? ' active' : '') + (isBest ? ' is-best' : '') + '" data-world="' + c.key + '" title="' + tip + '">' +
           '<span class="mws-name">' + c.name + '</span>' +
-          '<span class="mws-price">' + (c.price != null ? c.price.toLocaleString() : '—') + (stale ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '</span>' : '') + '</span>' +
+          '<span class="mws-price">' + (c.price != null ? fmtCompactGil(c.price) : '—') + (stale ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '</span>' : '') + '</span>' +
         '</button>';
       }).join('');
     }
@@ -3598,13 +3647,13 @@
     { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 41807, 45690, 43930, 44231, 44232, 44234]
       .concat([2644, 4763, 4864, 4866, 5822, 7690, 9466], R(7610, 7619), R(8030, 8039), R(10100, 10107), R(10112, 10124)),
       desc: '生產、採集職的票券與信用點數、收藏品，以及製作／採集用的材料' },
-    { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533], desc: '狩獵（通緝）任務的獎勵貨幣' },
+    { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533, 20308], desc: '狩獵（通緝）任務的獎勵貨幣，包含著名兵團成員的手冊' },
     { key: 'pvp', label: 'PvP', ids: [25, 36656, 21067], desc: 'PvP 對戰的獎勵貨幣：狼印戰績、戰利水晶、凶狼項圈' },
     { key: 'fate', label: 'FATE', ids: [26807, 35833, 43961, 20638], desc: 'FATE（野外突發事件）的獎勵：雙色寶石與其收據、伊克西翁的雷角' },
-    { key: 'battle', label: '戰鬥', ids: [30341, 31351, 44868, 44869, 22599, 23383, 24816], desc: '幻巧戰的幻巧葉、博茲雅古錢、優蕾卡的大馬士革織物，以及副本掉落的火龍鱗與暗雲半魔晶石' },
+    { key: 'battle', label: '戰鬥', ids: [30341, 31351, 44868, 44869, 22599, 23383, 24816, 24815, 12236, 45040], desc: '幻巧拼圖的幻巧葉、博茲雅古錢、優蕾卡的大馬士革織物與神秘印章，以及副本掉落的火龍鱗、蟲珀、暗雲半魔晶石、破破爛爛的樂譜' },
     // 寶圖：藏寶圖／寶圖迷宮掉落的稀有素材，各只換一件坐騎或道具（絢爛華麗的羽毛→阿爾科諾斯特笛、灼熱的火角→法厄同角笛…）。
     // 前兩個有查證；暮光寶石、驚奇補劑是依「同樣只換單一稀有品」的模式推斷。
-    { key: 'treasure', label: '寶圖', ids: [37491, 39592, 41805, 39590], desc: '藏寶圖與寶圖迷宮掉落的稀有素材，到商人那裡換坐騎等獎勵' },
+    { key: 'treasure', label: '藏寶圖', ids: [37491, 39592, 41805, 39590], desc: '藏寶圖與藏寶圖迷宮掉落的稀有素材，到商人那裡換坐騎等獎勵' },
     { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472], desc: '友好部族任務的貨幣，每個部族各有一種' },
     { key: 'variant', label: '多變／異聞迷宮', ids: [38533, 38534, 38535, 39884, 39885, 39886, 41078, 41079, 41080], desc: '希拉狄哈、六根山、阿羅阿羅島的遺物、書籍與貨幣' },
     // 大型副本＝8人副本（XX之章），掉落的是「拿去換裝備的道具」。神秘貝殼／神秘原石是戈耳狄透鏡／彈簧換來的中繼物，同一條兌換鏈。
@@ -3617,10 +3666,23 @@
     { key: 'wondrous', label: '天書奇談', ids: [22443, 22444, 26823], desc: '天書奇談的庫洛獎狀（金、銀、銅）' },
     { key: 'saucer', label: '金碟', ids: [29], desc: '金碟遊樂場的金碟幣' },
     { key: 'achieve', label: '成就', ids: [21172], desc: '成就兌換用的貨幣（成就證書，4.1 新增）' },
+    { key: 'house', label: '房屋', ids: [15857, 15858], desc: '房屋相關的兌換用道具（阿爾基克薰衣草、虛無界風茄）' },
+    { key: 'voyage', label: '遠航探索', ids: [15111, 15112], desc: '遠航探索獲得的黃銅通貨與白鋼通貨' },
+    { key: 'official', label: '官方貨幣', ids: [12995], desc: '官方發放的特殊貨幣（白銀陸行鳥的羽毛）' },
     { key: 'skybuilder', label: '蒼天街重建', ids: [28063, 33870, 13630, 13631], desc: '蒼天街重建的振興票與各期重建物資，以及慶典參加證書、空賊通貨', fold: true },
-    { key: 'other', label: '其他', ids: [], desc: '其餘可兌換的道具，出處還沒有確認', fold: true },
+    { key: 'other', label: '其他', ids: [], desc: '還沒有歸類的代幣（新出現的代幣會先出現在這裡）', fold: true },
   ];
   let tokenCatSel = 'all'; // 目前選的分類，重畫、切換分頁回來都維持
+  let tokenShowHidden = false;
+  /* 預設隱藏的代幣：
+   * ① 換到的東西「全部都無法比價」（不可交易，或市場上完全沒有行情）——這類多半是限時活動的兌換物，或只換不可交易的外觀／坐騎，
+   *    查價排行對玩家沒有意義，列出來只是增加雜訊。判斷依據是「用掛單價能不能算出至少一個兌換對象的價值」
+   *    （用掛單價而不是目前選的價格基準，是為了寧可少隱藏：均價基準會因為某些物品沒成交紀錄就誤判成「全部不能比」）。
+   * ② 明確指定不用看的（HIDE）：幾個「收藏用…」是拿收藏品換票據的中間物，不是玩家會拿來查價的代幣。
+   * 例外（KEEP）：宇宙信用點數換到的東西要再往下兌換才有價，排行算不出來不代表沒用，保留。
+   * 隱藏不是刪除：清單上方會留一行說明，點「顯示」可以全部看到（用淡色標出「無可比價」）。 */
+  const HIDE_TOKEN_IDS = new Set([43930, 44231, 44232, 44234]);
+  const KEEP_TOKEN_IDS = new Set([45690]);
   /* 代幣兌換分頁：獨立的查詢入口，不掛在單一物品詳情頁底下——這類代幣（詩學、軍票、巧手票…）
    * 玩家通常是「手上有一批，想知道拿去換什麼最划算」，不是先想到某個特定物品才點進去看。
    * 預設只顯示清單（圖示/名稱/能換幾種），點下去才載入排行榜內容，避免一次全部展開。 */
@@ -3630,32 +3692,49 @@
     const ok = await ensureShopsDataLoaded();
     if (!ok) { pane.innerHTML = '<p class="craft-muted">代幣資料載入失敗，稍後再試。</p>'; return; }
     const dir = buildCurrencyDirectory();
-    const list = dir.pinned.concat(dir.more);
-    // 分組：每個代幣歸到一個分類；組內依「可換種類數」多到少
+    const allList = dir.pinned.concat(dir.more);
+    // 先算出哪些代幣「沒有任何可比價的兌換對象」（需要市場快照；讀不到快照就不隱藏，寧可多顯示）
+    const hiddenIds = {};
+    let dcData0 = null;
+    try { dcData0 = await getPrecomputedAllData(); } catch (e) { dcData0 = null; }
+    allList.forEach(function (x) {
+      if (HIDE_TOKEN_IDS.has(x.id)) { hiddenIds[x.id] = true; return; }
+      if (KEEP_TOKEN_IDS.has(x.id) || !dcData0) return;
+      if (!buildCurrencyBestUses(x.id, dcData0, 'listing', 1, 'net').length) hiddenIds[x.id] = true;
+    });
+    const hiddenCount = allList.filter(function (x) { return hiddenIds[x.id]; }).length;
+    // 分組：每個代幣歸到一個分類；組內依「可換種類數」多到少。顯示／隱藏切換時要重算，所以包成函式
     const groupOf = {};
     TOKEN_GROUPS.forEach(function (g) { g.ids.forEach(function (id) { groupOf[id] = g.key; }); });
-    list.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : (/^惰性/.test(x.name) ? 'materia' : 'other')); });
-    const byGroup = {};
-    list.forEach(function (x) { (byGroup[x.group] = byGroup[x.group] || []).push(x); });
-    Object.keys(byGroup).forEach(function (k) { byGroup[k].sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); }); });
-    const groups = TOKEN_GROUPS.filter(function (g) { return (byGroup[g.key] || []).length; }); // 沒有任何代幣的分類不顯示
-    if (tokenCatSel !== 'all' && !byGroup[tokenCatSel]) tokenCatSel = 'all';
-    const groupLabel = {}; groups.forEach(function (g) { groupLabel[g.key] = g.label; });
+    allList.forEach(function (x) { x.group = groupOf[x.id] || (/重建用/.test(x.name) ? 'skybuilder' : (/^惰性/.test(x.name) ? 'materia' : 'other')); });
+    let list = allList, byGroup = {}, groups = [], groupLabel = {};
+    function rebuild() {
+      list = allList.filter(function (x) { return tokenShowHidden || !hiddenIds[x.id]; });
+      byGroup = {};
+      list.forEach(function (x) { (byGroup[x.group] = byGroup[x.group] || []).push(x); });
+      Object.keys(byGroup).forEach(function (k) { byGroup[k].sort(function (a, b) { return b.count - a.count || a.name.localeCompare(b.name); }); });
+      groups = TOKEN_GROUPS.filter(function (g) { return (byGroup[g.key] || []).length; }); // 沒有任何代幣的分類不顯示（例如「其他」歸完之後就消失）
+      groupLabel = {}; groups.forEach(function (g) { groupLabel[g.key] = g.label; });
+      if (tokenCatSel !== 'all' && !byGroup[tokenCatSel]) tokenCatSel = 'all';
+    }
+    rebuild();
 
     // 內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，清單一長就整個被裁掉、完全不能捲動。
     // 分類按鈕放在搜尋框上方：先選「哪一類」再用名稱縮小範圍，是兩個層次的篩選。
     pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？先選分類，再選一個代幣看排行。　🔗 先換成不可交易的中繼物品，再用它能換到的東西估價　🔒 需先完成任務或成就才能兌換</p>' +
       '<div class="market-token-cats market-pane-fixed" id="mk-token-cats"></div>' +
-      '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:8px">' +
+      '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:6px">' +
+      '<div class="market-token-hidebar market-pane-fixed" id="mk-token-hidebar"></div>' +
       '<p class="market-token-note market-pane-fixed" id="mk-token-note"></p>' +
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
     function tokenRowHtml(x, showGroup) {
-      return '<div class="market-token-row" data-token-id="' + x.id + '">' +
+      return '<div class="market-token-row' + (hiddenIds[x.id] ? ' is-nocmp' : '') + '" data-token-id="' + x.id + '">' +
         '<button type="button" class="market-token-head" data-token-toggle="' + x.id + '">' +
           '<i class="ph ph-caret-right"></i>' + itemIconHtml(x.id, 24) +
           '<span class="market-token-name">' + x.name + '</span>' +
           '<span class="market-token-count">可換 ' + x.count + ' 種</span>' +
           (showGroup ? '<span class="market-token-gtag">' + groupLabel[x.group] + '</span>' : '') +
+          (hiddenIds[x.id] ? '<span class="market-token-nocmp" title="換到的東西全部不可交易，或目前市場上沒有行情">無可比價</span>' : '') +
         '</button>' +
         '<div class="market-token-body" id="mk-token-body-' + x.id + '" data-count="' + x.count + '" style="display:none"></div>' +
       '</div>';
@@ -3680,7 +3759,10 @@
         const rows = pool.filter(function (x) { return x.name.indexOf(kw) !== -1; });
         if (rows.length) { box.innerHTML = rows.map(function (x) { return tokenRowHtml(x, !sel); }).join(''); return; }
         const elsewhere = sel ? list.filter(function (x) { return x.name.indexOf(kw) !== -1; }).length : 0;
-        box.innerHTML = '<p class="craft-muted">' + (sel ? '「' + sel.label + '」裡沒有符合的代幣' + (elsewhere ? '，但其他分類有 ' + elsewhere + ' 個符合，切到「全部」可以看到。' : '。') : '沒有符合的代幣。') + '</p>';
+        // 被隱藏的代幣也要能被「找得到」：搜尋沒結果、但其實有被隱藏的符合時，明講出來，不然玩家會以為沒有這個代幣
+        const hiddenMatch = tokenShowHidden ? 0 : allList.filter(function (x) { return hiddenIds[x.id] && x.name.indexOf(kw) !== -1; }).length;
+        box.innerHTML = '<p class="craft-muted">' + (sel ? '「' + sel.label + '」裡沒有符合的代幣' + (elsewhere ? '，但其他分類有 ' + elsewhere + ' 個符合，切到「全部」可以看到。' : '。') : '沒有符合的代幣。') +
+          (hiddenMatch ? '　另有 ' + hiddenMatch + ' 個被隱藏的符合（換到的東西都沒有可比價），按上方的「顯示」可以看到。' : '') + '</p>';
         return;
       }
       if (sel) { box.innerHTML = byGroup[sel.key].map(function (x) { return tokenRowHtml(x, false); }).join(''); return; }
@@ -3698,7 +3780,18 @@
       }).join('') + (folded.length ? '<div class="market-token-group-title">還有這些分類（數量較多，點進去看）</div><div class="market-token-fold-links">' +
         folded.map(function (g) { return '<button type="button" class="craft-job-filter-btn" data-tcat="' + g.key + '">' + g.label + '<span class="market-token-cat-n">' + byGroup[g.key].length + '</span></button>'; }).join('') + '</div>' : '');
     }
-    renderCats(); renderList();
+    // 清單上方的一行說明：隱藏了幾個、為什麼，以及把它們叫出來的按鈕（隱藏不是刪除）
+    function renderHideBar() {
+      const bar = $('mk-token-hidebar');
+      if (!hiddenCount) { bar.innerHTML = ''; return; }
+      bar.innerHTML = '<span title="這些代幣換到的東西全部不可交易，或目前市場上沒有行情，查不出價值；多半是限時活動的兌換物">' +
+        (tokenShowHidden ? '已顯示全部，含 ' + hiddenCount + ' 個沒有可比價兌換物的代幣' : '已隱藏 ' + hiddenCount + ' 個沒有可比價兌換物的代幣（多為限時活動）') +
+        '</span><button type="button" class="market-token-hidebtn" id="mk-token-hidebtn">' + (tokenShowHidden ? '再隱藏' : '顯示') + '</button>';
+      $('mk-token-hidebtn').addEventListener('click', function () {
+        tokenShowHidden = !tokenShowHidden; rebuild(); renderCats(); renderList(); renderHideBar();
+      });
+    }
+    renderCats(); renderList(); renderHideBar();
     pane.addEventListener('click', function (e) {
       const c = e.target.closest('[data-tcat]');
       if (!c) return;
