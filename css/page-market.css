@@ -7,8 +7,18 @@
 .market-header .page-note{margin-top:4px}
 
 .market-searchbar{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
+/* 搜尋框跟右邊的設定按鈕固定同高（以前設定按鈕比搜尋框矮一截、貼在最上面，兩個對不齊） */
+.market-searchbar .craft-search{height:38px;box-sizing:border-box}
+.market-settings-btn{flex:none;display:inline-flex;align-items:center;height:38px;box-sizing:border-box;padding:0 4px 0 11px;border:1px solid var(--tb);border-radius:9px;background:rgba(255,255,255,.03);color:var(--main);font-family:inherit;white-space:nowrap;cursor:pointer;transition:border-color .15s,background .15s}
+.market-settings-btn:hover{border-color:var(--gold);background:rgba(197,160,89,.09)}
+.market-settings-gear{font-size:15px;color:var(--gold);margin-right:9px}
+.market-settings-segs{display:inline-flex;align-items:center}
+/* 設定摘要的每一段：小圖示＋文字，段與段之間用細線分開 */
+.mss{display:inline-flex;align-items:center;gap:5px;padding:0 10px;font-size:12px;line-height:20px;border-left:1px solid var(--tb)}
+.mss i{font-size:13px;color:var(--dim)}
+.mss-empty{color:#e0a05a}
+.market-settings-btn.is-unset{border-color:rgba(224,160,90,.55);background:rgba(224,160,90,.08)}
 .market-search-box{position:relative;flex:1;min-width:0}
-.market-settings-text{font-size:12px}
 
 /* 搜尋框的下拉結果清單，跟生產頁的 cf-recipe-search 系列共用同一種視覺語言，這裡另外命名
  * class 是因為市場頁的搜尋來源（全物品）跟生產頁（僅配方）是兩套獨立索引，不想共用DOM id。
@@ -29,11 +39,27 @@
 .craft-search-item:hover{background:rgba(197,160,89,.12)}
 
 /* 最近查看：一排可點的小標籤，本機紀錄，沒有資料時整排不顯示（見market-panel.js的renderRecentlyViewed） */
-.market-recent-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:14px;min-height:0}
-.market-recent-label{font-size:12px}
-.market-recent-chip{font-size:12px;padding:4px 10px;border:1px solid var(--tb);background:transparent;
-  color:var(--main);border-radius:999px;cursor:pointer}
+.market-recent-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;min-height:0}
+.market-recent-label{flex:none;display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)}
+.market-recent-label .ph{font-size:14px}
+/* 單行橫向捲動：放不下的往右捲，邊緣漸層淡出提示後面還有，左右小箭頭滑過才出現 */
+.market-recent-wrap{position:relative;flex:1;min-width:0}
+.market-recent-scroller{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.market-recent-scroller::-webkit-scrollbar{display:none}
+.market-recent-row.can-right .market-recent-scroller{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 44px),transparent)}
+.market-recent-row.can-left .market-recent-scroller{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 44px),transparent)}
+.market-recent-row.can-left.can-right .market-recent-scroller{-webkit-mask-image:linear-gradient(to right,transparent,#000 44px,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(to right,transparent,#000 44px,#000 calc(100% - 44px),transparent)}
+.market-recent-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:1;display:none;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:1px solid var(--tb);border-radius:50%;background:var(--bg);color:var(--main);cursor:pointer;font-size:11px}
+.market-recent-nav.prev{left:0}.market-recent-nav.next{right:0}
+.market-recent-nav:hover{border-color:var(--gold);color:var(--gold-bright)}
+.market-recent-row.can-left:hover .market-recent-nav.prev,.market-recent-row.can-right:hover .market-recent-nav.next{display:flex}
+.market-recent-clear{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--dim);cursor:pointer;font-size:12px;opacity:.55}
+.market-recent-clear:hover{opacity:1;background:rgba(255,255,255,.08)}
+.market-recent-chip{flex:none;font-size:12px;padding:3px 11px 3px 6px;border:1px solid var(--tb);background:rgba(255,255,255,.02);
+  color:var(--main);border-radius:999px;cursor:pointer;white-space:nowrap;font-family:inherit}
 .market-recent-chip:hover{border-color:var(--gold);background:rgba(197,160,89,.1)}
+/* 目前正在看的物品：金色框，一眼知道「我現在在哪一個」 */
+.market-recent-chip.is-current{border-color:var(--gold);background:rgba(197,160,89,.16);color:var(--gold-bright);font-weight:600}
 
 /* 分頁按鈕：物品查詢／機會雷達，樣式參考生產頁材料圖譜/批次規劃那兩個分頁的既有做法 */
 .market-tabs{display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--tb);padding-bottom:0}
@@ -326,6 +352,8 @@
 .market-token-group-title:first-child{margin-top:2px}
 .market-token-group-title .craft-muted{font-size:11px;font-weight:400}
 .market-token-fold-links{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
+.market-token-more{display:block;margin:4px 0 0 24px;padding:3px 0;border:0;background:none;color:var(--gold);font-family:inherit;font-size:12px;cursor:pointer}
+.market-token-more:hover{color:var(--gold-bright);text-decoration:underline}
 .market-token-body{padding:2px 0 8px 24px}
 /* 兌換排行：表頭＋對齊的欄。欄名只在表頭寫一次，數字欄靠右；表頭可點，點了依該欄排序（取代以前另外一排排序按鈕）。
    整張表限制最大寬度，名稱跟數字不要隔太遠。每列底下的淡色長條＝目前排序指標的相對大小。 */
