@@ -48,8 +48,8 @@
             '<input id="mk-search" class="craft-search" placeholder="搜尋物品名稱⋯" autocomplete="off" />' +
             '<div id="mk-search-results" class="craft-search-results"></div>' +
           '</div>' +
-          '<button type="button" id="mk-settings-btn" class="craft-mat-worlds-icon" style="width:auto;padding:0 10px;gap:6px" title="' + (MarketData.dcSelectorVisible ? '設定資料中心／我的世界' : '設定我的世界') + '">' +
-            '<i class="ph ph-gear"></i><span id="mk-settings-summary" class="market-settings-text">尚未設定市場資訊</span>' +
+          '<button type="button" id="mk-settings-btn" class="market-settings-btn" title="' + (MarketData.dcSelectorVisible ? '設定資料中心／我的世界' : '設定我的世界') + '">' +
+            '<i class="ph ph-gear-six market-settings-gear"></i><span id="mk-settings-summary" class="market-settings-segs"><span class="mss mss-empty">尚未設定市場資訊</span></span>' +
           '</button>' +
         '</div>' +
         '<div id="mk-watchlist-panel" class="market-watchlist-panel"></div>' +
@@ -83,16 +83,22 @@
     });
   }
 
+  /* 目前的市場設定摘要：分成幾段，每段「小圖示＋文字」，段與段之間用細線隔開。
+   * 以前是一串「陸行鳥・利維坦・自動最低稅率」用・黏在一起的純文字，要逐字讀；現在每一段各有圖示，
+   * 一眼分得出哪個是資料中心、哪個是我的世界、哪個是稅率。每一段的滑鼠提示說明它的作用。
+   * 還沒設定時整個按鈕用橘色提示，提醒玩家去設定（不設定的話稅後估算跟賣出參考都沒有）。 */
   function updateMarketSettingsSummary() {
     const el = $('mk-settings-summary');
     if (!el || typeof MarketData === 'undefined') return;
     const s = MarketData.getSettings();
-    const parts = [];
-    if (s.dcName) {
-      parts.push(s.dcName + (s.worldName ? '・' + s.worldName : ''));
-      if (s.worldName) parts.push(s.sellCityKey ? '手動選城市稅率' : '自動最低稅率');
+    const segs = [];
+    if (s.dcName) segs.push('<span class="mss" title="資料中心（買進、材料成本查價的範圍）"><i class="ph ph-globe-hemisphere-west"></i>' + s.dcName + '</span>');
+    if (s.worldName) segs.push('<span class="mss" title="我的世界（賣出參考只看這裡）"><i class="ph ph-map-pin"></i>' + s.worldName + '</span>');
+    if (s.dcName && s.worldName) {
+      segs.push('<span class="mss" title="' + (s.sellCityKey ? '賣出稅率：使用你手動選的城市' : '賣出稅率：自動採用目前稅率最低的城市') + '"><i class="ph ph-percent"></i>' + (s.sellCityKey ? '手動稅率' : '自動最低稅率') + '</span>');
     }
-    el.textContent = parts.length ? parts.join('・') : '尚未設定市場資訊';
+    el.innerHTML = segs.length ? segs.join('') : '<span class="mss mss-empty">尚未設定市場資訊</span>';
+    const btn = $('mk-settings-btn'); if (btn) btn.classList.toggle('is-unset', !segs.length);
   }
 
   /* 市場設定彈出卡：生產頁craft-panel.js裡已經有一份幾乎一樣的邏輯（cf-market-*系列），
@@ -309,18 +315,47 @@
       localStorage.setItem(RECENT_KEY, JSON.stringify(list));
     } catch (e) { /* localStorage被封鎖（例如私密瀏覽）就靜默放棄，不影響其他功能 */ }
   }
+  /* 最近查看：以前是自動換行的一大片標籤（20個物品在一般視窗寬度下會掉成兩排、約66px高），
+   * 現在固定單行（約32px高），放不下的往右捲：滑鼠滾輪直接橫向捲動、左右各有一顆小箭頭、
+   * 邊緣用漸層淡出提示「後面還有」。省下的高度還給下面的內容。
+   * 目前正在看的那個物品用金色框標出來，一眼知道「我現在在哪一個」。最右邊可以清除紀錄。 */
   function renderRecentlyViewed() {
     const row = $('mk-recent-row');
     const list = getRecentlyViewed();
-    if (!list.length) { row.innerHTML = ''; return; }
-    row.innerHTML = '<span class="craft-muted market-recent-label">最近查看：</span>' +
-      list.map(function (r) {
-        return '<button type="button" class="market-recent-chip" data-mk-recent="' + r.id + '">' + itemIconHtml(r.id, 18) + '<span>' + r.name + '</span></button>';
-      }).join('');
+    if (!list.length) { row.innerHTML = ''; row.classList.remove('can-left', 'can-right'); return; }
+    row.innerHTML = '<span class="market-recent-label"><i class="ph ph-clock-counter-clockwise"></i>最近查看</span>' +
+      '<div class="market-recent-wrap">' +
+        '<button type="button" class="market-recent-nav prev" aria-label="往左" tabindex="-1"><i class="ph ph-caret-left"></i></button>' +
+        '<div class="market-recent-scroller">' +
+          list.map(function (r) {
+            return '<button type="button" class="market-recent-chip' + (String(r.id) === String(currentDetailItemId) ? ' is-current' : '') + '" data-mk-recent="' + r.id + '" title="' + r.name + '">' + itemIconHtml(r.id, 18) + '<span>' + r.name + '</span></button>';
+          }).join('') +
+        '</div>' +
+        '<button type="button" class="market-recent-nav next" aria-label="往右" tabindex="-1"><i class="ph ph-caret-right"></i></button>' +
+      '</div>' +
+      '<button type="button" class="market-recent-clear" title="清除最近查看紀錄"><i class="ph ph-x"></i></button>';
+    const sc = row.querySelector('.market-recent-scroller');
+    function edges() {
+      row.classList.toggle('can-left', sc.scrollLeft > 4);
+      row.classList.toggle('can-right', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
+    }
+    sc.addEventListener('scroll', edges);
+    sc.addEventListener('wheel', function (e) { // 滾輪直接橫向捲動（只有真的放不下時才攔截，不影響頁面本身的捲動）
+      if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      sc.scrollLeft += e.deltaY; e.preventDefault();
+    }, { passive: false });
+    row.querySelector('.market-recent-nav.prev').addEventListener('click', function () { sc.scrollBy({ left: -sc.clientWidth * 0.7, behavior: 'smooth' }); });
+    row.querySelector('.market-recent-nav.next').addEventListener('click', function () { sc.scrollBy({ left: sc.clientWidth * 0.7, behavior: 'smooth' }); });
+    row.querySelector('.market-recent-clear').addEventListener('click', function () {
+      try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 被封鎖就算了 */ }
+      renderRecentlyViewed();
+    });
     row.querySelectorAll('[data-mk-recent]').forEach(function (el) {
       el.addEventListener('click', function () { openItemDetail(el.dataset.mkRecent); });
     });
+    requestAnimationFrame(edges); // 要等排版完成才量得到寬度
   }
+  window.addEventListener('resize', function () { const sc = document.querySelector('.market-recent-scroller'); if (sc) sc.dispatchEvent(new Event('scroll')); });
 
   /* 物品詳情頁：即時跨服比價、銷售速度、（可製作品）供應鏈視覺化、被用在哪的反查。
    * 供應鏈那塊才需要載入 craft-data.js（好幾MB），其他資訊只需要 MarketData，
@@ -393,10 +428,10 @@
   function openItemDetail(itemId) {
     itemId = String(itemId);
     const name = ITEM_NAMES_TW_ALL[itemId] || ('#' + itemId);
+    currentDetailItemId = itemId; // 要在重畫「最近查看」之前設定，才標得出目前正在看哪一個
     recordRecentlyViewed(itemId, name);
     renderRecentlyViewed();
     document.querySelector('[data-mk-tab="item"]').click();
-    currentDetailItemId = itemId;
     $('mk-pane-item').innerHTML =
       '<div class="market-detail-header">' + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '</h3>' +
         '<button type="button" class="market-history-btn market-watch-btn-header" id="mk-watch-btn"></button>' +
@@ -3554,28 +3589,36 @@
    * 用物品ID指定（名稱可能改，ID不會），只有「第N期重建用…」這種一整批同樣命名的才用名稱比對。
    * 沒列到的一律進「其他」，所以新出現的代幣不會憑空消失，只是先歸在「其他」，之後補上分類就好。
    * 分類資訊是玩家端的整理，不是遊戲資料，歸類不確定的（例如空賊／遠航通貨）標籤直接用物品名稱，不亂猜用途。 */
+  const R = function (a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }; // 連續物品ID（沒有對應代幣的ID會被忽略）
   const TOKEN_GROUPS = [
     { key: 'tomestone', label: '神典石', ids: [48, 28, 47], desc: '副本與團隊挑戰的獎勵貨幣' },
     { key: 'gc', label: '軍票', ids: [22, 20, 21], desc: '三大軍團的軍票（不滅隊、黑渦團、雙蛇黨）' },
-    { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 41807, 45690], desc: '生產職、採集職的票券與信用點數，以及坐騎的交換票據' },
+    // 生產採集：票券（巧手票、大地票…）、收藏品（換票據用）、以及製作／採集用的材料。
+    // 材料那一大批（2.2～2.5 的靈性岩、雲杉合板、月長石…）換到的是工匠與採集師的工具、票據、秘笈，出處是生產採集職業。
+    { key: 'craft', label: '生產採集', ids: [33913, 33914, 41784, 41785, 12839, 41807, 45690, 43930, 44231, 44232, 44234]
+      .concat([2644, 4763, 4864, 4866, 5822, 7690, 9466], R(7610, 7619), R(8030, 8039), R(10100, 10107), R(10112, 10124)),
+      desc: '生產、採集職的票券與信用點數、收藏品，以及製作／採集用的材料' },
     { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533], desc: '狩獵（通緝）任務的獎勵貨幣' },
     { key: 'pvp', label: 'PvP', ids: [25, 36656, 21067], desc: 'PvP 對戰的獎勵貨幣：狼印戰績、戰利水晶、凶狼項圈' },
-    { key: 'battle', label: '戰鬥', ids: [26807, 35833, 43961, 30341, 31351, 44868, 44869], desc: 'FATE 的雙色寶石、幻巧戰的幻巧葉、博茲雅古錢，以及混沌聯盟副本的暗雲半魔晶石' },
+    { key: 'fate', label: 'FATE', ids: [26807, 35833, 43961, 20638], desc: 'FATE（野外突發事件）的獎勵：雙色寶石與其收據、伊克西翁的雷角' },
+    { key: 'battle', label: '戰鬥', ids: [30341, 31351, 44868, 44869, 22599, 23383, 24816], desc: '幻巧戰的幻巧葉、博茲雅古錢、優蕾卡的大馬士革織物，以及副本掉落的火龍鱗與暗雲半魔晶石' },
+    // 寶圖：藏寶圖／寶圖迷宮掉落的稀有素材，各只換一件坐騎或道具（絢爛華麗的羽毛→阿爾科諾斯特笛、灼熱的火角→法厄同角笛…）。
+    // 前兩個有查證；暮光寶石、驚奇補劑是依「同樣只換單一稀有品」的模式推斷。
+    { key: 'treasure', label: '寶圖', ids: [37491, 39592, 41805, 39590], desc: '藏寶圖與寶圖迷宮掉落的稀有素材，到商人那裡換坐騎等獎勵' },
     { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472], desc: '友好部族任務的貨幣，每個部族各有一種' },
     { key: 'variant', label: '多變／異聞迷宮', ids: [38533, 38534, 38535, 39884, 39885, 39886, 41078, 41079, 41080], desc: '希拉狄哈、六根山、阿羅阿羅島的遺物、書籍與貨幣' },
     // 大型副本＝8人副本（XX之章），掉落的是「拿去換裝備的道具」。神秘貝殼／神秘原石是戈耳狄透鏡／彈簧換來的中繼物，同一條兌換鏈。
     { key: 'raid', label: '大型副本', ids: [16545, 13583, 13584, 13585, 13586, 19117, 19122, 21780, 23969], desc: '亞歷山大、歐米茄等 8 人大型副本（XX之章）掉落的兌換用道具' },
     { key: 'deep', label: '深層迷宮', ids: [15422, 23164, 38941], desc: '死者宮殿、天之御柱等深層迷宮的陶器碎片' },
-    // 魔晶石交換：依「換到什麼」判斷——這些道具能換到的幾乎都是魔晶石。注意名稱裡有「魔晶石」不代表是這一類
-    // （例如暗雲半魔晶石是混沌聯盟副本的獎勵、換到的是坐騎跟髮型），所以不用名稱比對「魔晶石」，只比對「惰性」開頭那一批。
-    { key: 'materia', label: '魔晶石交換', ids: [15110, 16783, 33870], desc: '用來兌換魔晶石的道具：惰性晶簇／水晶、瑪哈物質、慶典參加證書' },
+    // 魔晶石交換：依「換到什麼」判斷。名稱裡有「魔晶石」不代表是這一類（暗雲半魔晶石換到的是坐騎跟髮型），
+    // 所以不用名稱比對「魔晶石」，只比對「惰性」開頭那一批。
+    { key: 'materia', label: '魔晶石交換', ids: [15110, 16783], desc: '用來兌換魔晶石的道具：惰性晶簇／水晶、瑪哈物質' },
     { key: 'island', label: '無人島', ids: [37549, 37550], desc: '無人島（謝爾達萊）產出的貨幣' },
     { key: 'wondrous', label: '天書奇談', ids: [22443, 22444, 26823], desc: '天書奇談的庫洛獎狀（金、銀、銅）' },
     { key: 'saucer', label: '金碟', ids: [29], desc: '金碟遊樂場的金碟幣' },
-    { key: 'achieve', label: '成就', ids: [21172], desc: '成就兌換用的貨幣（成就幣）' },
-    { key: 'airship', label: '空賊／遠航', ids: [13630, 13631, 15111, 15112], desc: '空賊、遠航系列的黃銅與白鋼通貨' },
-    { key: 'skybuilder', label: '蒼天街重建', ids: [28063], desc: '蒼天街重建的振興票，以及各期重建要繳交的物資', fold: true },
-    { key: 'other', label: '其他', ids: [], desc: '其餘可兌換的道具，多為製作用中繼材料與活動道具', fold: true },
+    { key: 'achieve', label: '成就', ids: [21172], desc: '成就兌換用的貨幣（成就證書，4.1 新增）' },
+    { key: 'skybuilder', label: '蒼天街重建', ids: [28063, 33870, 13630, 13631], desc: '蒼天街重建的振興票與各期重建物資，以及慶典參加證書、空賊通貨', fold: true },
+    { key: 'other', label: '其他', ids: [], desc: '其餘可兌換的道具，出處還沒有確認', fold: true },
   ];
   let tokenCatSel = 'all'; // 目前選的分類，重畫、切換分頁回來都維持
   /* 代幣兌換分頁：獨立的查詢入口，不掛在單一物品詳情頁底下——這類代幣（詩學、軍票、巧手票…）
@@ -3645,9 +3688,13 @@
       // 只在最下面留入口，不然一打開就是上百列，真正常用的反而被淹沒。
       const open = groups.filter(function (g) { return !g.fold; });
       const folded = groups.filter(function (g) { return g.fold; });
+      const PREVIEW = 8; // 超過 PREVIEW+2 個的分類，在「全部」裡只露出前 PREVIEW 個（組內已依可換種類多到少排序），其餘用按鈕連到該分類
       box.innerHTML = open.map(function (g) {
-        return '<div class="market-token-group-title">' + g.label + '<span class="craft-muted">' + byGroup[g.key].length + '</span></div>' +
-          byGroup[g.key].map(function (x) { return tokenRowHtml(x, false); }).join('');
+        const arr = byGroup[g.key];
+        const shown = arr.length > PREVIEW + 2 ? arr.slice(0, PREVIEW) : arr;
+        return '<div class="market-token-group-title">' + g.label + '<span class="craft-muted">' + arr.length + '</span></div>' +
+          shown.map(function (x) { return tokenRowHtml(x, false); }).join('') +
+          (shown.length < arr.length ? '<button type="button" class="market-token-more" data-tcat="' + g.key + '">還有 ' + (arr.length - shown.length) + ' 項，看「' + g.label + '」全部 ›</button>' : '');
       }).join('') + (folded.length ? '<div class="market-token-group-title">還有這些分類（數量較多，點進去看）</div><div class="market-token-fold-links">' +
         folded.map(function (g) { return '<button type="button" class="craft-job-filter-btn" data-tcat="' + g.key + '">' + g.label + '<span class="market-token-cat-n">' + byGroup[g.key].length + '</span></button>'; }).join('') + '</div>' : '');
     }
