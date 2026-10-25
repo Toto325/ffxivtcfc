@@ -44,7 +44,9 @@
 .market-recent-label .ph{font-size:14px}
 /* 單行橫向捲動：放不下的往右捲，邊緣漸層淡出提示後面還有，左右小箭頭滑過才出現 */
 .market-recent-wrap{position:relative;flex:1;min-width:0}
-.market-recent-scroller{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.market-recent-scroller{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0;cursor:grab}
+.market-recent-scroller.is-dragging{cursor:grabbing;user-select:none}
+.market-recent-scroller.is-dragging .market-recent-chip{pointer-events:none}
 .market-recent-scroller::-webkit-scrollbar{display:none}
 .market-recent-row.can-right .market-recent-scroller{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 44px),transparent)}
 .market-recent-row.can-left .market-recent-scroller{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 44px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 44px),transparent)}
@@ -232,8 +234,8 @@
 .mws-cell{display:flex;flex-direction:column;align-items:center;gap:0;flex:1 1 66px;min-width:66px;padding:3px 6px 4px;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.025);color:inherit;font-family:inherit;cursor:pointer}
 .mws-cell:hover{border-color:var(--gold)}
 .mws-name{font-size:11px;line-height:1.35;color:var(--dim);white-space:nowrap}
-.mws-price{font-size:15px;font-weight:700;line-height:1.3;white-space:nowrap}
-.mws-age{margin-left:4px;font-size:10px;font-weight:600}
+.mws-price{display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;column-gap:3px;max-width:100%;font-size:15px;font-weight:700;line-height:1.3;white-space:nowrap}
+.mws-age{font-size:10px;font-weight:600}
 .mws-age.is-old{color:#e0a05a}
 .mws-age.is-stale{color:#e0786a}
 .mws-cell.is-best{border-color:rgba(74,222,128,.45)}
@@ -352,6 +354,13 @@
 .market-token-group-title:first-child{margin-top:2px}
 .market-token-group-title .craft-muted{font-size:11px;font-weight:400}
 .market-token-fold-links{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
+.market-token-hidebar{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:11px;color:var(--dim)}
+.market-token-hidebar:empty{display:none}
+.market-token-hidebtn{padding:0 9px;border:1px solid var(--tb);border-radius:999px;background:none;color:var(--gold);font-family:inherit;font-size:11px;line-height:18px;cursor:pointer}
+.market-token-hidebtn:hover{border-color:var(--gold)}
+/* 顯示隱藏的代幣時：淡色＋小標籤，跟一般代幣區分 */
+.market-token-row.is-nocmp .market-token-head{opacity:.55}
+.market-token-nocmp{font-size:10px;white-space:nowrap;color:var(--dim);padding:0 8px;border:1px dashed var(--tb);border-radius:999px;line-height:17px}
 .market-token-more{display:block;margin:4px 0 0 24px;padding:3px 0;border:0;background:none;color:var(--gold);font-family:inherit;font-size:12px;cursor:pointer}
 .market-token-more:hover{color:var(--gold-bright);text-decoration:underline}
 .market-token-body{padding:2px 0 8px 24px}
@@ -767,3 +776,13 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-meta-chip { padding: 1px 9px; border-radius: 999px; border: 1px solid; line-height: 1.6; white-space: nowrap; }
 .market-meta-ver { color: #8fc4d4; background: rgba(110,170,190,.12); border-color: rgba(110,170,190,.38); }
 .market-meta-cat { color: #d6bd86; background: rgba(197,160,89,.10); border-color: rgba(197,160,89,.34); }
+
+/* 搜尋結果裡的「不可交易」標籤（放開搜尋後，貨幣與不可交易物品也會出現） */
+.craft-search-item{display:flex;align-items:center;gap:8px}
+.craft-search-tag{margin-left:2px;flex:none;font-size:10px;padding:0 8px;border:1px solid var(--tb);border-radius:999px;color:var(--dim);line-height:17px}
+/* 不可交易物品的物品頁：不顯示一片空白或「沒人在賣」，直接說明原因 */
+.market-untradable{display:flex;align-items:flex-start;gap:12px;margin-top:10px;padding:14px 16px;border:1px dashed var(--tb);border-radius:10px;background:rgba(255,255,255,.02)}
+.market-untradable>.ph{font-size:22px;color:var(--dim);margin-top:2px}
+.market-untradable b{display:block;margin-bottom:3px;font-size:14px}
+.market-untradable span{font-size:12px;color:var(--dim);line-height:1.6}
+.market-watch-btn-header:disabled{opacity:.4;cursor:not-allowed}
