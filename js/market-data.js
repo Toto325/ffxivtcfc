@@ -386,6 +386,59 @@ window.MarketData = (function () {
     return result;
   }
 
+  /* 關注清單專用的批次查價：一次請求最多查 40 個物品（跟 fetchListingsBatchForScope 同一套節流／重試），
+   * 但除了最低價，還一併帶回「NQ／HQ 各自最低價」「最低價在哪個世界」「資料更新時間」。
+   * 物品頁那條單一物品的查詢（getItemMarketOverview）本來就有這些欄位，批次版本原本把它們丟掉了。
+   * 回傳 { 物品ID: { min, minNQ, minHQ, minWorld, lastUpload, worldUploadTimes, worldMins } }；
+   * 查得到物品但完全沒有掛單的，min 為 null（畫面上才分得出「沒人在賣」跟「查詢失敗」）。 */
+  async function fetchWatchBatch(itemIds, scopeName, stats) {
+    const result = {};
+    if (!itemIds || !itemIds.length) return result;
+    await ensureMeta();
+    const CHUNK = 40;
+    const chunks = [];
+    for (let i = 0; i < itemIds.length; i += CHUNK) chunks.push(itemIds.slice(i, i + CHUNK));
+    await Promise.all(chunks.map(async function (chunk) {
+      const url = API + '/' + encodeURIComponent(scopeName) + '/' + chunk.join(',') + '?listings=50&entries=0';
+      let data;
+      try { data = await fetchJsonRetry(url); }
+      catch (e) { if (stats) stats.failedChunks = (stats.failedChunks || 0) + 1; return; }
+      const list = chunk.length === 1
+        ? (data && data.itemID != null ? [data] : [])
+        : Object.keys((data && data.items) || {}).map(function (key) { return data.items[key]; });
+      list.forEach(function (entry) {
+        if (!entry || entry.itemID == null) return;
+        const listings = (entry.listings || []).slice().sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
+        let minNQ = null, minHQ = null;
+        const worldMins = {};
+        listings.forEach(function (l) {
+          if (l.hq) { if (minHQ == null || l.pricePerUnit < minHQ) minHQ = l.pricePerUnit; }
+          else { if (minNQ == null || l.pricePerUnit < minNQ) minNQ = l.pricePerUnit; }
+          if (l.worldName && (worldMins[l.worldName] == null || l.pricePerUnit < worldMins[l.worldName])) worldMins[l.worldName] = l.pricePerUnit;
+        });
+        // API 給的整體最低價涵蓋所有掛單；沒給或是 0 才退回用前 50 筆算出來的
+        if (entry.minPriceNQ) minNQ = entry.minPriceNQ;
+        if (entry.minPriceHQ) minHQ = entry.minPriceHQ;
+        let min = entry.minPrice || (listings.length ? listings[0].pricePerUnit : null);
+        if (!min) min = null;
+        const cand = [minNQ, minHQ].filter(function (v) { return v != null; });
+        if (min == null && cand.length) min = Math.min.apply(null, cand);
+        let minWorld = null;
+        if (min != null) {
+          const hit = listings.find(function (l) { return l.pricePerUnit === min; });
+          minWorld = hit ? (hit.worldName || null) : null;
+        }
+        const worldUploadTimes = {};
+        if (entry.worldUploadTimes) Object.keys(entry.worldUploadTimes).forEach(function (id) { worldUploadTimes[worldName(Number(id))] = entry.worldUploadTimes[id]; });
+        result[entry.itemID] = {
+          min: min, minNQ: minNQ, minHQ: minHQ, minWorld: minWorld,
+          lastUpload: entry.lastUploadTime || null, worldUploadTimes: worldUploadTimes, worldMins: worldMins,
+        };
+      });
+    }));
+    return result;
+  }
+
   /* ── 批次查價：一次把多個itemId送給 Universalis（逗號分隔），減少API呼叫次數 ── */
   async function fetchListingsBatch(itemIds) {
     if (!itemIds.length) return {};
@@ -801,6 +854,7 @@ window.MarketData = (function () {
     getSellDepth: getSellDepth,
     fetchListingsBatch: fetchListingsBatch,
     fetchListingsBatchForScope: fetchListingsBatchForScope,
+    fetchWatchBatch: fetchWatchBatch,
     fetchMostRecentlyUpdated: fetchMostRecentlyUpdated,
     fetchFullHistory: fetchFullHistory,
     dcSelectorVisible: DC_SELECTOR_VISIBLE,

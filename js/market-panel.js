@@ -52,7 +52,6 @@
             '<i class="ph ph-gear-six market-settings-gear"></i><span id="mk-settings-summary" class="market-settings-segs"><span class="mss mss-empty">尚未設定市場資訊</span></span>' +
           '</button>' +
         '</div>' +
-        '<div id="mk-watchlist-panel" class="market-watchlist-panel"></div>' +
         '<div class="market-tabs">' +
           '<button type="button" class="craft-tab-btn active" data-mk-tab="item">物品查詢</button>' +
           '<button type="button" class="craft-tab-btn" data-mk-tab="radar">製作商機</button>' +
@@ -71,7 +70,7 @@
 
     updateMarketSettingsSummary();
     renderRecentlyViewed();
-    renderWatchlistPanel();
+    setupWatchlist();
     bindSearchBox();
     bindTabSwitch();
     renderRadarShell();
@@ -88,6 +87,7 @@
    * 一眼分得出哪個是資料中心、哪個是我的世界、哪個是稅率。每一段的滑鼠提示說明它的作用。
    * 還沒設定時整個按鈕用橘色提示，提醒玩家去設定（不設定的話稅後估算跟賣出參考都沒有）。 */
   function updateMarketSettingsSummary() {
+    if (window.MarketWatchlist) MarketWatchlist.onSettingsChanged(); // 資料中心／我的世界改了，清單的價格範圍要跟著重查
     const el = $('mk-settings-summary');
     if (!el || typeof MarketData === 'undefined') return;
     const s = MarketData.getSettings();
@@ -242,13 +242,25 @@
       // 現在下拉清單本身有自己的捲軸能正常捲動，這個限制沒必要，拿掉——搜尋結果要列出全部。
       if (!matches.length) { box.innerHTML = '<div class="craft-muted" style="padding:8px">查無符合的物品</div>'; box.classList.add('open'); fitMarketHeights(); return; }
       box.innerHTML = matches.map(function (m) {
-        return '<div class="craft-search-item" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + m.name + '</span></div>';
+        const on = isWatched(m.id);
+        return '<div class="craft-search-item" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + m.name + '</span>' +
+          '<button type="button" class="wl-star' + (on ? ' on' : '') + '" data-wl-star="' + m.id + '" title="' + (on ? '取消關注' : '加入關注') + '">' + (on ? '★' : '☆') + '</button></div>';
       }).join('');
       box.classList.add('open');
       fitMarketHeights();
+      box.querySelectorAll('[data-wl-star]').forEach(function (star) {
+        star.addEventListener('click', function (e) {
+          e.stopPropagation(); // 只切換關注，不要當成「選了這個物品」
+          const id = star.dataset.wlStar;
+          const nowOn = MarketWatchlist.toggle(id, ITEM_NAMES_TW_ALL[id] || ('#' + id));
+          star.classList.toggle('on', nowOn);
+          star.textContent = nowOn ? '★' : '☆';
+          star.title = nowOn ? '取消關注' : '加入關注';
+        });
+      });
       box.querySelectorAll('[data-mk-pick]').forEach(function (el) {
         el.addEventListener('click', function () {
-          input.value = el.textContent;
+          input.value = ITEM_NAMES_TW_ALL[el.dataset.mkPick] || '';
           box.innerHTML = ''; box.classList.remove('open');
           fitMarketHeights();
           openItemDetail(el.dataset.mkPick);
@@ -1141,113 +1153,51 @@
 
   /* 成交紀錄跟走勢圖是「輔助資訊」——玩家主要決策看的是目前掛單跟供應鏈。以前為了不擠壓主要資訊做成彈窗，
    * 現在改成跟「在售」並列的分頁：同一個區域切換檢視，不用開關視窗，主要資訊（徽章列、供應鏈）也不會被擠走。 */
-  /* ── 關注清單：本機儲存，不用帳號。每個關注項目記「目標價」，開啟通知後每5分鐘悄悄檢查一次，
-   * 現價低於目標價就跳系統通知——跟生產頁批次規劃的「持續關注」是同一套機制，只是這裡盯的是
-   * 單一物品的價格，不是整批訂單的成本。 ── */
-  const WATCH_KEY = 'ff14fc-market-watchlist';
-  const WATCH_NOTIFY_KEY = 'ff14fc-market-watch-notify';
-  const WATCH_INTERVAL_MS = 5 * 60 * 1000;
-  let watchTimer = null;
+  /* ── 關注清單：實作搬到 js/market-watchlist.js（右側抽屜＋表格／卡片檢視），這裡只留幾個薄薄的介面，
+   * 讓物品頁的 ☆ 按鈕、供應鏈明細面板的「關注」按鈕、搜尋結果的 ☆ 維持原本的呼叫方式。
+   * 儲存格式沿用舊版（ff14fc-market-watchlist），舊清單不會消失。 ── */
+  function isWatched(itemId) { return !!(window.MarketWatchlist && MarketWatchlist.has(itemId)); }
+  function addToWatchlist(itemId, name, targetPrice) { if (window.MarketWatchlist) MarketWatchlist.add(itemId, name, targetPrice); }
+  function removeFromWatchlist(itemId) { if (window.MarketWatchlist) MarketWatchlist.remove(itemId); }
+  function renderWatchlistPanel() { /* 清單改成抽屜，由 MarketWatchlist 自己更新，這裡不用做事 */ }
 
-  function getWatchlist() {
-    try { return JSON.parse(localStorage.getItem(WATCH_KEY) || '[]'); } catch (e) { return []; }
-  }
-  function saveWatchlist(list) {
-    try { localStorage.setItem(WATCH_KEY, JSON.stringify(list)); } catch (e) { /* 存不了就算了，不影響其他功能 */ }
-  }
-  function isWatched(itemId) {
-    return getWatchlist().some(function (w) { return w.itemId === itemId; });
-  }
-  function addToWatchlist(itemId, name, targetPrice) {
-    const list = getWatchlist().filter(function (w) { return w.itemId !== itemId; });
-    list.push({ itemId: itemId, name: name, targetPrice: targetPrice });
-    saveWatchlist(list);
-  }
-  function removeFromWatchlist(itemId) {
-    saveWatchlist(getWatchlist().filter(function (w) { return w.itemId !== itemId; }));
+  function setupWatchlist() {
+    if (!window.MarketWatchlist) return;
+    MarketWatchlist.init({
+      settings: function () { return MarketData.getSettings(); },
+      name: function (id) { return ITEM_NAMES_TW_ALL[id] || null; },
+      icon: itemIconHtml,
+      isMarketable: isMarketable,
+      openItem: openItemDetail,
+      // 製作成本欄位：跟供應鏈圖同一套算法與基準設定；配方庫（好幾MB）等到真的要顯示成本才載入
+      craftInfo: async function (id) {
+        const ok = await ensureCraftDataLoaded();
+        if (!ok) return null;
+        const dcData = await getPrecomputedAllData();
+        if (!dcData) return null;
+        const settings = getSupplySettings();
+        const r = resolveItemBuyCraft(String(id), dcData, settings.materialsBasis, settings);
+        return { craftable: r.craftable, craft: r.craft };
+      },
+    });
+    MarketWatchlist.mount($('market-root'));
   }
 
   function bindWatchButton(itemId) {
     const btn = $('mk-watch-btn');
-    if (!btn) return;
+    if (!btn || !window.MarketWatchlist) return;
     function render() {
-      const watched = isWatched(itemId);
-      btn.innerHTML = watched
-        ? '<i class="ph ph-bell-simple-slash"></i> 取消關注'
-        : '<i class="ph ph-bell-simple"></i> 加入關注';
+      const on = MarketWatchlist.has(itemId);
+      btn.classList.toggle('is-on', on);
+      btn.innerHTML = on ? '<span aria-hidden="true">★</span> 已關注' : '<span aria-hidden="true">☆</span> 加入關注';
+      btn.title = on ? '點一下取消關注' : '加入關注清單（右側「關注清單」可以看所有關注物品的價格）';
     }
     render();
+    MarketWatchlist.onChange('item-btn', render); // 在抽屜裡移除時，物品頁的按鈕也要跟著變
     btn.addEventListener('click', function () {
-      if (isWatched(itemId)) {
-        removeFromWatchlist(itemId);
-        render();
-        renderWatchlistPanel();
-        return;
-      }
-      const priceStr = prompt('目標價（現價低於這個數字就通知你），留空代表不設價格門檻、只是先收藏起來：');
-      if (priceStr === null) return; // 按取消
-      const targetPrice = priceStr.trim() ? Number(priceStr.trim()) : null;
-      const name = ITEM_NAMES_TW_ALL[itemId] || ('#' + itemId);
-      addToWatchlist(itemId, name, targetPrice);
+      MarketWatchlist.toggle(itemId, ITEM_NAMES_TW_ALL[itemId] || ('#' + itemId));
       render();
-      renderWatchlistPanel();
-      ensureWatchTimerRunning();
     });
-  }
-
-  async function checkWatchlist() {
-    const list = getWatchlist().filter(function (w) { return w.targetPrice != null; });
-    if (!list.length || !MarketData.getSettings().dcName) return;
-    for (const w of list) {
-      try {
-        const overview = await MarketData.getItemMarketOverview(w.itemId);
-        if (overview && overview.minPrice != null && overview.minPrice <= w.targetPrice) {
-          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-            try { new Notification('市場關注・' + w.name, { body: '現在最低 ' + overview.minPrice.toLocaleString() + ' 金，已經到你設定的目標價（' + w.targetPrice.toLocaleString() + ' 金）以下了' }); } catch (e) { /* 通知被擋掉就算了 */ }
-          }
-        }
-      } catch (e) { /* 這個物品查詢失敗就跳過，不影響清單裡其他物品的檢查 */ }
-    }
-  }
-  async function ensureWatchTimerRunning() {
-    if (watchTimer) return;
-    if (typeof Notification === 'undefined') return;
-    let permission = Notification.permission;
-    if (permission === 'default') permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
-    localStorage.setItem(WATCH_NOTIFY_KEY, '1');
-    checkWatchlist();
-    watchTimer = setInterval(checkWatchlist, WATCH_INTERVAL_MS);
-  }
-  // 頁面載入時，如果之前開過通知而且權限本來就是granted，靜默恢復背景檢查
-  if (localStorage.getItem(WATCH_NOTIFY_KEY) === '1' && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-    ensureWatchTimerRunning();
-  }
-
-  function renderWatchlistPanel() {
-    const box = $('mk-watchlist-panel');
-    if (!box) return;
-    const list = getWatchlist();
-    if (!list.length) { box.innerHTML = ''; fitMarketHeights(); return; }
-    box.innerHTML = '<p class="market-subheading">關注清單（' + list.length + '）</p>' +
-      list.map(function (w) {
-        return '<div class="market-watch-row">' +
-          '<span class="market-recent-chip" data-mk-recent="' + w.itemId + '">' + itemIconHtml(w.itemId, 18) + '<span>' + w.name + '</span></span>' +
-          (w.targetPrice != null ? '<span class="craft-muted">目標 ' + w.targetPrice.toLocaleString() + ' 金</span>' : '') +
-          '<button type="button" class="market-modal-close" data-mk-unwatch="' + w.itemId + '" title="移除"><i class="ph ph-x"></i></button>' +
-        '</div>';
-      }).join('');
-    box.querySelectorAll('[data-mk-recent]').forEach(function (el) {
-      el.addEventListener('click', function () { openItemDetail(el.dataset.mkRecent); });
-    });
-    box.querySelectorAll('[data-mk-unwatch]').forEach(function (el) {
-      el.addEventListener('click', function (e) {
-        e.stopPropagation();
-        removeFromWatchlist(el.dataset.mkUnwatch);
-        renderWatchlistPanel();
-      });
-    });
-    fitMarketHeights();
   }
 
   // 成交紀錄原本是彈窗（ensureHistoryModalDom／openHistoryModal），現在改成物品頁的「成交」分頁，

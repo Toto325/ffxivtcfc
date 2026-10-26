@@ -1,0 +1,873 @@
+/* market-watchlist.js — 市場頁「關注清單」
+ *
+ * 設計重點（輕度玩家只看價格、重度玩家要細節，但畫面不能亂）：
+ *  - 預設只有「物品／最低價／漲跌／更新時間」。其餘資訊（成交均價、賣速、跨服差價、製作成本…）
+ *    由使用者在「設定」選欄位，或點開某一列的展開面板才看到，而且展開面板只列「還沒顯示在欄位上」的資訊。
+ *  - 右側抽屜（跟生產頁「圖譜材料／批次規劃」同一套互動），預設窄版；頂端按鈕可展開成寬版表格。
+ *  - 價格資料兩段式：先用每小時預先計算的資料（瞬間出現，均價／賣速也從這裡來），
+ *    再用即時批次查詢補上最新最低價與資料更新時間。
+ *  - 本機儲存（localStorage），沿用舊版清單的 key（ff14fc-market-watchlist），舊資料不會消失。
+ *
+ * 這個檔案不依賴 market-panel.js 的內部函式，需要的東西（物品名稱、圖示、開啟物品頁、製作成本）
+ * 全部由 market-panel.js 呼叫 MarketWatchlist.init(bridge) 時提供。 */
+(function () {
+  'use strict';
+
+  var WATCH_KEY = 'ff14fc-market-watchlist';        // 沿用舊版，格式向下相容
+  var NOTIFY_KEY = 'ff14fc-market-watch-notify';    // 沿用舊版：'1' 代表使用者開過通知
+  var PREFS_KEY = 'ff14fc-watch-prefs';
+  var SEEN_KEY = 'ff14fc-watch-seen';               // 「上次關閉清單時」的價格，用來算漲跌
+  var ALERT_KEY = 'ff14fc-watch-alert';             // 每個物品目前是否已在目標價以下，避免重複通知
+
+  var STALE_WARN = 6 * 3600 * 1000;                 // 資料超過 6 小時：橘色（跟物品頁一致）
+  var STALE_BAD = 24 * 3600 * 1000;                 // 超過 1 天：紅色
+  var ALERT_COOLDOWN = 30 * 60 * 1000;              // 同一物品兩次通知至少間隔 30 分鐘
+  var PC_MAX_AGE = 24 * 3600 * 1000;                // 預先計算資料超過 24 小時就不採用（跟物品頁一致）
+  var D_IDX = { current: [0, 1], '1d': [2, 3], '3d': [4, 5], '7d': [6, 7] }; // 跟 market-panel.js 的 D_WINDOW_IDX 同一套
+  var AVG_LABEL = { current: '24小時', '1d': '近1天', '3d': '近3天', '7d': '近7天' };
+  var AVG_KEYS = ['current', '1d', '3d', '7d'];
+  var PRESET_TAGS = ['想買', '轉賣', '素材'];
+  var COLS = { change: '漲跌', updated: '更新時間', avg: '成交均價', vel: '賣速', spread: '跨服差價', cost: '製作成本' };
+  var COL_ORDER = ['change', 'updated', 'avg', 'vel', 'spread', 'cost'];
+  var EXTRA_COLS = ['avg', 'vel', 'spread', 'cost']; // 這幾欄只在寬版顯示，窄版放不下
+  var COL_PRESETS = [
+    { name: '只看價格', cols: [] },
+    { name: '一般', cols: ['change', 'updated'] },
+    { name: '買家', cols: ['change', 'updated', 'avg'] },
+    { name: '轉賣', cols: ['change', 'updated', 'avg', 'vel', 'spread'] },
+    { name: '製作', cols: ['updated', 'avg', 'cost'] },
+  ];
+  var SORTS = [
+    ['default', '預設（達標優先）'], ['name', '名稱'], ['priceAsc', '價格低→高'], ['priceDesc', '價格高→低'],
+    ['drop', '跌幅最大'], ['rise', '漲幅最大'], ['cheap', '低於均價最多'], ['vel', '賣速高→低'], ['old', '資料最舊'],
+  ];
+
+  var bridge = null;
+  var list = [];
+  var prefs = {};
+  var seen = {};
+  var alertState = {};
+  var live = { dc: {}, world: {} };   // 即時查價結果：scope -> { 物品ID: {...} }
+  var pcCache = {};                   // 預先計算資料：scopeKey -> { items }
+  var costCache = {};                 // 物品ID -> { state: 'loading'|'ok'|'none', craft }
+  var expanded = {};                  // 物品ID -> true（展開面板）
+  var focusTarget = null;             // 打開後要聚焦「目標價」輸入框的物品
+  var els = {};
+  var refreshing = false, needAgain = null, lastRefreshAt = 0, lastRefreshState = 'idle';
+  var timer = null, dirty = false, globalBound = false, lastSig = '';
+  var listeners = {};
+  var toastTimer = null;
+
+  /* ───────────── 小工具 ───────────── */
+  function readJson(key, fb) { try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fb : v; } catch (e) { return fb; } }
+  function writeJson(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { /* 存不了就算了，不影響其他功能 */ } }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function trim2(x) { return String(Math.round(x * 100) / 100); }
+  function compactGil(n) { return n >= 1e8 ? trim2(n / 1e8) + '億' : trim2(n / 1e4) + '萬'; }
+  function fmt(n) { return n == null ? '—' : (n >= 1e7 ? compactGil(n) : Math.round(n).toLocaleString('zh-TW')); }
+  function fmtFull(n) { return Math.round(n).toLocaleString('zh-TW'); }
+  function fmtVel(x) { x = x || 0; return x >= 1 ? x.toFixed(1) : (x > 0 ? x.toFixed(2) : '0'); }
+  function fmtPct(p) { var a = Math.abs(p); return (a >= 10 ? String(Math.round(a)) : a.toFixed(1)) + '%'; }
+  function agoText(ms) {
+    var diff = (Date.now() - ms) / 1000;
+    if (diff < 3600) return Math.max(1, Math.round(diff / 60)) + '分前';
+    if (diff < 86400) return Math.round(diff / 3600) + '時前';
+    return Math.round(diff / 86400) + '天前';
+  }
+  function staleClass(ms) { var d = Date.now() - ms; return d > STALE_BAD ? 'bad' : (d > STALE_WARN ? 'warn' : ''); }
+  function parseGil(str) { // 空字串 → null（代表清除）；格式錯誤 → NaN
+    str = String(str || '').replace(/[,，\s]/g, '').replace(/金$/, '');
+    if (!str) return null;
+    var m = /^(\d+(?:\.\d+)?)(萬|万|億|亿|k|K|m|M)?$/.exec(str);
+    if (!m) return NaN;
+    var n = Number(m[1]), u = m[2];
+    if (u === '萬' || u === '万') n *= 1e4; else if (u === '億' || u === '亿') n *= 1e8; else if (u === 'k' || u === 'K') n *= 1e3; else if (u === 'm' || u === 'M') n *= 1e6;
+    n = Math.round(n);
+    return n > 0 ? n : NaN;
+  }
+  function numCmp(a, b, dir) { if (a == null && b == null) return 0; if (a == null) return 1; if (b == null) return -1; return (a - b) * dir; }
+  function sameCols(a, b) { return a.length === b.length && a.every(function (c) { return b.indexOf(c) >= 0; }); }
+
+  /* ───────────── 狀態讀寫 ───────────── */
+  function defaultPrefs() {
+    return { view: 'table', wide: false, scope: 'dc', cols: ['change', 'updated'], avgWin: 'current', sort: 'default', tag: '', auto: true, interval: 5 };
+  }
+  function loadState() {
+    var raw = readJson(WATCH_KEY, []);
+    list = (Array.isArray(raw) ? raw : []).filter(function (w) { return w && w.itemId != null; }).map(function (w) {
+      var t = Number(w.targetPrice);
+      return {
+        itemId: String(w.itemId), name: w.name || '',
+        targetPrice: (w.targetPrice != null && isFinite(t) && t > 0) ? t : null,
+        tags: Array.isArray(w.tags) ? w.tags.filter(Boolean).map(String) : [],
+        addedAt: w.addedAt || 0,
+      };
+    });
+    prefs = Object.assign(defaultPrefs(), readJson(PREFS_KEY, {}));
+    if (!Array.isArray(prefs.cols)) prefs.cols = defaultPrefs().cols;
+    prefs.cols = prefs.cols.filter(function (c) { return COLS[c]; });
+    if (!D_IDX[prefs.avgWin]) prefs.avgWin = 'current';
+    seen = readJson(SEEN_KEY, {});
+    alertState = readJson(ALERT_KEY, {});
+  }
+  function saveList() { writeJson(WATCH_KEY, list); }
+  function savePrefs() { writeJson(PREFS_KEY, prefs); }
+  function find(id) { id = String(id); for (var i = 0; i < list.length; i++) if (list[i].itemId === id) return list[i]; return null; }
+
+  /* ───────────── 範圍／設定 ───────────── */
+  function st() { return (bridge && bridge.settings && bridge.settings()) || {}; }
+  function hasWorld() { return !!st().worldName; }
+  function effScope() { return (prefs.scope === 'world' && hasWorld()) ? 'world' : 'dc'; }
+  function scopePcKey(scope) { return scope === 'world' ? st().worldName : 'ALL'; }
+  function displayName(w) { return (bridge && bridge.name && bridge.name(w.itemId)) || w.name || ('#' + w.itemId); }
+  function isWide() { return !!prefs.wide && window.innerWidth >= 720; }
+  function visibleCols() {
+    var wide = isWide();
+    return COL_ORDER.filter(function (k) { return prefs.cols.indexOf(k) >= 0 && (wide || EXTRA_COLS.indexOf(k) < 0); });
+  }
+
+  /* ───────────── 價格資料 ───────────── */
+  function ensurePc(scope) {
+    var key = scopePcKey(scope);
+    if (!key || typeof MarketData === 'undefined' || !MarketData.loadPrecomputed) return Promise.resolve(null);
+    return MarketData.loadPrecomputed(key).then(function (r) {
+      if (r && r.state === 'ok' && r.ageMs <= PC_MAX_AGE) { pcCache[key] = { items: (r.data && r.data.items) || {}, ageMs: r.ageMs }; return pcCache[key]; }
+      pcCache[key] = null; return null;
+    }).catch(function () { pcCache[key] = null; return null; });
+  }
+  function pcRow(scope, id) { var c = pcCache[scopePcKey(scope)]; return (c && c.items && c.items[id]) || null; }
+
+  function priceInfo(id, scope) {
+    var L = live[scope] && live[scope][id];
+    if (L) {
+      var upload = null;
+      if (scope === 'dc' && L.minWorld && L.worldUploadTimes && L.worldUploadTimes[L.minWorld]) upload = L.worldUploadTimes[L.minWorld];
+      else upload = L.lastUpload || null;
+      return { src: 'live', min: L.min, nq: L.minNQ, hq: L.minHQ, world: L.minWorld, upload: upload, L: L };
+    }
+    var row = pcRow(scope, id);
+    if (row && row[2] != null) return { src: 'cache', min: row[2], nq: row[7] ? row[7][0] : null, hq: row[7] ? row[7][1] : null, world: null, upload: null };
+    return null;
+  }
+  function qualTag(p) {
+    if (!p) return '';
+    if (p.nq != null && p.hq != null) return p.hq < p.nq ? 'HQ' : 'NQ';
+    if (p.hq != null) return 'HQ';
+    return '';
+  }
+  function avgOfRow(row, win) {
+    var D = row && row[6], ix = D_IDX[win];
+    if (D && ix && D[ix[0]] > 0 && D[ix[1]] != null) return { v: D[ix[1]], n: D[ix[0]] };
+    return null;
+  }
+  function seenKey(scope, id) { return scope + ':' + id; }
+  function changeInfo(id, scope, price) {
+    var s = seen[seenKey(scope, id)];
+    if (!s || price == null || !s.p) return null;
+    var d = price - s.p;
+    return { dir: d === 0 ? 0 : (d > 0 ? 1 : -1), pct: d / s.p * 100, prev: s.p, t: s.t };
+  }
+  function isReached(w, price) { return w.targetPrice != null && price != null && price <= w.targetPrice; }
+
+  function model(w) {
+    var scope = effScope(), id = w.itemId;
+    var marketable = !bridge || !bridge.isMarketable || bridge.isMarketable(id);
+    var p = marketable ? priceInfo(id, scope) : null;
+    var row = marketable ? pcRow(scope, id) : null;
+    var price = p ? p.min : null;
+    var avg = avgOfRow(row, prefs.avgWin);
+    var vel = row ? { nq: row[0] || 0, hq: row[1] || 0 } : null;
+    return {
+      w: w, id: id, name: displayName(w), scope: scope, marketable: marketable, p: p, row: row, price: price,
+      noListing: !!(p && p.src === 'live' && p.min == null),
+      qual: qualTag(p),
+      change: (p && p.src === 'live') ? changeInfo(id, scope, price) : null,
+      avg: avg, avgDiff: (avg && price != null) ? (price - avg.v) / avg.v * 100 : null,
+      vel: vel, reached: isReached(w, price),
+    };
+  }
+  function spreadInfo(id) {
+    if (!hasWorld()) return null;
+    var d = live.dc[id], w = live.world[id];
+    if (!d || !w || d.min == null || w.min == null) return null;
+    return { world: w.min, dc: d.min, pct: (w.min - d.min) / d.min * 100, dcWorld: d.minWorld };
+  }
+  function ensureCost(id) {
+    if (costCache[id] || !bridge || !bridge.craftInfo) return;
+    costCache[id] = { state: 'loading' };
+    Promise.resolve(bridge.craftInfo(id)).then(function (r) {
+      costCache[id] = (r && r.craftable && r.craft != null) ? { state: 'ok', craft: r.craft } : { state: 'none' };
+      scheduleRender();
+    }).catch(function () { costCache[id] = { state: 'none' }; scheduleRender(); });
+  }
+
+  /* ───────────── 查價 ───────────── */
+  function mergeLive(scope, ids, map) {
+    ids.forEach(function (id) {
+      var e = map[String(id)];
+      if (e) live[scope][String(id)] = Object.assign({ fetchedAt: Date.now() }, e);
+    });
+  }
+  function refresh(opts) {
+    opts = opts || {};
+    if (!bridge || typeof MarketData === 'undefined' || !MarketData.fetchWatchBatch) return Promise.resolve();
+    if (refreshing) { needAgain = needAgain && !needAgain.targetsOnly ? needAgain : opts; return Promise.resolve(); }
+    var s = st();
+    if (!s.dcName) { lastRefreshState = 'nodc'; renderStatus(); return Promise.resolve(); }
+    var items = list.filter(function (w) {
+      if (bridge.isMarketable && !bridge.isMarketable(w.itemId)) return false;
+      if (opts.targetsOnly && w.targetPrice == null) return false;
+      if (opts.ids && opts.ids.indexOf(w.itemId) < 0) return false;
+      return true;
+    });
+    var ids = items.map(function (w) { return Number(w.itemId); });
+    if (!ids.length) { lastRefreshState = 'ok'; renderStatus(); updateBadge(); return Promise.resolve(); }
+
+    refreshing = true; lastRefreshState = 'loading'; renderStatus();
+    var scope = effScope();
+    var wantSpread = prefs.cols.indexOf('spread') >= 0 && !!s.worldName;
+    var needDc = scope === 'dc' || wantSpread;
+    var needWorld = (scope === 'world' || wantSpread) && !!s.worldName;
+    var stats = { failedChunks: 0 };
+    var jobs = [ensurePc(scope).then(function () { scheduleRender(); updateBadge(); })];
+    if (needDc) jobs.push(MarketData.fetchWatchBatch(ids, s.dcName, stats).then(function (m) { mergeLive('dc', ids, m); }));
+    if (needWorld) jobs.push(MarketData.fetchWatchBatch(ids, s.worldName, stats).then(function (m) { mergeLive('world', ids, m); }));
+    return Promise.all(jobs).then(function () {
+      lastRefreshAt = Date.now();
+      lastRefreshState = stats.failedChunks ? 'partial' : 'ok';
+      seedSeen(); checkAlerts();
+    }).catch(function () { lastRefreshState = 'fail'; }).then(function () {
+      refreshing = false;
+      scheduleRender(); renderStatus(); updateBadge();
+      if (needAgain) { var o = needAgain; needAgain = null; refresh(o); }
+    });
+  }
+  function missingData() {
+    var sc = effScope();
+    return list.some(function (w) { return (!bridge.isMarketable || bridge.isMarketable(w.itemId)) && !(live[sc] && live[sc][w.itemId]); });
+  }
+
+  /* 「上次關閉清單時」的價格：關閉抽屜時存下來，下次打開就能看到這段時間的漲跌 */
+  function seedSeen() {
+    var sc = effScope(), now = Date.now(), changed = false;
+    list.forEach(function (w) {
+      var p = priceInfo(w.itemId, sc), k = seenKey(sc, w.itemId);
+      if (p && p.src === 'live' && p.min != null && !seen[k]) { seen[k] = { p: p.min, t: now }; changed = true; }
+    });
+    if (changed) writeJson(SEEN_KEY, seen);
+  }
+  function commitSeen() {
+    var sc = effScope(), now = Date.now(), changed = false;
+    list.forEach(function (w) {
+      var p = priceInfo(w.itemId, sc);
+      if (p && p.src === 'live' && p.min != null) { seen[seenKey(sc, w.itemId)] = { p: p.min, t: now }; changed = true; }
+    });
+    if (changed) writeJson(SEEN_KEY, seen);
+  }
+
+  /* ───────────── 通知（只在剛跨過目標價的那一刻通知一次） ───────────── */
+  function notifyEnabled() {
+    try { return localStorage.getItem(NOTIFY_KEY) === '1' && typeof Notification !== 'undefined' && Notification.permission === 'granted'; } catch (e) { return false; }
+  }
+  function fireNotification(w, price) {
+    if (!notifyEnabled()) return;
+    try {
+      var n = new Notification('市場關注・' + displayName(w), {
+        body: '現在最低 ' + fmtFull(price) + ' 金，已到目標價（' + fmtFull(w.targetPrice) + ' 金）以下', tag: 'ff14-watch-' + w.itemId,
+      });
+      n.onclick = function () { try { window.focus(); } catch (e) { /* 忽略 */ } openDrawer(); try { n.close(); } catch (e2) { /* 忽略 */ } };
+    } catch (e) { /* 通知被擋掉就算了 */ }
+  }
+  function checkAlerts() {
+    var sc = effScope(), now = Date.now(), changed = false;
+    list.forEach(function (w) {
+      if (w.targetPrice == null) return;
+      var p = priceInfo(w.itemId, sc);
+      if (!p || p.src !== 'live' || p.min == null) return; // 只用即時資料判斷，不拿每小時快取亂通知
+      var cur = alertState[w.itemId] || { below: false, t: 0 };
+      var below = p.min <= w.targetPrice;
+      if (below && !cur.below) {
+        if (now - cur.t > ALERT_COOLDOWN) { fireNotification(w, p.min); alertState[w.itemId] = { below: true, t: now }; }
+        else alertState[w.itemId] = { below: true, t: cur.t };
+        changed = true;
+      } else if (!below && cur.below) { alertState[w.itemId] = { below: false, t: cur.t }; changed = true; }
+    });
+    if (changed) writeJson(ALERT_KEY, alertState);
+  }
+
+  /* ───────────── 自動刷新 ───────────── */
+  function isOpen() { return !!(els.drawer && els.drawer.classList.contains('open')); }
+  function hasTargets() { return list.some(function (w) { return w.targetPrice != null; }); }
+  function tick() {
+    if (!bridge || !list.length) return;
+    if (isOpen()) { refresh({}); return; }
+    if (document.hidden && !notifyEnabled()) return;
+    if (hasTargets()) refresh({ targetsOnly: true });
+  }
+  function startTimer() {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (!prefs.auto) return;
+    timer = setInterval(tick, Math.max(1, Number(prefs.interval) || 5) * 60 * 1000);
+  }
+
+  /* ───────────── 對外：新增／移除／查詢 ───────────── */
+  function fireChange() { Object.keys(listeners).forEach(function (k) { try { listeners[k](); } catch (e) { /* 單一監聽器出錯不影響其他 */ } }); }
+  function onChange(key, fn) { listeners[key] = fn; }
+  function has(id) { return !!find(id); }
+  function count() { return list.length; }
+  function afterListChanged(newIds) {
+    saveList();
+    if (els.drawer) { renderHead(); renderTagbar(); scheduleRender(); }
+    updateBadge();
+    if (newIds && newIds.length && isOpen()) refresh({ ids: newIds });
+    fireChange();
+  }
+  function add(itemId, name, target, opts) {
+    itemId = String(itemId);
+    if (find(itemId)) return;
+    var t = Number(target);
+    list.push({ itemId: itemId, name: name || '', targetPrice: (target != null && isFinite(t) && t > 0) ? t : null, tags: [], addedAt: Date.now() });
+    afterListChanged([itemId]);
+    if (opts && opts.toast) toast('已加入關注清單', '設定目標價', function () { openDrawer({ focusId: itemId }); });
+  }
+  function remove(itemId) {
+    itemId = String(itemId);
+    var n = list.length;
+    list = list.filter(function (w) { return w.itemId !== itemId; });
+    if (list.length === n) return;
+    delete expanded[itemId]; delete alertState[itemId]; delete costCache[itemId];
+    ['dc', 'world'].forEach(function (sc) { delete seen[seenKey(sc, itemId)]; });
+    writeJson(SEEN_KEY, seen); writeJson(ALERT_KEY, alertState);
+    afterListChanged();
+  }
+  function toggle(itemId, name) { if (has(itemId)) { remove(itemId); return false; } add(itemId, name, null, { toast: true }); return true; }
+  function setTarget(id, value) {
+    var w = find(id); if (!w) return;
+    w.targetPrice = value;
+    delete alertState[w.itemId]; writeJson(ALERT_KEY, alertState); // 目標價改了，重新判斷是否要通知
+    saveList(); checkAlerts(); updateBadge(); scheduleRender(); fireChange();
+  }
+  function addTag(id, tag) {
+    var w = find(id); tag = String(tag || '').trim().slice(0, 12);
+    if (!w || !tag || w.tags.indexOf(tag) >= 0) return;
+    w.tags.push(tag); saveList(); renderTagbar(); scheduleRender();
+  }
+  function delTag(id, tag) {
+    var w = find(id); if (!w) return;
+    w.tags = w.tags.filter(function (t) { return t !== tag; });
+    if (prefs.tag === tag && !allTags().length) { prefs.tag = ''; savePrefs(); }
+    saveList(); renderTagbar(); scheduleRender();
+  }
+  function allTags() {
+    var seenT = {}, out = [];
+    list.forEach(function (w) { w.tags.forEach(function (t) { if (!seenT[t]) { seenT[t] = 1; out.push(t); } }); });
+    return out;
+  }
+  function onSettingsChanged() {
+    var s = st(), sig = (s.dcName || '') + '|' + (s.worldName || '');
+    if (sig === lastSig) return;
+    var first = lastSig === '';
+    lastSig = sig;
+    if (first) return;
+    live = { dc: {}, world: {} }; pcCache = {}; costCache = {};
+    if (els.drawer) renderAll();
+    if (isOpen()) refresh({}); else if (hasTargets()) refresh({ targetsOnly: true });
+  }
+
+  /* ───────────── 畫面：區塊 HTML ───────────── */
+  function nameBlock(m) {
+    var w = m.w, sub = [];
+    if (m.reached) sub.push('<span class="wl-pill ok"><i class="ph ph-check-circle"></i>達標</span>');
+    if (w.targetPrice != null) sub.push('<span class="wl-pill" title="目標價：低於這個價格就提醒"><i class="ph ph-bell-ringing"></i>' + fmt(w.targetPrice) + '</span>');
+    w.tags.forEach(function (t) { sub.push('<span class="wl-pill tag">' + esc(t) + '</span>'); });
+    return '<div class="wl-cell wl-name">' + (bridge.icon ? bridge.icon(m.id, 24) : '') +
+      '<div class="wl-name-text"><a class="wl-name-link" data-act="open" title="開啟物品頁">' + esc(m.name) + '</a>' +
+      (sub.length ? '<div class="wl-sub">' + sub.join('') + '</div>' : '') + '</div></div>';
+  }
+  function priceBlock(m) {
+    var inner;
+    if (!m.marketable) inner = '<span class="wl-dim" title="這個物品不能在市場交易">不可交易</span>';
+    else if (m.noListing) inner = '<span class="wl-dim">無掛單</span>';
+    else if (m.price == null) inner = refreshing ? '<span class="wl-skel"></span>' : '<span class="wl-dim">—</span>';
+    else {
+      var worldTxt = '';
+      if (m.p.src === 'live' && m.scope === 'dc' && m.p.world) worldTxt = '<span class="wl-world" title="目前最低價所在的伺服器">' + esc(m.p.world) + '</span>';
+      else if (m.p.src === 'cache') worldTxt = '<span class="wl-world cache" title="這是每小時預先計算的資料，即時價格載入中或查詢失敗">快取</span>';
+      inner = '<span class="wl-price-top"><b class="wl-price-num' + (m.reached ? ' is-reached' : '') + '" title="' + fmtFull(m.price) + ' 金">' + fmt(m.price) + '</b>' +
+        (m.qual ? '<span class="wl-q ' + m.qual.toLowerCase() + '" title="這個價格是' + m.qual + '品質">' + m.qual + '</span>' : '') + '</span>' + worldTxt;
+    }
+    return '<div class="wl-cell wl-price">' + inner + '</div>';
+  }
+  function changeBlock(m) {
+    var c = m.change, inner = '<span class="wl-dim">·</span>', title = '';
+    if (c) {
+      title = '對比你上次關閉清單時（' + agoText(c.t) + '）的價格 ' + fmtFull(c.prev) + ' 金';
+      if (c.dir === 0) inner = '<span class="wl-chg flat">持平</span>';
+      else inner = '<span class="wl-chg ' + (c.dir < 0 ? 'down' : 'up') + '">' + (c.dir < 0 ? '▼' : '▲') + fmtPct(c.pct) + '</span>';
+    }
+    return '<div class="wl-cell wl-chgcell" title="' + esc(title) + '">' + inner + '</div>';
+  }
+  function updatedBlock(m) {
+    var inner = '<span class="wl-dim">—</span>', title = '';
+    if (m.p && m.p.upload) { inner = '<span class="wl-ago ' + staleClass(m.p.upload) + '">' + agoText(m.p.upload) + '</span>'; title = '這個價格的資料最後上傳時間（超過 6 小時橘色、超過 1 天紅色）'; }
+    else if (m.p && m.p.src === 'cache') { inner = '<span class="wl-dim">快取</span>'; title = '每小時預先計算的資料'; }
+    return '<div class="wl-cell" title="' + title + '">' + inner + '</div>';
+  }
+  function avgBlock(m) {
+    if (!m.avg) return '<div class="wl-cell" title="這段時間成交太少，不顯示"><span class="wl-dim">—</span></div>';
+    var d = m.avgDiff, diffHtml = '';
+    if (d != null && Math.abs(d) >= 1) diffHtml = '<small class="' + (d < 0 ? 'cheap' : 'dear') + '">' + (d < 0 ? '低' : '高') + fmtPct(d) + '</small>';
+    return '<div class="wl-cell wl-stack" title="' + AVG_LABEL[prefs.avgWin] + '成交均價 ' + fmtFull(m.avg.v) + ' 金（' + m.avg.n + ' 筆成交）"><span>' + fmt(m.avg.v) + '</span>' + diffHtml + '</div>';
+  }
+  function velBlock(m) {
+    if (!m.vel || (m.vel.nq + m.vel.hq) === 0) return '<div class="wl-cell" title="近期沒有成交"><span class="wl-dim">—</span></div>';
+    return '<div class="wl-cell" title="每天賣出幾件（NQ・HQ）">' + fmtVel(m.vel.nq) + ' <span class="wl-dim">·</span> ' + fmtVel(m.vel.hq) + '</div>';
+  }
+  function spreadBlock(m) {
+    if (!hasWorld()) return '<div class="wl-cell" title="請先在上方「設定」選擇我的世界"><span class="wl-dim">—</span></div>';
+    var s = spreadInfo(m.id);
+    if (!s) return '<div class="wl-cell"><span class="wl-dim">' + (refreshing ? '⋯' : '—') + '</span></div>';
+    if (s.pct < 0.5) return '<div class="wl-cell" title="我的世界就是資料中心最低價"><span class="wl-chg down">本服最低</span></div>';
+    return '<div class="wl-cell wl-stack" title="我的世界 ' + fmtFull(s.world) + ' 金；資料中心最低 ' + fmtFull(s.dc) + ' 金（' + esc(s.dcWorld || '其他世界') + '）"><span>' + fmt(s.world - s.dc) + '</span><small class="dear">本服貴' + fmtPct(s.pct) + '</small></div>';
+  }
+  function costBlock(m) {
+    var c = costCache[m.id];
+    if (!c || c.state === 'loading') return '<div class="wl-cell"><span class="wl-dim">⋯</span></div>';
+    if (c.state === 'none') return '<div class="wl-cell" title="這個物品不能製作，或查不到材料價格"><span class="wl-dim">—</span></div>';
+    var profit = m.price != null ? m.price - c.craft : null, pHtml = '';
+    if (profit != null) pHtml = '<small class="' + (profit >= 0 ? 'cheap' : 'dear') + '">' + (profit >= 0 ? '+' : '−') + fmt(Math.abs(profit)) + '</small>';
+    return '<div class="wl-cell wl-stack" title="材料成本 ' + fmtFull(c.craft) + ' 金；小字是目前最低價減成本（未扣稅）"><span>' + fmt(c.craft) + '</span>' + pHtml + '</div>';
+  }
+  var COL_BLOCK = { change: changeBlock, updated: updatedBlock, avg: avgBlock, vel: velBlock, spread: spreadBlock, cost: costBlock };
+  var COL_WIDTH = { change: '58px', updated: '58px', avg: '88px', vel: '78px', spread: '96px', cost: '88px' };
+
+  function actionsBlock(m) {
+    var hasT = m.w.targetPrice != null;
+    return '<div class="wl-cell wl-actions">' +
+      '<button type="button" class="wl-iconbtn sm' + (hasT ? ' on' : '') + '" data-act="target" title="' + (hasT ? '修改目標價' : '設定目標價') + '"><i class="ph ph-bell' + (hasT ? '-ringing' : '-simple') + '"></i></button>' +
+      '<button type="button" class="wl-iconbtn sm wl-chev" data-act="toggle" title="展開詳細資訊"><i class="ph ph-caret-down"></i></button></div>';
+  }
+
+  function tileHtml(label, val, cls, title) {
+    return '<div class="wl-tile' + (cls ? ' ' + cls : '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '><span class="wl-tile-l">' + label + '</span><span class="wl-tile-v">' + val + '</span></div>';
+  }
+  function detailHtml(m) {
+    var w = m.w, cols = visibleCols(), tiles = [];
+    if (m.marketable && m.p) {
+      if (m.p.hq != null && m.p.nq != null) {
+        tiles.push(tileHtml('NQ 最低', fmt(m.p.nq), '', fmtFull(m.p.nq) + ' 金'));
+        tiles.push(tileHtml('HQ 最低', fmt(m.p.hq), '', fmtFull(m.p.hq) + ' 金'));
+      }
+      AVG_KEYS.forEach(function (k) {
+        var a = avgOfRow(m.row, k);
+        tiles.push(tileHtml('均價・' + AVG_LABEL[k], a ? fmt(a.v) : '—', a ? '' : 'dim', a ? (a.n + ' 筆成交') : '這段時間成交太少，不顯示'));
+      });
+      if (cols.indexOf('vel') < 0) tiles.push(tileHtml('賣速 NQ·HQ', m.vel && (m.vel.nq + m.vel.hq) ? fmtVel(m.vel.nq) + ' · ' + fmtVel(m.vel.hq) + '<small>/天</small>' : '—', m.vel && (m.vel.nq + m.vel.hq) ? '' : 'dim'));
+      var r = m.row && m.row[8];
+      if (r) {
+        var rs = [];
+        if (r[0] != null && r[1]) rs.push('NQ ' + fmt(r[0]) + '<small>' + agoText(r[1] * 1000) + '</small>');
+        if (r[2] != null && r[3]) rs.push('HQ ' + fmt(r[2]) + '<small>' + agoText(r[3] * 1000) + '</small>');
+        if (rs.length) tiles.push(tileHtml('最近成交', rs.join('　'), ''));
+      }
+      if (cols.indexOf('spread') < 0 && hasWorld() && live.world[m.id] && live.dc[m.id]) {
+        var sp = spreadInfo(m.id);
+        if (sp) tiles.push(tileHtml('跨服差價', sp.pct < 0.5 ? '本服最低' : '本服貴 ' + fmtPct(sp.pct), sp.pct < 0.5 ? 'good' : ''));
+      }
+      if (cols.indexOf('cost') < 0) {
+        var c = costCache[m.id];
+        if (c && c.state === 'ok') tiles.push(tileHtml('材料成本', fmt(c.craft), '', fmtFull(c.craft) + ' 金'));
+      }
+    }
+    var worldPills = '';
+    var L = live.dc[m.id];
+    if (m.marketable && L && L.worldMins) {
+      var ws = Object.keys(L.worldMins).sort(function (a, b) { return L.worldMins[a] - L.worldMins[b]; }).slice(0, 6);
+      if (ws.length) {
+        worldPills = '<div class="wl-worlds"><span class="wl-tile-l">各世界最低</span>' + ws.map(function (n) {
+          var up = L.worldUploadTimes && L.worldUploadTimes[n];
+          return '<span class="wl-wpill' + (up ? ' ' + staleClass(up) : '') + '" title="' + (up ? '資料更新 ' + agoText(up) : '') + '">' + esc(n) + ' <b>' + fmt(L.worldMins[n]) + '</b></span>';
+        }).join('') + '</div>';
+      }
+    }
+    var tagHtml = w.tags.map(function (t) { return '<span class="wl-pill tag">' + esc(t) + '<button type="button" data-act="tag-del" data-tag="' + esc(t) + '" title="移除標籤">×</button></span>'; }).join('');
+    var sugg = PRESET_TAGS.concat(allTags()).filter(function (t, i, a) { return a.indexOf(t) === i && w.tags.indexOf(t) < 0; }).slice(0, 6)
+      .map(function (t) { return '<button type="button" class="wl-pill tag ghost" data-act="tag-add" data-tag="' + esc(t) + '">+ ' + esc(t) + '</button>'; }).join('');
+    return '<div class="wl-detail">' +
+      (tiles.length ? '<div class="wl-tiles">' + tiles.join('') + '</div>' : '') + worldPills +
+      '<div class="wl-edit"><div class="wl-edit-row"><span class="wl-edit-l"><i class="ph ph-bell"></i>目標價</span>' +
+        '<input type="text" inputmode="numeric" class="wl-input" data-field="target" value="' + (w.targetPrice != null ? w.targetPrice : '') + '" placeholder="低於這個價格就提醒，例如 5000 或 1.2萬" autocomplete="off">' +
+        '<button type="button" class="wl-btn" data-act="save-target">儲存</button>' +
+        (w.targetPrice != null ? '<button type="button" class="wl-btn ghost" data-act="clear-target">清除</button>' : '') + '</div>' +
+      '<p class="wl-hint">依目前選的範圍（' + (m.scope === 'world' ? esc(st().worldName) : '資料中心') + '）的最低價判斷。</p>' +
+      '<div class="wl-edit-row wrap"><span class="wl-edit-l"><i class="ph ph-tag"></i>標籤</span>' + tagHtml +
+        '<input type="text" class="wl-input tiny" data-field="tag" maxlength="12" placeholder="自訂標籤，按 Enter" autocomplete="off">' + sugg + '</div></div>' +
+      '<div class="wl-detail-actions">' +
+        '<button type="button" class="wl-btn" data-act="open"><i class="ph ph-arrow-square-out"></i>查看物品頁</button>' +
+        '<button type="button" class="wl-btn" data-act="copy"><i class="ph ph-copy"></i>複製名稱</button>' +
+        '<button type="button" class="wl-btn danger" data-act="remove"><i class="ph ph-trash"></i>移除關注</button></div>' +
+      '</div>';
+  }
+
+  function tableHtml(ms) {
+    var cols = visibleCols();
+    var tpl = ['minmax(0,1fr)', '96px'].concat(cols.map(function (k) { return COL_WIDTH[k]; })).concat(['52px']).join(' ');
+    var head = '<div class="wl-thead" style="grid-template-columns:' + tpl + '"><span>物品</span><span>最低價</span>' +
+      cols.map(function (k) { return '<span>' + (k === 'avg' ? '均價・' + AVG_LABEL[prefs.avgWin] : (k === 'vel' ? '賣速 NQ·HQ' : COLS[k])) + '</span>'; }).join('') + '<span></span></div>';
+    return head + ms.map(function (m) {
+      return '<div class="wl-item' + (m.reached ? ' is-reached' : '') + (expanded[m.id] ? ' is-open' : '') + '" data-id="' + m.id + '">' +
+        '<div class="wl-rowmain" style="grid-template-columns:' + tpl + '">' + nameBlock(m) + priceBlock(m) +
+        cols.map(function (k) { return COL_BLOCK[k](m); }).join('') + actionsBlock(m) + '</div>' +
+        (expanded[m.id] ? detailHtml(m) : '') + '</div>';
+    }).join('');
+  }
+  function cardsHtml(ms) {
+    var cols = visibleCols().filter(function (k) { return EXTRA_COLS.indexOf(k) >= 0; });
+    return '<div class="wl-cards">' + ms.map(function (m) {
+      var extras = cols.length ? '<div class="wl-card-extras">' + cols.map(function (k) {
+        return '<div class="wl-xrow"><span>' + (k === 'avg' ? '均價' : COLS[k]) + '</span>' + COL_BLOCK[k](m) + '</div>';
+      }).join('') + '</div>' : '';
+      var meta = [];
+      if (visibleCols().indexOf('change') >= 0) meta.push(changeBlock(m));
+      if (visibleCols().indexOf('updated') >= 0) meta.push(updatedBlock(m));
+      return '<div class="wl-card wl-item' + (m.reached ? ' is-reached' : '') + (expanded[m.id] ? ' is-open' : '') + '" data-id="' + m.id + '">' +
+        '<div class="wl-card-top">' + nameBlock(m) + actionsBlock(m) + '</div>' +
+        '<div class="wl-card-price">' + priceBlock(m) + '<div class="wl-card-meta">' + meta.join('') + '</div></div>' + extras +
+        (expanded[m.id] ? detailHtml(m) : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  function emptyHtml() {
+    return '<div class="wl-empty"><i class="ph ph-star"></i><p>還沒有關注的物品</p>' +
+      '<small>在物品頁按「☆ 加入關注」，或搜尋結果旁的 ☆，就會出現在這裡。</small>' +
+      '<button type="button" class="wl-btn" data-act="import"><i class="ph ph-upload-simple"></i>匯入清單</button></div>';
+  }
+
+  function sortModels(ms) {
+    ms.forEach(function (m, i) { m.i = i; });
+    var by = {
+      'default': function (a, b) { return (b.reached ? 1 : 0) - (a.reached ? 1 : 0); },
+      name: function (a, b) { return a.name.localeCompare(b.name, 'zh-Hant'); },
+      priceAsc: function (a, b) { return numCmp(a.price, b.price, 1); },
+      priceDesc: function (a, b) { return numCmp(a.price, b.price, -1); },
+      drop: function (a, b) { return numCmp(a.change && a.change.pct, b.change && b.change.pct, 1); },
+      rise: function (a, b) { return numCmp(a.change && a.change.pct, b.change && b.change.pct, -1); },
+      cheap: function (a, b) { return numCmp(a.avgDiff, b.avgDiff, 1); },
+      vel: function (a, b) { return numCmp(a.vel ? a.vel.nq + a.vel.hq : null, b.vel ? b.vel.nq + b.vel.hq : null, -1); },
+      old: function (a, b) { return numCmp(a.p && a.p.upload, b.p && b.p.upload, 1); },
+    };
+    var f = by[prefs.sort] || by['default'];
+    return ms.sort(function (a, b) { return f(a, b) || a.i - b.i; });
+  }
+
+  /* ───────────── 畫面：渲染 ───────────── */
+  function renderBody() {
+    if (!els.body) return;
+    var html, ms = [];
+    if (!list.length) html = emptyHtml();
+    else {
+      ms = list.map(model);
+      if (prefs.tag) ms = ms.filter(function (m) { return m.w.tags.indexOf(prefs.tag) >= 0; });
+      if (!ms.length) html = '<div class="wl-empty"><p>這個標籤下沒有物品</p></div>';
+      else html = prefs.view === 'card' ? cardsHtml(sortModels(ms)) : tableHtml(sortModels(ms));
+    }
+    var top = els.body.scrollTop;
+    els.body.innerHTML = html;
+    els.body.scrollTop = top;
+    if (focusTarget) {
+      var inp = els.body.querySelector('[data-id="' + focusTarget + '"] [data-field="target"]');
+      if (inp) { try { inp.focus(); inp.select(); inp.scrollIntoView({ block: 'nearest' }); } catch (e) { /* 忽略 */ } }
+      focusTarget = null;
+    }
+    var wantCost = visibleCols().indexOf('cost') >= 0;
+    ms.forEach(function (m) { if (m.marketable && (wantCost || expanded[m.id])) ensureCost(m.id); });
+  }
+  function scheduleRender() {
+    if (!els.body) return;
+    var a = document.activeElement;
+    if (a && els.body.contains(a) && /^(input|select|textarea)$/i.test(a.tagName)) { dirty = true; return; } // 使用者正在輸入，等輸入完再重畫，免得游標被洗掉
+    renderBody();
+  }
+  function renderHead() {
+    if (!els.count) return;
+    els.count.textContent = list.length ? '（' + list.length + '）' : '';
+  }
+  function renderToolbar() {
+    var world = hasWorld(), sc = effScope();
+    els.toolbar.innerHTML =
+      '<div class="wl-seg" role="group" aria-label="價格範圍">' +
+        '<button type="button" data-act="scope" data-v="dc" class="' + (sc === 'dc' ? 'on' : '') + '">資料中心</button>' +
+        '<button type="button" data-act="scope" data-v="world" class="' + (sc === 'world' ? 'on' : '') + '"' + (world ? '' : ' disabled title="請先在上方「設定」選擇我的世界"') + '>' + (world ? esc(st().worldName) : '我的世界') + '</button></div>' +
+      '<div class="wl-seg icons" role="group" aria-label="檢視方式">' +
+        '<button type="button" data-act="view" data-v="table" class="' + (prefs.view === 'table' ? 'on' : '') + '" title="表格"><i class="ph ph-list-dashes"></i></button>' +
+        '<button type="button" data-act="view" data-v="card" class="' + (prefs.view === 'card' ? 'on' : '') + '" title="卡片"><i class="ph ph-squares-four"></i></button></div>' +
+      '<select class="wl-select" data-act="sort" title="排序">' + SORTS.map(function (s) { return '<option value="' + s[0] + '"' + (prefs.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select>';
+  }
+  function renderStatus() {
+    if (!els.status) return;
+    var txt = '', cls = '';
+    var s = lastRefreshState;
+    if (s === 'nodc') txt = '請先在上方「設定」選擇資料中心';
+    else if (s === 'loading') { txt = '更新中⋯'; cls = 'busy'; }
+    else if (s === 'ok' && lastRefreshAt) txt = '即時價格 · ' + new Date(lastRefreshAt).toTimeString().slice(0, 5) + ' 更新';
+    else if (s === 'partial') { txt = '部分物品查詢失敗，其餘為即時價格'; cls = 'warn'; }
+    else if (s === 'fail') { txt = '即時查詢失敗，顯示的是每小時快取'; cls = 'warn'; }
+    else txt = list.length ? '尚未更新' : '';
+    els.status.className = 'wl-status ' + cls;
+    els.status.querySelector('.wl-status-txt').textContent = txt;
+    els.status.querySelector('[data-act="refresh"]').classList.toggle('spin', refreshing);
+  }
+  function renderTagbar() {
+    if (!els.tagbar) return;
+    var tags = allTags();
+    if (prefs.tag && tags.indexOf(prefs.tag) < 0) { prefs.tag = ''; savePrefs(); }
+    if (!tags.length) { els.tagbar.hidden = true; els.tagbar.innerHTML = ''; return; }
+    els.tagbar.hidden = false;
+    els.tagbar.innerHTML = '<button type="button" class="wl-chip' + (prefs.tag ? '' : ' on') + '" data-act="tagfilter" data-v="">全部</button>' +
+      tags.map(function (t) { return '<button type="button" class="wl-chip' + (prefs.tag === t ? ' on' : '') + '" data-act="tagfilter" data-v="' + esc(t) + '">' + esc(t) + '</button>'; }).join('');
+  }
+  function renderSettings() {
+    if (!els.settings || els.settings.hidden) return;
+    var perm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+    var nOn = notifyEnabled();
+    els.settings.innerHTML =
+      '<div class="wl-set-group"><div class="wl-set-title">顯示欄位</div><div class="wl-presets">' +
+        COL_PRESETS.map(function (p, i) { return '<button type="button" class="wl-chip' + (sameCols(p.cols, prefs.cols) ? ' on' : '') + '" data-act="preset" data-i="' + i + '">' + p.name + '</button>'; }).join('') + '</div>' +
+        '<div class="wl-checks">' + COL_ORDER.map(function (k) {
+          return '<label class="wl-check"><input type="checkbox" data-pref="col" data-v="' + k + '"' + (prefs.cols.indexOf(k) >= 0 ? ' checked' : '') + '><span>' + COLS[k] + (EXTRA_COLS.indexOf(k) >= 0 ? '<em>寬版</em>' : '') + '</span></label>';
+        }).join('') + '</div>' +
+        '<p class="wl-hint">標「寬版」的欄位需要按右上角的 <i class="ph ph-arrows-out-line-horizontal"></i> 展開寬版才會顯示；沒顯示在欄位上的資訊，都在點開某一列的詳細面板裡。</p></div>' +
+      '<div class="wl-set-group"><div class="wl-set-title">成交均價區間</div><div class="wl-seg">' +
+        AVG_KEYS.map(function (k) { return '<button type="button" data-act="avgwin" data-v="' + k + '" class="' + (prefs.avgWin === k ? 'on' : '') + '">' + AVG_LABEL[k] + '</button>'; }).join('') + '</div></div>' +
+      '<div class="wl-set-group"><div class="wl-set-title">提醒與刷新</div>' +
+        '<label class="wl-check"><input type="checkbox" data-pref="notify"' + (nOn ? ' checked' : '') + (perm === 'unsupported' || perm === 'denied' ? ' disabled' : '') + '><span>瀏覽器通知</span></label>' +
+        '<p class="wl-hint">' + (perm === 'denied' ? '瀏覽器已封鎖這個網站的通知，請到網址列旁的網站設定開啟。' : (perm === 'unsupported' ? '這個瀏覽器不支援通知。' : '只有這個網頁開著的時候才會提醒；每個物品剛降到目標價以下時通知一次。')) + '</p>' +
+        '<label class="wl-check"><input type="checkbox" data-pref="auto"' + (prefs.auto ? ' checked' : '') + '><span>自動刷新價格，每 ' +
+          '<select class="wl-select tiny" data-pref="interval">' + [3, 5, 10, 15].map(function (n) { return '<option value="' + n + '"' + (Number(prefs.interval) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select> 分鐘</span></label></div>' +
+      '<div class="wl-set-group"><div class="wl-set-title">資料</div><div class="wl-set-btns">' +
+        '<button type="button" class="wl-btn" data-act="export"><i class="ph ph-download-simple"></i>匯出</button>' +
+        '<button type="button" class="wl-btn" data-act="import"><i class="ph ph-upload-simple"></i>匯入</button>' +
+        '<button type="button" class="wl-btn danger" data-act="clear"><i class="ph ph-trash"></i>清空清單</button></div>' +
+        '<p class="wl-hint">清單存在這個瀏覽器裡，清除瀏覽器資料就會消失，建議偶爾匯出備份。</p></div>';
+  }
+  function renderAll() {
+    if (!els.drawer) return;
+    els.drawer.classList.toggle('wide', isWide());
+    renderHead(); renderToolbar(); renderTagbar(); renderSettings(); renderBody(); renderStatus(); updateBadge();
+  }
+  function updateBadge() {
+    if (!els.badge) return;
+    var sc = effScope(), n = 0;
+    list.forEach(function (w) { var p = priceInfo(w.itemId, sc); if (p && isReached(w, p.min)) n++; });
+    els.badge.textContent = n;
+    els.badge.style.display = n > 0 ? 'inline-flex' : 'none';
+    if (els.fab) els.fab.title = '關注清單（' + list.length + '）' + (n ? '・' + n + ' 個已達目標價' : '');
+  }
+
+  /* ───────────── 抽屜開關 ───────────── */
+  function openDrawer(opts) {
+    if (!els.drawer) return;
+    els.drawer.classList.add('open');
+    if (opts && opts.focusId) { expanded[String(opts.focusId)] = true; focusTarget = String(opts.focusId); }
+    renderAll();
+    if (Date.now() - lastRefreshAt > 60 * 1000 || missingData()) refresh({});
+    else ensurePc(effScope()).then(scheduleRender);
+  }
+  function closeDrawer() {
+    if (!els.drawer || !isOpen()) return;
+    els.drawer.classList.remove('open');
+    commitSeen();
+  }
+
+  /* ───────────── 匯出／匯入／複製／提示 ───────────── */
+  function exportJson() {
+    var d = new Date(), p2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    var blob = new Blob([JSON.stringify({ v: 1, kind: 'ff14fc-watchlist', exportedAt: d.toISOString(), items: list }, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ff14-watchlist-' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function importJson(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(String(reader.result)); } catch (e) { toast('匯入失敗：檔案不是有效的 JSON'); return; }
+      var items = Array.isArray(data) ? data : (data && Array.isArray(data.items) ? data.items : null);
+      if (!items) { toast('匯入失敗：找不到關注清單資料'); return; }
+      var added = 0, updated = 0, newIds = [];
+      items.forEach(function (x) {
+        if (!x || x.itemId == null || !/^\d+$/.test(String(x.itemId))) return;
+        var id = String(x.itemId), t = Number(x.targetPrice);
+        var target = (x.targetPrice != null && isFinite(t) && t > 0) ? t : null;
+        var tags = Array.isArray(x.tags) ? x.tags.filter(Boolean).map(function (s) { return String(s).slice(0, 12); }) : [];
+        var cur = find(id);
+        if (cur) { cur.targetPrice = target; cur.tags = tags; updated++; }
+        else { list.push({ itemId: id, name: x.name || '', targetPrice: target, tags: tags, addedAt: Date.now() }); added++; newIds.push(id); }
+      });
+      afterListChanged(newIds);
+      toast('匯入完成：新增 ' + added + ' 個，更新 ' + updated + ' 個');
+    };
+    reader.readAsText(file);
+  }
+  function copyText(text) {
+    function fallback() {
+      var ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) { /* 忽略 */ } ta.remove();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback); else fallback();
+    toast('已複製「' + text + '」');
+  }
+  function toast(msg, actLabel, actFn) {
+    if (!els.toast) return;
+    els.toast.innerHTML = '<span>' + esc(msg) + '</span>' + (actLabel ? '<button type="button">' + esc(actLabel) + '</button>' : '');
+    els.toast.hidden = false;
+    els.toast.classList.add('show');
+    var b = els.toast.querySelector('button');
+    if (b) b.onclick = function () { els.toast.classList.remove('show'); if (actFn) actFn(); };
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { els.toast.classList.remove('show'); }, 4500);
+  }
+
+  /* ───────────── 事件 ───────────── */
+  function handleAct(btn, e) {
+    var act = btn.dataset.act;
+    var itemEl = btn.closest('[data-id]');
+    var id = itemEl ? itemEl.dataset.id : null;
+    var w = id ? find(id) : null;
+    switch (act) {
+      case 'close': closeDrawer(); break;
+      case 'wide': prefs.wide = !prefs.wide; savePrefs(); renderAll(); break;
+      case 'settings': els.settings.hidden = !els.settings.hidden; renderSettings(); break;
+      case 'refresh': costCache = {}; refresh({}); break;
+      case 'scope': if (!btn.disabled) { prefs.scope = btn.dataset.v; savePrefs(); renderToolbar(); renderBody(); updateBadge(); refresh({}); } break;
+      case 'view': prefs.view = btn.dataset.v; savePrefs(); renderToolbar(); renderBody(); break;
+      case 'tagfilter': prefs.tag = btn.dataset.v || ''; savePrefs(); renderTagbar(); renderBody(); break;
+      case 'preset': prefs.cols = COL_PRESETS[Number(btn.dataset.i)].cols.slice(); savePrefs(); renderSettings(); renderBody(); if (prefs.cols.indexOf('spread') >= 0) refresh({}); break;
+      case 'avgwin': prefs.avgWin = btn.dataset.v; savePrefs(); renderSettings(); renderBody(); break;
+      case 'export': exportJson(); break;
+      case 'import': els.file.value = ''; els.file.click(); break;
+      case 'clear':
+        if (list.length && confirm('確定要清空整個關注清單嗎？（可以先按「匯出」備份）')) {
+          var ids = list.map(function (x) { return x.itemId; });
+          ids.forEach(function (x) { remove(x); });
+        }
+        break;
+      case 'open': if (w && bridge.openItem) { closeDrawer(); bridge.openItem(w.itemId); } break;
+      case 'toggle': if (id) toggleExpand(id); break;
+      case 'target': if (id) { expanded[id] = true; focusTarget = id; renderBody(); } break;
+      case 'save-target': if (w) saveTargetFrom(itemEl, w); break;
+      case 'clear-target': if (w) { setTarget(w.itemId, null); } break;
+      case 'tag-add': if (w) addTag(w.itemId, btn.dataset.tag); break;
+      case 'tag-del': if (w) delTag(w.itemId, btn.dataset.tag); if (e) e.stopPropagation(); break;
+      case 'copy': if (w) copyText(displayName(w)); break;
+      case 'remove': if (w) remove(w.itemId); break;
+      default: break;
+    }
+  }
+  function toggleExpand(id) { if (expanded[id]) delete expanded[id]; else expanded[id] = true; renderBody(); }
+  function saveTargetFrom(itemEl, w) {
+    var inp = itemEl.querySelector('[data-field="target"]');
+    var v = parseGil(inp.value);
+    if (v !== null && isNaN(v)) { toast('目標價格式不對，請輸入數字，例如 5000 或 1.2萬'); return; }
+    setTarget(w.itemId, v);
+    toast(v == null ? '已清除目標價' : '目標價已設為 ' + fmtFull(v) + ' 金');
+  }
+  function bindDrawerEvents() {
+    els.drawer.addEventListener('click', function (e) {
+      if (e.target.classList.contains('wl-backdrop')) { closeDrawer(); return; }
+      var btn = e.target.closest('[data-act]');
+      if (btn && !(btn.tagName === 'SELECT')) { e.preventDefault(); handleAct(btn, e); return; }
+      var item = e.target.closest('.wl-item');
+      if (item && !e.target.closest('.wl-detail, input, button, a, select')) toggleExpand(item.dataset.id);
+    });
+    els.drawer.addEventListener('change', function (e) {
+      var t = e.target;
+      if (t.dataset.act === 'sort') { prefs.sort = t.value; savePrefs(); renderBody(); return; }
+      var pref = t.dataset.pref;
+      if (pref === 'col') {
+        var k = t.dataset.v, i = prefs.cols.indexOf(k);
+        if (t.checked && i < 0) prefs.cols.push(k); else if (!t.checked && i >= 0) prefs.cols.splice(i, 1);
+        savePrefs(); renderSettings(); renderBody();
+        if (k === 'spread' && t.checked) refresh({});
+      } else if (pref === 'auto') { prefs.auto = t.checked; savePrefs(); startTimer(); }
+      else if (pref === 'interval') { prefs.interval = Number(t.value) || 5; savePrefs(); startTimer(); }
+      else if (pref === 'notify') {
+        if (t.checked) {
+          if (typeof Notification === 'undefined') { t.checked = false; return; }
+          var done = function (perm) { if (perm === 'granted') { try { localStorage.setItem(NOTIFY_KEY, '1'); } catch (e2) { /* 忽略 */ } } renderSettings(); };
+          if (Notification.permission === 'granted') done('granted');
+          else Promise.resolve(Notification.requestPermission()).then(done);
+        } else { try { localStorage.setItem(NOTIFY_KEY, '0'); } catch (e3) { /* 忽略 */ } renderSettings(); }
+      }
+    });
+    els.drawer.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      var t = e.target, itemEl = t.closest && t.closest('[data-id]');
+      if (!itemEl || !t.dataset) return;
+      var w = find(itemEl.dataset.id); if (!w) return;
+      if (t.dataset.field === 'target') { e.preventDefault(); saveTargetFrom(itemEl, w); }
+      else if (t.dataset.field === 'tag') { e.preventDefault(); addTag(w.itemId, t.value); }
+    });
+    els.drawer.addEventListener('focusout', function () {
+      setTimeout(function () { if (dirty) { dirty = false; scheduleRender(); } }, 0);
+    });
+    els.file.addEventListener('change', function () { if (els.file.files && els.file.files[0]) importJson(els.file.files[0]); });
+    els.fab.addEventListener('click', function () { openDrawer(); });
+  }
+  function bindGlobalOnce() {
+    if (globalBound) return;
+    globalBound = true;
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) closeDrawer(); });
+    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); } });
+    window.addEventListener('storage', function (e) { // 同時開了多個分頁：另一個分頁改了清單／設定，這邊同步
+      if ([WATCH_KEY, PREFS_KEY, SEEN_KEY, ALERT_KEY].indexOf(e.key) < 0) return;
+      loadState();
+      if (els.drawer) renderAll();
+      fireChange();
+    });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && hasTargets() && Date.now() - lastRefreshAt > 2 * 60 * 1000) refresh({ targetsOnly: !isOpen() }); });
+  }
+
+  /* ───────────── 掛載 ───────────── */
+  function mount(root) {
+    root = root || document.getElementById('market-root');
+    if (!root || !bridge) return;
+    ['wl-fab', 'wl-drawer', 'wl-toast'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
+    root.insertAdjacentHTML('beforeend',
+      '<button type="button" id="wl-fab" class="wl-fab" title="關注清單"><span class="wl-fab-inner">' +
+        '<span class="wl-fab-star">✦</span><span class="wl-fab-icon"><i class="ph ph-star"></i></span>' +
+        '<span class="wl-fab-labels"><span class="wl-fab-label">關注</span><span class="wl-fab-label">清單</span></span>' +
+        '<span id="wl-fab-badge" class="wl-fab-badge" style="display:none">0</span></span></button>' +
+      '<div id="wl-drawer" class="wl-drawer"><div class="wl-backdrop"></div>' +
+        '<aside class="wl-panel" role="dialog" aria-label="關注清單">' +
+          '<div class="wl-head"><div class="wl-title"><i class="ph ph-star"></i>關注清單<span id="wl-count" class="wl-count"></span></div>' +
+            '<div class="wl-head-actions">' +
+              '<button type="button" class="wl-iconbtn wl-widebtn" data-act="wide" title="展開／收合寬版"><i class="ph ph-arrows-out-line-horizontal"></i></button>' +
+              '<button type="button" class="wl-iconbtn" data-act="settings" title="設定"><i class="ph ph-sliders-horizontal"></i></button>' +
+              '<button type="button" class="wl-iconbtn" data-act="close" title="關閉"><i class="ph ph-x"></i></button></div></div>' +
+          '<div class="wl-toolbar" id="wl-toolbar"></div>' +
+          '<div class="wl-status" id="wl-status"><span class="wl-status-txt"></span><button type="button" class="wl-iconbtn sm" data-act="refresh" title="立即刷新"><i class="ph ph-arrows-clockwise"></i></button></div>' +
+          '<div class="wl-tagbar" id="wl-tagbar" hidden></div>' +
+          '<div class="wl-settings" id="wl-settings" hidden></div>' +
+          '<div class="wl-body" id="wl-body"></div>' +
+          '<input type="file" id="wl-file" accept="application/json,.json" hidden></aside></div>' +
+      '<div class="wl-toast" id="wl-toast" hidden></div>');
+    els = {
+      fab: document.getElementById('wl-fab'), badge: document.getElementById('wl-fab-badge'), drawer: document.getElementById('wl-drawer'),
+      count: document.getElementById('wl-count'), toolbar: document.getElementById('wl-toolbar'), status: document.getElementById('wl-status'),
+      tagbar: document.getElementById('wl-tagbar'), settings: document.getElementById('wl-settings'), body: document.getElementById('wl-body'),
+      file: document.getElementById('wl-file'), toast: document.getElementById('wl-toast'),
+    };
+    var s = st(); lastSig = (s.dcName || '') + '|' + (s.worldName || '');
+    bindDrawerEvents(); bindGlobalOnce();
+    renderAll(); startTimer();
+    if (hasTargets()) refresh({ targetsOnly: true }); // 頁面一載入就悄悄查一次，徽章才準
+  }
+  function init(b) { bridge = b; loadState(); }
+
+  window.MarketWatchlist = {
+    init: init, mount: mount, add: add, remove: remove, toggle: toggle, has: has, count: count,
+    open: openDrawer, close: closeDrawer, onChange: onChange, onSettingsChanged: onSettingsChanged,
+  };
+})();
