@@ -213,22 +213,20 @@
     function runSearch() {
       const q = input.value.trim();
       if (!q) { box.innerHTML = ''; box.classList.remove('open'); fitMarketHeights(); return; }
-      // 搜尋全部物品（含不可交易的物品與貨幣，例如各種神典石、軍票、金碟幣）。
-      // 以前只搜可在市場交易的物品（ITEM_MARKETABLE_TW），貨幣要先翻到別的物品的兌換清單才點得進去，找不到就以為沒有；
-      // 現在都找得到，不可交易的會在名稱後面標「不可交易」，點進去仍可看供應鏈與取得方式。
-      const ids = Object.keys(ITEM_NAMES_TW_ALL);
+      // 只搜尋可在市場交易的物品（ITEM_MARKETABLE_TW 由 update-craft-data.js 產生）；
+      // 貨幣、不可交易的物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去。
+      const ids = (typeof ITEM_MARKETABLE_TW !== 'undefined' && ITEM_MARKETABLE_TW.length) ? ITEM_MARKETABLE_TW : Object.keys(ITEM_NAMES_TW_ALL);
       const matches = [];
       for (let i = 0; i < ids.length; i++) {
         const name = ITEM_NAMES_TW_ALL[ids[i]];
-        if (name && name.indexOf(q) !== -1) matches.push({ id: ids[i], name: name, mk: isMarketable(ids[i]) });
+        if (name && name.indexOf(q) !== -1) matches.push({ id: ids[i], name: name });
       }
       // 第5點抓到的真正原因：純粹按物品ID排序，會讓「基礎材料」被自己衍生出來的一大堆裝備
       // 名稱排擠出前30名——例如「銀狼革」這個素材本身的ID，剛好比拿它做出來的33件裝備的ID都大，
       // 純ID排序下，光是這些裝備就佔滿了前30名，真正要找的素材反而看不到。不是抓不到資料
       // （這個物品在供應鏈圖上能正確顯示價格，證明資料完全存在），純粹是排序方式的問題。
       // 改成先比對「符合程度」：完全等於搜尋字串 > 開頭符合 > 只是包含在中間；
-      // 同等級「可交易的排在不可交易的前面」（放開搜尋後不可交易的物品多了一倍以上，不能讓它們把可查價的擠到後面），
-      // 再比名字長度（越短越接近你在找的東西），最後才用ID排序當保底。
+      // 同等級再比名字長度（越短越接近你在找的東西），最後才用ID排序當保底。
       function rank(name) {
         if (name === q) return 0;
         if (name.indexOf(q) === 0) return 1;
@@ -237,22 +235,20 @@
       matches.sort(function (a, b) {
         const ra = rank(a.name), rb = rank(b.name);
         if (ra !== rb) return ra - rb;
-        if (a.mk !== b.mk) return a.mk ? -1 : 1;
         if (a.name.length !== b.name.length) return a.name.length - b.name.length;
         return Number(a.id) - Number(b.id);
       });
-      // 搜尋結果原則上全部列出（下拉清單有自己的捲軸）。放開不可交易物品後，輸入單一個字可能一次有幾千筆，
-      // 多到影響操作時才截斷在 SEARCH_CAP 筆並提示「再輸入更多字」，一般搜尋不會碰到。
-      const SEARCH_CAP = 1500;
+      // 原本這裡會砍到只留前30筆，是我自己加的上限，怕一次塞太多DOM節點卡頓。
+      // 現在下拉清單本身有自己的捲軸能正常捲動，這個限制沒必要，拿掉——搜尋結果要列出全部。
       if (!matches.length) { box.innerHTML = '<div class="craft-muted" style="padding:8px">查無符合的物品</div>'; box.classList.add('open'); fitMarketHeights(); return; }
-      box.innerHTML = matches.slice(0, SEARCH_CAP).map(function (m) {
-        return '<div class="craft-search-item" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + m.name + '</span>' + (m.mk ? '' : '<span class="craft-search-tag" title="這個物品不能在市場上買賣">不可交易</span>') + '</div>';
-      }).join('') + (matches.length > SEARCH_CAP ? '<div class="craft-muted" style="padding:8px">還有 ' + (matches.length - SEARCH_CAP) + ' 筆沒有列出，請再多輸入幾個字縮小範圍。</div>' : '');
+      box.innerHTML = matches.map(function (m) {
+        return '<div class="craft-search-item" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + m.name + '</span></div>';
+      }).join('');
       box.classList.add('open');
       fitMarketHeights();
       box.querySelectorAll('[data-mk-pick]').forEach(function (el) {
         el.addEventListener('click', function () {
-          input.value = el.querySelector('span').textContent; // 只取名稱，不要把後面的「不可交易」標籤也填進搜尋框
+          input.value = el.textContent;
           box.innerHTML = ''; box.classList.remove('open');
           fitMarketHeights();
           openItemDetail(el.dataset.mkPick);
