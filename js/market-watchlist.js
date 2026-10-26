@@ -30,13 +30,6 @@
   var COLS = { change: '漲跌', updated: '更新時間', avg: '成交均價', vel: '賣速', spread: '跨服差價', cost: '製作成本' };
   var COL_ORDER = ['change', 'updated', 'avg', 'vel', 'spread', 'cost'];
   var EXTRA_COLS = ['avg', 'vel', 'spread', 'cost']; // 這幾欄只在寬版顯示，窄版放不下
-  var COL_PRESETS = [
-    { name: '只看價格', cols: [] },
-    { name: '一般', cols: ['change', 'updated'] },
-    { name: '買家', cols: ['change', 'updated', 'avg'] },
-    { name: '轉賣', cols: ['change', 'updated', 'avg', 'vel', 'spread'] },
-    { name: '製作', cols: ['updated', 'avg', 'cost'] },
-  ];
   var SORTS = [
     ['default', '預設（達標優先）'], ['name', '名稱'], ['priceAsc', '價格低→高'], ['priceDesc', '價格高→低'],
     ['drop', '跌幅最大'], ['rise', '漲幅最大'], ['cheap', '低於均價最多'], ['vel', '賣速高→低'], ['old', '資料最舊'],
@@ -56,7 +49,7 @@
   var refreshing = false, needAgain = null, lastRefreshAt = 0, lastRefreshState = 'idle';
   var timer = null, dirty = false, globalBound = false, lastSig = '';
   var listeners = {};
-  var toastTimer = null;
+  var toastTimer = null, fabObserver = null;
 
   /* ───────────── 小工具 ───────────── */
   function readJson(key, fb) { try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -86,7 +79,6 @@
     return n > 0 ? n : NaN;
   }
   function numCmp(a, b, dir) { if (a == null && b == null) return 0; if (a == null) return 1; if (b == null) return -1; return (a - b) * dir; }
-  function sameCols(a, b) { return a.length === b.length && a.every(function (c) { return b.indexOf(c) >= 0; }); }
 
   /* ───────────── 狀態讀寫 ───────────── */
   function defaultPrefs() {
@@ -99,6 +91,7 @@
       return {
         itemId: String(w.itemId), name: w.name || '',
         targetPrice: (w.targetPrice != null && isFinite(t) && t > 0) ? t : null,
+        targetDir: w.targetDir === 'above' ? 'above' : 'below', // below＝降到目標價以下提醒（買）；above＝漲到目標價以上提醒（賣）
         tags: Array.isArray(w.tags) ? w.tags.filter(Boolean).map(String) : [],
         addedAt: w.addedAt || 0,
       };
@@ -167,7 +160,10 @@
     var d = price - s.p;
     return { dir: d === 0 ? 0 : (d > 0 ? 1 : -1), pct: d / s.p * 100, prev: s.p, t: s.t };
   }
-  function isReached(w, price) { return w.targetPrice != null && price != null && price <= w.targetPrice; }
+  function isReached(w, price) {
+    if (w.targetPrice == null || price == null) return false;
+    return w.targetDir === 'above' ? price >= w.targetPrice : price <= w.targetPrice;
+  }
 
   function model(w) {
     var scope = effScope(), id = w.itemId;
@@ -273,7 +269,7 @@
     if (!notifyEnabled()) return;
     try {
       var n = new Notification('市場關注・' + displayName(w), {
-        body: '現在最低 ' + fmtFull(price) + ' 金，已到目標價（' + fmtFull(w.targetPrice) + ' 金）以下', tag: 'ff14-watch-' + w.itemId,
+        body: '現在最低 ' + fmtFull(price) + ' 金，' + (w.targetDir === 'above' ? '已高於目標價（' : '已降到目標價（') + fmtFull(w.targetPrice) + ' 金）' + (w.targetDir === 'above' ? '' : '以下'), tag: 'ff14-watch-' + w.itemId,
       });
       n.onclick = function () { try { window.focus(); } catch (e) { /* 忽略 */ } openDrawer(); try { n.close(); } catch (e2) { /* 忽略 */ } };
     } catch (e) { /* 通知被擋掉就算了 */ }
@@ -285,7 +281,7 @@
       var p = priceInfo(w.itemId, sc);
       if (!p || p.src !== 'live' || p.min == null) return; // 只用即時資料判斷，不拿每小時快取亂通知
       var cur = alertState[w.itemId] || { below: false, t: 0 };
-      var below = p.min <= w.targetPrice;
+      var below = isReached(w, p.min); // 欄位名沿用 below，意思是「目前是否已達標」
       if (below && !cur.below) {
         if (now - cur.t > ALERT_COOLDOWN) { fireNotification(w, p.min); alertState[w.itemId] = { below: true, t: now }; }
         else alertState[w.itemId] = { below: true, t: cur.t };
@@ -326,7 +322,7 @@
     itemId = String(itemId);
     if (find(itemId)) return;
     var t = Number(target);
-    list.push({ itemId: itemId, name: name || '', targetPrice: (target != null && isFinite(t) && t > 0) ? t : null, tags: [], addedAt: Date.now() });
+    list.push({ itemId: itemId, name: name || '', targetPrice: (target != null && isFinite(t) && t > 0) ? t : null, targetDir: 'below', tags: [], addedAt: Date.now() });
     afterListChanged([itemId]);
     if (opts && opts.toast) toast('已加入關注清單', '設定目標價', function () { openDrawer({ focusId: itemId }); });
   }
@@ -341,9 +337,10 @@
     afterListChanged();
   }
   function toggle(itemId, name) { if (has(itemId)) { remove(itemId); return false; } add(itemId, name, null, { toast: true }); return true; }
-  function setTarget(id, value) {
+  function setTarget(id, value, dir) {
     var w = find(id); if (!w) return;
     w.targetPrice = value;
+    if (dir) w.targetDir = dir;
     delete alertState[w.itemId]; writeJson(ALERT_KEY, alertState); // 目標價改了，重新判斷是否要通知
     saveList(); checkAlerts(); updateBadge(); scheduleRender(); fireChange();
   }
@@ -375,12 +372,12 @@
   }
 
   /* ───────────── 畫面：區塊 HTML ───────────── */
-  function nameBlock(m) {
+  function nameBlock(m, iconSize) {
     var w = m.w, sub = [];
     if (m.reached) sub.push('<span class="wl-pill ok"><i class="ph ph-check-circle"></i>達標</span>');
-    if (w.targetPrice != null) sub.push('<span class="wl-pill" title="目標價：低於這個價格就提醒"><i class="ph ph-bell-ringing"></i>' + fmt(w.targetPrice) + '</span>');
+    if (w.targetPrice != null) sub.push('<span class="wl-pill" title="' + (w.targetDir === 'above' ? '高於' : '低於') + '這個價格時提醒"><i class="ph ph-bell-ringing"></i>' + (w.targetDir === 'above' ? '≥ ' : '≤ ') + fmt(w.targetPrice) + '</span>');
     w.tags.forEach(function (t) { sub.push('<span class="wl-pill tag">' + esc(t) + '</span>'); });
-    return '<div class="wl-cell wl-name">' + (bridge.icon ? bridge.icon(m.id, 24) : '') +
+    return '<div class="wl-cell wl-name">' + (bridge.icon ? bridge.icon(m.id, iconSize || 24) : '') +
       '<div class="wl-name-text"><a class="wl-name-link" data-act="open" title="開啟物品頁">' + esc(m.name) + '</a>' +
       (sub.length ? '<div class="wl-sub">' + sub.join('') + '</div>' : '') + '</div></div>';
   }
@@ -466,9 +463,9 @@
       var r = m.row && m.row[8];
       if (r) {
         var rs = [];
-        if (r[0] != null && r[1]) rs.push('NQ ' + fmt(r[0]) + '<small>' + agoText(r[1] * 1000) + '</small>');
-        if (r[2] != null && r[3]) rs.push('HQ ' + fmt(r[2]) + '<small>' + agoText(r[3] * 1000) + '</small>');
-        if (rs.length) tiles.push(tileHtml('最近成交', rs.join('　'), ''));
+        if (r[0] != null && r[1]) rs.push('<span class="wl-line">NQ ' + fmt(r[0]) + '<small>' + agoText(r[1] * 1000) + '</small></span>');
+        if (r[2] != null && r[3]) rs.push('<span class="wl-line">HQ ' + fmt(r[2]) + '<small>' + agoText(r[3] * 1000) + '</small></span>');
+        if (rs.length) tiles.push(tileHtml('最近成交', rs.join(''), 'multi'));
       }
       if (cols.indexOf('spread') < 0 && hasWorld() && live.world[m.id] && live.dc[m.id]) {
         var sp = spreadInfo(m.id);
@@ -495,11 +492,14 @@
       .map(function (t) { return '<button type="button" class="wl-pill tag ghost" data-act="tag-add" data-tag="' + esc(t) + '">+ ' + esc(t) + '</button>'; }).join('');
     return '<div class="wl-detail">' +
       (tiles.length ? '<div class="wl-tiles">' + tiles.join('') + '</div>' : '') + worldPills +
-      '<div class="wl-edit"><div class="wl-edit-row"><span class="wl-edit-l"><i class="ph ph-bell"></i>目標價</span>' +
-        '<input type="text" inputmode="numeric" class="wl-input" data-field="target" value="' + (w.targetPrice != null ? w.targetPrice : '') + '" placeholder="低於這個價格就提醒，例如 5000 或 1.2萬" autocomplete="off">' +
+      '<div class="wl-edit"><div class="wl-edit-row wrap"><span class="wl-edit-l"><i class="ph ph-bell"></i>目標價</span>' +
+        '<div class="wl-seg sm" role="group">' + [['below', '≤ 低於'], ['above', '≥ 高於']].map(function (d) {
+          return '<button type="button" data-act="dir" data-v="' + d[0] + '" class="' + ((w.targetDir || 'below') === d[0] ? 'on' : '') + '">' + d[1] + '</button>';
+        }).join('') + '</div></div>' +
+      '<div class="wl-edit-row">' +
+        '<input type="text" inputmode="numeric" class="wl-input" data-field="target" value="' + (w.targetPrice != null ? w.targetPrice : '') + '" placeholder="例如 5000、1.2萬" autocomplete="off">' +
         '<button type="button" class="wl-btn" data-act="save-target">儲存</button>' +
         (w.targetPrice != null ? '<button type="button" class="wl-btn ghost" data-act="clear-target">清除</button>' : '') + '</div>' +
-      '<p class="wl-hint">依目前選的範圍（' + (m.scope === 'world' ? esc(st().worldName) : '資料中心') + '）的最低價判斷。</p>' +
       '<div class="wl-edit-row wrap"><span class="wl-edit-l"><i class="ph ph-tag"></i>標籤</span>' + tagHtml +
         '<input type="text" class="wl-input tiny" data-field="tag" maxlength="12" placeholder="自訂標籤，按 Enter" autocomplete="off">' + sugg + '</div></div>' +
       '<div class="wl-detail-actions">' +
@@ -521,24 +521,32 @@
         (expanded[m.id] ? detailHtml(m) : '') + '</div>';
     }).join('');
   }
+  function gaugeHtml(m) { // 目前最低價落在均價的哪個位置：中間＝剛好是均價，偏左＝便宜，偏右＝貴
+    if (m.price == null || !m.avg) return '';
+    var pos = 50 + Math.max(-1, Math.min(1, (m.price / m.avg.v - 1) / 0.5)) * 50, d = m.avgDiff;
+    var txt = Math.abs(d) < 1 ? '約等於均價' : (d < 0 ? '低於均價 ' : '高於均價 ') + fmtPct(d);
+    return '<div class="wl-gauge" title="' + AVG_LABEL[prefs.avgWin] + '成交均價 ' + fmtFull(m.avg.v) + ' 金"><div class="wl-gauge-bar"><i style="left:' + pos.toFixed(1) + '%"></i></div>' +
+      '<span class="' + (d < -1 ? 'cheap' : (d > 1 ? 'dear' : '')) + '">' + txt + '</span></div>';
+  }
   function cardsHtml(ms) {
-    var cols = visibleCols().filter(function (k) { return EXTRA_COLS.indexOf(k) >= 0; });
+    var vis = visibleCols(), cols = vis.filter(function (k) { return EXTRA_COLS.indexOf(k) >= 0 && k !== 'avg'; }); // 均價已經用量尺呈現，不再重複
     return '<div class="wl-cards">' + ms.map(function (m) {
       var extras = cols.length ? '<div class="wl-card-extras">' + cols.map(function (k) {
-        return '<div class="wl-xrow"><span>' + (k === 'avg' ? '均價' : COLS[k]) + '</span>' + COL_BLOCK[k](m) + '</div>';
+        return '<div class="wl-xrow"><span>' + COLS[k] + '</span>' + COL_BLOCK[k](m) + '</div>';
       }).join('') + '</div>' : '';
-      var meta = [];
-      if (visibleCols().indexOf('change') >= 0) meta.push(changeBlock(m));
-      if (visibleCols().indexOf('updated') >= 0) meta.push(updatedBlock(m));
+      var foot = [];
+      if (vis.indexOf('change') >= 0) foot.push(changeBlock(m));
+      if (vis.indexOf('updated') >= 0) foot.push(updatedBlock(m));
       return '<div class="wl-card wl-item' + (m.reached ? ' is-reached' : '') + (expanded[m.id] ? ' is-open' : '') + '" data-id="' + m.id + '">' +
-        '<div class="wl-card-top">' + nameBlock(m) + actionsBlock(m) + '</div>' +
-        '<div class="wl-card-price">' + priceBlock(m) + '<div class="wl-card-meta">' + meta.join('') + '</div></div>' + extras +
+        '<div class="wl-card-head">' + nameBlock(m, 40) + actionsBlock(m) + '</div>' +
+        '<div class="wl-card-price">' + priceBlock(m) + '</div>' + gaugeHtml(m) +
+        (foot.length ? '<div class="wl-card-foot">' + foot.join('') + '</div>' : '') + extras +
         (expanded[m.id] ? detailHtml(m) : '') + '</div>';
     }).join('') + '</div>';
   }
   function emptyHtml() {
     return '<div class="wl-empty"><i class="ph ph-star"></i><p>還沒有關注的物品</p>' +
-      '<small>在物品頁按「☆ 加入關注」，或搜尋結果旁的 ☆，就會出現在這裡。</small>' +
+      '<small>在物品頁或搜尋結果按 ☆ 加入</small>' +
       '<button type="button" class="wl-btn" data-act="import"><i class="ph ph-upload-simple"></i>匯入清單</button></div>';
   }
 
@@ -630,24 +638,22 @@
     var perm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
     var nOn = notifyEnabled();
     els.settings.innerHTML =
-      '<div class="wl-set-group"><div class="wl-set-title">顯示欄位</div><div class="wl-presets">' +
-        COL_PRESETS.map(function (p, i) { return '<button type="button" class="wl-chip' + (sameCols(p.cols, prefs.cols) ? ' on' : '') + '" data-act="preset" data-i="' + i + '">' + p.name + '</button>'; }).join('') + '</div>' +
-        '<div class="wl-checks">' + COL_ORDER.map(function (k) {
-          return '<label class="wl-check"><input type="checkbox" data-pref="col" data-v="' + k + '"' + (prefs.cols.indexOf(k) >= 0 ? ' checked' : '') + '><span>' + COLS[k] + (EXTRA_COLS.indexOf(k) >= 0 ? '<em>寬版</em>' : '') + '</span></label>';
-        }).join('') + '</div>' +
-        '<p class="wl-hint">標「寬版」的欄位需要按右上角的 <i class="ph ph-arrows-out-line-horizontal"></i> 展開寬版才會顯示；沒顯示在欄位上的資訊，都在點開某一列的詳細面板裡。</p></div>' +
-      '<div class="wl-set-group"><div class="wl-set-title">成交均價區間</div><div class="wl-seg">' +
+      '<div class="wl-set-group"><div class="wl-set-title">顯示欄位</div><div class="wl-checks">' + COL_ORDER.map(function (k) {
+        var extra = EXTRA_COLS.indexOf(k) >= 0;
+        return '<label class="wl-check' + (extra ? ' wl-extra-col' : '') + '"><input type="checkbox" data-pref="col" data-v="' + k + '"' + (prefs.cols.indexOf(k) >= 0 ? ' checked' : '') + '><span>' + COLS[k] + '</span>' +
+          (extra ? '<i class="ph ph-arrows-out-line-horizontal" title="寬版顯示"></i>' : '') + '</label>';
+      }).join('') + '</div></div>' +
+      '<div class="wl-set-group"><div class="wl-set-title">成交均價</div><div class="wl-seg">' +
         AVG_KEYS.map(function (k) { return '<button type="button" data-act="avgwin" data-v="' + k + '" class="' + (prefs.avgWin === k ? 'on' : '') + '">' + AVG_LABEL[k] + '</button>'; }).join('') + '</div></div>' +
-      '<div class="wl-set-group"><div class="wl-set-title">提醒與刷新</div>' +
-        '<label class="wl-check"><input type="checkbox" data-pref="notify"' + (nOn ? ' checked' : '') + (perm === 'unsupported' || perm === 'denied' ? ' disabled' : '') + '><span>瀏覽器通知</span></label>' +
-        '<p class="wl-hint">' + (perm === 'denied' ? '瀏覽器已封鎖這個網站的通知，請到網址列旁的網站設定開啟。' : (perm === 'unsupported' ? '這個瀏覽器不支援通知。' : '只有這個網頁開著的時候才會提醒；每個物品剛降到目標價以下時通知一次。')) + '</p>' +
-        '<label class="wl-check"><input type="checkbox" data-pref="auto"' + (prefs.auto ? ' checked' : '') + '><span>自動刷新價格，每 ' +
+      '<div class="wl-set-group"><div class="wl-set-title">提醒</div><div class="wl-checks">' +
+        '<label class="wl-check" title="只有這個網頁開著時才會提醒"><input type="checkbox" data-pref="notify"' + (nOn ? ' checked' : '') + (perm === 'unsupported' || perm === 'denied' ? ' disabled' : '') + '><span>瀏覽器通知</span></label>' +
+        '<label class="wl-check"><input type="checkbox" data-pref="auto"' + (prefs.auto ? ' checked' : '') + '><span>自動刷新 ' +
           '<select class="wl-select tiny" data-pref="interval">' + [3, 5, 10, 15].map(function (n) { return '<option value="' + n + '"' + (Number(prefs.interval) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select> 分鐘</span></label></div>' +
-      '<div class="wl-set-group"><div class="wl-set-title">資料</div><div class="wl-set-btns">' +
+        (perm === 'denied' ? '<p class="wl-hint warn">瀏覽器已封鎖通知</p>' : '') + '</div>' +
+      '<div class="wl-set-group"><div class="wl-set-btns">' +
         '<button type="button" class="wl-btn" data-act="export"><i class="ph ph-download-simple"></i>匯出</button>' +
         '<button type="button" class="wl-btn" data-act="import"><i class="ph ph-upload-simple"></i>匯入</button>' +
-        '<button type="button" class="wl-btn danger" data-act="clear"><i class="ph ph-trash"></i>清空清單</button></div>' +
-        '<p class="wl-hint">清單存在這個瀏覽器裡，清除瀏覽器資料就會消失，建議偶爾匯出備份。</p></div>';
+        '<button type="button" class="wl-btn danger" data-act="clear"><i class="ph ph-trash"></i>清空</button></div></div>';
   }
   function renderAll() {
     if (!els.drawer) return;
@@ -701,9 +707,10 @@
         var id = String(x.itemId), t = Number(x.targetPrice);
         var target = (x.targetPrice != null && isFinite(t) && t > 0) ? t : null;
         var tags = Array.isArray(x.tags) ? x.tags.filter(Boolean).map(function (s) { return String(s).slice(0, 12); }) : [];
+        var dir = x.targetDir === 'above' ? 'above' : 'below';
         var cur = find(id);
-        if (cur) { cur.targetPrice = target; cur.tags = tags; updated++; }
-        else { list.push({ itemId: id, name: x.name || '', targetPrice: target, tags: tags, addedAt: Date.now() }); added++; newIds.push(id); }
+        if (cur) { cur.targetPrice = target; cur.targetDir = dir; cur.tags = tags; updated++; }
+        else { list.push({ itemId: id, name: x.name || '', targetPrice: target, targetDir: dir, tags: tags, addedAt: Date.now() }); added++; newIds.push(id); }
       });
       afterListChanged(newIds);
       toast('匯入完成：新增 ' + added + ' 個，更新 ' + updated + ' 個');
@@ -730,8 +737,14 @@
   }
 
   /* ───────────── 事件 ───────────── */
+  function blurActive() { // 有些瀏覽器（Safari）點按鈕不會讓輸入框失焦，畫面會因為「正在輸入」而不更新，所以動作前先讓它失焦
+    var a = document.activeElement;
+    if (a && els.body && els.body.contains(a) && /^(input|select|textarea)$/i.test(a.tagName)) { try { a.blur(); } catch (e) { /* 忽略 */ } }
+    dirty = false;
+  }
   function handleAct(btn, e) {
     var act = btn.dataset.act;
+    if (act !== 'sort') blurActive();
     var itemEl = btn.closest('[data-id]');
     var id = itemEl ? itemEl.dataset.id : null;
     var w = id ? find(id) : null;
@@ -743,7 +756,6 @@
       case 'scope': if (!btn.disabled) { prefs.scope = btn.dataset.v; savePrefs(); renderToolbar(); renderBody(); updateBadge(); refresh({}); } break;
       case 'view': prefs.view = btn.dataset.v; savePrefs(); renderToolbar(); renderBody(); break;
       case 'tagfilter': prefs.tag = btn.dataset.v || ''; savePrefs(); renderTagbar(); renderBody(); break;
-      case 'preset': prefs.cols = COL_PRESETS[Number(btn.dataset.i)].cols.slice(); savePrefs(); renderSettings(); renderBody(); if (prefs.cols.indexOf('spread') >= 0) refresh({}); break;
       case 'avgwin': prefs.avgWin = btn.dataset.v; savePrefs(); renderSettings(); renderBody(); break;
       case 'export': exportJson(); break;
       case 'import': els.file.value = ''; els.file.click(); break;
@@ -756,6 +768,12 @@
       case 'open': if (w && bridge.openItem) { closeDrawer(); bridge.openItem(w.itemId); } break;
       case 'toggle': if (id) toggleExpand(id); break;
       case 'target': if (id) { expanded[id] = true; focusTarget = id; renderBody(); } break;
+      case 'dir':
+        if (w) { // 切換方向時，輸入框裡打好的數字一起存下來，免得切換後被洗掉
+          var tin = itemEl.querySelector('[data-field="target"]'), tv = tin ? parseGil(tin.value) : null;
+          setTarget(w.itemId, (tv !== null && !isNaN(tv)) ? tv : w.targetPrice, btn.dataset.v);
+        }
+        break;
       case 'save-target': if (w) saveTargetFrom(itemEl, w); break;
       case 'clear-target': if (w) { setTarget(w.itemId, null); } break;
       case 'tag-add': if (w) addTag(w.itemId, btn.dataset.tag); break;
@@ -770,7 +788,7 @@
     var inp = itemEl.querySelector('[data-field="target"]');
     var v = parseGil(inp.value);
     if (v !== null && isNaN(v)) { toast('目標價格式不對，請輸入數字，例如 5000 或 1.2萬'); return; }
-    setTarget(w.itemId, v);
+    setTarget(w.itemId, v, w.targetDir);
     toast(v == null ? '已清除目標價' : '目標價已設為 ' + fmtFull(v) + ' 金');
   }
   function bindDrawerEvents() {
@@ -788,7 +806,8 @@
       if (pref === 'col') {
         var k = t.dataset.v, i = prefs.cols.indexOf(k);
         if (t.checked && i < 0) prefs.cols.push(k); else if (!t.checked && i >= 0) prefs.cols.splice(i, 1);
-        savePrefs(); renderSettings(); renderBody();
+        if (t.checked && EXTRA_COLS.indexOf(k) >= 0 && !prefs.wide && window.innerWidth >= 720) prefs.wide = true; // 勾選寬版欄位就自動展開寬版
+        savePrefs(); renderAll();
         if (k === 'spread' && t.checked) refresh({});
       } else if (pref === 'auto') { prefs.auto = t.checked; savePrefs(); startTimer(); }
       else if (pref === 'interval') { prefs.interval = Number(t.value) || 5; savePrefs(); startTimer(); }
@@ -806,8 +825,8 @@
       var t = e.target, itemEl = t.closest && t.closest('[data-id]');
       if (!itemEl || !t.dataset) return;
       var w = find(itemEl.dataset.id); if (!w) return;
-      if (t.dataset.field === 'target') { e.preventDefault(); saveTargetFrom(itemEl, w); }
-      else if (t.dataset.field === 'tag') { e.preventDefault(); addTag(w.itemId, t.value); }
+      if (t.dataset.field === 'target') { e.preventDefault(); var tv = t.value; blurActive(); t.value = tv; saveTargetFrom(itemEl, w); }
+      else if (t.dataset.field === 'tag') { e.preventDefault(); var gv = t.value; blurActive(); addTag(w.itemId, gv); }
     });
     els.drawer.addEventListener('focusout', function () {
       setTimeout(function () { if (dirty) { dirty = false; scheduleRender(); } }, 0);
@@ -819,7 +838,7 @@
     if (globalBound) return;
     globalBound = true;
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) closeDrawer(); });
-    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); } });
+    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); layoutReserve(); } });
     window.addEventListener('storage', function (e) { // 同時開了多個分頁：另一個分頁改了清單／設定，這邊同步
       if ([WATCH_KEY, PREFS_KEY, SEEN_KEY, ALERT_KEY].indexOf(e.key) < 0) return;
       loadState();
@@ -829,16 +848,43 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden && hasTargets() && Date.now() - lastRefreshAt > 2 * 60 * 1000) refresh({ targetsOnly: !isOpen() }); });
   }
 
+  /* 吊飾固定在視窗右緣，市場頁內容如果延伸到那裡就會被蓋住。這裡量測「吊飾」跟「市場頁內容區」實際有沒有重疊，
+   * 有才在內容區右側讓出剛好需要的寬度（桌面版內容區置中、右邊本來就有空位時，什麼都不做）。
+   * 手機版整頁會捲動，吊飾固定不動，所以內容區整條右側都要讓出來。 */
+  function layoutReserve() {
+    var root = document.getElementById('market-root');
+    if (!root || !els.fab) return;
+    var before = root.style.paddingRight;
+    root.style.paddingRight = '';
+    var fr = els.fab.getBoundingClientRect();
+    var rr = root.getBoundingClientRect();
+    var pad = 0;
+    if (fr.width && rr.width && fr.bottom > rr.top && fr.top < rr.bottom) {
+      var base = parseFloat(getComputedStyle(root).paddingRight) || 0;
+      for (var i = 0; i < 4; i++) { // 內容區如果是靠內容撐開寬度的，加了留白寬度會跟著變，所以重量幾次直到穩定
+        rr = root.getBoundingClientRect();
+        var need = rr.right - fr.left + 8;
+        if (need <= Math.max(base, pad) + 0.5) break;
+        pad = need;
+        root.style.paddingRight = pad + 'px';
+      }
+    }
+    if (!pad) root.style.paddingRight = '';
+    if (root.style.paddingRight !== before) window.dispatchEvent(new Event('resize')); // 讓市場頁重新量測高度
+  }
+
   /* ───────────── 掛載 ───────────── */
   function mount(root) {
     root = root || document.getElementById('market-root');
     if (!root || !bridge) return;
     ['wl-fab', 'wl-drawer', 'wl-toast'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
+    if (fabObserver) { fabObserver.disconnect(); fabObserver = null; }
     root.insertAdjacentHTML('beforeend',
       '<button type="button" id="wl-fab" class="wl-fab" title="關注清單"><span class="wl-fab-inner">' +
         '<span class="wl-fab-star">✦</span><span class="wl-fab-icon"><i class="ph ph-star"></i></span>' +
-        '<span class="wl-fab-labels"><span class="wl-fab-label">關注</span><span class="wl-fab-label">清單</span></span>' +
-        '<span id="wl-fab-badge" class="wl-fab-badge" style="display:none">0</span></span></button>' +
+        '<span class="wl-fab-label">關注清單</span>' +
+        '<span id="wl-fab-badge" class="wl-fab-badge" style="display:none">0</span></span></button>');
+    root.insertAdjacentHTML('beforeend',
       '<div id="wl-drawer" class="wl-drawer"><div class="wl-backdrop"></div>' +
         '<aside class="wl-panel" role="dialog" aria-label="關注清單">' +
           '<div class="wl-head"><div class="wl-title"><i class="ph ph-star"></i>關注清單<span id="wl-count" class="wl-count"></span></div>' +
@@ -862,6 +908,11 @@
     var s = st(); lastSig = (s.dcName || '') + '|' + (s.worldName || '');
     bindDrawerEvents(); bindGlobalOnce();
     renderAll(); startTimer();
+    layoutReserve(); setTimeout(layoutReserve, 350); setTimeout(layoutReserve, 1300); // 場景切換有淡入動畫，多量幾次
+    if ('IntersectionObserver' in window) { // 市場頁從隱藏變成可見時（切換頁面回來），重新量一次
+      fabObserver = new IntersectionObserver(function (es) { if (es[0] && es[0].isIntersecting) layoutReserve(); });
+      fabObserver.observe(els.fab);
+    }
     if (hasTargets()) refresh({ targetsOnly: true }); // 頁面一載入就悄悄查一次，徽章才準
   }
   function init(b) { bridge = b; loadState(); }
