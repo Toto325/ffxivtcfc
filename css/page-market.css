@@ -777,9 +777,6 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-meta-ver { color: #8fc4d4; background: rgba(110,170,190,.12); border-color: rgba(110,170,190,.38); }
 .market-meta-cat { color: #d6bd86; background: rgba(197,160,89,.10); border-color: rgba(197,160,89,.34); }
 
-/* 搜尋結果裡的「不可交易」標籤（放開搜尋後，貨幣與不可交易物品也會出現） */
-.craft-search-item{display:flex;align-items:center;gap:8px}
-.craft-search-tag{margin-left:2px;flex:none;font-size:10px;padding:0 8px;border:1px solid var(--tb);border-radius:999px;color:var(--dim);line-height:17px}
 /* 不可交易物品的物品頁：不顯示一片空白或「沒人在賣」，直接說明原因 */
 .market-untradable{display:flex;align-items:flex-start;gap:12px;margin-top:10px;padding:14px 16px;border:1px dashed var(--tb);border-radius:10px;background:rgba(255,255,255,.02)}
 .market-untradable>.ph{font-size:22px;color:var(--dim);margin-top:2px}
