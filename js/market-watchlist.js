@@ -49,7 +49,7 @@
   var refreshing = false, needAgain = null, lastRefreshAt = 0, lastRefreshState = 'idle';
   var timer = null, dirty = false, globalBound = false, lastSig = '';
   var listeners = {};
-  var toastTimer = null, fabObserver = null;
+  var toastTimer = null;
 
   /* ───────────── 小工具 ───────────── */
   function readJson(key, fb) { try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -378,7 +378,7 @@
     if (w.targetPrice != null) sub.push('<span class="wl-pill" title="' + (w.targetDir === 'above' ? '高於' : '低於') + '這個價格時提醒"><i class="ph ph-bell-ringing"></i>' + (w.targetDir === 'above' ? '≥ ' : '≤ ') + fmt(w.targetPrice) + '</span>');
     w.tags.forEach(function (t) { sub.push('<span class="wl-pill tag">' + esc(t) + '</span>'); });
     return '<div class="wl-cell wl-name">' + (bridge.icon ? bridge.icon(m.id, iconSize || 24) : '') +
-      '<div class="wl-name-text"><a class="wl-name-link" data-act="open" title="開啟物品頁">' + esc(m.name) + '</a>' +
+      '<div class="wl-name-text"><div class="wl-name-line"><a class="wl-name-link" data-act="open" title="開啟物品頁">' + esc(m.name) + '</a></div>' +
       (sub.length ? '<div class="wl-sub">' + sub.join('') + '</div>' : '') + '</div></div>';
   }
   function priceBlock(m) {
@@ -545,7 +545,7 @@
     }).join('') + '</div>';
   }
   function emptyHtml() {
-    return '<div class="wl-empty"><i class="ph ph-star"></i><p>還沒有關注的物品</p>' +
+    return '<div class="wl-empty"><i class="ph ph-shopping-cart-simple"></i><p>還沒有關注的物品</p>' +
       '<small>在物品頁或搜尋結果按 ☆ 加入</small>' +
       '<button type="button" class="wl-btn" data-act="import"><i class="ph ph-upload-simple"></i>匯入清單</button></div>';
   }
@@ -599,6 +599,37 @@
     if (!els.count) return;
     els.count.textContent = list.length ? '（' + list.length + '）' : '';
   }
+  /* 自製下拉選單：瀏覽器原生的選項列表只能改底色，改不了選中列的高亮和邊框，所以自己畫 */
+  function ddHtml(name, value, options) {
+    var cur = options.filter(function (o) { return o[0] === value; })[0] || options[0];
+    return '<div class="wl-dd" data-dd="' + name + '">' +
+      '<button type="button" class="wl-dd-btn" data-act="dd-toggle" aria-haspopup="listbox" aria-expanded="false"><span>' + esc(cur[1]) + '</span><i class="ph ph-caret-down"></i></button>' +
+      '<div class="wl-dd-list" role="listbox" hidden>' + options.map(function (o) {
+        return '<button type="button" role="option" class="wl-dd-opt' + (o[0] === value ? ' on' : '') + '" data-act="dd-pick" data-v="' + esc(o[0]) + '" aria-selected="' + (o[0] === value) + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div></div>';
+  }
+  function closeDropdowns() {
+    if (!els.drawer) return false;
+    var any = false;
+    [].slice.call(els.drawer.querySelectorAll('.wl-dd-list')).forEach(function (l) {
+      if (l.hidden) return;
+      l.hidden = true; any = true;
+      l.parentNode.classList.remove('open');
+      var b = l.parentNode.querySelector('.wl-dd-btn'); if (b) b.setAttribute('aria-expanded', 'false');
+    });
+    return any;
+  }
+  function toggleDropdown(dd) {
+    var list = dd.querySelector('.wl-dd-list'), wasOpen = !list.hidden;
+    closeDropdowns();
+    if (wasOpen) return;
+    list.hidden = false; dd.classList.add('open');
+    dd.querySelector('.wl-dd-btn').setAttribute('aria-expanded', 'true');
+    list.classList.remove('right');
+    var pr = els.drawer.querySelector('.wl-panel').getBoundingClientRect(), lr = list.getBoundingClientRect();
+    if (lr.right > pr.right - 8) list.classList.add('right'); // 靠右放不下就改成靠右對齊
+    var cur = list.querySelector('.wl-dd-opt.on'); if (cur) { try { cur.focus(); } catch (e) { /* 忽略 */ } }
+  }
   function renderToolbar() {
     var world = hasWorld(), sc = effScope();
     els.toolbar.innerHTML =
@@ -608,7 +639,7 @@
       '<div class="wl-seg icons" role="group" aria-label="檢視方式">' +
         '<button type="button" data-act="view" data-v="table" class="' + (prefs.view === 'table' ? 'on' : '') + '" title="表格"><i class="ph ph-list-dashes"></i></button>' +
         '<button type="button" data-act="view" data-v="card" class="' + (prefs.view === 'card' ? 'on' : '') + '" title="卡片"><i class="ph ph-squares-four"></i></button></div>' +
-      '<select class="wl-select" data-act="sort" title="排序">' + SORTS.map(function (s) { return '<option value="' + s[0] + '"' + (prefs.sort === s[0] ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select>';
+      ddHtml('sort', prefs.sort, SORTS);
   }
   function renderStatus() {
     if (!els.status) return;
@@ -647,8 +678,10 @@
         AVG_KEYS.map(function (k) { return '<button type="button" data-act="avgwin" data-v="' + k + '" class="' + (prefs.avgWin === k ? 'on' : '') + '">' + AVG_LABEL[k] + '</button>'; }).join('') + '</div></div>' +
       '<div class="wl-set-group"><div class="wl-set-title">提醒</div><div class="wl-checks">' +
         '<label class="wl-check" title="只有這個網頁開著時才會提醒"><input type="checkbox" data-pref="notify"' + (nOn ? ' checked' : '') + (perm === 'unsupported' || perm === 'denied' ? ' disabled' : '') + '><span>瀏覽器通知</span></label>' +
-        '<label class="wl-check"><input type="checkbox" data-pref="auto"' + (prefs.auto ? ' checked' : '') + '><span>自動刷新 ' +
-          '<select class="wl-select tiny" data-pref="interval">' + [3, 5, 10, 15].map(function (n) { return '<option value="' + n + '"' + (Number(prefs.interval) === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select> 分鐘</span></label></div>' +
+        '<label class="wl-check"><input type="checkbox" data-pref="auto"' + (prefs.auto ? ' checked' : '') + '><span>自動刷新</span></label>' +
+        (prefs.auto ? '<div class="wl-seg sm" role="group" aria-label="刷新間隔">' + [3, 5, 10, 15].map(function (n) {
+          return '<button type="button" data-act="interval" data-v="' + n + '" class="' + (Number(prefs.interval) === n ? 'on' : '') + '">' + n + ' 分</button>';
+        }).join('') + '</div>' : '') + '</div>' +
         (perm === 'denied' ? '<p class="wl-hint warn">瀏覽器已封鎖通知</p>' : '') + '</div>' +
       '<div class="wl-set-group"><div class="wl-set-btns">' +
         '<button type="button" class="wl-btn" data-act="export"><i class="ph ph-download-simple"></i>匯出</button>' +
@@ -680,6 +713,7 @@
   }
   function closeDrawer() {
     if (!els.drawer || !isOpen()) return;
+    closeDropdowns();
     els.drawer.classList.remove('open');
     commitSeen();
   }
@@ -744,12 +778,19 @@
   }
   function handleAct(btn, e) {
     var act = btn.dataset.act;
-    if (act !== 'sort') blurActive();
+    blurActive();
     var itemEl = btn.closest('[data-id]');
     var id = itemEl ? itemEl.dataset.id : null;
     var w = id ? find(id) : null;
     switch (act) {
       case 'close': closeDrawer(); break;
+      case 'dd-toggle': toggleDropdown(btn.closest('.wl-dd')); break;
+      case 'dd-pick': {
+        var ddName = btn.closest('.wl-dd').dataset.dd;
+        if (ddName === 'sort') { prefs.sort = btn.dataset.v; savePrefs(); renderToolbar(); renderBody(); }
+        break;
+      }
+      case 'interval': prefs.interval = Number(btn.dataset.v) || 5; savePrefs(); startTimer(); renderSettings(); break;
       case 'wide': prefs.wide = !prefs.wide; savePrefs(); renderAll(); break;
       case 'settings': els.settings.hidden = !els.settings.hidden; renderSettings(); break;
       case 'refresh': costCache = {}; refresh({}); break;
@@ -794,14 +835,14 @@
   function bindDrawerEvents() {
     els.drawer.addEventListener('click', function (e) {
       if (e.target.classList.contains('wl-backdrop')) { closeDrawer(); return; }
+      if (!e.target.closest('.wl-dd')) closeDropdowns();
       var btn = e.target.closest('[data-act]');
-      if (btn && !(btn.tagName === 'SELECT')) { e.preventDefault(); handleAct(btn, e); return; }
+      if (btn) { e.preventDefault(); handleAct(btn, e); return; }
       var item = e.target.closest('.wl-item');
       if (item && !e.target.closest('.wl-detail, input, button, a, select')) toggleExpand(item.dataset.id);
     });
     els.drawer.addEventListener('change', function (e) {
       var t = e.target;
-      if (t.dataset.act === 'sort') { prefs.sort = t.value; savePrefs(); renderBody(); return; }
       var pref = t.dataset.pref;
       if (pref === 'col') {
         var k = t.dataset.v, i = prefs.cols.indexOf(k);
@@ -810,7 +851,6 @@
         savePrefs(); renderAll();
         if (k === 'spread' && t.checked) refresh({});
       } else if (pref === 'auto') { prefs.auto = t.checked; savePrefs(); startTimer(); }
-      else if (pref === 'interval') { prefs.interval = Number(t.value) || 5; savePrefs(); startTimer(); }
       else if (pref === 'notify') {
         if (t.checked) {
           if (typeof Notification === 'undefined') { t.checked = false; return; }
@@ -821,6 +861,13 @@
       }
     });
     els.drawer.addEventListener('keydown', function (e) {
+      var opt = e.target.closest && e.target.closest('.wl-dd-opt');
+      if (opt && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+        e.preventDefault();
+        var opts = [].slice.call(opt.parentNode.children), nx = opts[opts.indexOf(opt) + (e.key === 'ArrowDown' ? 1 : -1)];
+        if (nx) nx.focus();
+        return;
+      }
       if (e.key !== 'Enter') return;
       var t = e.target, itemEl = t.closest && t.closest('[data-id]');
       if (!itemEl || !t.dataset) return;
@@ -837,8 +884,8 @@
   function bindGlobalOnce() {
     if (globalBound) return;
     globalBound = true;
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) closeDrawer(); });
-    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); layoutReserve(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) { if (!closeDropdowns()) closeDrawer(); } }); // 先關下拉，再關抽屜
+    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); } });
     window.addEventListener('storage', function (e) { // 同時開了多個分頁：另一個分頁改了清單／設定，這邊同步
       if ([WATCH_KEY, PREFS_KEY, SEEN_KEY, ALERT_KEY].indexOf(e.key) < 0) return;
       loadState();
@@ -848,46 +895,21 @@
     document.addEventListener('visibilitychange', function () { if (!document.hidden && hasTargets() && Date.now() - lastRefreshAt > 2 * 60 * 1000) refresh({ targetsOnly: !isOpen() }); });
   }
 
-  /* 吊飾固定在視窗右緣，市場頁內容如果延伸到那裡就會被蓋住。這裡量測「吊飾」跟「市場頁內容區」實際有沒有重疊，
-   * 有才在內容區右側讓出剛好需要的寬度（桌面版內容區置中、右邊本來就有空位時，什麼都不做）。
-   * 手機版整頁會捲動，吊飾固定不動，所以內容區整條右側都要讓出來。 */
-  function layoutReserve() {
-    var root = document.getElementById('market-root');
-    if (!root || !els.fab) return;
-    var before = root.style.paddingRight;
-    root.style.paddingRight = '';
-    var fr = els.fab.getBoundingClientRect();
-    var rr = root.getBoundingClientRect();
-    var pad = 0;
-    if (fr.width && rr.width && fr.bottom > rr.top && fr.top < rr.bottom) {
-      var base = parseFloat(getComputedStyle(root).paddingRight) || 0;
-      for (var i = 0; i < 4; i++) { // 內容區如果是靠內容撐開寬度的，加了留白寬度會跟著變，所以重量幾次直到穩定
-        rr = root.getBoundingClientRect();
-        var need = rr.right - fr.left + 8;
-        if (need <= Math.max(base, pad) + 0.5) break;
-        pad = need;
-        root.style.paddingRight = pad + 'px';
-      }
-    }
-    if (!pad) root.style.paddingRight = '';
-    if (root.style.paddingRight !== before) window.dispatchEvent(new Event('resize')); // 讓市場頁重新量測高度
-  }
-
   /* ───────────── 掛載 ───────────── */
   function mount(root) {
     root = root || document.getElementById('market-root');
     if (!root || !bridge) return;
     ['wl-fab', 'wl-drawer', 'wl-toast'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
-    if (fabObserver) { fabObserver.disconnect(); fabObserver = null; }
     root.insertAdjacentHTML('beforeend',
       '<button type="button" id="wl-fab" class="wl-fab" title="關注清單"><span class="wl-fab-inner">' +
-        '<span class="wl-fab-star">✦</span><span class="wl-fab-icon"><i class="ph ph-star"></i></span>' +
+        '<span class="wl-fab-peek"><i class="ph ph-shopping-cart-simple"></i></span>' +
+        '<span class="wl-fab-star">✦</span><span class="wl-fab-icon"><i class="ph ph-shopping-cart-simple"></i></span>' +
         '<span class="wl-fab-label">關注清單</span>' +
         '<span id="wl-fab-badge" class="wl-fab-badge" style="display:none">0</span></span></button>');
     root.insertAdjacentHTML('beforeend',
       '<div id="wl-drawer" class="wl-drawer"><div class="wl-backdrop"></div>' +
         '<aside class="wl-panel" role="dialog" aria-label="關注清單">' +
-          '<div class="wl-head"><div class="wl-title"><i class="ph ph-star"></i>關注清單<span id="wl-count" class="wl-count"></span></div>' +
+          '<div class="wl-head"><div class="wl-title"><i class="ph ph-shopping-cart-simple"></i>關注清單<span id="wl-count" class="wl-count"></span></div>' +
             '<div class="wl-head-actions">' +
               '<button type="button" class="wl-iconbtn wl-widebtn" data-act="wide" title="展開／收合寬版"><i class="ph ph-arrows-out-line-horizontal"></i></button>' +
               '<button type="button" class="wl-iconbtn" data-act="settings" title="設定"><i class="ph ph-sliders-horizontal"></i></button>' +
@@ -908,11 +930,6 @@
     var s = st(); lastSig = (s.dcName || '') + '|' + (s.worldName || '');
     bindDrawerEvents(); bindGlobalOnce();
     renderAll(); startTimer();
-    layoutReserve(); setTimeout(layoutReserve, 350); setTimeout(layoutReserve, 1300); // 場景切換有淡入動畫，多量幾次
-    if ('IntersectionObserver' in window) { // 市場頁從隱藏變成可見時（切換頁面回來），重新量一次
-      fabObserver = new IntersectionObserver(function (es) { if (es[0] && es[0].isIntersecting) layoutReserve(); });
-      fabObserver.observe(els.fab);
-    }
     if (hasTargets()) refresh({ targetsOnly: true }); // 頁面一載入就悄悄查一次，徽章才準
   }
   function init(b) { bridge = b; loadState(); }
