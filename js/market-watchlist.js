@@ -49,7 +49,7 @@
   var refreshing = false, needAgain = null, lastRefreshAt = 0, lastRefreshState = 'idle';
   var timer = null, dirty = false, globalBound = false, lastSig = '';
   var listeners = {};
-  var toastTimer = null;
+  var toastTimer = null, sceneObserver = null;
 
   /* ───────────── 小工具 ───────────── */
   function readJson(key, fb) { try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -381,19 +381,20 @@
       '<div class="wl-name-text"><div class="wl-name-line"><a class="wl-name-link" data-act="open" title="開啟物品頁">' + esc(m.name) + '</a></div>' +
       (sub.length ? '<div class="wl-sub">' + sub.join('') + '</div>' : '') + '</div></div>';
   }
-  function priceBlock(m) {
+  function priceBlock(m, noWorld) {
     var inner;
     if (!m.marketable) inner = '<span class="wl-dim" title="這個物品不能在市場交易">不可交易</span>';
     else if (m.noListing) inner = '<span class="wl-dim">無掛單</span>';
     else if (m.price == null) inner = refreshing ? '<span class="wl-skel"></span>' : '<span class="wl-dim">—</span>';
     else {
       var worldTxt = '';
-      if (m.p.src === 'live' && m.scope === 'dc' && m.p.world) worldTxt = '<span class="wl-world" title="目前最低價所在的伺服器">' + esc(m.p.world) + '</span>';
+      if (noWorld) worldTxt = '';
+      else if (m.p.src === 'live' && m.scope === 'dc' && m.p.world) worldTxt = '<span class="wl-world" title="目前最低價所在的伺服器">' + esc(m.p.world) + '</span>';
       else if (m.p.src === 'cache') worldTxt = '<span class="wl-world cache" title="這是每小時預先計算的資料，即時價格載入中或查詢失敗">快取</span>';
       inner = '<span class="wl-price-top"><b class="wl-price-num' + (m.reached ? ' is-reached' : '') + '" title="' + fmtFull(m.price) + ' 金">' + fmt(m.price) + '</b>' +
         (m.qual ? '<span class="wl-q ' + m.qual.toLowerCase() + '" title="這個價格是' + m.qual + '品質">' + m.qual + '</span>' : '') + '</span>' + worldTxt;
     }
-    return '<div class="wl-cell wl-price">' + inner + '</div>';
+    return '<div class="wl-cell wl-price' + (noWorld ? ' compact' : '') + '">' + inner + '</div>';
   }
   function changeBlock(m) {
     var c = m.change, inner = '<span class="wl-dim">·</span>', title = '';
@@ -509,8 +510,26 @@
       '</div>';
   }
 
+  /* 窄版（手機、或沒展開寬版的抽屜）：放不下一欄一欄的表格，所以把漲跌、更新時間併到價格下面一行，名稱才有空間顯示 */
+  function compactPriceBlock(m, cols) {
+    var meta = [];
+    if (m.p && m.p.src === 'live' && m.scope === 'dc' && m.p.world) meta.push('<span class="wl-world" title="目前最低價所在的伺服器">' + esc(m.p.world) + '</span>');
+    else if (m.p && m.p.src === 'cache') meta.push('<span class="wl-world cache" title="這是每小時預先計算的資料，即時價格載入中或查詢失敗">快取</span>');
+    if (cols.indexOf('change') >= 0 && m.change) meta.push(changeBlock(m));
+    if (cols.indexOf('updated') >= 0 && m.p && m.p.upload) meta.push(updatedBlock(m));
+    return '<div class="wl-pcol">' + priceBlock(m, true) + (meta.length ? '<div class="wl-pmeta">' + meta.join('') + '</div>' : '') + '</div>';
+  }
   function tableHtml(ms) {
     var cols = visibleCols();
+    if (!isWide()) {
+      var ctpl = 'minmax(0,1fr) auto 50px';
+      return '<div class="wl-thead compact" style="grid-template-columns:' + ctpl + '"><span>物品</span><span>最低價</span><span></span></div>' +
+        ms.map(function (m) {
+          return '<div class="wl-item' + (m.reached ? ' is-reached' : '') + (expanded[m.id] ? ' is-open' : '') + '" data-id="' + m.id + '">' +
+            '<div class="wl-rowmain compact" style="grid-template-columns:' + ctpl + '">' + nameBlock(m) + compactPriceBlock(m, cols) + actionsBlock(m) + '</div>' +
+            (expanded[m.id] ? detailHtml(m) : '') + '</div>';
+        }).join('');
+    }
     var tpl = ['minmax(0,1fr)', '96px'].concat(cols.map(function (k) { return COL_WIDTH[k]; })).concat(['52px']).join(' ');
     var head = '<div class="wl-thead" style="grid-template-columns:' + tpl + '"><span>物品</span><span>最低價</span>' +
       cols.map(function (k) { return '<span>' + (k === 'avg' ? '均價・' + AVG_LABEL[prefs.avgWin] : (k === 'vel' ? '賣速 NQ·HQ' : COLS[k])) + '</span>'; }).join('') + '<span></span></div>';
@@ -699,13 +718,17 @@
     list.forEach(function (w) { var p = priceInfo(w.itemId, sc); if (p && isReached(w, p.min)) n++; });
     els.badge.textContent = n;
     els.badge.style.display = n > 0 ? 'inline-flex' : 'none';
-    if (els.fab) els.fab.title = '關注清單（' + list.length + '）' + (n ? '・' + n + ' 個已達目標價' : '');
+    if (els.fab) {
+      els.fab.title = '關注清單（' + list.length + '）' + (n ? '・' + n + ' 個已達目標價' : '');
+      els.fab.classList.toggle('has-hit', n > 0);
+    }
   }
 
   /* ───────────── 抽屜開關 ───────────── */
   function openDrawer(opts) {
     if (!els.drawer) return;
     els.drawer.classList.add('open');
+    if (els.fab) els.fab.classList.add('hide');
     if (opts && opts.focusId) { expanded[String(opts.focusId)] = true; focusTarget = String(opts.focusId); }
     renderAll();
     if (Date.now() - lastRefreshAt > 60 * 1000 || missingData()) refresh({});
@@ -715,6 +738,7 @@
     if (!els.drawer || !isOpen()) return;
     closeDropdowns();
     els.drawer.classList.remove('open');
+    if (els.fab) els.fab.classList.remove('hide');
     commitSeen();
   }
 
@@ -892,6 +916,19 @@
       if (els.drawer) renderAll();
       fireChange();
     });
+    var lastTop = new WeakMap(), dimTimer = null; // 頁面往下捲時，浮動按鈕縮小淡出，不擋內容；停下來或往上捲就恢復
+    document.addEventListener('scroll', function (e) {
+      var t = e.target === document ? document.scrollingElement : e.target;
+      if (!t || typeof t.scrollTop !== 'number' || !els.fab) return;
+      if (els.drawer && els.drawer.contains(t)) return; // 抽屜自己的捲動不算
+      var prev = lastTop.get(t) || 0, cur = t.scrollTop;
+      lastTop.set(t, cur);
+      if (cur - prev > 6) {
+        els.fab.classList.add('dim');
+        clearTimeout(dimTimer);
+        dimTimer = setTimeout(function () { if (els.fab) els.fab.classList.remove('dim'); }, 900);
+      } else if (prev - cur > 6) els.fab.classList.remove('dim');
+    }, true);
     document.addEventListener('visibilitychange', function () { if (!document.hidden && hasTargets() && Date.now() - lastRefreshAt > 2 * 60 * 1000) refresh({ targetsOnly: !isOpen() }); });
   }
 
@@ -899,14 +936,14 @@
   function mount(root) {
     root = root || document.getElementById('market-root');
     if (!root || !bridge) return;
-    ['wl-fab', 'wl-drawer', 'wl-toast'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
-    root.insertAdjacentHTML('beforeend',
-      '<button type="button" id="wl-fab" class="wl-fab" title="關注清單"><span class="wl-fab-inner">' +
-        '<span class="wl-fab-peek"><i class="ph ph-shopping-cart-simple"></i></span>' +
-        '<span class="wl-fab-star">✦</span><span class="wl-fab-icon"><i class="ph ph-shopping-cart-simple"></i></span>' +
-        '<span class="wl-fab-label">關注清單</span>' +
-        '<span id="wl-fab-badge" class="wl-fab-badge" style="display:none">0</span></span></button>');
-    root.insertAdjacentHTML('beforeend',
+    ['wl-host', 'wl-fab', 'wl-drawer', 'wl-toast'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
+    if (sceneObserver) { sceneObserver.disconnect(); sceneObserver = null; }
+    var html =
+      '<button type="button" id="wl-fab" class="wl-fab" title="關注清單" aria-label="關注清單">' +
+        '<span class="wl-fab-medal"><span class="wl-fab-disc"><i class="ph ph-shopping-cart-simple"></i></span>' +
+          '<i class="wl-fab-gem n"></i><i class="wl-fab-gem e"></i><i class="wl-fab-gem s"></i><i class="wl-fab-gem w"></i></span>' +
+        '<span class="wl-fab-plate">關注</span>' +
+        '<span id="wl-fab-badge" class="wl-fab-badge" style="display:none">0</span></button>' +
       '<div id="wl-drawer" class="wl-drawer"><div class="wl-backdrop"></div>' +
         '<aside class="wl-panel" role="dialog" aria-label="關注清單">' +
           '<div class="wl-head"><div class="wl-title"><i class="ph ph-shopping-cart-simple"></i>關注清單<span id="wl-count" class="wl-count"></span></div>' +
@@ -920,7 +957,21 @@
           '<div class="wl-settings" id="wl-settings" hidden></div>' +
           '<div class="wl-body" id="wl-body"></div>' +
           '<input type="file" id="wl-file" accept="application/json,.json" hidden></aside></div>' +
-      '<div class="wl-toast" id="wl-toast" hidden></div>');
+      '<div class="wl-toast" id="wl-toast" hidden></div>';
+    // 掛在 body 底下，不掛在市場頁外框裡：外框有 backdrop-filter，會讓裡面的 position:fixed 變成相對外框定位，
+    // 抽屜跟浮動按鈕就被關在外框裡面，不是貼著畫面。改掛 body 之後，再跟著市場頁是否為作用中的場景來顯示／隱藏。
+    var host = document.createElement('div');
+    host.id = 'wl-host';
+    host.innerHTML = html;
+    document.body.appendChild(host);
+    var scene = root.closest ? root.closest('.scene') : null;
+    var syncHost = function () {
+      var on = !scene || scene.classList.contains('active');
+      host.style.display = on ? '' : 'none';
+      if (!on && isOpen()) closeDrawer();
+    };
+    syncHost();
+    if (scene && 'MutationObserver' in window) { sceneObserver = new MutationObserver(syncHost); sceneObserver.observe(scene, { attributes: true, attributeFilter: ['class'] }); }
     els = {
       fab: document.getElementById('wl-fab'), badge: document.getElementById('wl-fab-badge'), drawer: document.getElementById('wl-drawer'),
       count: document.getElementById('wl-count'), toolbar: document.getElementById('wl-toolbar'), status: document.getElementById('wl-status'),
