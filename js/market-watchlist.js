@@ -27,12 +27,14 @@
   var AVG_LABEL = { current: '24小時', '1d': '近1天', '3d': '近3天', '7d': '近7天' };
   var AVG_KEYS = ['current', '1d', '3d', '7d'];
   var PRESET_TAGS = ['想買', '轉賣', '素材'];
-  var COLS = { change: '漲跌', updated: '更新時間', avg: '成交均價', vel: '賣速', spread: '跨服差價', cost: '製作成本' };
-  var COL_ORDER = ['change', 'updated', 'avg', 'vel', 'spread', 'cost'];
-  var EXTRA_COLS = ['avg', 'vel', 'spread', 'cost']; // 這幾欄只在寬版顯示，窄版放不下
+  var COLS = { change: '漲跌', updated: '更新時間', avg: '成交均價', vel: '賣速', freq: '成交頻率', spread: '跨服差價', cost: '製作成本' };
+  var COL_UNIT = { change: '%', avg: '金', vel: '件/天', freq: '筆/天', spread: '金', cost: '金' }; // 欄名旁邊的單位
+  var COL_ORDER = ['change', 'updated', 'avg', 'vel', 'freq', 'spread', 'cost'];
+  var EXTRA_COLS = ['avg', 'vel', 'freq', 'spread', 'cost']; // 這幾欄只在寬版顯示，窄版放不下
   var SORTS = [
-    ['default', '預設（達標優先）'], ['name', '名稱'], ['priceAsc', '價格低→高'], ['priceDesc', '價格高→低'],
-    ['drop', '跌幅最大'], ['rise', '漲幅最大'], ['cheap', '低於均價最多'], ['vel', '賣速高→低'], ['old', '資料最舊'],
+    ['default', '預設（加入順序）'], ['name', '名稱'], ['priceAsc', '價格低→高'], ['priceDesc', '價格高→低'],
+    ['drop', '跌幅最大'], ['rise', '漲幅最大'], ['cheap', '低於均價最多'], ['dear', '高於均價最多'],
+    ['vel', '賣速高→低'], ['freq', '成交頻率高→低'],
   ];
 
   var bridge = null;
@@ -49,7 +51,7 @@
   var refreshing = false, needAgain = null, lastRefreshAt = 0, lastRefreshState = 'idle';
   var timer = null, dirty = false, globalBound = false, lastSig = '';
   var listeners = {};
-  var toastTimer = null, sceneObserver = null;
+  var toastTimer = null, sceneObserver = null, fabFrame = null, fabRO = null;
 
   /* ───────────── 小工具 ───────────── */
   function readJson(key, fb) { try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fb : v; } catch (e) { return fb; } }
@@ -100,6 +102,7 @@
     if (!Array.isArray(prefs.cols)) prefs.cols = defaultPrefs().cols;
     prefs.cols = prefs.cols.filter(function (c) { return COLS[c]; });
     if (!D_IDX[prefs.avgWin]) prefs.avgWin = 'current';
+    if (!SORTS.some(function (x) { return x[0] === prefs.sort; })) prefs.sort = 'default'; // 舊版的「資料最舊」已移除
     seen = readJson(SEEN_KEY, {});
     alertState = readJson(ALERT_KEY, {});
   }
@@ -173,13 +176,14 @@
     var price = p ? p.min : null;
     var avg = avgOfRow(row, prefs.avgWin);
     var vel = row ? { nq: row[0] || 0, hq: row[1] || 0 } : null;
+    var freq = (row && bridge.txnFreq) ? bridge.txnFreq(row) : null; // 筆/天，跟熱度排行、代幣兌換同一套定義
     return {
       w: w, id: id, name: displayName(w), scope: scope, marketable: marketable, p: p, row: row, price: price,
       noListing: !!(p && p.src === 'live' && p.min == null),
       qual: qualTag(p),
       change: (p && p.src === 'live') ? changeInfo(id, scope, price) : null,
       avg: avg, avgDiff: (avg && price != null) ? (price - avg.v) / avg.v * 100 : null,
-      vel: vel, reached: isReached(w, price),
+      vel: vel, freq: freq, reached: isReached(w, price),
     };
   }
   function spreadInfo(id) {
@@ -421,12 +425,17 @@
     if (!m.vel || (m.vel.nq + m.vel.hq) === 0) return '<div class="wl-cell" title="近期沒有成交"><span class="wl-dim">—</span></div>';
     return '<div class="wl-cell" title="每天賣出幾件（NQ・HQ）">' + fmtVel(m.vel.nq) + ' <span class="wl-dim">·</span> ' + fmtVel(m.vel.hq) + '</div>';
   }
+  function freqBlock(m) {
+    if (!m.row || m.freq == null) return '<div class="wl-cell"><span class="wl-dim">—</span></div>';
+    if (!(m.freq > 0)) return '<div class="wl-cell" title="近30天成交不到5筆，筆數太少算不出可靠的頻率（不代表完全沒有成交）"><span class="wl-dim">&lt;5筆/月</span></div>';
+    return '<div class="wl-cell" title="近30天平均每天成交幾筆">' + m.freq.toFixed(2) + '</div>';
+  }
   function spreadBlock(m) {
     if (!hasWorld()) return '<div class="wl-cell" title="請先在上方「設定」選擇我的世界"><span class="wl-dim">—</span></div>';
     var s = spreadInfo(m.id);
     if (!s) return '<div class="wl-cell"><span class="wl-dim">' + (refreshing ? '⋯' : '—') + '</span></div>';
-    if (s.pct < 0.5) return '<div class="wl-cell" title="我的世界就是資料中心最低價"><span class="wl-chg down">本服最低</span></div>';
-    return '<div class="wl-cell wl-stack" title="我的世界 ' + fmtFull(s.world) + ' 金；資料中心最低 ' + fmtFull(s.dc) + ' 金（' + esc(s.dcWorld || '其他世界') + '）"><span>' + fmt(s.world - s.dc) + '</span><small class="dear">本服貴' + fmtPct(s.pct) + '</small></div>';
+    if (s.pct < 0.5) return '<div class="wl-cell" title="我的世界就是所有世界裡的最低價"><span class="wl-chg down">本服最低</span></div>';
+    return '<div class="wl-cell wl-stack" title="我的世界 ' + fmtFull(s.world) + ' 金；所有世界最低 ' + fmtFull(s.dc) + ' 金（' + esc(s.dcWorld || '其他世界') + '）"><span>' + fmt(s.world - s.dc) + '</span><small class="dear">本服貴' + fmtPct(s.pct) + '</small></div>';
   }
   function costBlock(m) {
     var c = costCache[m.id];
@@ -436,8 +445,8 @@
     if (profit != null) pHtml = '<small class="' + (profit >= 0 ? 'cheap' : 'dear') + '">' + (profit >= 0 ? '+' : '−') + fmt(Math.abs(profit)) + '</small>';
     return '<div class="wl-cell wl-stack" title="材料成本 ' + fmtFull(c.craft) + ' 金；小字是目前最低價減成本（未扣稅）"><span>' + fmt(c.craft) + '</span>' + pHtml + '</div>';
   }
-  var COL_BLOCK = { change: changeBlock, updated: updatedBlock, avg: avgBlock, vel: velBlock, spread: spreadBlock, cost: costBlock };
-  var COL_WIDTH = { change: '58px', updated: '58px', avg: '88px', vel: '78px', spread: '96px', cost: '88px' };
+  var COL_BLOCK = { change: changeBlock, updated: updatedBlock, avg: avgBlock, vel: velBlock, freq: freqBlock, spread: spreadBlock, cost: costBlock };
+  var COL_WIDTH = { change: '58px', updated: '58px', avg: '88px', vel: '78px', freq: '84px', spread: '96px', cost: '88px' };
 
   function actionsBlock(m) {
     var hasT = m.w.targetPrice != null;
@@ -453,19 +462,20 @@
     var w = m.w, cols = visibleCols(), tiles = [];
     if (m.marketable && m.p) {
       if (m.p.hq != null && m.p.nq != null) {
-        tiles.push(tileHtml('NQ 最低', fmt(m.p.nq), '', fmtFull(m.p.nq) + ' 金'));
-        tiles.push(tileHtml('HQ 最低', fmt(m.p.hq), '', fmtFull(m.p.hq) + ' 金'));
+        tiles.push(tileHtml('NQ 最低', fmt(m.p.nq) + '<small>金</small>', '', fmtFull(m.p.nq) + ' 金'));
+        tiles.push(tileHtml('HQ 最低', fmt(m.p.hq) + '<small>金</small>', '', fmtFull(m.p.hq) + ' 金'));
       }
       AVG_KEYS.forEach(function (k) {
         var a = avgOfRow(m.row, k);
-        tiles.push(tileHtml('均價・' + AVG_LABEL[k], a ? fmt(a.v) : '—', a ? '' : 'dim', a ? (a.n + ' 筆成交') : '這段時間成交太少，不顯示'));
+        tiles.push(tileHtml('均價・' + AVG_LABEL[k], a ? fmt(a.v) + '<small>金</small>' : '—', a ? '' : 'dim', a ? (a.n + ' 筆成交') : '這段時間成交太少，不顯示'));
       });
-      if (cols.indexOf('vel') < 0) tiles.push(tileHtml('賣速 NQ·HQ', m.vel && (m.vel.nq + m.vel.hq) ? fmtVel(m.vel.nq) + ' · ' + fmtVel(m.vel.hq) + '<small>/天</small>' : '—', m.vel && (m.vel.nq + m.vel.hq) ? '' : 'dim'));
+      if (cols.indexOf('vel') < 0) tiles.push(tileHtml('賣速 NQ·HQ', m.vel && (m.vel.nq + m.vel.hq) ? fmtVel(m.vel.nq) + ' · ' + fmtVel(m.vel.hq) + '<small>件/天</small>' : '—', m.vel && (m.vel.nq + m.vel.hq) ? '' : 'dim'));
+      if (cols.indexOf('freq') < 0 && m.row && m.freq != null) tiles.push(tileHtml('成交頻率', m.freq > 0 ? m.freq.toFixed(2) + '<small>筆/天</small>' : '<5<small>筆/月</small>', m.freq > 0 ? '' : 'dim', m.freq > 0 ? '近30天平均每天成交幾筆' : '近30天成交不到5筆，算不出可靠的頻率'));
       var r = m.row && m.row[8];
       if (r) {
         var rs = [];
-        if (r[0] != null && r[1]) rs.push('<span class="wl-line">NQ ' + fmt(r[0]) + '<small>' + agoText(r[1] * 1000) + '</small></span>');
-        if (r[2] != null && r[3]) rs.push('<span class="wl-line">HQ ' + fmt(r[2]) + '<small>' + agoText(r[3] * 1000) + '</small></span>');
+        if (r[0] != null && r[1]) rs.push('<span class="wl-line">NQ ' + fmt(r[0]) + '<small>金・' + agoText(r[1] * 1000) + '</small></span>');
+        if (r[2] != null && r[3]) rs.push('<span class="wl-line">HQ ' + fmt(r[2]) + '<small>金・' + agoText(r[3] * 1000) + '</small></span>');
         if (rs.length) tiles.push(tileHtml('最近成交', rs.join(''), 'multi'));
       }
       if (cols.indexOf('spread') < 0 && hasWorld() && live.world[m.id] && live.dc[m.id]) {
@@ -474,7 +484,7 @@
       }
       if (cols.indexOf('cost') < 0) {
         var c = costCache[m.id];
-        if (c && c.state === 'ok') tiles.push(tileHtml('材料成本', fmt(c.craft), '', fmtFull(c.craft) + ' 金'));
+        if (c && c.state === 'ok') tiles.push(tileHtml('材料成本', fmt(c.craft) + '<small>金</small>', '', fmtFull(c.craft) + ' 金'));
       }
     }
     var worldPills = '';
@@ -519,11 +529,17 @@
     if (cols.indexOf('updated') >= 0 && m.p && m.p.upload) meta.push(updatedBlock(m));
     return '<div class="wl-pcol">' + priceBlock(m, true) + (meta.length ? '<div class="wl-pmeta">' + meta.join('') + '</div>' : '') + '</div>';
   }
+  /* 欄名＋單位：單位用較小較淡的字放在欄名下面，數字本身就不用每格再寫一次 */
+  function thHtml(k) {
+    var label = k === 'price' ? '最低價' : (k === 'avg' ? '均價・' + AVG_LABEL[prefs.avgWin] : (k === 'vel' ? '賣速 NQ·HQ' : COLS[k]));
+    var u = k === 'price' ? '金' : COL_UNIT[k];
+    return '<span class="wl-th">' + label + (u ? '<small>' + u + '</small>' : '') + '</span>';
+  }
   function tableHtml(ms) {
     var cols = visibleCols();
     if (!isWide()) {
       var ctpl = 'minmax(0,1fr) auto 50px';
-      return '<div class="wl-thead compact" style="grid-template-columns:' + ctpl + '"><span>物品</span><span>最低價</span><span></span></div>' +
+      return '<div class="wl-thead compact" style="grid-template-columns:' + ctpl + '"><span>物品</span>' + thHtml('price') + '<span></span></div>' +
         ms.map(function (m) {
           return '<div class="wl-item' + (m.reached ? ' is-reached' : '') + (expanded[m.id] ? ' is-open' : '') + '" data-id="' + m.id + '">' +
             '<div class="wl-rowmain compact" style="grid-template-columns:' + ctpl + '">' + nameBlock(m) + compactPriceBlock(m, cols) + actionsBlock(m) + '</div>' +
@@ -531,8 +547,8 @@
         }).join('');
     }
     var tpl = ['minmax(0,1fr)', '96px'].concat(cols.map(function (k) { return COL_WIDTH[k]; })).concat(['52px']).join(' ');
-    var head = '<div class="wl-thead" style="grid-template-columns:' + tpl + '"><span>物品</span><span>最低價</span>' +
-      cols.map(function (k) { return '<span>' + (k === 'avg' ? '均價・' + AVG_LABEL[prefs.avgWin] : (k === 'vel' ? '賣速 NQ·HQ' : COLS[k])) + '</span>'; }).join('') + '<span></span></div>';
+    var head = '<div class="wl-thead" style="grid-template-columns:' + tpl + '"><span>物品</span>' + thHtml('price') +
+      cols.map(thHtml).join('') + '<span></span></div>';
     return head + ms.map(function (m) {
       return '<div class="wl-item' + (m.reached ? ' is-reached' : '') + (expanded[m.id] ? ' is-open' : '') + '" data-id="' + m.id + '">' +
         '<div class="wl-rowmain" style="grid-template-columns:' + tpl + '">' + nameBlock(m) + priceBlock(m) +
@@ -551,7 +567,7 @@
     var vis = visibleCols(), cols = vis.filter(function (k) { return EXTRA_COLS.indexOf(k) >= 0 && k !== 'avg'; }); // 均價已經用量尺呈現，不再重複
     return '<div class="wl-cards">' + ms.map(function (m) {
       var extras = cols.length ? '<div class="wl-card-extras">' + cols.map(function (k) {
-        return '<div class="wl-xrow"><span>' + COLS[k] + '</span>' + COL_BLOCK[k](m) + '</div>';
+        return '<div class="wl-xrow"><span>' + COLS[k] + (COL_UNIT[k] ? '<small>' + COL_UNIT[k] + '</small>' : '') + '</span>' + COL_BLOCK[k](m) + '</div>';
       }).join('') + '</div>' : '';
       var foot = [];
       if (vis.indexOf('change') >= 0) foot.push(changeBlock(m));
@@ -572,15 +588,16 @@
   function sortModels(ms) {
     ms.forEach(function (m, i) { m.i = i; });
     var by = {
-      'default': function (a, b) { return (b.reached ? 1 : 0) - (a.reached ? 1 : 0); },
+      'default': function () { return 0; }, // 單純的加入順序（同分時下面統一用加入次序排）
       name: function (a, b) { return a.name.localeCompare(b.name, 'zh-Hant'); },
       priceAsc: function (a, b) { return numCmp(a.price, b.price, 1); },
       priceDesc: function (a, b) { return numCmp(a.price, b.price, -1); },
       drop: function (a, b) { return numCmp(a.change && a.change.pct, b.change && b.change.pct, 1); },
       rise: function (a, b) { return numCmp(a.change && a.change.pct, b.change && b.change.pct, -1); },
       cheap: function (a, b) { return numCmp(a.avgDiff, b.avgDiff, 1); },
+      dear: function (a, b) { return numCmp(a.avgDiff, b.avgDiff, -1); },
       vel: function (a, b) { return numCmp(a.vel ? a.vel.nq + a.vel.hq : null, b.vel ? b.vel.nq + b.vel.hq : null, -1); },
-      old: function (a, b) { return numCmp(a.p && a.p.upload, b.p && b.p.upload, 1); },
+      freq: function (a, b) { return numCmp(a.freq, b.freq, -1); },
     };
     var f = by[prefs.sort] || by['default'];
     return ms.sort(function (a, b) { return f(a, b) || a.i - b.i; });
@@ -653,7 +670,7 @@
     var world = hasWorld(), sc = effScope();
     els.toolbar.innerHTML =
       '<div class="wl-seg" role="group" aria-label="價格範圍">' +
-        '<button type="button" data-act="scope" data-v="dc" class="' + (sc === 'dc' ? 'on' : '') + '">資料中心</button>' +
+        '<button type="button" data-act="scope" data-v="dc" class="' + (sc === 'dc' ? 'on' : '') + '">所有世界</button>' +
         '<button type="button" data-act="scope" data-v="world" class="' + (sc === 'world' ? 'on' : '') + '"' + (world ? '' : ' disabled title="請先在上方「設定」選擇我的世界"') + '>' + (world ? esc(st().worldName) : '我的世界') + '</button></div>' +
       '<div class="wl-seg icons" role="group" aria-label="檢視方式">' +
         '<button type="button" data-act="view" data-v="table" class="' + (prefs.view === 'table' ? 'on' : '') + '" title="表格"><i class="ph ph-list-dashes"></i></button>' +
@@ -909,27 +926,37 @@
     if (globalBound) return;
     globalBound = true;
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && isOpen()) { if (!closeDropdowns()) closeDrawer(); } }); // 先關下拉，再關抽屜
-    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); } });
+    window.addEventListener('resize', function () { if (els.drawer) { els.drawer.classList.toggle('wide', isWide()); if (isOpen()) renderBody(); } positionFab(); });
     window.addEventListener('storage', function (e) { // 同時開了多個分頁：另一個分頁改了清單／設定，這邊同步
       if ([WATCH_KEY, PREFS_KEY, SEEN_KEY, ALERT_KEY].indexOf(e.key) < 0) return;
       loadState();
       if (els.drawer) renderAll();
       fireChange();
     });
-    var lastTop = new WeakMap(), dimTimer = null; // 頁面往下捲時，浮動按鈕縮小淡出，不擋內容；停下來或往上捲就恢復
+    var lastTop = new WeakMap(), dimTimer = null; // 往下捲：浮動按鈕縮小淡出，不擋內容；往上捲（任何一點點）或停下來就恢復
     document.addEventListener('scroll', function (e) {
       var t = e.target === document ? document.scrollingElement : e.target;
       if (!t || typeof t.scrollTop !== 'number' || !els.fab) return;
       if (els.drawer && els.drawer.contains(t)) return; // 抽屜自己的捲動不算
-      var prev = lastTop.get(t) || 0, cur = t.scrollTop;
+      var prev = lastTop.has(t) ? lastTop.get(t) : 0, cur = t.scrollTop; // 第一次捲動時，之前的位置當作在最上面
       lastTop.set(t, cur);
-      if (cur - prev > 6) {
-        els.fab.classList.add('dim');
-        clearTimeout(dimTimer);
-        dimTimer = setTimeout(function () { if (els.fab) els.fab.classList.remove('dim'); }, 900);
-      } else if (prev - cur > 6) els.fab.classList.remove('dim');
+      if (cur === prev) return;
+      if (cur > prev && cur > 60) els.fab.classList.add('dim');
+      else if (cur < prev) els.fab.classList.remove('dim');
+      clearTimeout(dimTimer);
+      dimTimer = setTimeout(function () { if (els.fab) els.fab.classList.remove('dim'); }, 700);
     }, true);
     document.addEventListener('visibilitychange', function () { if (!document.hidden && hasTargets() && Date.now() - lastRefreshAt > 2 * 60 * 1000) refresh({ targetsOnly: !isOpen() }); });
+  }
+
+  /* 螢幕很大時，內容框置中、兩邊留一大片空白，貼著視窗右下角的按鈕會離內容很遠、很難發現。
+   * 所以右邊空間夠的話，就把按鈕放在內容框的右外側（距離 16px）；空間不夠（一般螢幕、手機）才貼視窗角落。 */
+  function positionFab() {
+    if (!els.fab || !fabFrame) return;
+    var fr = fabFrame.getBoundingClientRect();
+    if (!fr.width) return;
+    var vw = document.documentElement.clientWidth, w = els.fab.offsetWidth || 58, room = vw - fr.right;
+    els.fab.style.right = (room >= w + 16 + 18) ? Math.round(room - w - 16) + 'px' : '';
   }
 
   /* ───────────── 掛載 ───────────── */
@@ -938,6 +965,7 @@
     if (!root || !bridge) return;
     ['wl-host', 'wl-fab', 'wl-drawer', 'wl-toast'].forEach(function (id) { var o = document.getElementById(id); if (o) o.remove(); });
     if (sceneObserver) { sceneObserver.disconnect(); sceneObserver = null; }
+    if (fabRO) { fabRO.disconnect(); fabRO = null; }
     var html =
       '<button type="button" id="wl-fab" class="wl-fab" title="關注清單" aria-label="關注清單">' +
         '<span class="wl-fab-medal"><span class="wl-fab-disc"><i class="ph ph-shopping-cart-simple"></i></span>' +
@@ -969,8 +997,9 @@
       var on = !scene || scene.classList.contains('active');
       host.style.display = on ? '' : 'none';
       if (!on && isOpen()) closeDrawer();
+      if (on) { positionFab(); setTimeout(positionFab, 400); setTimeout(positionFab, 1300); } // 場景切換有淡入動畫，多量幾次
     };
-    syncHost();
+    fabFrame = (root.closest && root.closest('.noble-outer-frame')) || root;
     if (scene && 'MutationObserver' in window) { sceneObserver = new MutationObserver(syncHost); sceneObserver.observe(scene, { attributes: true, attributeFilter: ['class'] }); }
     els = {
       fab: document.getElementById('wl-fab'), badge: document.getElementById('wl-fab-badge'), drawer: document.getElementById('wl-drawer'),
@@ -978,6 +1007,8 @@
       tagbar: document.getElementById('wl-tagbar'), settings: document.getElementById('wl-settings'), body: document.getElementById('wl-body'),
       file: document.getElementById('wl-file'), toast: document.getElementById('wl-toast'),
     };
+    syncHost();
+    if (typeof ResizeObserver !== 'undefined') { fabRO = new ResizeObserver(positionFab); fabRO.observe(fabFrame); }
     var s = st(); lastSig = (s.dcName || '') + '|' + (s.worldName || '');
     bindDrawerEvents(); bindGlobalOnce();
     renderAll(); startTimer();

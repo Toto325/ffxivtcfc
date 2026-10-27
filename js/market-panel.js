@@ -789,6 +789,61 @@
     return null;
   }
 
+  /* ── 統計列／世界價格列的「自動適應」 ──
+   * 內容長度每個物品都不一樣（110 跟 12,345,678 差很多），固定寫死一組間距一定有物品會被擠成兩行。
+   * 所以改成渲染後量測：統計列依序試三段（正常→縮緊→更緊），都放不下才換成「均分的格子」，永遠不會出現孤零零一塊；
+   * 世界價格列則依容器寬度算出一排放幾格，再把格數平均分到每一排（8 格寫成 4＋4，不是 6＋2）。
+   * 用 ResizeObserver 追蹤寬度，視窗縮放、手機轉向時自動重算。 */
+  const mkFitTargets = new WeakMap();
+  const mkFitRO = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(function (entries) {
+    entries.forEach(function (en) {
+      const t = mkFitTargets.get(en.target); if (!t) return;
+      const w = Math.round(en.contentRect.width);
+      if (t.w !== w) { t.w = w; t.fn(); } // 只有寬度變了才重算；重算只會改高度，不會造成循環
+    });
+  }) : null;
+  function mkObserveFit(el, fn) {
+    if (!mkFitRO || !el) return;
+    if (mkFitTargets.has(el)) { mkFitTargets.get(el).fn = fn; return; }
+    mkFitTargets.set(el, { fn: fn, w: -1 });
+    mkFitRO.observe(el);
+  }
+  function fitStatBar(bar) {
+    if (!bar || !bar.isConnected) return;
+    const tiles = Array.prototype.slice.call(bar.querySelectorAll('.market-stat-tile'));
+    bar.style.removeProperty('--ms-cols');
+    tiles.forEach(function (t) { t.classList.remove('ms-end', 'ms-last-row'); });
+    if (tiles.length < 2) { bar.removeAttribute('data-fit'); return; }
+    const oneRow = function () { return tiles[tiles.length - 1].offsetTop - tiles[0].offsetTop < 2; };
+    for (let lvl = 0; lvl <= 2; lvl++) {
+      bar.dataset.fit = String(lvl);
+      if (oneRow()) return;
+    }
+    // 三段都放不下：格子寬度＝最寬那格的自然寬度，算出一排放得下幾格，再把格數平均分到每一排
+    let maxW = 0;
+    tiles.forEach(function (t) { maxW = Math.max(maxW, t.offsetWidth); });
+    const W = bar.clientWidth;
+    if (!W || !maxW) return;
+    const k = Math.max(1, Math.floor(W / maxW));
+    const rows = Math.ceil(tiles.length / k), cols = Math.ceil(tiles.length / rows);
+    bar.dataset.fit = '3';
+    bar.style.setProperty('--ms-cols', String(cols));
+    tiles.forEach(function (t, i) {
+      if ((i + 1) % cols === 0 || i === tiles.length - 1) t.classList.add('ms-end');
+      if (i >= cols * (rows - 1)) t.classList.add('ms-last-row');
+    });
+  }
+  function fitWorldStrip(strip) {
+    if (!strip || !strip.isConnected) return;
+    const n = strip.querySelectorAll('.mws-cell').length, W = strip.clientWidth;
+    if (!n || !W) return;
+    const GAP = 5, MIN_W = 66;
+    const k = Math.max(1, Math.floor((W + GAP) / (MIN_W + GAP)));
+    const rows = Math.ceil(n / k), cols = Math.ceil(n / rows);
+    strip.style.display = 'grid';
+    strip.style.gridTemplateColumns = 'repeat(' + cols + ',minmax(0,1fr))';
+  }
+
   /* 供應鏈圖的買/做比較設定，記在本機、跨物品沿用同一組偏好，不用每次點開新物品都重設一次。 */
   const SUPPLY_SETTINGS_KEY = 'ff14fc-supply-settings';
   /* 原本 materialsBasis／purchaseBasis 是兩個獨立設定（算成本用一個、卡片顯示價用另一個），
@@ -952,6 +1007,7 @@
       '<div id="mk-tab-head"></div>' +
       '<div id="mk-listing-table-slot"></div>';
     box.innerHTML = html;
+    (function () { const bar = $('mk-stat-bar'); fitStatBar(bar); mkObserveFit(bar, function () { fitStatBar(bar); }); })();
 
     let worldFilter = 'ALL'; // 目前選的範圍：'ALL'＝整個資料中心，否則是世界名稱
     function bindAvgBadge() {
@@ -969,7 +1025,7 @@
     // token 避免使用者連續切換時，慢回來的舊結果蓋掉新畫面。
     let statToken = 0;
     const worldHist24Cache = {}, worldVelCache = {};
-    function setStatBar(st) { const el = $('mk-stat-bar'); if (el) { el.innerHTML = buildStatBarHtml(st); bindAvgBadge(); } }
+    function setStatBar(st) { const el = $('mk-stat-bar'); if (el) { el.innerHTML = buildStatBarHtml(st); bindAvgBadge(); fitStatBar(el); mkObserveFit(el, function () { fitStatBar(el); }); } }
     async function updateStatBar() {
       const token = ++statToken;
       if (worldFilter === 'ALL') { setStatBar(dcStat); return; }
@@ -1103,7 +1159,7 @@
     function ageClass(ms) { const h = (Date.now() - ms) / 3600e3; return h >= 24 ? ' is-stale' : (h >= 6 ? ' is-old' : ''); }
     function renderWorldStrip() {
       const strip = $('mk-world-strip'); if (!strip) return;
-      const cells = [{ key: 'ALL', name: '全部', price: overview.minPrice || null, ts: overview.lastUploadTime }]
+      const cells = [{ key: 'ALL', name: '所有世界', price: overview.minPrice || null, ts: overview.lastUploadTime }]
         .concat(dcWorlds.map(function (w) { return { key: w, name: w, price: worldMinPrice[w] != null ? worldMinPrice[w] : null, ts: worldTimes[w] || null }; }));
       const prices = cells.slice(1).map(function (c) { return c.price; }).filter(function (v) { return v != null; });
       const best = prices.length ? Math.min.apply(null, prices) : null;
@@ -1112,13 +1168,14 @@
       strip.innerHTML = cells.map(function (c) {
         const isBest = c.key !== 'ALL' && c.price != null && c.price === best;
         const stale = c.key !== 'ALL' && c.ts && (Date.now() - c.ts) / 3600e3 >= 6;
-        const tip = c.key === 'ALL' ? '整個資料中心' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價 ' + c.price.toLocaleString() + ' 金') +
+        const tip = c.key === 'ALL' ? '所有世界' : (c.price == null ? c.name + '：沒有出現在全服最便宜的100筆裡（價格較高）' : c.name + '目前最低價 ' + c.price.toLocaleString() + ' 金') +
           (c.ts && c.key !== 'ALL' ? '（資料更新於' + timeAgo(c.ts / 1000) + '）' : '');
         return '<button type="button" class="mws-cell' + (worldFilter === c.key ? ' active' : '') + (isBest ? ' is-best' : '') + '" data-world="' + c.key + '" title="' + tip + '">' +
           '<span class="mws-name">' + c.name + '</span>' +
           '<span class="mws-price">' + (c.price != null ? fmtCompactGil(c.price) : '—') + (stale ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '</span>' : '') + '</span>' +
         '</button>';
       }).join('');
+      fitWorldStrip(strip); mkObserveFit(strip, function () { fitWorldStrip(strip); });
     }
     $('mk-world-strip').addEventListener('click', function (e) {
       const b = e.target.closest('[data-world]'); if (!b) return;
@@ -1169,6 +1226,8 @@
       icon: itemIconHtml,
       isMarketable: isMarketable,
       openItem: openItemDetail,
+      // 成交頻率：跟熱度排行、代幣兌換同一套定義（筆/天，近30天成交不到5筆時算不出來＝0）
+      txnFreq: function (row) { return row ? liquidityOf('x', { items: { x: row } }).txnFreq : null; },
       // 製作成本欄位：跟供應鏈圖同一套算法與基準設定；配方庫（好幾MB）等到真的要顯示成本才載入
       craftInfo: async function (id) {
         const ok = await ensureCraftDataLoaded();
@@ -3618,6 +3677,21 @@
     { key: 'skybuilder', label: '蒼天街重建', ids: [28063, 33870, 13630, 13631], desc: '蒼天街重建的振興票與各期重建物資，以及慶典參加證書、空賊通貨', fold: true },
     { key: 'other', label: '其他', ids: [], desc: '還沒有歸類的代幣（新出現的代幣會先出現在這裡）', fold: true },
   ];
+  /* 代幣兌換的價格基準：所有世界（預設，整個資料中心）／我的世界。記在本機。
+   * 「哪些代幣算沒有可比價、要隱藏」固定用所有世界的掛單價判斷，不跟著切換，這樣切換基準時清單不會忽多忽少。 */
+  const TOKEN_SCOPE_KEY = 'ff14fc-token-scope';
+  let tokenScope = (function () { try { return localStorage.getItem(TOKEN_SCOPE_KEY) === 'world' ? 'world' : 'all'; } catch (e) { return 'all'; } })();
+  function tokenScopeEff() { const st = MarketData.getSettings(); return (tokenScope === 'world' && st.worldName) ? 'world' : 'all'; }
+  async function getTokenData() {
+    if (tokenScopeEff() === 'world') {
+      try {
+        const r = await MarketData.loadPrecomputed(MarketData.getSettings().worldName);
+        if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return r.data;
+      } catch (e) { /* 讀不到就回傳null，呼叫端自行處理 */ }
+      return null;
+    }
+    return getPrecomputedAllData();
+  }
   let tokenCatSel = 'all'; // 目前選的分類，重畫、切換分頁回來都維持
   let tokenShowHidden = false;
   /* 預設隱藏的代幣：
@@ -3668,6 +3742,7 @@
     // 內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，清單一長就整個被裁掉、完全不能捲動。
     // 分類按鈕放在搜尋框上方：先選「哪一類」再用名稱縮小範圍，是兩個層次的篩選。
     pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？先選分類，再選一個代幣看排行。　🔗 先換成不可交易的中繼物品，再用它能換到的東西估價　🔒 需先完成任務或成就才能兌換</p>' +
+      '<div class="market-token-scope market-pane-fixed" id="mk-token-scope"></div>' +
       '<div class="market-token-cats market-pane-fixed" id="mk-token-cats"></div>' +
       '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:6px">' +
       '<div class="market-token-hidebar market-pane-fixed" id="mk-token-hidebar"></div>' +
@@ -3684,6 +3759,12 @@
         '</button>' +
         '<div class="market-token-body" id="mk-token-body-' + x.id + '" data-count="' + x.count + '" style="display:none"></div>' +
       '</div>';
+    }
+    function renderScope() {
+      const world = MarketData.getSettings().worldName, eff = tokenScopeEff();
+      $('mk-token-scope').innerHTML = '<span class="mts-label">價格</span>' +
+        '<button type="button" class="craft-job-filter-btn' + (eff === 'all' ? ' active' : '') + '" data-tscope="all">所有世界</button>' +
+        '<button type="button" class="craft-job-filter-btn' + (eff === 'world' ? ' active' : '') + '" data-tscope="world"' + (world ? '' : ' disabled title="請先在上方「設定」選擇我的世界"') + '>' + (world || '我的世界') + '</button>';
     }
     function renderCats() {
       $('mk-token-cats').innerHTML =
@@ -3737,7 +3818,19 @@
         tokenShowHidden = !tokenShowHidden; rebuild(); renderCats(); renderList(); renderHideBar();
       });
     }
-    renderCats(); renderList(); renderHideBar();
+    renderScope(); renderCats(); renderList(); renderHideBar();
+    pane.addEventListener('click', function (e) { // 價格基準切換：已展開的排行立刻重算，沒展開的下次點開時再算
+      const b = e.target.closest('[data-tscope]');
+      if (!b || b.disabled) return;
+      tokenScope = b.dataset.tscope;
+      try { localStorage.setItem(TOKEN_SCOPE_KEY, tokenScope); } catch (e2) { /* 存不了就算了 */ }
+      renderScope();
+      pane.querySelectorAll('.market-token-body').forEach(function (body) {
+        const open = body.style.display !== 'none' && body.dataset.tokenId;
+        body.dataset.loaded = '';
+        if (open) renderTokenBody(body, body.dataset.tokenId);
+      });
+    });
     pane.addEventListener('click', function (e) {
       const c = e.target.closest('[data-tcat]');
       if (!c) return;
@@ -3785,8 +3878,13 @@
       body.dataset.loaded = '1';
       body.innerHTML = '<p class="craft-muted">讀取排行中⋯</p>';
       const settings = getSupplySettings();
-      const dcData = await getPrecomputedAllData();
-      if (!dcData) { body.innerHTML = '<p class="craft-muted">目前沒有可用的市場快照資料，暫時無法算出排行。</p>'; return; }
+      const dcData = await getTokenData();
+      if (!dcData) {
+        body.innerHTML = tokenScopeEff() === 'world'
+          ? '<p class="craft-muted">目前沒有「' + MarketData.getSettings().worldName + '」的市場快照資料，暫時無法算出排行；可以切回「所有世界」。</p>'
+          : '<p class="craft-muted">目前沒有可用的市場快照資料，暫時無法算出排行。</p>';
+        return;
+      }
       const sortKey = body.dataset.sort || 'net';
       const SHOW = 20;
       const all = buildCurrencyBestUses(id, dcData, settings.materialsBasis, 99999, sortKey);
@@ -3811,6 +3909,7 @@
       // 其餘（不可交易的裝備、幻卡、樂譜，或可交易但目前市場沒有任何行情的）算不出價值，所以不列。
       const notes = [];
       notes.push(all.length > SHOW ? '列出前 ' + SHOW + ' 名，共 ' + all.length + ' 種可比價' : '共 ' + all.length + ' 種可比價');
+      if (tokenScopeEff() === 'world') notes.push('價格以「' + MarketData.getSettings().worldName + '」為準');
       if (totalTrades > all.length) notes.push('另有 ' + (totalTrades - all.length) + ' 種無法比價（不可交易或沒有市場行情）');
       body.innerHTML = '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
