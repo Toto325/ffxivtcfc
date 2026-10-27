@@ -180,17 +180,24 @@
 /* 在售／成交兩個分頁共用的欄位排版：價格→數量→總價是一組（總價＝價格×數量，是前兩欄的結果，所以三欄固定寬度、
    緊靠在左邊），跟後面的僱員／買家、世界、時間之間留明顯間距，才分得出「數字區」跟「人／地點區」。
    數字一律靠右對齊（位數不同也能直接比大小）。僱員名放得下就完整顯示（最長約6~7個字），放不下才用…截斷。 */
-.market-flexrow .mfl-price{flex:0 0 104px;min-width:0}
-.market-flexrow .mfl-qty{flex:0 0 56px;min-width:0}
-.market-flexrow .mfl-total{flex:0 0 100px;min-width:0}
+.market-flexrow .mfl-price{flex:0 1 104px;min-width:80px}
+.market-flexrow .mfl-qty{flex:0 1 56px;min-width:34px}
+.market-flexrow .mfl-total{flex:0 1 100px;min-width:68px}
 /* 僱員／買家名最長約7個字：固定寬度剛好放得下（再長用…截斷、停留看全名），不再隨欄位拉長，世界欄才不會被推到很遠的右邊 */
-.market-flexrow .mfl-buyer{flex:0 0 140px;min-width:0;margin-left:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-flexrow .mfl-buyer{flex:0 3 140px;min-width:48px;margin-left:24px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 世界／時間欄用固定px，不用em：時間欄文字字級比較小（craft-muted），em會讓同一個class在表頭跟資料列算出不同寬度，欄位就對不齊 */
-.market-flexrow .mfl-world{flex:0 0 80px;min-width:0;padding-left:8px;white-space:nowrap}
-.market-flexrow .mfl-time{flex:0 0 84px;min-width:0;text-align:right;white-space:nowrap}
+.market-flexrow .mfl-world{flex:0 1 80px;min-width:62px;padding-left:8px;white-space:nowrap}
+.market-flexrow .mfl-time{flex:0 1 84px;min-width:52px;text-align:right;white-space:nowrap}
 .mfl-r{text-align:right}
-/* 每一欄都是固定寬度，整列寬度就是各欄加起來：列跟表頭只做到內容那麼寬，不再拉滿整個欄位 */
-#mk-tab-head .market-flexrow,#mk-listing-table-slot .market-flexrow{width:max-content}
+/* 欄寬是「最大寬度」而不是固定寬度：容器夠寬時整列就是各欄加起來那麼寬（536px，成交分頁 620px，跟以前一樣，緊靠左邊、不拉滿），
+ * 容器比較窄（手機、視窗縮小）時各欄會依比例一起縮，僱員名優先縮（flex-shrink 比較大）並用…截斷，
+ * 最右邊的世界／時間欄不會再被擠出容器邊緣。每欄都有最小寬度，所以縮到底也不會疊在一起。 */
+#mk-tab-head .market-flexrow,#mk-listing-table-slot .market-flexrow{width:100%;max-width:536px;box-sizing:border-box}
+#mk-tab-head .market-flexrow:has(.mfl-time),#mk-listing-table-slot .market-flexrow:has(.mfl-time){max-width:620px} /* 成交分頁多一欄時間（84px） */
+@media (max-width:640px){
+  #mk-tab-head .market-flexrow,#mk-listing-table-slot .market-flexrow{padding-left:8px;padding-right:8px}
+  .market-flexrow .mfl-buyer{margin-left:10px}
+}
 /* 目前最便宜的那一筆：淡綠底，列表一打開就知道該先看哪一筆 */
 .market-flexrow-best{background:rgba(74,222,128,.08);border-radius:4px}
 /* 價格格：HQ標籤在左、數字在右，沒有HQ時左側留空，數字位置不變 */
