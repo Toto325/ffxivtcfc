@@ -236,7 +236,27 @@
 .market-stat-tile-btn{cursor:pointer}
 .market-stat-tile-btn:hover{background:rgba(197,160,89,.1)}
 /* 各世界最低價列：兩行（世界名／價格），比上一版少一行高度 */
+/* 統計列自動適應（js/market-panel.js 的 fitStatBar 依實際寬度設定 data-fit）：
+ * 0 正常 → 1 縮緊間距與字級 → 2 再緊一級 → 3 仍放不下才換成「均分的格子」（每排格數平均，不會孤零零一塊） */
+.market-stat-bar[data-fit="1"] .market-stat-tile{padding:5px 8px;gap:4px}
+.market-stat-bar[data-fit="1"] .mst-val{font-size:15.5px}
+.market-stat-bar[data-fit="1"] .mst-label{font-size:11px}
+.market-stat-bar[data-fit="1"] .mst-sep{margin:0 5px}
+.market-stat-bar[data-fit="2"] .market-stat-tile,.market-stat-bar[data-fit="3"] .market-stat-tile{padding:5px 6px;gap:3px}
+.market-stat-bar[data-fit="2"] .mst-val,.market-stat-bar[data-fit="3"] .mst-val{font-size:14px}
+.market-stat-bar[data-fit="2"] .mst-label,.market-stat-bar[data-fit="3"] .mst-label{font-size:10.5px}
+.market-stat-bar[data-fit="2"] .mst-val small,.market-stat-bar[data-fit="3"] .mst-val small{margin-left:2px}
+.market-stat-bar[data-fit="2"] .mst-sep,.market-stat-bar[data-fit="3"] .mst-sep{margin:0 4px}
+.market-stat-bar[data-fit="3"]{display:grid;grid-template-columns:repeat(var(--ms-cols,2),minmax(0,1fr))}
+.market-stat-bar[data-fit="3"] .market-stat-tile{border-right:1px solid var(--tb);border-bottom:1px solid var(--tb)}
+.market-stat-bar[data-fit="3"] .market-stat-tile.ms-end{border-right:0}
+.market-stat-bar[data-fit="3"] .market-stat-tile.ms-last-row{border-bottom:0}
+/* 代幣兌換：價格基準切換（所有世界／我的世界） */
+.market-token-scope{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.mts-label{font-size:12px;color:var(--dim);margin-right:2px}
+.market-token-scope .craft-job-filter-btn:disabled{opacity:.4;cursor:not-allowed}
 .market-world-strip{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 8px}
+/* 世界價格列：JS（fitWorldStrip）依寬度算出每排格數並平均分配，這裡的 flex 只是 JS 還沒執行時的預設 */
 /* 平均分配一排的寬度（8格剛好一排放得下），欄位真的太窄才換行 */
 .mws-cell{display:flex;flex-direction:column;align-items:center;gap:0;flex:1 1 66px;min-width:66px;padding:3px 6px 4px;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.025);color:inherit;font-family:inherit;cursor:pointer}
 .mws-cell:hover{border-color:var(--gold)}

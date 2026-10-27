@@ -178,6 +178,11 @@
   background: var(--bg); border-bottom: 1px solid var(--tb);
 }
 .wl-thead span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-thead { align-items: end; }
+.wl-th { display: flex; flex-direction: column; line-height: 1.25; }
+.wl-th small { font-size: 9.5px; opacity: .72; }
+.wl-thead.compact .wl-th { align-items: flex-end; }
+.wl-xrow span small { margin-left: 4px; font-size: 10px; opacity: .7; }
 .wl-item { border-bottom: 1px solid rgba(197,160,89,.12); position: relative; }
 .wl-rowmain { display: grid; gap: 6px; align-items: center; padding: 9px 4px; cursor: pointer; }
 .wl-item:hover .wl-rowmain { background: rgba(197,160,89,.05); }
