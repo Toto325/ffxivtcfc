@@ -336,7 +336,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
   width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
   font-size:11px;cursor:pointer;padding:0;flex-shrink:0}
 .craft-mat-worlds-icon:hover{background:rgba(122,162,255,.22)}
-.craft-mat-worlds-popover{position:fixed;z-index:200;flex-direction:column;min-width:200px;max-width:260px;
+.craft-mat-worlds-popover{position:fixed;z-index:10060;flex-direction:column;min-width:200px;max-width:260px;
   max-height:70vh;overflow-y:auto;
   background:var(--panel,#1c1c22);border:1px solid var(--line,#333);border-radius:8px;padding:8px 10px 6px;
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
@@ -493,49 +493,33 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
  * 美術第三次重新設計：雙層描邊的美術效果保留，但「旗幟切角」的外形太生硬，改成「垂墜勳章」造型——
  * 上方頂著一顆小圓珠當墜飾的掛勾，主體維持方正好讀直書文字，下緣收成一個V字尖角，
  * 整體看起來像掛在螢幕邊緣的一枚吊飾/勳章，比單純切一刀的旗幟更精緻、更有「特別」的感覺。 */
-.craft-explore-fab{
-  position:fixed;right:0;top:calc(var(--nav-top-h-actual, 56px) + 40px);z-index:40;
-  padding:2px 0 10px 2px;
-  background:linear-gradient(165deg, var(--gold-bright) 0%, var(--gold) 45%, var(--gold-deep) 100%);
-  clip-path:polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
-  cursor:pointer;border:none;
-  box-shadow:-6px 4px 20px rgba(0,0,0,.6);
-  transition:transform .2s ease, box-shadow .2s ease;
+/* 入口：金色徽章＋上下兩塊銘牌（跟市場頁「關注清單」同款，徽章／銘牌造型共用 page-market-watchlist.css 的 .wl-fab-*）。
+ * 兩塊銘牌各自是捷徑（直接開對應分頁），中間徽章開上次用的分頁；批次項目數掛在「批次規劃」銘牌上。
+ * 掛在 <body>（見 craft-panel.js mountExploreHost），所以是真正貼著視窗；感應區固定不動，hover 只縮放裡面的徽章，不會抖動。
+ * 螢幕很大時 JS 會把它移到內容框右外側，不然離內容太遠很難發現。 */
+.craft-fab{
+  position:fixed;right:18px;bottom:calc(24px + env(safe-area-inset-bottom, 0px));z-index:9000;
+  width:76px;display:flex;flex-direction:column;align-items:center;
+  transition:opacity .25s ease, transform .25s ease
 }
-.craft-explore-fab:hover{transform:translateX(-5px);box-shadow:-9px 6px 26px rgba(0,0,0,.65)}
-.craft-explore-fab::before{
-  /* 頂端的圓珠掛勾裝飾，讓整體讀起來像「掛」在邊緣的吊飾，而不是貼在邊緣的一塊牌子 */
-  content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
-  width:13px;height:13px;border-radius:50%;
-  background:radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 60%, var(--gold-deep) 100%);
-  box-shadow:0 0 6px rgba(197,160,89,.6);
+.craft-fab.hide{opacity:0;pointer-events:none;transform:translateY(8px)}
+.craft-fab.dim{opacity:.55}
+.craft-fab.dim .wl-fab-medal{transform:scale(.84)}
+.craft-fab-medal-btn{display:block;border:none;background:none;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.craft-fab-medal-btn .wl-fab-medal{display:block} /* 放在按鈕裡是行內元素，寬高會失效，要明確設成區塊 */
+.craft-fab-medal-btn:focus-visible{outline:none}
+.craft-fab-medal-btn:focus-visible .wl-fab-medal{outline:2px solid var(--gold-bright);outline-offset:4px}
+.craft-fab-medal-btn:active .wl-fab-medal{transform:scale(.95)}
+@media (hover:hover){
+  .craft-fab-medal-btn:hover .wl-fab-medal{transform:scale(1.07);box-shadow:0 8px 20px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.6), 0 0 26px rgba(197,160,89,.55)}
 }
-.craft-explore-fab-inner{
-  display:flex;flex-direction:column;align-items:center;gap:8px;
-  width:78px;padding:20px 8px 22px 8px;
-  background:radial-gradient(150% 100% at 25% 0%, #2c1f10 0%, #150f09 55%, #0a0705 100%);
-  clip-path:polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%);
-  color:var(--gold-bright);
-}
-/* 兩欄直書文字並排，中間留間距分開；這次要求按鈕窄一點，間距跟著收斂但保留基本分隔感 */
-.craft-explore-fab-label-group{display:flex;gap:8px;padding:0}
-.craft-explore-fab-star{font-size:11px;color:var(--gold);opacity:.85;line-height:1}
-.craft-explore-fab-badge-icon{
-  width:36px;height:36px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 35% 30%, rgba(252,246,186,.35), rgba(197,160,89,.1) 65%, transparent 75%);
-  border:1px solid var(--gold);box-shadow:0 0 0 3px rgba(197,160,89,.15), 0 0 10px rgba(197,160,89,.45);
-  font-size:18px
-}
-.craft-explore-fab-label{
-  font-size:13px;letter-spacing:3px;font-family:"Noto Serif TC",serif;font-weight:600;
-  writing-mode:vertical-rl;text-orientation:upright;line-height:1.4
-}
-.craft-explore-badge{
-  position:absolute;top:8px;right:8px;
-  display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 4px;
-  border-radius:9px;background:#c5405a;color:#fff;font-size:10px;font-weight:700;box-shadow:0 0 4px rgba(0,0,0,.5)
-}
-.craft-explore-drawer{position:fixed;inset:0;z-index:50;visibility:hidden;pointer-events:none}
+.craft-fab .craft-fab-plate{cursor:pointer;width:70px;box-sizing:border-box;text-align:center;padding:2px 4px 3px 6px;margin-top:3px;transition:border-color .15s, background .15s} /* 要加 .craft-fab 前綴，不然會被共用的 .wl-fab-plate（margin-top:-8px）蓋掉 */
+.craft-fab .craft-fab-medal-btn + .craft-fab-plate{margin-top:-8px}
+.craft-fab .craft-fab-plate:hover,.craft-fab .craft-fab-plate:focus-visible{border-color:var(--gold-bright);background:linear-gradient(180deg,#3a2a14,#150f09);outline:none}
+.craft-fab .craft-fab-badge{top:-10px;right:-13px;background:linear-gradient(180deg,#e0607a,#c5405a)} /* 批次項目數維持原本的紅色；綠色保留給市場頁「已達目標價」 */
+@media (prefers-reduced-motion:reduce){.craft-fab,.craft-fab *{animation:none !important;transition:none !important}}
+@media (max-width:719px){.craft-fab{right:12px;bottom:calc(16px + env(safe-area-inset-bottom, 0px))}}
+.craft-explore-drawer{position:fixed;inset:0;z-index:10045;/* 高於全站選單（9999），低於彈出小卡 */visibility:hidden;pointer-events:none}
 .craft-explore-drawer.open{visibility:visible;pointer-events:auto}
 .craft-explore-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .25s}
 .craft-explore-drawer.open .craft-explore-backdrop{opacity:1}
