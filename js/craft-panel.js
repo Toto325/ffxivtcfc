@@ -371,17 +371,15 @@ app._craftReady = function () {
       '</div>' +
     '</div>' +
     /* 材料圖譜、批次規劃跟主要求解流程完全分開，用側邊抽屜面板呈現，分頁籤切換，不用一直往下滑 */
-    '<button type="button" id="cf-explore-trigger" class="craft-explore-fab">' +
-      '<span class="craft-explore-fab-inner">' +
-        '<span class="craft-explore-fab-star">✦</span>' +
-        '<span class="craft-explore-fab-badge-icon"><i class="ph ph-tree-structure"></i></span>' +
-        '<span class="craft-explore-fab-label-group">' +
-          '<span class="craft-explore-fab-label">圖譜材料</span>' +
-          '<span class="craft-explore-fab-label">批次規劃</span>' +
-        '</span>' +
-        '<span id="cf-batch-badge" class="craft-explore-badge" style="display:none">0</span>' +
-      '</span>' +
-    '</button>' +
+    '<div id="cf-explore-fab" class="craft-fab" role="group" aria-label="材料圖譜與批次規劃">' +
+      '<button type="button" id="cf-explore-trigger" class="craft-fab-medal-btn" title="開啟（上次用的分頁）" aria-label="開啟材料圖譜與批次規劃">' +
+        '<span class="wl-fab-medal"><span class="wl-fab-disc"><i class="ph ph-tree-structure"></i></span>' +
+          '<i class="wl-fab-gem n"></i><i class="wl-fab-gem e"></i><i class="wl-fab-gem s"></i><i class="wl-fab-gem w"></i></span>' +
+      '</button>' +
+      '<button type="button" class="wl-fab-plate craft-fab-plate" data-open-tab="material">圖譜材料</button>' +
+      '<button type="button" class="wl-fab-plate craft-fab-plate" data-open-tab="batch">批次規劃' +
+        '<span id="cf-batch-badge" class="wl-fab-badge craft-fab-badge" style="display:none">0</span></button>' +
+    '</div>' +
     '<div id="cf-explore-drawer" class="craft-explore-drawer">' +
       '<div id="cf-explore-backdrop" class="craft-explore-backdrop"></div>' +
       '<div class="craft-explore-panel">' +
@@ -441,7 +439,41 @@ app._craftReady = function () {
       '</div>' +
     '</div>';
 
+  /* 浮動按鈕與側邊抽屜掛到 <body> 底下，不留在外框裡：外框（.noble-outer-frame）有 backdrop-filter，
+   * 會讓裡面所有 position:fixed 的東西改成相對外框定位，抽屜就被關在外框那一塊，手機上空間很吃緊。
+   * 掛到 body 之後才是真正貼著畫面；再跟著生產頁是否為作用中的場景來顯示／隱藏。 */
+  let craftFabFrame = null;
+  (function mountExploreHost() {
+    const old = document.getElementById('craft-host');
+    if (old) { if (old._obs) old._obs.disconnect(); old.remove(); }
+    const host = document.createElement('div');
+    host.id = 'craft-host';
+    ['cf-explore-fab', 'cf-explore-drawer'].forEach(function (id) { const el = document.getElementById(id); if (el) host.appendChild(el); });
+    document.body.appendChild(host);
+    craftFabFrame = (root.closest && root.closest('.noble-outer-frame')) || root;
+    const scene = root.closest ? root.closest('.scene') : null;
+    const sync = function () {
+      const on = !scene || scene.classList.contains('active');
+      host.style.display = on ? '' : 'none';
+      if (!on) { const d = document.getElementById('cf-explore-drawer'); if (d) d.classList.remove('open'); }
+      if (on) { positionCraftFab(); setTimeout(positionCraftFab, 400); setTimeout(positionCraftFab, 1300); } // 場景切換有淡入動畫，多量幾次
+    };
+    if (scene && 'MutationObserver' in window) { host._obs = new MutationObserver(sync); host._obs.observe(scene, { attributes: true, attributeFilter: ['class'] }); }
+    host._sync = sync;
+  })();
+
   const $ = function (id) { return document.getElementById(id); };
+
+  /* 螢幕很大時，內容框置中、兩邊留一大片空白，貼著視窗角落的按鈕離內容很遠、很難發現；
+   * 所以右邊空間夠的話放在內容框的右外側（距離 16px），空間不夠（一般螢幕、手機）才貼視窗右下角。 */
+  function positionCraftFab() {
+    const fab = document.getElementById('cf-explore-fab');
+    if (!fab || !craftFabFrame) return;
+    const fr = craftFabFrame.getBoundingClientRect();
+    if (!fr.width) return;
+    const vw = document.documentElement.clientWidth, w = fab.offsetWidth || 72, room = vw - fr.right;
+    fab.style.right = (room >= w + 16 + 18) ? Math.round(room - w - 16) + 'px' : '';
+  }
 
   /* 這幾個「是否已經綁定過事件監聽器」的旗標，刻意放在檔案最前面（在任何可能呼叫到
    * bindWorldPopover/bindSellDepthPopover 的程式碼之前）宣告——之前這幾個let是宣告在後面，
@@ -474,16 +506,44 @@ app._craftReady = function () {
   /* ── 材料圖譜／批次規劃抽屜面板：開關與分頁籤切換 ── */
   function openExploreDrawer(tab) {
     $('cf-explore-drawer').classList.add('open');
+    $('cf-explore-fab').classList.add('hide'); // 抽屜開著時按鈕先藏起來
     if (tab) switchExploreTab(tab);
     updateMarketSettingsSummary();
   }
-  function closeExploreDrawer() { $('cf-explore-drawer').classList.remove('open'); }
+  function closeExploreDrawer() {
+    $('cf-explore-drawer').classList.remove('open');
+    $('cf-explore-fab').classList.remove('hide');
+  }
   function switchExploreTab(tab) {
     document.querySelectorAll('.craft-explore-tab').forEach(function (b) { b.classList.toggle('active', b.dataset.tab === tab); });
     $('cf-explore-material').style.display = tab === 'material' ? 'block' : 'none';
     $('cf-explore-batch').style.display = tab === 'batch' ? 'block' : 'none';
   }
-  $('cf-explore-trigger').addEventListener('click', function () { openExploreDrawer(); });
+  $('cf-explore-trigger').addEventListener('click', function () { openExploreDrawer(); }); // 中間徽章：開上次用的分頁
+  document.querySelectorAll('#cf-explore-fab [data-open-tab]').forEach(function (btn) { // 上下兩塊銘牌：直接開對應的分頁
+    btn.addEventListener('click', function () { openExploreDrawer(btn.dataset.openTab); });
+  });
+  if (!window.__craftFabBound) { // 全域事件只綁一次（生產頁重新建立時不要重複綁）
+    window.__craftFabBound = true;
+    document.addEventListener('keydown', function (e) {
+      const d = document.getElementById('cf-explore-drawer');
+      if (e.key === 'Escape' && d && d.classList.contains('open')) { d.classList.remove('open'); const f = document.getElementById('cf-explore-fab'); if (f) f.classList.remove('hide'); }
+    });
+    window.addEventListener('resize', function () { positionCraftFab(); });
+    const lastTop = new WeakMap(); let dimTimer = null; // 捲動時（往上、往下都算）按鈕縮小變暗，停止約 0.7 秒後恢復
+    document.addEventListener('scroll', function (e) {
+      const fab = document.getElementById('cf-explore-fab'), t = e.target === document ? document.scrollingElement : e.target;
+      if (!fab || !t || typeof t.scrollTop !== 'number') return;
+      const dr = document.getElementById('cf-explore-drawer');
+      if (dr && dr.contains(t)) return; // 抽屜自己的捲動不算
+      const prev = lastTop.has(t) ? lastTop.get(t) : 0, cur = t.scrollTop;
+      lastTop.set(t, cur);
+      if (cur === prev) return;
+      fab.classList.add('dim');
+      clearTimeout(dimTimer);
+      dimTimer = setTimeout(function () { fab.classList.remove('dim'); }, 700);
+    }, true);
+  }
   $('cf-explore-backdrop').addEventListener('click', closeExploreDrawer);
   $('cf-explore-close').addEventListener('click', closeExploreDrawer);
   document.querySelectorAll('.craft-explore-tab').forEach(function (btn) {
