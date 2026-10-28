@@ -135,6 +135,7 @@
 }
 .wl-dd-opt:hover, .wl-dd-opt:focus-visible { background: rgba(197,160,89,.16); color: var(--gold-bright); outline: none; }
 .wl-dd-opt.on { color: var(--gold-bright); }
+.wl-dd-sep { height: 1px; margin: 4px 8px; background: rgba(197,160,89,.28); }
 .wl-dd-opt.on::after { content: '✓'; font-size: 11px; color: var(--gold); }
 .wl-status { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 14px 6px 16px; font-size: 11px; color: var(--dim); min-height: 26px; flex-shrink: 0; }
 .wl-status.warn { color: #fb923c; }
