@@ -84,7 +84,7 @@
 
   /* ───────────── 狀態讀寫 ───────────── */
   function defaultPrefs() {
-    return { view: 'table', wide: false, scope: 'dc', cols: ['change', 'updated'], avgWin: 'current', sort: 'default', tag: '', auto: true, interval: 5 };
+    return { view: 'table', wide: false, scope: 'dc', cols: ['change', 'updated'], avgWin: 'current', sort: 'default', pinHit: false, tag: '', auto: true, interval: 5 };
   }
   function loadState() {
     var raw = readJson(WATCH_KEY, []);
@@ -600,7 +600,12 @@
       freq: function (a, b) { return numCmp(a.freq, b.freq, -1); },
     };
     var f = by[prefs.sort] || by['default'];
-    return ms.sort(function (a, b) { return f(a, b) || a.i - b.i; });
+    ms.sort(function (a, b) { return f(a, b) || a.i - b.i; });
+    if (prefs.pinHit) { // 達標項目置頂：不改變目前選的排序，只是把達標的整批移到最前面，兩批各自維持原本的排序
+      var hit = ms.filter(function (m) { return m.reached; }), rest = ms.filter(function (m) { return !m.reached; });
+      return hit.concat(rest);
+    }
+    return ms;
   }
 
   /* ───────────── 畫面：渲染 ───────────── */
@@ -636,13 +641,13 @@
     els.count.textContent = list.length ? '（' + list.length + '）' : '';
   }
   /* 自製下拉選單：瀏覽器原生的選項列表只能改底色，改不了選中列的高亮和邊框，所以自己畫 */
-  function ddHtml(name, value, options) {
+  function ddHtml(name, value, options, extra) {
     var cur = options.filter(function (o) { return o[0] === value; })[0] || options[0];
     return '<div class="wl-dd" data-dd="' + name + '">' +
       '<button type="button" class="wl-dd-btn" data-act="dd-toggle" aria-haspopup="listbox" aria-expanded="false"><span>' + esc(cur[1]) + '</span><i class="ph ph-caret-down"></i></button>' +
       '<div class="wl-dd-list" role="listbox" hidden>' + options.map(function (o) {
         return '<button type="button" role="option" class="wl-dd-opt' + (o[0] === value ? ' on' : '') + '" data-act="dd-pick" data-v="' + esc(o[0]) + '" aria-selected="' + (o[0] === value) + '">' + esc(o[1]) + '</button>';
-      }).join('') + '</div></div>';
+      }).join('') + (extra || '') + '</div></div>';
   }
   function closeDropdowns() {
     if (!els.drawer) return false;
@@ -675,7 +680,7 @@
       '<div class="wl-seg icons" role="group" aria-label="檢視方式">' +
         '<button type="button" data-act="view" data-v="table" class="' + (prefs.view === 'table' ? 'on' : '') + '" title="表格"><i class="ph ph-list-dashes"></i></button>' +
         '<button type="button" data-act="view" data-v="card" class="' + (prefs.view === 'card' ? 'on' : '') + '" title="卡片"><i class="ph ph-squares-four"></i></button></div>' +
-      ddHtml('sort', prefs.sort, SORTS);
+      ddHtml('sort', prefs.sort, SORTS, '<div class="wl-dd-sep"></div><button type="button" role="menuitemcheckbox" class="wl-dd-opt wl-dd-check' + (prefs.pinHit ? ' on' : '') + '" data-act="pin-toggle" aria-checked="' + !!prefs.pinHit + '" title="不改變上面選的排序，只把已達目標價的物品移到最前面">達標項目置頂</button>');
   }
   function renderStatus() {
     if (!els.status) return;
@@ -826,6 +831,11 @@
     switch (act) {
       case 'close': closeDrawer(); break;
       case 'dd-toggle': toggleDropdown(btn.closest('.wl-dd')); break;
+      case 'pin-toggle': // 勾選／取消：下拉選單保持開著，清單立刻重排
+        prefs.pinHit = !prefs.pinHit; savePrefs();
+        btn.classList.toggle('on', prefs.pinHit); btn.setAttribute('aria-checked', String(prefs.pinHit));
+        renderBody();
+        break;
       case 'dd-pick': {
         var ddName = btn.closest('.wl-dd').dataset.dd;
         if (ddName === 'sort') { prefs.sort = btn.dataset.v; savePrefs(); renderToolbar(); renderBody(); }
@@ -905,7 +915,7 @@
       var opt = e.target.closest && e.target.closest('.wl-dd-opt');
       if (opt && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault();
-        var opts = [].slice.call(opt.parentNode.children), nx = opts[opts.indexOf(opt) + (e.key === 'ArrowDown' ? 1 : -1)];
+        var opts = [].slice.call(opt.parentNode.querySelectorAll('.wl-dd-opt')), nx = opts[opts.indexOf(opt) + (e.key === 'ArrowDown' ? 1 : -1)];
         if (nx) nx.focus();
         return;
       }
@@ -933,16 +943,15 @@
       if (els.drawer) renderAll();
       fireChange();
     });
-    var lastTop = new WeakMap(), dimTimer = null; // 往下捲：浮動按鈕縮小淡出，不擋內容；往上捲（任何一點點）或停下來就恢復
+    var lastTop = new WeakMap(), dimTimer = null; // 只要在捲動（往上、往下都算），浮動按鈕就縮小變暗；停止捲動約 0.7 秒後恢復
     document.addEventListener('scroll', function (e) {
       var t = e.target === document ? document.scrollingElement : e.target;
       if (!t || typeof t.scrollTop !== 'number' || !els.fab) return;
       if (els.drawer && els.drawer.contains(t)) return; // 抽屜自己的捲動不算
-      var prev = lastTop.has(t) ? lastTop.get(t) : 0, cur = t.scrollTop; // 第一次捲動時，之前的位置當作在最上面
+      var prev = lastTop.has(t) ? lastTop.get(t) : 0, cur = t.scrollTop;
       lastTop.set(t, cur);
       if (cur === prev) return;
-      if (cur > prev && cur > 60) els.fab.classList.add('dim');
-      else if (cur < prev) els.fab.classList.remove('dim');
+      els.fab.classList.add('dim');
       clearTimeout(dimTimer);
       dimTimer = setTimeout(function () { if (els.fab) els.fab.classList.remove('dim'); }, 700);
     }, true);
