@@ -372,11 +372,11 @@ app._craftReady = function () {
     '</div>' +
     /* 材料圖譜、批次規劃跟主要求解流程完全分開，用側邊抽屜面板呈現，分頁籤切換，不用一直往下滑 */
     '<div id="cf-explore-fab" class="craft-fab" role="group" aria-label="材料圖譜與批次規劃">' +
+      '<button type="button" class="wl-fab-plate craft-fab-plate" data-open-tab="material">圖譜材料</button>' +
       '<button type="button" id="cf-explore-trigger" class="craft-fab-medal-btn" title="開啟（上次用的分頁）" aria-label="開啟材料圖譜與批次規劃">' +
         '<span class="wl-fab-medal"><span class="wl-fab-disc"><i class="ph ph-tree-structure"></i></span>' +
           '<i class="wl-fab-gem n"></i><i class="wl-fab-gem e"></i><i class="wl-fab-gem s"></i><i class="wl-fab-gem w"></i></span>' +
       '</button>' +
-      '<button type="button" class="wl-fab-plate craft-fab-plate" data-open-tab="material">圖譜材料</button>' +
       '<button type="button" class="wl-fab-plate craft-fab-plate" data-open-tab="batch">批次規劃' +
         '<span id="cf-batch-badge" class="wl-fab-badge craft-fab-badge" style="display:none">0</span></button>' +
     '</div>' +
@@ -405,14 +405,14 @@ app._craftReady = function () {
             '<div id="cf-material-graph" class="craft-material-graph"></div>' +
           '</div>' +
           '<div id="cf-explore-batch" class="craft-explore-pane" style="display:none">' +
-            '<div class="craft-row"><span class="craft-label"><i class="ph ph-stack"></i>批次清單　<span class="craft-muted">可拖曳／點按上下箭頭調整順序，支援依序求解</span></span><a href="#" id="cf-batch-clear" class="craft-link" style="margin-left:auto">清空</a></div>' +
+            '<div class="craft-row craft-batch-head"><span class="craft-label"><i class="ph ph-stack"></i>批次清單<span id="cf-batch-count" class="craft-count-chip"></span></span><a href="#" id="cf-batch-clear" class="craft-link craft-icon-link" title="清空批次清單"><i class="ph ph-trash"></i>清空</a></div>' +
             '<div id="cf-batch-seq-nav" class="craft-batch-seq-nav" style="display:none"></div>' +
             '<div id="cf-batch-list" class="craft-batch-list"></div>' +
-            '<div class="craft-ingredients"><p class="craft-ingredients-title">整批訂單規劃　<span class="craft-muted">材料彙總／購物清單，可選「自己做」往下展開，或維持採購</span></p>' +
+            '<div class="craft-ingredients"><p class="craft-ingredients-title" title="材料彙總／購物清單；可選「自己做」往下展開，或維持採購">整批訂單規劃</p>' +
               '<div class="craft-row" style="gap:8px;margin:2px 0 6px;flex-wrap:wrap">' +
                 '<button type="button" id="cf-batch-autosuggest" class="craft-batch-autosuggest-btn"><i class="ph ph-magic-wand"></i>自動建議</button>' +
-                '<button type="button" id="cf-batch-share" class="craft-copy-btn"><i class="ph ph-share-network"></i>分享批次</button>' +
-                '<label class="craft-watch-toggle"><input type="checkbox" id="cf-batch-watch"><span><i class="ph ph-bell"></i>持續關注（瀏覽器需開著）</span></label>' +
+                '<button type="button" id="cf-batch-share" class="craft-copy-btn" title="產生分享連結／文字，把這份批次清單給別人"><i class="ph ph-share-network"></i>分享</button>' +
+                '<label class="craft-watch-toggle" title="持續關注：定時檢查整批成本，有划算的變化就通知（瀏覽器需開著才有效）"><input type="checkbox" id="cf-batch-watch"><span class="craft-switch"></span><span class="craft-switch-label"><i class="ph ph-bell"></i>持續關注</span></label>' +
               '</div>' +
               '<div id="cf-batch-autosuggest-status" class="craft-muted" style="font-size:11px;margin-bottom:4px"></div>' +
               /* 「依材料」是原本的購物清單（一項材料一列，告訴你要買多少、多少錢）；
@@ -424,14 +424,14 @@ app._craftReady = function () {
                   '<button type="button" class="craft-batchview-tab active" data-batchview="item">依材料</button>' +
                   '<button type="button" class="craft-batchview-tab" data-batchview="world">依世界</button>' +
                 '</div>' +
-                '<select id="cf-batch-sort" class="craft-select" style="font-size:11px;min-width:0;flex:0 0 auto">' +
+                '<select id="cf-batch-sort" class="craft-select craft-native-hidden" style="font-size:11px;min-width:0;flex:0 0 auto">' +
                   '<option value="id" selected>排序：物品ID</option>' +
                   '<option value="amount">排序：數量多到少</option>' +
                   '<option value="cost">排序：成本高到低</option>' +
                   '<option value="name">排序：名稱</option>' +
                 '</select>' +
               '</div>' +
-              '<div id="cf-batch-cost-summary" class="craft-muted" style="margin-bottom:6px"></div>' +
+              '<div id="cf-batch-cost-summary" style="margin-bottom:8px"></div>' +
               '<div id="cf-batch-materials"></div>' +
               '<div id="cf-batch-byworld" style="display:none"></div></div>' +
           '</div>' +
@@ -439,13 +439,119 @@ app._craftReady = function () {
       '</div>' +
     '</div>';
 
+  /* ── 自動適應（跟市場頁同一套概念）──
+   * 內容長度每次都不一樣（數字位數、名字長短），固定寫死的間距一定會有某些情況被擠成參差不齊的兩行。
+   * 所以改成渲染後量測：數字摘要格依序試「正常→縮緊→更緊」，都放不下才換成均分的格子；
+   * 按鈕列（職業篩選）換行時，把數量平均分到每一排（9 顆寫成 5＋4，不是 7＋2）。 */
+  const cfFitTargets = new WeakMap();
+  const cfFitRO = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(function (entries) {
+    entries.forEach(function (en) {
+      const t = cfFitTargets.get(en.target); if (!t) return;
+      const w = Math.round(en.contentRect.width);
+      if (t.w !== w) { t.w = w; t.fn(); } // 只有寬度變了才重算；重算只改高度，不會造成循環
+    });
+  }) : null;
+  function cfObserveFit(el, fn) {
+    if (!cfFitRO || !el) return;
+    if (cfFitTargets.has(el)) { cfFitTargets.get(el).fn = fn; return; }
+    cfFitTargets.set(el, { fn: fn, w: -1 });
+    cfFitRO.observe(el);
+  }
+  function fitCraftBar(bar) {
+    if (!bar || !bar.isConnected) return;
+    const tiles = Array.prototype.slice.call(bar.querySelectorAll('.craft-stat-tile'));
+    bar.style.removeProperty('--cs-cols');
+    tiles.forEach(function (t) { t.classList.remove('cs-end', 'cs-last-row'); t.style.gridColumn = ''; });
+    if (tiles.length < 2) { bar.removeAttribute('data-fit'); return; }
+    const oneRow = function () { return tiles[tiles.length - 1].offsetTop - tiles[0].offsetTop < 2; };
+    for (let lvl = 0; lvl <= 2; lvl++) { bar.dataset.fit = String(lvl); if (oneRow()) return; }
+    let maxW = 0;
+    tiles.forEach(function (t) { maxW = Math.max(maxW, t.offsetWidth); });
+    const W = bar.clientWidth;
+    if (!W || !maxW) return;
+    const k = Math.max(1, Math.floor(W / maxW)), rows = Math.ceil(tiles.length / k), cols = Math.ceil(tiles.length / rows);
+    bar.dataset.fit = '3';
+    bar.style.setProperty('--cs-cols', String(cols));
+    tiles.forEach(function (t, i) {
+      if ((i + 1) % cols === 0 || i === tiles.length - 1) t.classList.add('cs-end');
+      if (i >= cols * (rows - 1)) t.classList.add('cs-last-row');
+    });
+    const rem = tiles.length % cols;
+    if (rem) tiles[tiles.length - 1].style.gridColumn = 'span ' + (cols - rem + 1); // 最後一排不滿時，最後一格撐滿剩下的空位，不留空格
+  }
+  function fitChipRow(row) {
+    if (!row || !row.isConnected) return;
+    const kids = Array.prototype.slice.call(row.children);
+    row.style.display = ''; row.style.gridTemplateColumns = ''; row.classList.remove('is-grid');
+    row.style.width = '100%'; row.style.boxSizing = 'border-box'; // 沒撐滿寬度的話，網格會縮成貼著內容的窄條
+    const W = row.clientWidth;
+    if (kids.length < 2 || !W) return;
+    let maxW = 0;
+    kids.forEach(function (k) { maxW = Math.max(maxW, k.offsetWidth); });
+    const GAP = 4, per = Math.max(1, Math.floor((W + GAP) / (maxW + GAP))), rows = Math.ceil(kids.length / per);
+    if (rows < 2) return; // 一排放得下就維持自然寬度
+    const cols = Math.ceil(kids.length / rows);
+    row.style.display = 'grid'; row.style.gridTemplateColumns = 'repeat(' + cols + ',minmax(0,1fr))'; row.classList.add('is-grid');
+  }
+  /* 瀏覽器原生下拉的選項列表改不了高亮和邊框，所以用自製的取代：原本的 <select> 留著（隱藏），
+   * 選了之後照樣改它的值並觸發 change，原本的邏輯完全不用動。樣式共用 .wl-dd*（page-market-watchlist.css）。 */
+  function enhanceSelect(sel) {
+    if (!sel || sel._enhanced) return;
+    sel._enhanced = true;
+    const wrap = document.createElement('div');
+    wrap.className = 'wl-dd craft-dd';
+    wrap.innerHTML = '<button type="button" class="wl-dd-btn" aria-haspopup="listbox" aria-expanded="false"><span></span><i class="ph ph-caret-down"></i></button><div class="wl-dd-list" role="listbox" hidden></div>';
+    sel.parentNode.insertBefore(wrap, sel.nextSibling);
+    const btn = wrap.querySelector('.wl-dd-btn'), list = wrap.querySelector('.wl-dd-list');
+    const close = function () { list.hidden = true; wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+    const render = function () {
+      btn.firstElementChild.textContent = sel.options[sel.selectedIndex].text;
+      list.innerHTML = Array.prototype.map.call(sel.options, function (o) {
+        return '<button type="button" role="option" class="wl-dd-opt' + (o.selected ? ' on' : '') + '" data-v="' + o.value + '">' + o.text + '</button>';
+      }).join('');
+    };
+    render();
+    btn.addEventListener('click', function () {
+      const was = !list.hidden;
+      document.querySelectorAll('.craft-dd .wl-dd-list').forEach(function (l) { l.hidden = true; l.parentNode.classList.remove('open'); });
+      if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+    });
+    list.addEventListener('click', function (e) {
+      const o = e.target.closest('.wl-dd-opt'); if (!o) return;
+      sel.value = o.dataset.v;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      render(); close();
+    });
+    document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) close(); });
+    document.addEventListener('keydown', function (e) { // 先關下拉，再讓 Esc 去關抽屜
+      if (e.key === 'Escape' && !list.hidden) { close(); e.stopPropagation(); }
+    }, true);
+  }
+  /* 數字摘要格＋小標籤：標籤放警告／附註（原本是整行長句），完整說明放進 title，需要時才看 */
+  function craftStatHtml(tiles, chips) {
+    return '<div class="craft-stat-bar">' + tiles.map(function (t) {
+      return '<div class="craft-stat-tile' + (t.cls ? ' ' + t.cls : '') + '"' + (t.title ? ' title="' + t.title + '"' : '') + '>' +
+        '<span class="cst-label">' + t.label + '</span>' +
+        '<span class="cst-val"' + (t.color ? ' style="color:' + t.color + '"' : '') + '>' + t.value + (t.unit ? '<small>' + t.unit + '</small>' : '') + (t.extra || '') + '</span></div>';
+    }).join('') + '</div>' +
+      (chips && chips.length ? '<div class="craft-chips">' + chips.map(function (c) {
+        return '<span class="craft-chip' + (c.cls ? ' ' + c.cls : '') + '"' + (c.title ? ' title="' + c.title + '"' : '') + '>' + (c.icon ? '<i class="ph ' + c.icon + '"></i>' : '') + c.text + '</span>';
+      }).join('') + '</div>' : '');
+  }
+  function mountCraftStat(el, tiles, chips) {
+    el.innerHTML = craftStatHtml(tiles, chips);
+    const bar = el.querySelector('.craft-stat-bar');
+    fitCraftBar(bar);
+    cfObserveFit(bar, function () { fitCraftBar(bar); });
+  }
+
   /* 浮動按鈕與側邊抽屜掛到 <body> 底下，不留在外框裡：外框（.noble-outer-frame）有 backdrop-filter，
    * 會讓裡面所有 position:fixed 的東西改成相對外框定位，抽屜就被關在外框那一塊，手機上空間很吃緊。
    * 掛到 body 之後才是真正貼著畫面；再跟著生產頁是否為作用中的場景來顯示／隱藏。 */
   let craftFabFrame = null;
   (function mountExploreHost() {
     const old = document.getElementById('craft-host');
-    if (old) { if (old._obs) old._obs.disconnect(); old.remove(); }
+    if (old) { if (old._obs) old._obs.disconnect(); if (old._ro) old._ro.disconnect(); old.remove(); }
     const host = document.createElement('div');
     host.id = 'craft-host';
     ['cf-explore-fab', 'cf-explore-drawer'].forEach(function (id) { const el = document.getElementById(id); if (el) host.appendChild(el); });
@@ -459,7 +565,9 @@ app._craftReady = function () {
       if (on) { positionCraftFab(); setTimeout(positionCraftFab, 400); setTimeout(positionCraftFab, 1300); } // 場景切換有淡入動畫，多量幾次
     };
     if (scene && 'MutationObserver' in window) { host._obs = new MutationObserver(sync); host._obs.observe(scene, { attributes: true, attributeFilter: ['class'] }); }
+    if (typeof ResizeObserver !== 'undefined') { host._ro = new ResizeObserver(positionCraftFab); host._ro.observe(craftFabFrame); } // 內容框尺寸一變（顯示出來、視窗縮放）就重新量位置
     host._sync = sync;
+    sync(); // 第一次建立時也要算一次位置；之前只在「換頁」時才算，所以第一次進來螢幕夠大時它會停在很遠的視窗角落
   })();
 
   const $ = function (id) { return document.getElementById(id); };
@@ -582,6 +690,7 @@ app._craftReady = function () {
       renderBatch();
     });
   }, 'cf-batch-sort');
+  safeBind(function () { enhanceSelect($('cf-batch-sort')); }, 'cf-batch-sort-dropdown'); // 排序下拉換成自製樣式（原本的 select 隱藏但照常運作）
   safeBind(function () { $('cf-batch-share').addEventListener('click', shareBatch); }, 'cf-batch-share');
   safeBind(function () {
     $('cf-batch-watch').addEventListener('change', function () { onBatchWatchToggle(this.checked); });
@@ -1057,20 +1166,20 @@ app._craftReady = function () {
       }
 
       if (summaryEl) {
-        let html = '整批預估採購成本：<strong>' + Math.round(fin.totalCost).toLocaleString() + '金</strong>' +
-          '<span style="opacity:.7">（已含買方稅）</span>' +
-          (fin.shortageCount > 0 ? '　<span style="color:#d97706">（' + fin.shortageCount + '項市場庫存不足以湊滿數量，成本僅計算查得到的部分）</span>' : '');
+        const tiles = [{ label: '採購成本', value: Math.round(fin.totalCost).toLocaleString(), unit: '金', title: '整批預估採購成本（已含買方稅）' }];
+        const chips = [];
+        if (fin.shortageCount > 0) chips.push({ cls: 'warn', icon: 'ph-warning', text: fin.shortageCount + '項庫存不足', title: fin.shortageCount + '項市場庫存不足以湊滿數量，成本僅計算查得到的部分' });
         if (!settings.worldName) {
-          html += '<br>尚未設定「我的世界」，抽屜市場設定裡選一下就能看到整批預估淨利';
+          chips.push({ icon: 'ph-info', text: '未設定我的世界', title: '尚未設定「我的世界」，市場設定裡選一下就能看到整批預估收入與淨利' });
         } else {
-          html += '<br>整批成品預估收入：<strong>' + Math.round(fin.netRevenue).toLocaleString() + '金</strong>' +
-            (taxInfo ? '<span style="opacity:.7">（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）</span>' : '<span style="opacity:.7">（稅率查詢失敗，此數字未扣賣方稅）</span>') +
-            (fin.missingSell > 0 ? '<span style="opacity:.7">，' + fin.missingSell + '項無賣出掛單未計入</span>' : '') +
-            '<br>整批預估淨利：<strong style="color:' + (fin.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (fin.profit >= 0 ? '+' : '') + Math.round(fin.profit).toLocaleString() + '金</strong>' +
-            '<span style="opacity:.7">（不含製作時間成本，僅供參考）</span>' +
-            (batchList.length === 1 ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + batchList[0].itemId + '" data-selldepth-qty="' + batchList[0].quantity + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '');
+          tiles.push({ label: '預計收入', value: Math.round(fin.netRevenue).toLocaleString(), unit: '金',
+            title: taxInfo ? '整批成品預估收入（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '整批成品預估收入（稅率查詢失敗，此數字未扣賣方稅）',
+            extra: batchList.length === 1 ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + batchList[0].itemId + '" data-selldepth-qty="' + batchList[0].quantity + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '' });
+          tiles.push({ label: '預估淨利', value: (fin.profit >= 0 ? '+' : '') + Math.round(fin.profit).toLocaleString(), unit: '金', color: fin.profit >= 0 ? '#4ade80' : '#f87171', cls: fin.profit >= 0 ? 'good' : 'bad', title: '不含製作時間成本，僅供參考' });
+          if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣賣方稅', title: '稅率查詢失敗，收入與淨利未扣賣方稅' });
+          if (fin.missingSell > 0) chips.push({ icon: 'ph-info', text: fin.missingSell + '項無賣出價', title: fin.missingSell + '項無賣出掛單，未計入收入' });
         }
-        summaryEl.innerHTML = html;
+        mountCraftStat(summaryEl, tiles, chips);
         bindSellDepthPopover();
       }
       renderByWorldView(results, nameByItem, rows, craftRows);
@@ -1463,6 +1572,7 @@ app._craftReady = function () {
    * 就算沒打字，只要選了職業或填了等級範圍，也會直接列出結果，不強制一定要先打名字。 ── */
   $('cf-job-filter').innerHTML = '<button type="button" class="craft-job-filter-btn active" data-job="all">全部</button>' +
     JOBS.map(function (j) { return '<button type="button" class="craft-job-filter-btn" data-job="' + j.id + '">' + j.name + '</button>'; }).join('');
+  (function () { const row = $('cf-job-filter'); fitChipRow(row); cfObserveFit(row, function () { fitChipRow(row); }); })(); // 換行時平均分配，不要 7＋2
   let filterJob = 'all';
   function setJobFilterSilent(jobId) {
     filterJob = String(jobId);
@@ -1661,43 +1771,32 @@ app._craftReady = function () {
         materialCost += r.totalCost || 0;
         if (!r.filledQty) unresolvedCount++;
       });
-      const line1 = [];
-      line1.push('<i class="ph ph-package"></i>材料成本約 <strong>' + Math.round(materialCost).toLocaleString() + '金</strong>' +
-        '<span style="opacity:.7">（已含買方稅）</span>' +
-        (unresolvedCount ? '<span style="opacity:.7">，' + unresolvedCount + '項查無掛單未計入</span>' : ''));
-      let velocityText = '';
-      if (velocity && velocity.totalVelocityPerDay) {
-        // 跟利潤數字用同一個綠色、加粗，讓幾個重要數字視覺權重一致，掃視時比較好對照
-        const scopeNote = velocity.usedScope === 'world' ? '' : '<span style="opacity:.7">（DC整體，僅供參考）</span>';
-        velocityText = '　近4天賣出速度約 <strong style="color:#4ade80">' + velocity.totalVelocityPerDay.toFixed(1) + ' 件/天</strong>' + scopeNote;
-      } else if (velocity && velocity.usedScope === null) {
-        velocityText = '　<span style="opacity:.7">近4天查無成交紀錄，可能較冷門</span>';
-      }
-      let line2 = '';
+      const tiles = [{ label: '材料成本', value: Math.round(materialCost).toLocaleString(), unit: '金', title: '材料成本（已含買方稅）' }];
+      const chips = [];
+      if (unresolvedCount) chips.push({ cls: 'warn', icon: 'ph-warning', text: unresolvedCount + '項查無掛單', title: unresolvedCount + '項材料查無掛單，未計入成本' });
       if (sellRef) {
         // 賣方稅依退休所在城市而不同，這裡假設玩家會把退休放在「目前稅率最低」的城市（理性賣家的作法），
-        // 抓不到稅率資料時退回不扣稅，並在文字上註明，避免顯示一個沒說清楚假設的數字。城市／方案這些細節
-        // 先前寫得太完整反而佔位置，濃縮成「已扣X%賣方稅」，真的想知道細節可以點旁邊那顆世界資訊icon。
+        // 抓不到稅率資料時退回不扣稅並註明；主要顯示稅後實拿金額，原始掛單價可以點旁邊的世界資訊icon查。
         const rate = taxInfo ? taxInfo.ratePercent : 0;
         const netSell = sellRef.price * (1 - rate / 100);
         const profit = netSell - materialCost;
-        // 主要顯示的數字改成稅後實拿金額，不是掛單原價——原價當主要數字容易讓人誤以為那是實拿的錢，
-        // 稅率放在括號裡說明「為什麼是這個數字」，原始掛單價可以點旁邊的世界資訊icon查。
-        line1.push('<i class="ph ph-tag"></i>' + settings.worldName + '賣出約 <strong>' + Math.round(netSell).toLocaleString() + '金</strong>' +
-          (taxInfo ? '<span style="opacity:.7">（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）</span>' : '<span style="opacity:.7">（稅率查詢失敗，此數字未扣賣方稅）</span>') +
-          ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>');
-        line2 = '預估淨利 <strong style="color:' + (profit >= 0 ? '#4ade80' : '#f87171') + '">' + (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString() + '金</strong>' +
-          '<span style="opacity:.7">／件（僅單件製作，不含製作時間成本）</span>' + velocityText;
+        tiles.push({ label: settings.worldName + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
+          title: taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅',
+          extra: ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' });
+        tiles.push({ label: '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? '#4ade80' : '#f87171', cls: profit >= 0 ? 'good' : 'bad', title: '僅單件製作，不含製作時間成本' });
+        if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣賣方稅', title: '稅率查詢失敗，賣出與淨利未扣賣方稅' });
       } else if (!settings.worldName) {
-        line2 = '<span style="opacity:.7">未設定「我的世界」，看不到賣出參考與淨利</span>' + velocityText;
+        chips.push({ icon: 'ph-info', text: '未設定我的世界', title: '未設定「我的世界」，看不到賣出參考與淨利' });
       } else {
-        // 世界其實已經設定好了，只是這個物品目前該世界查不到掛單（可能沒人在賣，或剛好賣光），
-        // 不能跟「根本沒設定世界」用同一句話講，不然玩家會誤以為是自己忘了設定。
-        line2 = '<span style="opacity:.7">' + settings.worldName + '目前查無掛單（可能沒有人在賣），看不到賣出參考與淨利</span>' + velocityText;
+        chips.push({ icon: 'ph-info', text: settings.worldName + '查無掛單', title: settings.worldName + '目前查無掛單（可能沒有人在賣），看不到賣出參考與淨利' });
       }
-      // 材料成本＋賣出算同一組（「花多少、賣多少」），淨利＋銷售速度算另一組（「賺多少、賣不賣得掉」），
-      // 兩組資訊性質不同，斷成真正的兩行，不要全部用全形空格接在一起，寬度不夠就斷得亂七八糟。
-      el.innerHTML = '<div>' + line1.join('　') + '</div><div style="margin-top:4px">' + line2 + '</div>';
+      if (velocity && velocity.totalVelocityPerDay) {
+        tiles.push({ label: '賣速', value: velocity.totalVelocityPerDay.toFixed(1), unit: '件/天', color: '#4ade80', title: '近4天賣出速度' + (velocity.usedScope === 'world' ? '' : '（DC整體，僅供參考）') });
+        if (velocity.usedScope !== 'world') chips.push({ icon: 'ph-globe', text: '賣速為所有世界', title: '賣出速度是整個資料中心的數字，僅供參考' });
+      } else if (velocity && velocity.usedScope === null) {
+        chips.push({ icon: 'ph-snowflake', text: '近4天無成交', title: '近4天查無成交紀錄，可能較冷門' });
+      }
+      mountCraftStat(el, tiles, chips);
       bindSellDepthPopover();
     }).catch(function () { el.textContent = ''; });
   }
@@ -2022,12 +2121,12 @@ app._craftReady = function () {
     const recipe = CRAFT_RECIPES[selectedRecipe.id];
     const usedInCount = (ITEM_USED_IN[recipe.itemId] || []).length;
     box.innerHTML =
-      '<p class="craft-ingredients-title">材料關聯圖譜　<span class="craft-muted">點展開可以一路往下／往上查</span></p>' +
-      '<div class="craft-mat-section-label">▾ 材料還能再往下拆的（可製作的材料才會有展開鈕）</div>' +
+      '<p class="craft-ingredients-title" title="點展開鈕可以一路往下／往上查；只有「可製作」的材料才有展開鈕">材料圖譜</p>' +
+      '<div class="craft-mat-section-label"><i class="ph ph-arrow-down"></i>材料組成</div>' +
       recipe.ingredients.map(function (ing) { return materialNodeHtml(ing.itemId, 'down', ''); }).join('') +
       (usedInCount > 0
-        ? '<div class="craft-mat-section-label" style="margin-top:10px">▾ 這個成品還能用在哪</div>' + materialNodeHtml(recipe.itemId, 'up', '', selectedRecipe.id)
-        : '<p class="craft-muted" style="margin-top:10px">這個成品目前查不到被用在其他配方裡（可能是終端道具）</p>');
+        ? '<div class="craft-mat-section-label" style="margin-top:10px"><i class="ph ph-arrow-up"></i>用在哪些配方</div>' + materialNodeHtml(recipe.itemId, 'up', '', selectedRecipe.id)
+        : '<div class="craft-chips" style="margin-top:10px"><span class="craft-chip" title="這個成品目前查不到被用在其他配方裡（可能是終端道具）"><i class="ph ph-flag"></i>終端道具，沒有被其他配方使用</span></div>');
     box.querySelectorAll('.craft-mat-toggle').forEach(bindToggle);
     bindMatActions(box);
     fillNodePrices(box);
@@ -2124,18 +2223,21 @@ app._craftReady = function () {
     });
   }
 
+  const batchOpen = new Set(); // 哪些批次項目的「更多」是展開的（重新渲染時要記住）
   function renderBatch() {
     saveBatchList(); // 批次清單有任何變動都會走到這裡，統一在這裡存檔，不用每個修改批次的地方各自記得存一次
     updateBatchBadge(); // 抽屜是使用者自己點開的，就算批次是空的也照樣渲染，不用整塊隱藏；但觸發鈕上的數字要更新
     renderSolveNav(); // 批次項目數量變了，主界面導覽列「批次順序」選項要不要出現／要不要自動退回瀏覽紀錄模式也要跟著更新
     if (batchList.length === 0) {
-      $('cf-batch-list').innerHTML = '<p class="craft-muted">目前沒有加入任何批次項目，搜尋配方後可以「加入批次規劃」，或在材料圖譜上點加號。</p>';
+      $('cf-batch-list').innerHTML = '<div class="craft-empty"><i class="ph ph-stack"></i><p>批次是空的</p><small>搜尋配方後按「加入批次規劃」，或在材料圖譜點 ＋</small></div>';
       $('cf-batch-materials').innerHTML = '';
+      const ce = $('cf-batch-count'); if (ce) ce.textContent = '';
       return;
     }
 
     $('cf-batch-list').innerHTML = batchList.map(function (b, i) {
-      return '<div class="craft-ing-row craft-batch-row" data-idx="' + i + '" draggable="true">' +
+      const open = batchOpen.has(String(b.recipeId));
+      return '<div class="craft-ing-row craft-batch-row' + (open ? ' is-open' : '') + (i === batchSeqIndex ? ' is-current' : '') + '" data-idx="' + i + '" data-rid="' + b.recipeId + '" draggable="true">' +
         '<span class="craft-batch-drag-handle" title="拖曳調整順序"><i class="ph ph-dots-six-vertical"></i></span>' +
         '<span class="craft-batch-order-num">' + (i + 1) + '</span>' +
         '<span class="craft-ing-name">' + b.name + '</span>' +
@@ -2145,15 +2247,27 @@ app._craftReady = function () {
             '<span class="craft-ing-split" style="min-width:30px">×' + b.quantity + '</span>' +
             '<button type="button" class="craft-step-btn" data-batch-idx="' + i + '" data-dir="1">+</button>' +
           '</div>' +
+          '<button type="button" class="craft-batch-morebtn" data-batch-more="' + b.recipeId + '" title="更多：調整順序、設為求解對象、移除" aria-expanded="' + open + '"><i class="ph ph-caret-down"></i></button>' +
+        '</div>' +
+        '<div class="craft-batch-more">' +
           '<div class="craft-batch-reorder-btns">' +
             '<button type="button" class="craft-batch-move" data-move-idx="' + i + '" data-move-dir="-1" title="往上移"' + (i === 0 ? ' disabled' : '') + '><i class="ph ph-caret-up"></i></button>' +
             '<button type="button" class="craft-batch-move" data-move-idx="' + i + '" data-move-dir="1" title="往下移"' + (i === batchList.length - 1 ? ' disabled' : '') + '><i class="ph ph-caret-down"></i></button>' +
           '</div>' +
-          '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + b.recipeId + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' +
-          '<button type="button" class="craft-copy-btn" data-batch-remove="' + i + '"><i class="ph ph-x"></i></button>' +
+          '<button type="button" class="craft-copy-btn" data-switch-recipe="' + b.recipeId + '" title="把這一項換成主畫面的求解對象"><i class="ph ph-hammer"></i>設為求解對象</button>' +
+          '<button type="button" class="craft-copy-btn craft-danger-btn" data-batch-remove="' + i + '" title="從批次移除"><i class="ph ph-x"></i>移除</button>' +
         '</div>' +
       '</div>';
     }).join('');
+    $('cf-batch-list').querySelectorAll('[data-batch-more]').forEach(function (btn) { // 展開／收起這一列的次要操作
+      btn.addEventListener('click', function () {
+        const id = btn.dataset.batchMore, row = btn.closest('.craft-batch-row');
+        if (batchOpen.has(id)) batchOpen.delete(id); else batchOpen.add(id);
+        row.classList.toggle('is-open', batchOpen.has(id));
+        btn.setAttribute('aria-expanded', String(batchOpen.has(id)));
+      });
+    });
+    const countEl = $('cf-batch-count'); if (countEl) countEl.textContent = batchList.length;
 
     bindMatActions($('cf-batch-list'));
     bindBatchReorder();
@@ -2186,6 +2300,7 @@ app._craftReady = function () {
     $('cf-batch-materials').innerHTML =
       craftOnlySectionHtml(craftRows) +
       (craftRows.length ? '<p class="craft-mat-section-label" style="margin-top:8px">▾ 需要採購</p>' : '') +
+      (rows.length ? '<div class="craft-mat-head" aria-hidden="true"><span class="craft-mat-head-name">材料</span><span class="craft-row-grid craft-mat-head-grid"><span></span><span>數量<small>個</small></span><span>小計<small>金</small></span><span></span><span></span><span></span></span></div>' : '') +
       (rows.map(function (r) {
         const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
         const swapBtn = r.craftable
@@ -2476,12 +2591,13 @@ app._craftReady = function () {
     const hasNext = batchSeqIndex < batchList.length - 1;
     const posLabel = batchSeqIndex >= 0 ? ('第 ' + (batchSeqIndex + 1) + ' / ' + batchList.length + ' 項') : ('共 ' + batchList.length + ' 項');
     nav.innerHTML =
-      '<span class="craft-solve-nav-label"><i class="ph ph-list-numbers"></i>批次順序</span>' +
-      '<button type="button" id="cf-batch-seq-prev" class="craft-solve-nav-btn"' + (hasPrev ? '' : ' disabled') + '><i class="ph ph-caret-left"></i>' + (hasPrev ? batchList[batchSeqIndex - 1].name : '') + '</button>' +
+      '<span class="craft-solve-nav-label" title="依序求解：照批次順序一項一項換成求解對象"><i class="ph ph-list-numbers"></i></span>' +
+      '<button type="button" id="cf-batch-seq-prev" class="craft-solve-nav-btn craft-seq-icon"' + (hasPrev ? '' : ' disabled') + ' title="' + (hasPrev ? '上一項：' + batchList[batchSeqIndex - 1].name : '') + '"><i class="ph ph-caret-left"></i></button>' +
       '<span class="craft-batch-seq-pos">' + posLabel + '</span>' +
-      '<button type="button" id="cf-batch-seq-next" class="craft-solve-nav-btn"' + (hasNext ? '' : ' disabled') + '>' + (hasNext ? batchList[batchSeqIndex + 1].name : (batchSeqIndex < 0 ? '開始' : '')) + '<i class="ph ph-caret-right"></i></button>';
+      '<button type="button" id="cf-batch-seq-next" class="craft-solve-nav-btn craft-seq-icon"' + (hasNext ? '' : ' disabled') + ' title="' + (hasNext ? (batchSeqIndex < 0 ? '從第一項開始：' : '下一項：') + batchList[batchSeqIndex + 1].name : '') + '"><i class="ph ' + (batchSeqIndex < 0 ? 'ph-play' : 'ph-caret-right') + '"></i></button>';
     $('cf-batch-seq-prev').addEventListener('click', function () { stepBatchSeq(-1); });
     $('cf-batch-seq-next').addEventListener('click', function () { stepBatchSeq(1); });
+    document.querySelectorAll('#cf-batch-list .craft-batch-row').forEach(function (r, i) { r.classList.toggle('is-current', i === batchSeqIndex); });
   }
   function stepBatchSeq(dir) {
     const nextIndex = (batchSeqIndex < 0 && dir > 0) ? 0 : batchSeqIndex + dir;
