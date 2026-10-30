@@ -553,7 +553,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-explore-current-name i{color:var(--gold);flex-shrink:0}
 
 @media (max-width:820px){
-  .craft-layout{flex-direction:column}
+  .craft-layout{flex-direction:column;align-items:stretch} /* align-items 原本是 flex-start：上下排列時左欄不會撐滿，只縮成內容寬度，右邊空出一片 */
   .craft-col-left{flex-basis:auto}
   .craft-result-meta{grid-template-columns:1fr}
   .craft-explore-panel{width:100%}
@@ -701,3 +701,13 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-mat-head > .craft-row-grid > *{text-align:right}
 .craft-mat-head > .craft-row-grid > :nth-child(4){display:none}
 .craft-mat-section-label .ph{margin-right:4px;color:var(--gold)}
+
+/* 生產頁主版面改看「內容框自己的寬度」來決定要不要上下排列，不再只看整個視窗寬度：
+ * 左側選單展開時（視窗 900～1100px）內容框其實只剩 600px 上下，原本還是左右排列，右欄被擠得很窄。
+ * 內容框不夠放「左欄 300 ＋ 右欄至少 380」（約 700px）就改成上下排列，兩欄都撐滿寬度。 */
+#craft .noble-inner-frame{container-type:inline-size;container-name:craft}
+@container craft (max-width:700px){
+  .craft-layout{flex-direction:column;align-items:stretch}
+  .craft-col-left{flex:0 0 auto}
+  .craft-result-meta{grid-template-columns:1fr}
+}
