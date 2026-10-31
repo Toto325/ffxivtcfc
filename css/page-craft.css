@@ -921,3 +921,53 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .cw-cell-spec .craft-check-inline{font-size:14px;margin:0}
 .cw-dock-bar{height:auto!important;min-height:46px;display:flex!important;align-items:center;overflow:visible}
 @container (max-width:760px){.cw-dock-bar{align-items:flex-start;padding-top:8px;padding-bottom:8px}.cw-dock-toggle{margin-top:2px}.cw-dock-summary .mss{padding:0 9px 0 0;border-left:0;margin-right:9px;border-right:1px solid var(--tb)}.craft-solve-target .craft-muted{display:none}}
+
+
+/* ============ v5：數值面板左右分區（左＝角色、右＝消耗品）＋三個 bug 修正 ============ */
+.cw-panel-top{padding-right:0;gap:12px}
+.cw-panel-foot{position:static;margin-left:auto;display:flex;align-items:center;gap:12px;border:0;padding:0}
+.cw-panel-top .craft-profile-toggle{margin-left:0}
+.cw-cols{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:0 20px;align-items:start}
+.cw-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.cw-col-cons{padding-left:20px;border-left:1px solid var(--tb)}
+.cw-sec-label{display:flex;align-items:center;gap:7px;margin:0;font-size:12.5px;color:var(--gold);letter-spacing:.12em}
+.cw-sec-label i{font-size:14px}
+.cw-sec-gap{margin-top:6px}
+.cw-spec-pill{margin:0 0 0 auto;padding:2px 10px;border:1px solid var(--tb);border-radius:20px;font-size:12px;letter-spacing:0;color:var(--main);cursor:pointer;line-height:20px}
+.cw-spec-pill:has(input:checked){border-color:var(--gold);background:rgba(197,160,89,.14);color:var(--gold-bright)}
+.cw-stat-grid{grid-template-columns:1fr 1fr;gap:8px}
+.cw-cell{padding:6px 10px 8px;gap:4px}
+.cw-cell .craft-stepper input{font-size:17px}
+.cw-cons-grid{display:none}
+.cw-col-cons .cw-cell.cw-cons{padding:8px 10px}
+.cw-skills-box{display:none}
+.cw-col-char .craft-special-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.cw-col-char .craft-skill-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:7px 10px;margin:0;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.02);cursor:pointer}
+.cw-col-char .craft-skill-item:has(input:checked){border-color:var(--gold);background:rgba(197,160,89,.14)}
+.cw-col-char .craft-skill-item.craft-skill-locked{opacity:.5;cursor:not-allowed}
+.cw-col-char .craft-skill-lvl{font-size:11px;color:var(--dim);line-height:1.4}
+.cw-col-cons .craft-consumable-summary{margin:0}
+/* bug：切換模式後 JS 會把 #cf-auto-block 改成 display:block，蓋掉 flex 的 gap，導致求解列貼著下面的框線 → 改用 margin，不依賴 display */
+#cf-auto-block{display:block}
+#cf-auto-block>*+*{margin-top:8px}
+#cf-auto-block>.craft-card.craft-row:first-child{margin-top:0}
+.cw-solverow{display:flex}
+#cf-result.craft-result{margin-top:8px}
+@container (max-width:760px){
+  /* bug：窄版面板不是 absolute，原本的收起／求解鈕會浮到摘要列上 → 窄版也維持相對定位的一般流 */
+  .cw-dock-panel{position:relative;top:auto;margin-top:6px}
+  .cw-cols{grid-template-columns:1fr;gap:14px}
+  .cw-col-cons{padding-left:0;border-left:0;border-top:1px solid var(--tb);padding-top:14px}
+  .cw-panel-foot{width:100%;justify-content:space-between;order:9}
+}
+/* v5.1 */
+.cw-panel-top{display:flex;flex-wrap:nowrap;align-items:center}
+.cw-panel-top>*{flex:none}
+.cw-panel-top .craft-stats-scope-tag{width:auto;grid-column:auto;margin:0}
+.cw-panel-top .craft-profile-toggle{width:auto;margin:0}
+.cw-panel-top #cf-profile-manage-btn{margin:0}
+.cw-panel-top .cw-panel-foot{margin-left:auto}
+.cw-cell>label:first-child{line-height:18px;height:18px}
+.cw-col-char .craft-special-list{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}
+.cw-col-char .craft-skill-item{padding:6px 9px}
+@container (max-width:760px){.cw-panel-top{flex-wrap:wrap}.cw-panel-top .cw-panel-foot{margin-left:0}}
