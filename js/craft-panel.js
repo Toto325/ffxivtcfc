@@ -262,25 +262,27 @@ app._craftReady = function () {
 
   root.innerHTML =
     '<div class="craft-layout">' +
-      '<header class="cw-bar">' +
-        '<h2 class="cw-title"><i class="ph ph-hammer"></i>生產</h2>' +
-        '<span id="cf-job-wrap" style="display:none"><select id="cf-job" class="craft-select"></select></span>' +
-        '<div id="cf-stats-scope-tag" class="craft-stats-scope-tag"></div>' +
-        '<label class="craft-check-inline craft-profile-toggle" title="想分別記錄不同職業的數值時開啟；切換職業會自動套用該職業的數值與可製作清單"><input id="cf-profile-mode" type="checkbox" />個人設定檔</label>' +
-        '<button type="button" id="cf-profile-manage-btn" class="craft-link" style="display:none">管理全部職業 <i class="ph ph-caret-down"></i></button>' +
-      '</header>' +
-      '<p id="cf-profile-hint-off" class="craft-hint">想分別記錄不同職業的數值，可開啟個人設定檔。</p>' +
-      '<p id="cf-profile-hint-on" class="craft-hint" style="display:none">切換職業會自動套用該職業的數值與可製作清單。</p>' +
-      '<div id="cf-profile-manager" class="craft-profile-manager" style="display:none"></div>' +
-      '<section class="cw-dock" id="cf-actor">' +
-        '<div class="cw-dock-row cw-dock-stats">' +
-          '<div class="cw-cell"><label>等級</label>' + numberField('cf-lvl', 100, 1) + '</div>' +
-          '<div class="cw-cell"><label>作業精度</label>' + numberField('cf-craftsmanship', 4444, 10) + '</div>' +
-          '<div class="cw-cell"><label>加工精度</label>' + numberField('cf-control', 4444, 10) + '</div>' +
-          '<div class="cw-cell"><label>CP</label>' + numberField('cf-cp', 888, 5) + '</div>' +
-          '<label class="cw-cell cw-spec"><input id="cf-specialist" type="checkbox" /><span class="cw-spec-box"><i class="ph ph-check"></i></span><span>專家</span></label>' +
-        '</div>' +
-        '<div class="cw-dock-row cw-dock-cons">' +
+      '<div class="market-header cw-header"><h2 class="unified-gold-header small">⚒ 生產</h2><p class="elegant-body-text page-note">選好配方、確認數值，一鍵求解最佳手法。</p></div>' +
+      '<div class="cw-dockwrap" id="cf-dockwrap">' +
+        '<button type="button" id="cf-dock-bar" class="market-settings-btn cw-dock-bar" aria-expanded="false" aria-controls="cf-actor"><span id="cf-dock-summary" class="cw-dock-summary"></span><span class="cw-dock-toggle"><i class="ph ph-sliders-horizontal"></i><span id="cf-dock-toggle-text">調整數值</span><i class="ph ph-caret-down cw-caret"></i></span></button>' +
+        '<section class="cw-dock-panel" id="cf-actor">' +
+          '<div class="cw-panel-top">' +
+            '<span id="cf-job-wrap" style="display:none"><select id="cf-job" class="craft-select"></select></span>' +
+            '<div id="cf-stats-scope-tag" class="craft-stats-scope-tag"></div>' +
+            '<label class="craft-check-inline craft-profile-toggle" title="想分別記錄不同職業的數值時開啟；切換職業會自動套用該職業的數值與可製作清單"><input id="cf-profile-mode" type="checkbox" />使用個人設定檔</label>' +
+            '<button type="button" id="cf-profile-manage-btn" class="craft-link" style="display:none">管理全部職業 <i class="ph ph-caret-down"></i></button>' +
+          '</div>' +
+          '<p id="cf-profile-hint-off" class="craft-hint">想分別記錄不同職業的數值，可開啟個人設定檔。</p>' +
+          '<p id="cf-profile-hint-on" class="craft-hint" style="display:none">切換職業會自動套用該職業的數值與可製作清單。</p>' +
+          '<div id="cf-profile-manager" class="craft-profile-manager" style="display:none"></div>' +
+          '<div class="cw-stat-grid">' +
+            '<div class="cw-cell"><label>等級 Lv</label>' + numberField('cf-lvl', 100, 1) + '</div>' +
+            '<div class="cw-cell"><label>作業精度</label>' + numberField('cf-craftsmanship', 4444, 10) + '</div>' +
+            '<div class="cw-cell"><label>加工精度</label>' + numberField('cf-control', 4444, 10) + '</div>' +
+            '<div class="cw-cell"><label>CP</label>' + numberField('cf-cp', 888, 5) + '</div>' +
+            '<div class="cw-cell cw-cell-spec"><label class="craft-check-inline craft-check-specialist"><input id="cf-specialist" type="checkbox" />專家</label></div>' +
+          '</div>' +
+          '<div class="cw-cons-grid">' +
           '<div class="cw-cell cw-cons">' +
             '<div class="craft-row craft-row-tight"><span class="craft-label"><i class="ph ph-bowl-food"></i>食物</span><div class="craft-toggle" id="cf-food-tier"><button data-v="nq">NQ</button><button data-v="hq" class="active">HQ</button></div></div>' +
             '<select id="cf-food" class="craft-select craft-select-block"><option value="">不使用</option></select>' +
@@ -289,44 +291,45 @@ app._craftReady = function () {
             '<div class="craft-row craft-row-tight"><span class="craft-label"><i class="ph ph-flask"></i>藥水</span><div class="craft-toggle" id="cf-pot-tier"><button data-v="nq">NQ</button><button data-v="hq" class="active">HQ</button></div></div>' +
             '<select id="cf-pot" class="craft-select craft-select-block"><option value="">不使用</option></select>' +
           '</div>' +
-          '<div class="cw-cell cw-skills" id="cf-skills">' +
-            '<button type="button" id="cf-skills-bar" class="cw-skills-bar" aria-expanded="false"><span class="craft-label"><i class="ph ph-graduation-cap"></i>技能</span><span id="cf-skills-summary" class="cw-skills-summary"></span><i class="ph ph-caret-down cw-caret"></i></button>' +
-            '<div id="cf-special-list" class="craft-special-list"></div>' +
           '</div>' +
-        '</div>' +
-        '<div id="cf-consumable-summary" class="craft-consumable-summary"></div>' +
-      '</section>' +
+          '<div id="cf-consumable-summary" class="craft-consumable-summary"></div>' +
+          '<div class="cw-skills-box"><div class="cw-sec-label"><i class="ph ph-graduation-cap"></i>特殊技能確認</div><div id="cf-special-list" class="craft-special-list"></div></div>' +
+          '<div class="cw-panel-foot"><button type="button" id="cf-dock-close" class="craft-link"><i class="ph ph-caret-up"></i>收起</button><button type="button" id="cf-dock-solve" class="craft-copy-btn"><i class="ph ph-play"></i>求解</button></div>' +
+        '</section>' +
+      '</div>' +
       '<div class="craft-work">' +
-      '<div class="craft-col craft-col-recipe"><div class="cw-pick">' +
-        '<div class="craft-search-row"><input id="cf-recipe-search" class="craft-search" placeholder="搜尋配方名稱⋯" autocomplete="off" />' +
-          '<button type="button" id="cf-lunar-btn" class="craft-lunar-btn" title="依職業與任務等級瀏覽月球製作配方"><i class="ph ph-moon"></i>月球製作</button></div>' +
-        '<div class="craft-filter-row">' +
-          '<div id="cf-job-filter" class="craft-job-filter"></div>' +
-          '<div class="craft-lvl-filter">' +
-            '<span class="craft-label">Lv</span>' +
-            '<input id="cf-filter-lvl-min" type="number" class="craft-filter-lvl-input" placeholder="最低" min="1" max="100" />' +
-            '<span class="craft-muted">～</span>' +
-            '<input id="cf-filter-lvl-max" type="number" class="craft-filter-lvl-input" placeholder="最高" min="1" max="100" />' +
+      '<div class="craft-col craft-col-recipe">' +
+        '<div class="cw-pick" id="cf-pick">' +
+          '<div class="cw-pick-list">' +
+            '<div class="craft-search-row"><input id="cf-recipe-search" class="craft-search" placeholder="搜尋配方名稱⋯" autocomplete="off" />' +
+              '<button type="button" id="cf-lunar-btn" class="craft-lunar-btn" title="依職業與任務等級瀏覽月球製作配方"><i class="ph ph-moon"></i>月球製作</button></div>' +
+            '<div class="craft-filter-row">' +
+              '<div id="cf-job-filter" class="craft-job-filter"></div>' +
+              '<div class="craft-lvl-filter">' +
+                '<span class="craft-label">Lv</span>' +
+                '<input id="cf-filter-lvl-min" type="number" class="craft-filter-lvl-input" placeholder="最低" min="1" max="100" />' +
+                '<span class="craft-muted">～</span>' +
+                '<input id="cf-filter-lvl-max" type="number" class="craft-filter-lvl-input" placeholder="最高" min="1" max="100" />' +
+              '</div>' +
+            '</div>' +
+            '<div id="cf-recipe-results" class="craft-recipe-results"><div class="craft-recipe-empty"><i class="ph ph-magnifying-glass"></i>輸入配方名稱，或點職業、設定等級範圍來瀏覽</div></div>' +
+          '</div>' +
+          '<div id="cf-recipe-selected" class="craft-recipe-selected"></div>' +
+          '<div class="cw-pick-detail">' +
+            '<div id="cf-add-batch-wrap" style="display:none" class="craft-add-batch-box">' +
+              '<div class="craft-row">' +
+                numberField('cf-batch-qty', 1, 1) +
+                '<button id="cf-add-batch" type="button" class="craft-copy-btn" title="只加進規劃清單，不影響求解"><i class="ph ph-plus"></i>加入批次規劃</button>' +
+              '</div>' +
+              '<p id="cf-add-batch-confirm" class="craft-add-batch-confirm"></p>' +
+            '</div>' +
+            '<div id="cf-ingredients" class="craft-ingredients"></div>' +
           '</div>' +
         '</div>' +
-        '<div id="cf-recipe-results" class="craft-recipe-results"><div class="craft-recipe-empty"><i class="ph ph-magnifying-glass"></i>輸入配方名稱，或點職業、設定等級範圍來瀏覽</div></div>' +
-      '</div></div>' +
+      '</div>' +
       '<div class="craft-col craft-col-solve">' +
         '<div class="cw-modebar">' +
-          '<span class="craft-label">模式</span>' +
           '<div class="craft-toggle" id="cf-mode-toggle"><button data-v="auto" class="active">自動求解</button><button data-v="manual">手動求解</button></div>' +
-        '</div>' +
-        '<div class="cw-make">' +
-          '<div id="cf-recipe-selected" class="craft-recipe-selected"></div>' +
-          '<div id="cf-add-batch-wrap" style="display:none" class="craft-add-batch-box">' +
-            '<div class="craft-row">' +
-              numberField('cf-batch-qty', 1, 1) +
-              '<button id="cf-add-batch" type="button" class="craft-copy-btn" title="只加進規劃清單，不影響求解"><i class="ph ph-plus"></i>加入批次規劃</button>' +
-              '<span class="craft-add-batch-caption"><i class="ph ph-arrow-bend-right-down"></i>只加進規劃清單，不影響下面求解</span>' +
-            '</div>' +
-            '<p id="cf-add-batch-confirm" class="craft-add-batch-confirm"></p>' +
-          '</div>' +
-          '<div id="cf-ingredients" class="craft-ingredients"></div>' +
         '</div>' +
         '<div id="cf-auto-block">' +
           '<div class="craft-card craft-row">' +
@@ -334,7 +337,10 @@ app._craftReady = function () {
             '<div id="cf-collectable-goal-wrap" style="display:none;margin-left:auto" class="craft-row"><span class="craft-label">目標收藏度</span>' + numberField('cf-collectable-goal', 100, 10) + '</div>' +
           '</div>' +
           '<div id="cf-collectable-slider" class="craft-collect-slider" style="display:none"></div>' +
-          '<div id="cf-solve-target" class="craft-solve-target">尚未選擇配方</div>' +
+          '<div class="cw-solverow">' +
+            '<div id="cf-solve-target" class="craft-solve-target">尚未選擇配方</div>' +
+            '<button id="cf-solve" class="craft-solve-btn" disabled><i class="ph ph-play"></i>選擇配方後開始求解</button>' +
+          '</div>' +
           '<div id="cf-solve-nav" class="craft-solve-nav" style="display:none">' +
             '<div class="craft-solve-nav-mode-toggle" id="cf-solve-nav-mode">' +
               '<button type="button" data-mode="history" class="active"><i class="ph ph-clock-counter-clockwise"></i>瀏覽紀錄</button>' +
@@ -346,10 +352,9 @@ app._craftReady = function () {
               '<button type="button" id="cf-solve-next" class="craft-solve-nav-btn"><span id="cf-solve-next-label"></span><i class="ph ph-caret-right"></i></button>' +
             '</div>' +
           '</div>' +
-          '<button id="cf-solve" class="craft-solve-btn" disabled><i class="ph ph-play"></i>選擇配方後開始求解</button>' +
           '<div id="cf-progress" class="craft-progress" style="display:none"></div>' +
           '<div id="cf-result" class="craft-card craft-result" style="display:none"></div>' +
-          '<div class="cw-skel" aria-hidden="true"><div class="cw-skel-h"></div><div class="cw-skel-tiles"><i></i><i></i><i></i></div><div class="cw-skel-seq"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="cw-skel-btn"></div></div>' +
+          '<div class="cw-skel" aria-hidden="true"><div class="cw-skel-h"></div><div class="cw-skel-tiles"><i></i><i></i></div><div class="cw-skel-seq"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>' +
         '</div>' +
         '<div id="cf-manual-panel" class="craft-card" style="display:none">' +
           '<div class="craft-row" style="margin-bottom:6px"><span class="craft-label">目前製作狀態</span><span id="cf-m-condition" class="craft-condition-badge">普通</span></div>' +
@@ -496,6 +501,7 @@ app._craftReady = function () {
   function enhanceSelect(sel) {
     if (!sel || sel._enhanced) return;
     sel._enhanced = true;
+    sel.style.display = 'none';
     const wrap = document.createElement('div');
     wrap.className = 'wl-dd craft-dd';
     wrap.innerHTML = '<button type="button" class="wl-dd-btn" aria-haspopup="listbox" aria-expanded="false"><span></span><i class="ph ph-caret-down"></i></button><div class="wl-dd-list" role="listbox" hidden></div>';
@@ -503,12 +509,15 @@ app._craftReady = function () {
     const btn = wrap.querySelector('.wl-dd-btn'), list = wrap.querySelector('.wl-dd-list');
     const close = function () { list.hidden = true; wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
     const render = function () {
-      btn.firstElementChild.textContent = sel.options[sel.selectedIndex].text;
+      const cur = sel.options[sel.selectedIndex];
+      btn.firstElementChild.textContent = cur ? cur.text : '';
+      btn.disabled = sel.disabled;
       list.innerHTML = Array.prototype.map.call(sel.options, function (o) {
         return '<button type="button" role="option" class="wl-dd-opt' + (o.selected ? ' on' : '') + '" data-v="' + o.value + '">' + o.text + '</button>';
       }).join('');
     };
     render();
+    sel._ddRender = render;
     btn.addEventListener('click', function () {
       const was = !list.hidden;
       document.querySelectorAll('.craft-dd .wl-dd-list').forEach(function (l) { l.hidden = true; l.parentNode.classList.remove('open'); });
@@ -1584,10 +1593,8 @@ app._craftReady = function () {
         '<span class="craft-skill-lvl">' + (state.available ? s.note : state.reason) + '</span>' +
         '</label>';
     }).join('');
-    updateSkillsSummary();
     box.querySelectorAll('[data-special]').forEach(function (cb) {
       cb.addEventListener('change', function () {
-        setTimeout(updateSkillsSummary, 0);
         if (cb.checked) learnedSpecial.add(cb.dataset.special); else learnedSpecial.delete(cb.dataset.special);
         /* 原本勾/取消勾選之後，手動求解那邊的技能格子跟搜尋結果的可行性判斷都沒有跟著重畫，
          * 畫面卡在勾選前的舊狀態，玩家會覺得「明明勾了怎麼還是沒反應」。補上即時重畫。 */
@@ -1626,6 +1633,7 @@ app._craftReady = function () {
   /* ── 食藥即時換算（用真正的公式，跟前面驗證過的一致） ── */
   function isHQ(toggleId) { return $(toggleId).querySelector('.active').dataset.v === 'hq'; }
   function recalcStats() {
+    if (typeof renderDockSummary === 'function') renderDockSummary();
     const craftsmanship = parseInt($('cf-craftsmanship').value, 10) || 0;
     const control = parseInt($('cf-control').value, 10) || 0;
     const cp = parseInt($('cf-cp').value, 10) || 0;
@@ -1767,6 +1775,7 @@ app._craftReady = function () {
     if (!found) return false;
     selectedRecipe = found;
     $('cf-recipe-search').value = selectedRecipe.name;
+    $('cf-pick').classList.add('is-picked'); // 選定後列表收成「已選配方」一條，下面接材料與批次
 
     /* fromHistory=true 代表是「上一個/下一個」按鈕觸發的，只移動指標不改動歷史內容；
      * 其他所有入口（搜尋結果點擊、材料圖譜切換、批次清單點擊…）都當成「手動選了新的」，
@@ -1802,7 +1811,7 @@ app._craftReady = function () {
 
   let searchTerm = '';
   function runSearch() {
-    /* 選定配方後搜尋框會被填成配方名稱；清單要保持原本的搜尋結果（不縮成只剩一筆），所以記住使用者真正打的關鍵字 */
+    /* 選定配方後搜尋框會被填成配方名稱；清單要維持原本的搜尋結果，所以記住使用者真正打的關鍵字 */
     const rawQ = $('cf-recipe-search').value.trim();
     const q = (selectedRecipe && rawQ === selectedRecipe.name) ? searchTerm : (searchTerm = rawQ);
     const lvlMin = parseInt($('cf-filter-lvl-min').value, 10);
@@ -1829,9 +1838,9 @@ app._craftReady = function () {
 
     box.innerHTML = matches.map(function (r, i) {
       const recipe = CRAFT_RECIPES[r.id];
-      const badge = (crafterStatsForCheck && i < FEASIBILITY_LIMIT) ? feasibilityBadgeHtml(quickFeasibility(recipe, crafterStatsForCheck)) : '';
+      const badge = (crafterStatsForCheck && i < FEASIBILITY_LIMIT) ? feasibilityBadgeHtml(quickFeasibility(recipe, crafterStatsForCheck)) : '<span class="craft-badge-ph"></span>';
       return '<div class="craft-recipe-item' + ((selectedRecipe && selectedRecipe.id === r.id) ? ' is-selected' : '') + '" data-id="' + r.id + '">' + itemIconHtml(r.itemId, 22) +
-        '<span class="craft-recipe-item-name">' + r.name + '</span>' +
+        '<span class="craft-recipe-item-name" title="' + r.name + '">' + r.name + '</span>' +
         badge +
         '<span class="craft-muted">' + (JOB_NAME_BY_ID[r.jobId] || '') + '・Lv' + r.lvl + '　rlvl' + r.rlvl + '</span></div>';
     }).join('') || '<div class="craft-recipe-empty">找不到符合的配方</div>';
@@ -1864,7 +1873,8 @@ app._craftReady = function () {
     }
     const recipe = CRAFT_RECIPES[selectedRecipe.id];
     box.innerHTML = '<div class="craft-recipe-chip">' + selectedRecipe.name +
-      '<span class="craft-muted">　需求Lv' + recipe.lvl + '・進展' + recipe.progress + '・品質' + recipe.quality + '・耐久' + recipe.durability + '</span></div>' +
+      '<span class="craft-muted">　需求Lv' + recipe.lvl + '・進展' + recipe.progress + '・品質' + recipe.quality + '・耐久' + recipe.durability + '</span>' +
+      '<button type="button" class="craft-link cw-change" id="cf-change-recipe"><i class="ph ph-arrows-left-right"></i>更換配方</button></div>' +
       '<div class="craft-muted" id="cf-recipe-sell-ref" style="font-size:11px;margin-top:2px"></div>';
     $('cf-add-batch-wrap').style.display = 'block';
     $('cf-solve-target').innerHTML = '<i class="ph ph-target"></i>　求解目標：<strong>' + selectedRecipe.name + '</strong>' +
@@ -3208,8 +3218,6 @@ app._craftReady = function () {
         }).join('')
       ) : '');
 
-    /* 答案出來後自動捲到看得見的位置，使用者不用自己往下滑找結果 */
-    try { box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { /* 不支援就算了 */ }
     if (result.success) {
       // 每一段各自獨立複製，不能只給一顆「全部複製」按鈕——遊戲一組巨集本來就只能塞15行，
       // 會切成好幾段正是因為塞不下同一組，如果複製出來是全部段落黏在一起，貼回遊戲一樣會超過行數塞不下，
@@ -3405,17 +3413,44 @@ app._craftReady = function () {
     app._craftPendingRecipeId = null;
   }
 
-  /* 特殊技能收合列：標題旁直接列出「已勾選的技能名稱」，不用點開確認 */
-  function updateSkillsSummary() {
-    const el = $('cf-skills-summary'); if (!el) return;
-    const names = Array.prototype.map.call($('cf-special-list').querySelectorAll('[data-special]:checked'), function (cb) {
+  /* ═══ 新版面：數值摘要列（點開浮出完整數值面板）、配方列表收放、統一的市場風格下拉 ═══ */
+  function renderDockSummary() {
+    const box = $('cf-dock-summary'); if (!box) return;
+    ['cf-job', 'cf-food', 'cf-pot'].forEach(function (id) { const e = $(id); if (!e) return; enhanceSelect(e); if (e._ddRender) e._ddRender(); });
+    const seg = function (k, v) { return '<span class="mss"><i>' + k + '</i><b>' + v + '</b></span>'; };
+    const tier = function (id) { const a = $(id).querySelector('.active'); return a && a.dataset.v === 'hq' ? ' HQ' : ' NQ'; };
+    const opt = function (id, tid) { const e = $(id), o = e.options[e.selectedIndex]; return (!o || !o.value) ? '<span class="craft-muted">不使用</span>' : escapeHtml(o.textContent) + tier(tid); };
+    const skills = Array.prototype.map.call($('cf-special-list').querySelectorAll('[data-special]:checked'), function (cb) {
       const sp = cb.parentNode.querySelector('span'); return '<span class="cw-skill-tag">' + escapeHtml(sp ? sp.textContent : cb.dataset.special) + '</span>';
     });
-    el.innerHTML = names.length ? names.join('') : '<span class="craft-muted">尚未勾選</span>';
+    const prof = $('cf-profile-mode').checked, jo = $('cf-job').options[$('cf-job').selectedIndex];
+    box.innerHTML = (prof && jo ? seg('職業', escapeHtml(jo.textContent)) : '') +
+      seg('Lv', $('cf-lvl').value) + seg('作業', $('cf-craftsmanship').value) + seg('加工', $('cf-control').value) + seg('CP', $('cf-cp').value) +
+      seg('食物', opt('cf-food', 'cf-food-tier')) + seg('藥水', opt('cf-pot', 'cf-pot-tier')) +
+      seg('專家', $('cf-specialist').checked ? '開' : '關') +
+      '<span class="mss mss-skills"><i>技能</i>' + (skills.length ? skills.join('') : '<span class="craft-muted">未勾選</span>') + '</span>';
   }
-  $('cf-skills-bar').addEventListener('click', function () {
-    const w = $('cf-skills'); const open = !w.classList.contains('open');
-    w.classList.toggle('open', open); this.setAttribute('aria-expanded', open ? 'true' : 'false');
+  (function initDock() {
+    const wrap = $('cf-dockwrap'), bar = $('cf-dock-bar');
+    const isOverlay = function () { return wrap.clientWidth >= 760; };
+    function setOpen(open) {
+      wrap.classList.toggle('open', open); bar.setAttribute('aria-expanded', open ? 'true' : 'false');
+      $('cf-dock-toggle-text').textContent = open ? '收起' : '調整數值';
+    }
+    bar.addEventListener('click', function () { setOpen(!wrap.classList.contains('open')); });
+    $('cf-dock-close').addEventListener('click', function () { setOpen(false); });
+    $('cf-dock-solve').addEventListener('click', function () { setOpen(false); const b = $('cf-solve'); if (!b.disabled) b.click(); });
+    document.addEventListener('click', function (e) { if (isOverlay() && wrap.classList.contains('open') && !wrap.contains(e.target)) setOpen(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && wrap.classList.contains('open') && !document.querySelector('.craft-dd.open')) setOpen(false); });
+    ['input', 'change'].forEach(function (ev) { $('cf-actor').addEventListener(ev, function () { setTimeout(renderDockSummary, 0); }); });
+    $('cf-actor').addEventListener('click', function () { setTimeout(renderDockSummary, 0); });
+    renderDockSummary();
+  })();
+  /* 已選配方那一條上的「更換配方」：展開列表（沿用上次的搜尋條件），選了之後會再自動收起 */
+  $('cf-recipe-selected').addEventListener('click', function (e) {
+    if (!e.target.closest('#cf-change-recipe')) return;
+    $('cf-pick').classList.remove('is-picked');
+    $('cf-recipe-search').value = searchTerm; runSearch(); $('cf-recipe-search').focus();
   });
   /* 求解後改任何條件，舊結果先變淡並標示「設定已變更」，不清掉也不自動重算（計算要花時間，由使用者決定何時求解） */
   (function () {
@@ -3423,11 +3458,25 @@ app._craftReady = function () {
     ['cf-actor', 'cf-ingredients', 'cf-auto-block'].forEach(function (id) {
       const el = $(id); if (!el) return;
       ['input', 'change'].forEach(function (ev) { el.addEventListener(ev, function (e) { if (e.target.closest && e.target.closest('#cf-result')) return; mark(); }); });
-      el.addEventListener('click', function (e) { if (e.target.closest('.craft-step-btn, .craft-toggle button')) mark(); });
+      el.addEventListener('click', function (e) { if (e.target.closest('.craft-step-btn, .craft-toggle button, .wl-dd-opt')) mark(); });
     });
     $('cf-solve').addEventListener('click', function () { $('cf-result').classList.remove('is-stale'); });
   })();
 
-  /* 數值工具列固定在頂端：外框自己的上內距要拿掉，否則工具列上方會露出被捲走的內容（內距改由內容自己的 padding 補上） */
-  (function () { const sc = $('cf-actor').closest('.tool-layout'); if (sc) sc.style.setProperty('padding-top', '0', 'important'); })();
+  /* 配方列表高度＝外框剩餘的可視高度：列表捲到底時最後一項一定看得到，不會被外框的捲動吃掉 */
+  (function fitRecipeList() {
+    const box = $('cf-recipe-results'), sc = box.closest('.tool-layout');
+    function fit() {
+      if (!sc || !box.offsetParent) return;
+      if ($('cf-dockwrap').clientWidth < 760) { box.style.height = ''; return; }
+      const top = box.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+      const cs = getComputedStyle(sc), maxH = parseFloat(cs.maxHeight) || sc.clientHeight; // 外框自己的上限高度（82vh）才是真正的可用空間
+      const h = maxH - top - (parseFloat(cs.paddingBottom) || 0) - 12 /* 列表所在卡片的內距 */ - 4;
+      box.style.height = Math.max(200, Math.floor(h)) + 'px';
+    }
+    window.addEventListener('resize', fit);
+    if (window.ResizeObserver) { const ro = new ResizeObserver(fit); ro.observe($('cf-pick')); ro.observe($('cf-dockwrap')); ro.observe(document.querySelector('.cw-header')); }
+    new MutationObserver(fit).observe($('cf-pick'), { attributes: true, attributeFilter: ['class'] });
+    setTimeout(fit, 0); setTimeout(fit, 400);
+  })();
 };
