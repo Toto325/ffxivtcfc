@@ -388,6 +388,7 @@ app._craftReady = function () {
             '<button type="button" class="craft-explore-tab active" data-tab="material">材料圖譜</button>' +
             '<button type="button" class="craft-explore-tab" data-tab="batch">批次規劃</button>' +
           '</div>' +
+          '<button type="button" id="cf-explore-wide" class="craft-explore-wide" title="展開／收合寬版（材料表會多顯示均價與主要世界）"><i class="ph ph-arrows-out-line-horizontal"></i></button>' +
           '<button type="button" id="cf-explore-close" class="craft-explore-close"><i class="ph ph-x"></i></button>' +
         '</div>' +
         /* 原本只有回到求解主界面才能把「目前這個」加入批次規劃，在抽屜裡逛材料圖譜逛到一半，
@@ -405,7 +406,7 @@ app._craftReady = function () {
             '<div id="cf-material-graph" class="craft-material-graph"></div>' +
           '</div>' +
           '<div id="cf-explore-batch" class="craft-explore-pane" style="display:none">' +
-            '<div class="craft-row craft-batch-head"><span class="craft-label"><i class="ph ph-stack"></i>批次清單<span id="cf-batch-count" class="craft-count-chip"></span></span><a href="#" id="cf-batch-clear" class="craft-link craft-icon-link" title="清空批次清單"><i class="ph ph-trash"></i>清空</a></div>' +
+            '<div class="craft-row craft-batch-head"><span class="craft-label"><i class="ph ph-stack"></i>批次清單<span id="cf-batch-count" class="craft-count-chip"></span></span><span class="craft-head-actions"><a href="#" id="cf-batch-sort-profit" class="craft-link craft-icon-link" title="依預估淨利重新排序（賺最多的排前面）"><i class="ph ph-sort-descending"></i>淨利</a><a href="#" id="cf-batch-clear" class="craft-link craft-icon-link" title="清空批次清單"><i class="ph ph-trash"></i>清空</a></span></div>' +
             '<div id="cf-batch-seq-nav" class="craft-batch-seq-nav" style="display:none"></div>' +
             '<div id="cf-batch-list" class="craft-batch-list"></div>' +
             '<div class="craft-ingredients"><p class="craft-ingredients-title" title="材料彙總／購物清單；可選「自己做」往下展開，或維持採購">整批訂單規劃</p>' +
@@ -654,6 +655,14 @@ app._craftReady = function () {
   }
   $('cf-explore-backdrop').addEventListener('click', closeExploreDrawer);
   $('cf-explore-close').addEventListener('click', closeExploreDrawer);
+  (function () { // 寬版：電腦版可以把抽屜拉寬，材料表多顯示「均價、主要世界」；輕度玩家維持窄版就好，選擇會記住
+    const KEY = 'craftExploreWide:v1', dr = $('cf-explore-drawer');
+    try { if (localStorage.getItem(KEY) === '1') dr.classList.add('wide'); } catch (e) { /* 讀不到就維持窄版 */ }
+    $('cf-explore-wide').addEventListener('click', function () {
+      dr.classList.toggle('wide');
+      try { localStorage.setItem(KEY, dr.classList.contains('wide') ? '1' : '0'); } catch (e) { /* 存不了就算了 */ }
+    });
+  })();
   document.querySelectorAll('.craft-explore-tab').forEach(function (btn) {
     btn.addEventListener('click', function () { switchExploreTab(btn.dataset.tab); });
   });
@@ -1062,13 +1071,70 @@ app._craftReady = function () {
     const netRevenue = grossRevenue * (1 - rate / 100);
     const profit = settings.worldName ? netRevenue - totalCost : null;
 
-    return { results: results, totalCost: totalCost, shortageCount: shortageCount, netRevenue: netRevenue, missingSell: missingSell, taxInfo: taxInfo, profit: profit, settings: settings };
+    return { results: results, sellByItem: sellByItem, totalCost: totalCost, shortageCount: shortageCount, netRevenue: netRevenue, missingSell: missingSell, taxInfo: taxInfo, profit: profit, settings: settings };
   }
 
   /* ── 整批訂單的「需要採購」清單：一次把所有itemId送去resolveBuyCosts（貪婪填充跨世界湊量），
    * 填回每一列的小計，並在最上方加總顯示整批預估成本。庫存不夠湊滿的項目會特別標示出來，
    * 不要讓玩家誤以為那個數字就是實際能買到的完整量。
    * 同時把批次清單裡「要做的成品」拿去查賣出參考價（只看「我的世界」），兩邊合起來算整批淨利。 ── */
+  /* 單一批次項目要採購的材料（跟 computeBatchRows 同一套展開規則，但只算這一項），拿來估算「這一項」的成本與淨利 */
+  function batchItemNeeds(b) {
+    const buy = {};
+    function expand(itemId, amount, seen) {
+      const recipeIds = ITEM_TO_RECIPES[itemId];
+      if (seen.has(itemId) || seen.size > 12 || !expandedItems.has(itemId) || !recipeIds || !recipeIds.length) { buy[itemId] = (buy[itemId] || 0) + amount; return; }
+      const recipe = CRAFT_RECIPES[recipeIds[0]], crafts = Math.ceil(amount / (recipe.yields || 1));
+      const nextSeen = new Set(seen); nextSeen.add(itemId);
+      recipe.ingredients.forEach(function (ing) { expand(ing.itemId, ing.amount * crafts, nextSeen); });
+    }
+    CRAFT_RECIPES[b.recipeId].ingredients.forEach(function (ing) { expand(ing.itemId, ing.amount * b.quantity, new Set()); });
+    return buy;
+  }
+  /* 每個批次項目各自的預估淨利：成本用「整批採購的平均單價」估算（買越多單價可能越高，所以是估算），
+   * 收入用我的世界的賣出參考價扣掉賣方稅。算不出來的項目（沒設世界、查無賣出價、材料查無掛單）就不顯示。 */
+  let lastBatchProfits = {};
+  function applyBatchProfits(fin) {
+    lastBatchProfits = {};
+    if (fin.settings.worldName) {
+      const rate = fin.taxInfo ? fin.taxInfo.ratePercent : 0;
+      batchList.forEach(function (b) {
+        const ref = fin.sellByItem && fin.sellByItem[b.itemId]; if (!ref) return;
+        const needs = batchItemNeeds(b); let cost = 0, ok = true;
+        Object.keys(needs).forEach(function (id) { const r = fin.results[id]; if (!r || !r.filledQty) { ok = false; return; } cost += needs[id] * (r.totalCost / r.filledQty); });
+        if (!ok) return;
+        const revenue = ref.price * b.quantity * (1 - rate / 100);
+        lastBatchProfits[b.recipeId] = { total: revenue - cost, unit: (revenue - cost) / b.quantity };
+      });
+    }
+    const ids = Object.keys(lastBatchProfits);
+    let bestId = null;
+    ids.forEach(function (id) { if (lastBatchProfits[id].total > 0 && (bestId === null || lastBatchProfits[id].total > lastBatchProfits[bestId].total)) bestId = id; });
+    const money = function (n) { return (n >= 0 ? '+' : '−') + Math.round(Math.abs(n)).toLocaleString(); };
+    document.querySelectorAll('#cf-batch-list .craft-batch-row').forEach(function (row) {
+      const rid = row.dataset.rid, p = lastBatchProfits[rid];
+      const num = row.querySelector('.craft-batch-order-num'), box = row.querySelector('.craft-batch-profit');
+      if (num) { num.classList.toggle('is-good', !!p && p.total >= 0); num.classList.toggle('is-bad', !!p && p.total < 0); num.title = p ? '預估淨利 ' + money(p.total) + ' 金（綠＝賺、紅＝虧）' : ''; }
+      if (!box) return;
+      box.innerHTML = p ? '<span class="craft-chip ' + (p.total >= 0 ? 'good' : 'bad') + '" title="這一項整批的預估淨利（材料成本以整批平均單價估算）">整項 ' + money(p.total) + '<small>金</small></span>' +
+        '<span class="craft-chip" title="每件預估淨利">每件 ' + money(p.unit) + '<small>金</small></span>' +
+        (rid === bestId ? '<span class="craft-chip good"><i class="ph ph-trophy"></i>最賺</span>' : '') +
+        (p.total < 0 ? '<span class="craft-chip bad"><i class="ph ph-trend-down"></i>虧損</span>' : '') : '';
+    });
+  }
+  /* 寬版才看得到的欄位：每個採購材料的平均單價、主要從哪個世界買 */
+  function fillMaterialExtras(results) {
+    Object.keys(results).forEach(function (id) {
+      const r = results[id]; if (!r.filledQty) return;
+      const u = document.querySelector('[data-buy-unit-item="' + id + '"]'), w = document.querySelector('[data-buy-world-item="' + id + '"]');
+      if (u) u.textContent = Math.round(r.totalCost / r.filledQty).toLocaleString();
+      if (w && r.breakdown && r.breakdown.length) {
+        const top = r.breakdown.slice().sort(function (a, b) { return b.qty * b.unitPrice - a.qty * a.unitPrice; })[0];
+        w.textContent = top.world + (r.breakdown.length > 1 ? ' +' + (r.breakdown.length - 1) : '');
+        w.title = '主要在 ' + top.world + ' 買' + (r.breakdown.length > 1 ? '，另外還要跨 ' + (r.breakdown.length - 1) + ' 個世界湊量' : '');
+      }
+    });
+  }
   function fillBatchCosts(rows, craftRows) {
     craftRows = craftRows || [];
     if (typeof MarketData === 'undefined' || !rows.length) {
@@ -1077,7 +1143,7 @@ app._craftReady = function () {
       return;
     }
     const summaryEl = $('cf-batch-cost-summary');
-    if (summaryEl) summaryEl.textContent = '正在估算採購成本…';
+    if (summaryEl) summaryEl.innerHTML = '<div class="craft-stat-bar craft-stat-skel"><div class="craft-stat-tile"><span class="craft-skel"></span></div><div class="craft-stat-tile"><span class="craft-skel"></span></div><div class="craft-stat-tile"><span class="craft-skel"></span></div></div>'; // 價格還沒回來前用骨架，不要留一片空白
     const nameByItem = {};
     rows.forEach(function (r) { nameByItem[r.itemId] = r.name; });
 
@@ -1098,6 +1164,7 @@ app._craftReady = function () {
         }
       });
       bindWorldPopover();
+      applyBatchProfits(fin); fillMaterialExtras(results);
 
       // 「自己做」按鈕旁邊順便標一下值不值得：跟材料圖譜節點同樣邏輯，往下一層材料成本(乘上這批的需求量)
       // 跟直接買（已經算好在results裡）比較。之前這裡是「每一項可製作材料各自打一次resolveBuyCosts」，
@@ -1192,6 +1259,58 @@ app._craftReady = function () {
    * 是「這個世界要買哪些材料」，讓玩家實際跑一趟某個世界市場板時，一次看完該買的東西，不用一項一項找。
    * 每個項目旁邊留一顆小按鈕，點了就開跟「依材料」清單同一顆世界明細彈出卡（worldBreakdownCache共用），
    * 方便玩家在決定要不要照這個分配買之前，快速確認一下這個材料在其他世界的價格/數量，考慮要不要換。 ── */
+  /* 「依世界」當購物清單用：每個世界一張卡，勾選已買（記在本機）、顯示進度、一鍵複製清單去遊戲裡照著買 */
+  const BOUGHT_KEY = 'craftBatchBought:v1';
+  const boughtSet = (function () { try { return new Set(JSON.parse(localStorage.getItem(BOUGHT_KEY)) || []); } catch (e) { return new Set(); } })();
+  function saveBought() { try { localStorage.setItem(BOUGHT_KEY, JSON.stringify(Array.from(boughtSet))); } catch (e) { /* 存不了就算了 */ } }
+  function updateBoughtProgress(box) {
+    let done = 0, all = 0;
+    box.querySelectorAll('.craft-byworld-card').forEach(function (card) {
+      const items = card.querySelectorAll('.craft-byworld-item'), d = card.querySelectorAll('.craft-byworld-item.is-bought').length;
+      done += d; all += items.length;
+      const prog = card.querySelector('[data-bw-prog]'); if (prog) prog.textContent = d + '／' + items.length;
+      const bar = card.querySelector('.craft-bw-bar i'); if (bar) bar.style.width = (items.length ? d / items.length * 100 : 0) + '%';
+      card.classList.toggle('is-done', items.length > 0 && d === items.length);
+    });
+    const t = box.querySelector('.craft-bw-overall-txt'); if (t) t.textContent = all ? '已買 ' + done + '／' + all + ' 項' : '';
+  }
+  function bindBoughtEvents(box) {
+    if (box._bwBound) return;
+    box._bwBound = true;
+    box.addEventListener('click', function (e) {
+      const statusEl = $('cf-batch-autosuggest-status');
+      const bt = e.target.closest('[data-bought-key]');
+      if (bt) {
+        const key = bt.dataset.boughtKey, row = bt.closest('.craft-byworld-item');
+        if (boughtSet.has(key)) boughtSet.delete(key); else boughtSet.add(key);
+        row.classList.toggle('is-bought', boughtSet.has(key)); bt.setAttribute('aria-pressed', String(boughtSet.has(key)));
+        saveBought(); updateBoughtProgress(box); return;
+      }
+      const rs = e.target.closest('[data-bought-reset]');
+      if (rs) {
+        e.preventDefault();
+        box.querySelectorAll('.craft-byworld-item').forEach(function (r) { boughtSet.delete(r.dataset.bwKey); r.classList.remove('is-bought'); const b = r.querySelector('.craft-bought'); if (b) b.setAttribute('aria-pressed', 'false'); });
+        saveBought(); updateBoughtProgress(box); return;
+      }
+      const cp = e.target.closest('[data-copy-world]');
+      if (cp) {
+        const card = cp.closest('.craft-byworld-card'), world = cp.dataset.copyWorld;
+        const lines = Array.prototype.map.call(card.querySelectorAll('.craft-byworld-item'), function (r) {
+          return (r.classList.contains('is-bought') ? '✔ ' : '・') + r.dataset.bwName + ' ×' + Number(r.dataset.bwQty).toLocaleString() + '（單價約 ' + Number(r.dataset.bwPrice).toLocaleString() + '）';
+        });
+        const text = '【' + world + '】購物清單\n' + lines.join('\n');
+        const done = function () { if (statusEl) statusEl.innerHTML = '<span class="craft-autosuggest-result is-neutral"><i class="ph ph-copy"></i>已複製「' + world + '」的購物清單</span>'; };
+        const fail = function () { if (statusEl) statusEl.textContent = '複製失敗，請手動選取'; };
+        const fallback = function () { // 沒有剪貼簿權限（例如非 https、被瀏覽器擋掉）時，退回用隱藏輸入框＋execCommand
+          const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;left:-9999px';
+          document.body.appendChild(ta); ta.select();
+          let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+          ta.remove(); if (ok) done(); else fail();
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
+      }
+    });
+  }
   function renderByWorldView(results, nameByItem, rows, craftRows) {
     const box = $('cf-batch-byworld');
     if (!box) return;
@@ -1217,17 +1336,24 @@ app._craftReady = function () {
     });
     const craftSection = craftOnlySectionHtml(craftRows);
     if (!worldNames.length) { box.innerHTML = craftSection || '<p class="craft-muted">批次是空的</p>'; return; }
-    box.innerHTML = craftSection + worldNames.map(function (w) {
+    const totalAll = worldNames.reduce(function (n, w) { return n + byWorld[w].length; }, 0);
+    box.innerHTML = craftSection +
+      '<div class="craft-bw-overall"><span class="craft-bw-overall-txt"></span><a href="#" class="craft-link" data-bought-reset title="清除所有已買的勾選">重設</a></div>' +
+      worldNames.map(function (w) {
       const items = byWorld[w];
       const worldTotal = items.reduce(function (s, e) { return s + e.qty * e.unitPrice; }, 0);
-      return '<div class="craft-byworld-card">' +
-        '<div class="craft-byworld-head"><span class="craft-byworld-name"><i class="ph ph-map-pin"></i>' + w + '</span><span class="craft-muted">共 ' + Math.round(worldTotal).toLocaleString() + ' 金</span></div>' +
+      return '<div class="craft-byworld-card" data-world="' + w + '">' +
+        '<div class="craft-byworld-head"><span class="craft-byworld-name"><i class="ph ph-map-pin"></i>' + w + '</span><span class="craft-muted">共 ' + Math.round(worldTotal).toLocaleString() + ' 金</span>' +
+          '<span class="craft-bw-prog" data-bw-prog></span>' +
+          '<button type="button" class="craft-bw-copy" data-copy-world="' + w + '" title="複製這個世界的購物清單，去遊戲裡照著買"><i class="ph ph-copy"></i></button></div>' +
+        '<div class="craft-bw-bar"><i></i></div>' +
         items.map(function (e) {
           const info = craftInfoByItem[e.itemId] || {};
-          const swapBtn = info.craftable
-            ? '<button type="button" class="craft-swap-icon" data-expand-toggle="' + e.itemId + '" title="改自己做"><i class="ph ph-arrows-left-right"></i></button>'
-            : '<span class="craft-grid-empty"></span>';
-          return '<div class="craft-byworld-item"><span class="craft-ing-name">' + e.name + '</span>' +
+          const swapBtn = info.craftable ? bmToggleHtml('buy', e.itemId) : '<span class="craft-grid-empty"></span>';
+          const key = w + '|' + e.itemId;
+          return '<div class="craft-byworld-item' + (boughtSet.has(key) ? ' is-bought' : '') + '" data-bw-key="' + key + '" data-bw-name="' + e.name + '" data-bw-qty="' + e.qty + '" data-bw-price="' + e.unitPrice + '">' +
+            '<button type="button" class="craft-bought" data-bought-key="' + key + '" aria-pressed="' + boughtSet.has(key) + '" title="買好了就勾起來（記在這個瀏覽器）"><i class="ph ph-check"></i></button>' +
+            '<span class="craft-ing-name">' + e.name + '</span>' +
             '<span class="craft-row-grid">' +
             (info.rid ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + info.rid + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '<span class="craft-grid-empty"></span>') +
             '<span class="craft-muted">×' + e.qty.toLocaleString() + '</span>' +
@@ -1239,6 +1365,8 @@ app._craftReady = function () {
         }).join('') +
       '</div>';
     }).join('');
+    updateBoughtProgress(box);
+    bindBoughtEvents(box);
     bindWorldPopover(); // data-worlds-toggle按鈕重新產生了，確保事件委派已經綁定（bindWorldPopover內部有防重複綁定）
     bindMatActions(box); // 點名字切換求解目標，跟「依材料」共用同一套綁定邏輯
     bindExpandCollapseToggles(box); // 交換圖示（改採購那顆在自行製作區塊裡，已經含在craftSection內）
@@ -1921,6 +2049,12 @@ app._craftReady = function () {
   /* 買/做決策文字：兩處（材料圖譜節點、批次列表、自行製作區塊）共用同一顆產生函式。
    * 顏色只代表「這一列目前的做法，比另一種做法省還是貴」，跟現在是買還是做無關——
    * 比較划算是綠色，比較貴是紅色，跟預估淨利虧損時用紅色是同一套邏輯，不是固定「做=綠、買=灰」。 */
+  /* 買／做切換：一個小切換取代原本只有圖示的換位按鈕——目前是哪一邊一眼就看得出來（亮的那邊），點另一邊就切換 */
+  function bmToggleHtml(mode, itemId) {
+    return '<span class="craft-bm" role="group" aria-label="買或自己做">' +
+      '<button type="button" class="craft-bm-opt' + (mode === 'buy' ? ' on' : '') + '"' + (mode === 'buy' ? ' disabled aria-pressed="true"' : ' data-collapse-toggle="' + itemId + '" title="改採購"') + '>買</button>' +
+      '<button type="button" class="craft-bm-opt' + (mode === 'craft' ? ' on' : '') + '"' + (mode === 'craft' ? ' disabled aria-pressed="true"' : ' data-expand-toggle="' + itemId + '" title="改自己做"') + '>做</button></span>';
+  }
   function decisionCellHtml(mode, craftCost, buyCost) {
     const diff = mode === 'buy' ? craftCost - buyCost : buyCost - craftCost;
     const otherLabel = mode === 'buy' ? '製作' : '買'; // 原本「自己做」太長，跟數字擠在一起容易換行或被硬縮小
@@ -2198,7 +2332,7 @@ app._craftReady = function () {
             (rid ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + rid + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '<span class="craft-grid-empty"></span>') +
             '<span class="craft-muted">製作' + r.times + '次</span>' +
             '<span class="craft-grid-empty" data-decision-item="' + r.itemId + '"></span>' +
-            '<button type="button" class="craft-swap-icon" data-collapse-toggle="' + r.itemId + '" title="改採購"><i class="ph ph-arrows-left-right"></i></button>' +
+            bmToggleHtml('craft', r.itemId) +
           '</span></div>';
       }).join('');
   }
@@ -2250,6 +2384,7 @@ app._craftReady = function () {
           '<button type="button" class="craft-batch-morebtn" data-batch-more="' + b.recipeId + '" title="更多：調整順序、設為求解對象、移除" aria-expanded="' + open + '"><i class="ph ph-caret-down"></i></button>' +
         '</div>' +
         '<div class="craft-batch-more">' +
+          '<div class="craft-batch-profit"></div>' +
           '<div class="craft-batch-reorder-btns">' +
             '<button type="button" class="craft-batch-move" data-move-idx="' + i + '" data-move-dir="-1" title="往上移"' + (i === 0 ? ' disabled' : '') + '><i class="ph ph-caret-up"></i></button>' +
             '<button type="button" class="craft-batch-move" data-move-idx="' + i + '" data-move-dir="1" title="往下移"' + (i === batchList.length - 1 ? ' disabled' : '') + '><i class="ph ph-caret-down"></i></button>' +
@@ -2300,19 +2435,18 @@ app._craftReady = function () {
     $('cf-batch-materials').innerHTML =
       craftOnlySectionHtml(craftRows) +
       (craftRows.length ? '<p class="craft-mat-section-label" style="margin-top:8px">▾ 需要採購</p>' : '') +
-      (rows.length ? '<div class="craft-mat-head" aria-hidden="true"><span class="craft-mat-head-name">材料</span><span class="craft-row-grid craft-mat-head-grid"><span></span><span>數量<small>個</small></span><span>小計<small>金</small></span><span></span><span></span><span></span></span></div>' : '') +
+      (rows.length ? '<div class="craft-mat-head" aria-hidden="true"><span class="craft-mat-head-name">材料</span><span class="craft-mat-extra craft-mat-unit">均價<small>金</small></span><span class="craft-mat-extra craft-mat-wd">主要世界</span><span class="craft-row-grid craft-mat-head-grid"><span></span><span>數量<small>個</small></span><span>小計<small>金</small></span><span></span><span></span><span></span></span></div>' : '') +
       (rows.map(function (r) {
         const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
-        const swapBtn = r.craftable
-          ? '<button type="button" class="craft-swap-icon" data-expand-toggle="' + r.itemId + '" title="改自己做"><i class="ph ph-arrows-left-right"></i></button>'
-          : '<span class="craft-grid-empty"></span>';
+        const swapBtn = r.craftable ? bmToggleHtml('buy', r.itemId) : '<span class="craft-grid-empty"></span>';
         return '<div class="craft-mat-buy-block" data-buy-item="' + r.itemId + '">' +
           '<div class="craft-ing-row" data-buy-qty="' + r.amount + '">' +
             '<span class="craft-ing-name">' + r.name + '</span>' +
+            '<span class="craft-mat-extra craft-mat-unit" data-buy-unit-item="' + r.itemId + '"></span><span class="craft-mat-extra craft-mat-wd" data-buy-world-item="' + r.itemId + '"></span>' +
             '<span class="craft-row-grid">' +
               (rid ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + rid + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '<span class="craft-grid-empty"></span>') +
               '<span class="craft-muted">×' + r.amount.toLocaleString() + '</span>' +
-              '<span class="craft-mat-price" data-buy-cost-item="' + r.itemId + '"></span>' +
+              '<span class="craft-mat-price" data-buy-cost-item="' + r.itemId + '"><span class="craft-skel"></span></span>' +
               '<span class="craft-grid-empty" data-decision-item="' + r.itemId + '"></span>' +
               swapBtn +
               '<button type="button" class="craft-mat-worlds-icon" data-worlds-toggle="' + r.itemId + '" title="看看這個材料在其他世界賣多少、還有多少庫存可以加購"><i class="ph ph-info"></i></button>' +
@@ -2415,6 +2549,7 @@ app._craftReady = function () {
     if (typeof MarketData === 'undefined' || !batchList.length) return;
     const btn = $('cf-batch-autosuggest');
     const statusEl = $('cf-batch-autosuggest-status');
+    const prevExpanded = new Set(expandedItems); // 讓使用者可以一鍵復原這次自動建議
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ph ph-spinner"></i>分析中…'; }
     if (statusEl) statusEl.textContent = '';
     let totalSwitched = 0;
@@ -2536,8 +2671,15 @@ app._craftReady = function () {
         }
       }
       statusEl.innerHTML = totalSwitched > 0
-        ? '已自動切換 ' + totalSwitched + ' 項為自己做' + deltaText
-        : '目前配置已經是划算的組合，沒有項目需要調整';
+        ? '<span class="craft-autosuggest-result"><i class="ph ph-check-circle"></i>已自動切換 ' + totalSwitched + ' 項為自己做' + deltaText + '</span> <a href="#" id="cf-autosuggest-undo" class="craft-link">復原</a>'
+        : '<span class="craft-autosuggest-result is-neutral"><i class="ph ph-info"></i>目前配置已經是划算的組合，沒有項目需要調整</span>';
+      const undo = $('cf-autosuggest-undo');
+      if (undo) undo.addEventListener('click', function (e) {
+        e.preventDefault();
+        expandedItems = new Set(prevExpanded);
+        renderBatch();
+        statusEl.innerHTML = '<span class="craft-autosuggest-result is-neutral"><i class="ph ph-arrow-counter-clockwise"></i>已復原成自動建議之前的配置</span>';
+      });
     }
   }
 
@@ -2642,6 +2784,18 @@ app._craftReady = function () {
       btn.classList.remove('craft-add-batch-confirmed');
       $('cf-add-batch-confirm').classList.remove('craft-add-batch-confirm-show');
     }, 1600);
+  });
+  $('cf-batch-sort-profit').addEventListener('click', function (e) { // 依預估淨利重新排序：賺最多的排最前面，算不出淨利的排最後（維持原本相對順序）
+    e.preventDefault();
+    const statusEl = $('cf-batch-autosuggest-status');
+    const known = batchList.filter(function (b) { return lastBatchProfits[b.recipeId]; });
+    if (!known.length) { if (statusEl) statusEl.textContent = '還沒有淨利資料：請先在市場設定選好「我的世界」，等價格載入完成'; return; }
+    const unknown = batchList.filter(function (b) { return !lastBatchProfits[b.recipeId]; });
+    known.sort(function (a, b) { return lastBatchProfits[b.recipeId].total - lastBatchProfits[a.recipeId].total; });
+    batchList = known.concat(unknown);
+    batchSeqIndex = -1;
+    renderBatch();
+    if (statusEl) statusEl.textContent = '已依預估淨利重新排序（賺最多的在最前面）';
   });
   $('cf-batch-clear').addEventListener('click', function (e) {
     e.preventDefault();
