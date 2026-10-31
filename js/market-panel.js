@@ -3812,7 +3812,7 @@
       const bar = $('mk-token-hidebar');
       if (!hiddenCount) { bar.innerHTML = ''; return; }
       bar.innerHTML = '<span title="這些代幣換到的東西全部不可交易，或目前市場上沒有行情，查不出價值；多半是限時活動的兌換物">' +
-        (tokenShowHidden ? '已顯示全部，含 ' + hiddenCount + ' 個沒有可比價兌換物的代幣' : '已隱藏 ' + hiddenCount + ' 個沒有可比價兌換物的代幣（多為限時活動）') +
+        (tokenShowHidden ? '已顯示全部，含 ' + hiddenCount + ' 個沒有可比價兌換物的代幣' : '已隱藏 ' + hiddenCount + ' 個沒有可比價兌換物的代幣（多為限時活動或無可交易的兌換物）') +
         '</span><button type="button" class="market-token-hidebtn" id="mk-token-hidebtn">' + (tokenShowHidden ? '再隱藏' : '顯示') + '</button>';
       $('mk-token-hidebtn').addEventListener('click', function () {
         tokenShowHidden = !tokenShowHidden; rebuild(); renderCats(); renderList(); renderHideBar();
