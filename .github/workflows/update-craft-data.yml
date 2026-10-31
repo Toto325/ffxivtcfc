@@ -26,7 +26,7 @@ jobs:
       - name: 檢查資料有沒有變動
         id: diff
         run: |
-          if git diff --quiet -- js/craft-data.js js/craft-action-names.js js/craft-foods.js js/craft-icons.js js/craft-action-icons.js data/item-names-i18n.json; then
+          if git diff --quiet -- js/craft-data.js js/craft-action-names.js js/craft-foods.js js/craft-icons.js js/craft-action-icons.js js/item-names-tw.js js/item-icons-tw.js data/item-names-i18n.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
