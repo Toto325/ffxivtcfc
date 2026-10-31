@@ -779,52 +779,156 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 @media (max-width:719px){.craft-explore-drawer.wide .craft-explore-panel{width:100%}.craft-explore-drawer.wide .craft-explore-panel .craft-mat-extra{display:none !important}}
 
 /* ============================================================
- * 生產頁新版面（參數區在上、配方與求解並排）
- * 只覆蓋版面與外觀，不改任何 id / 功能。放在檔案最後，確保蓋過上面的舊規則。
+ * 生產頁重新設計（沿用市場頁語言：分段列、數據磚塊、底線分頁、金色主行動）
+ * 放在檔案最後覆蓋舊規則；功能 id 全部不變。
  * ============================================================ */
-.craft-layout{display:flex;flex-direction:column;gap:16px;align-items:stretch}
-.craft-params{display:flex;flex-direction:column;gap:12px}
-/* 摘要列：沿用市場頁設定按鈕（.market-settings-btn）的分段寫法 */
-.craft-params-bar{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:4px 12px;border:1px solid var(--tb);border-radius:9px;background:rgba(255,255,255,.03);color:var(--main);font-family:inherit;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
-.craft-params-bar:hover{border-color:var(--gold);background:rgba(197,160,89,.09)}
-.craft-params-summary{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;flex:1;min-width:0}
-.craft-params-summary .mss{padding:0 12px;line-height:22px;border-left:1px solid var(--tb)}
-.craft-params-summary .mss:first-child{padding-left:0;border-left:0}
-.craft-params-summary .mss i{font-style:normal;font-size:11px;color:var(--dim)}
-.craft-params-summary .mss b{font-size:14px;font-weight:700;color:var(--gold-bright);font-variant-numeric:tabular-nums}
-.craft-sum-skill{font-size:11.5px;padding:0 8px;border:1px solid var(--tb);border-radius:20px;color:var(--gold-bright);background:rgba(197,160,89,.1);white-space:nowrap}
-.mss-skills{flex-wrap:wrap;gap:5px}
-.mss-default{font-size:11px;color:#e0a05a;border:1px dashed rgba(224,160,90,.55)!important;border-radius:20px;margin-left:8px;padding:0 9px!important}
-.craft-params-toggle{flex:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gold)}
-.craft-params-caret{transition:transform .2s}
-.craft-params:not(.collapsed) .craft-params-caret{transform:rotate(180deg)}
-/* 展開後：三張設定卡橫排，技能確認整列放在下面 */
-.craft-params-body.craft-col-left{flex:none;display:grid;grid-template-columns:1.05fr 1.25fr 1.2fr;gap:14px;align-items:stretch}
-.craft-params-body>.craft-card:last-child{grid-column:1/-1}
-.craft-params.collapsed .craft-params-body{display:none}
-.craft-special-list{display:flex;flex-wrap:wrap;gap:6px 10px}
+.craft-layout{container-type:inline-size;display:flex;flex-direction:column;gap:18px;align-items:stretch}
+.cw-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+.cw-title{font-size:26px;font-weight:700;letter-spacing:.32em;display:flex;align-items:center;gap:12px;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 65%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;color:transparent}
+.cw-title i{font-size:24px;-webkit-text-fill-color:var(--gold)}
+.cw-sub{font-size:12.5px;letter-spacing:.2em;color:var(--dim)}
+/* 角色區 */
+.cw-actor{display:flex;flex-direction:column;gap:12px;border:1px solid var(--tb);border-radius:12px;padding:14px 16px;background:linear-gradient(180deg,rgba(197,160,89,.07),rgba(255,255,255,.01))}
+.cw-actor-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:30px}
+.cw-actor-top .craft-profile-toggle{margin-left:auto}
+.cw-actor .craft-hint{margin:-4px 0 0;font-size:11.5px;color:var(--dim)}
+.cw-stats{display:grid;grid-template-columns:minmax(96px,.7fr) repeat(3,minmax(0,1fr)) auto;border:1px solid var(--tb);border-radius:10px;background:rgba(0,0,0,.3);overflow:hidden}
+.cw-stat{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:9px 14px 10px;border-left:1px solid var(--tb);min-width:0}
+.cw-stat:first-child{border-left:0}
+.cw-stat>label:first-child{font-size:11px;color:var(--dim);letter-spacing:.12em}
+.cw-stat .craft-stepper{display:flex;align-items:center;gap:4px;width:100%}
+.cw-stat .craft-stepper input{flex:1;min-width:0;width:100%;height:34px;border:0;background:transparent;text-align:center;font:700 22px/1 "Noto Serif TC",serif;color:var(--gold-bright);font-variant-numeric:tabular-nums;padding:0}
+.cw-stat .craft-stepper input:focus{background:rgba(197,160,89,.08);border-radius:6px}
+.cw-stat .craft-step-btn{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--tb);background:rgba(255,255,255,.03);color:var(--gold);font-size:15px;line-height:1;padding:0;display:grid;place-items:center}
+.cw-stat .craft-step-btn:hover{border-color:var(--gold);background:rgba(197,160,89,.14)}
+.cw-stat-lv .craft-stepper input{font-size:20px}
+.cw-spec{flex-direction:row;align-items:center;gap:9px;cursor:pointer;font-size:14px;padding:0 18px;color:var(--main)}
+.cw-spec input{position:absolute;opacity:0;pointer-events:none}
+.cw-spec-box{width:20px;height:20px;border:1px solid var(--gold);border-radius:5px;display:grid;place-items:center;color:transparent;font-size:13px;transition:.15s}
+.cw-spec input:checked+.cw-spec-box{background:var(--gold);color:#1a1208}
+.cw-spec input:focus-visible+.cw-spec-box{outline:2px solid var(--gold-bright);outline-offset:2px}
+/* 食物／藥水 */
+.cw-cons{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cw-tile{display:flex;flex-direction:column;gap:8px;padding:9px 12px 10px;border:1px solid var(--tb);border-radius:10px;background:rgba(0,0,0,.22);min-width:0}
+.cw-tile .craft-row-tight{justify-content:space-between;flex-wrap:nowrap}
+.cw-tile .craft-label{font-size:12.5px;color:var(--main);letter-spacing:.1em}
+.cw-tile .craft-label i{color:var(--gold)}
+.cw-actor .craft-toggle button{padding:3px 11px;font-size:11.5px}
+/* 特殊技能：收合列顯示已勾選名稱，展開才看全部 */
+.cw-skills{border:1px solid var(--tb);border-radius:10px;background:rgba(0,0,0,.2);overflow:hidden}
+.cw-skills-bar{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:6px 12px;background:none;border:0;color:inherit;font-family:inherit;text-align:left;cursor:pointer}
+.cw-skills-bar:hover{background:rgba(197,160,89,.08)}
+.cw-skills-summary{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.cw-skill-tag{font-size:12px;padding:1px 10px;border:1px solid rgba(197,160,89,.5);border-radius:20px;color:var(--gold-bright);background:rgba(197,160,89,.1);white-space:nowrap}
+.cw-caret{color:var(--gold);transition:transform .2s}
+.cw-skills.open .cw-caret{transform:rotate(180deg)}
+.cw-skills .craft-special-list{display:none;padding:4px 12px 12px;border-top:1px solid var(--tb);margin-top:0}
+.cw-skills.open .craft-special-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;padding-top:12px}
+.cw-skills .craft-skill-item{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:8px 11px;margin:0;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .15s,background .15s}
+.cw-skills .craft-skill-item:has(input:checked){border-color:var(--gold);background:rgba(197,160,89,.13)}
+.cw-skills .craft-skill-item.craft-skill-locked{opacity:.5;cursor:not-allowed}
+.cw-skills .craft-skill-item-main{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.cw-skills .craft-skill-lvl{font-size:11px;color:var(--dim);line-height:1.4;padding-left:24px}
+.cw-skills .craft-skill-item input{accent-color:var(--gold);width:16px;height:16px}
 /* 配方與求解並排 */
-.craft-work{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,430px);gap:18px;align-items:start}
+.craft-work{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:18px;align-items:start}
 .craft-col-recipe,.craft-col-solve{flex:none;min-width:0;padding-bottom:0}
-/* 主要行動：亮金漸層，只有求解按鈕用，其他維持暗金 */
-.craft-solve-btn{font-weight:700;letter-spacing:.08em;color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep));border-color:var(--gold-bright);box-shadow:0 0 18px rgba(197,160,89,.3)}
-.craft-solve-btn:not(:disabled):hover{filter:brightness(1.08);background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep))}
-.craft-solve-btn:disabled{background:rgba(255,255,255,.04);border:1px dashed var(--tb);color:var(--dim);opacity:1;font-weight:400}
-/* 模式切換：改成跟市場頁分頁一樣的底線式 */
+@container (max-width:760px){.craft-work{grid-template-columns:1fr}.cw-stats{grid-template-columns:1fr 1fr 1fr}.cw-stat-lv{grid-column:1/2}.cw-spec{grid-column:1/-1;border-top:1px solid var(--tb);padding:10px 14px;justify-content:flex-start}.cw-cons{grid-template-columns:1fr}.cw-title{font-size:22px}}
+/* 模式分頁（底線式，同市場頁） */
+.cw-modebar{display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--tb);margin-bottom:12px;padding:0 2px}
+.cw-modebar .craft-label{display:none}
 #cf-mode-toggle{gap:22px}
-#cf-mode-toggle button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:6px 2px;font-size:13px;color:var(--dim)}
-#cf-mode-toggle button.active{color:var(--gold-bright);border-bottom-color:var(--gold);background:none}
-/* 舊結果：設定改變後變淡並標示，不清掉 */
-.craft-result{transition:opacity .3s,filter .3s}
+#cf-mode-toggle button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 2px;font-size:14px;color:var(--dim);margin-bottom:-1px}
+#cf-mode-toggle button.active{color:var(--gold-bright);border-bottom-color:var(--gold);background:none;font-weight:700}
+/* 求解按鈕：唯一的亮金主按鈕 */
+.craft-solve-btn{height:52px;padding:0;font-size:16px;font-weight:700;letter-spacing:.1em;color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep));border:1px solid var(--gold-bright);box-shadow:0 0 18px rgba(197,160,89,.28);margin-top:12px}
+.craft-solve-btn:not(:disabled):hover{filter:brightness(1.08);background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep))}
+.craft-solve-btn:disabled{background:rgba(255,255,255,.035);border:1px dashed var(--tb);color:var(--dim);opacity:1;font-weight:400;box-shadow:none}
+.craft-result{position:relative;transition:opacity .3s,filter .3s}
 .craft-result.is-stale{opacity:.5;filter:saturate(.5)}
 .craft-result.is-stale::before{content:"設定已變更";position:absolute;top:8px;right:12px;font-size:11px;padding:1px 10px;color:var(--gold-bright);border:1px dashed var(--gold);border-radius:20px;background:#0b0806}
-.craft-result{position:relative}
-/* 觸控友善 */
-.craft-step-btn,.craft-select,.craft-search{min-height:40px}
-@media (max-width:860px){
-  .craft-params-body.craft-col-left{grid-template-columns:1fr}
-  .craft-work{grid-template-columns:1fr}
-  .craft-params-summary .mss{padding:0 9px}
-  .craft-col-solve #cf-solve{position:sticky;bottom:10px;z-index:5}
+@media (prefers-reduced-motion:reduce){.cw-caret,.craft-result{transition:none}}
+
+/* —— 第二輪：緊湊化與配方區 —— */
+.cw-tile .craft-select,.cw-tile .craft-select-block{flex:none;height:38px;margin:0;width:100%}
+.cw-actor .craft-stats-scope-tag{width:auto;margin:0}
+.cw-actor .craft-hint{display:none!important}
+.cw-actor{gap:10px;padding:12px 14px}
+.cw-cons{gap:10px}
+.cw-tile{flex-direction:row;align-items:center;gap:10px;padding:8px 12px}
+.cw-tile .craft-row-tight{flex:none;gap:8px;flex-wrap:nowrap}
+.cw-tile .craft-label{white-space:nowrap}
+.cw-tile>.craft-select{flex:1 1 0;min-width:0}
+.craft-col-recipe>.craft-card,.craft-col-solve .craft-card{border-radius:12px}
+.craft-col-recipe>.craft-card{display:flex;flex-direction:column;gap:10px;padding:14px;background:linear-gradient(180deg,rgba(197,160,89,.05),rgba(255,255,255,.01))}
+.craft-search-row .craft-search{height:46px;font-size:15px;padding:0 14px;border-color:rgba(197,160,89,.5);border-radius:9px}
+.craft-lunar-btn{height:46px;border-radius:9px}
+.craft-filter-row{margin:0;display:flex;flex-wrap:nowrap;align-items:center;gap:12px}
+.craft-job-filter{flex:1;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.craft-job-filter::-webkit-scrollbar{display:none}
+.craft-job-filter-btn{flex:none;padding:5px 13px;font-size:12.5px;border-radius:20px;min-height:30px}
+.craft-job-filter-btn.active{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:#1a1208;border-color:var(--gold-bright);font-weight:700}
+.craft-lvl-filter{flex:none}
+.craft-filter-lvl-input{width:54px!important}
+.craft-recipe-selected{margin:0}
+.craft-recipe-chip{display:flex;flex-direction:column;gap:3px;width:100%;padding:11px 14px;font-size:17px;font-weight:700;color:var(--gold-bright);border:1px solid rgba(197,160,89,.55);border-radius:10px;background:linear-gradient(180deg,rgba(197,160,89,.14),rgba(197,160,89,.04))}
+.craft-recipe-chip .craft-muted{font-size:12px;font-weight:400}
+.craft-add-batch-box{margin:0;padding:8px 10px;border-radius:10px}
+.craft-add-batch-caption{display:none}
+.craft-ingredients{margin:0;border-top:1px solid var(--tb);padding-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.craft-ingredients-title{grid-column:1/-1;font-size:12px;color:var(--gold);letter-spacing:.1em}
+.craft-ingredients .craft-ing-row{flex-direction:column;align-items:stretch;gap:8px;padding:9px 10px;border:1px solid var(--tb);border-radius:9px;background:rgba(0,0,0,.2)}
+.craft-ingredients .craft-ing-row .craft-row{justify-content:space-between;flex-wrap:nowrap}
+.craft-ingredients .craft-ing-fixed{font-size:12px;color:var(--dim)}
+.craft-ing-hq-control{border-radius:7px;flex:1}
+.craft-ing-split{flex:1;text-align:center;font-size:12px}
+@container (max-width:520px){.craft-ingredients{grid-template-columns:1fr}}
+
+/* —— 第三輪：頂列、求解欄與空狀態骨架 —— */
+.cw-actor .craft-stats-scope-tag{width:auto;flex:none;grid-column:auto;margin:0}
+.cw-actor-top{justify-content:flex-start}
+.craft-filter-row{flex-wrap:wrap;row-gap:8px}
+.craft-job-filter{flex:1 1 100%}
+.craft-col-solve>#cf-auto-block{display:flex;flex-direction:column;gap:10px}
+.craft-col-solve #cf-auto-block>.craft-card{margin:0;padding:10px 14px}
+.craft-solve-target{margin:0;border-radius:9px}
+.craft-col-solve .craft-solve-btn{margin-top:2px}
+.cw-skel{display:none;border:1px dashed var(--tb);border-radius:12px;padding:14px;margin-top:4px}
+#cf-result[style*="none"]~.cw-skel{display:block}
+#cf-auto-block:has(#cf-solve:disabled) .cw-skel{opacity:.5}
+.cw-skel i,.cw-skel-h,.cw-skel-btn{display:block;border-radius:8px;background:linear-gradient(90deg,rgba(197,160,89,.05),rgba(197,160,89,.13),rgba(197,160,89,.05));background-size:200% 100%;animation:cwsk 2.4s ease-in-out infinite}
+.cw-skel-h{height:20px;width:55%;margin-bottom:12px}
+.cw-skel-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.cw-skel-tiles i{height:46px}
+.cw-skel-seq{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.cw-skel-seq i{width:40px;height:40px}
+.cw-skel-btn{height:42px}
+@keyframes cwsk{0%,100%{background-position:0 0}50%{background-position:100% 0}}
+@media (prefers-reduced-motion:reduce){.cw-skel i,.cw-skel-h,.cw-skel-btn{animation:none}}
+
+/* —— 第四輪：頂列修正、結果卡層級 —— */
+.cw-actor-top .craft-profile-toggle{width:auto;margin:0 0 0 auto;flex:none;font-size:13px;color:var(--main);min-height:30px}
+.cw-actor-top .craft-profile-toggle input{accent-color:var(--gold);width:16px;height:16px}
+.cw-actor-top #cf-profile-manage-btn{margin:0}
+#cf-result.craft-result{display:flex;flex-direction:column;gap:10px;padding:14px 16px}
+#cf-result .craft-result-title{order:-3;margin:0;font-size:12px;color:var(--dim);letter-spacing:.08em}
+#cf-result .craft-hq-line{order:-2;margin:0;font-size:18px;font-weight:700;line-height:1.4;padding:10px 12px;border-radius:9px;border:1px solid rgba(127,199,154,.45);background:rgba(127,199,154,.08);color:#8fd6a8}
+#cf-result .craft-hq-line.craft-status-fail{border-color:rgba(224,96,122,.5);background:rgba(224,96,122,.08);color:#f08aa0;font-size:14px}
+#cf-result .craft-macro-head{margin-top:2px}
+#cf-result .craft-macro-seg-head{flex-direction:row-reverse;justify-content:space-between}
+#cf-result .craft-macro-copy-btn{height:40px;padding:0 18px;border-radius:8px;color:var(--gold-bright);border:1px solid var(--gold);background:rgba(197,160,89,.16);font-weight:700}
+#cf-result .craft-macro-copy-btn:hover{background:rgba(197,160,89,.3)}
+#cf-result .craft-macro{border-radius:9px}
+#cf-result.craft-result[style*="block"]{display:flex!important}
+
+/* —— 手機／窄版 —— */
+@container (max-width:560px){
+  .cw-stats{grid-template-columns:1fr 1fr}
+  .cw-stat-lv{grid-column:auto}
+  .cw-stat:nth-child(3){border-left:0}
+  .cw-stat:nth-child(n+3){border-top:1px solid var(--tb)}
+  .cw-spec{grid-column:1/-1;border-left:0;justify-content:flex-start}
+  .cw-tile{flex-wrap:wrap}
+  .cw-actor-top .craft-profile-toggle{margin-left:auto}
+  .craft-col-solve #cf-solve{position:sticky;bottom:10px;z-index:6;box-shadow:0 0 0 6px rgba(5,4,6,.85),0 0 18px rgba(197,160,89,.3)}
 }
-@media (prefers-reduced-motion:reduce){.craft-result,.craft-params-caret{transition:none}}
