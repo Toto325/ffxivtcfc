@@ -366,6 +366,16 @@ async function main() {
   uiCsv.slice(3).forEach(function (r) { if (/^\d+$/.test(r[0]) && r[1]) categoryName[r[0]] = r[1]; });
   const itemUi = {};
   itemCsv.slice(3).forEach(function (r) { if (/^\d+$/.test(r[0])) itemUi[r[0]] = parseInt(r[uiCol], 10) || 0; });
+  // 台服「市場可上架」判定：Item.csv 的 ItemSearchCategory > 0 就是遊戲內市場板有分類、能搜尋到的物品。
+  // Teamcraft 的 market-items.json 不完整（例如煤煙黑染劑等100多種染劑根本不在裡面），所以以台服資料表為準，
+  // 再跟 Teamcraft 清單取聯集當保底。
+  const searchCatCol = itemCsv[1].indexOf('ItemSearchCategory');
+  const untradableCol = itemCsv[1].indexOf('IsUntradable');
+  if (searchCatCol < 0 || untradableCol < 0) throw new Error('台服 Item.csv 找不到 ItemSearchCategory／IsUntradable 欄位，資料表可能已改版');
+  const twMarketable = {};
+  itemCsv.slice(3).forEach(function (r) {
+    if (/^\d+$/.test(r[0]) && (parseInt(r[searchCatCol], 10) || 0) > 0 && String(r[untradableCol]).toLowerCase() !== 'true') twMarketable[r[0]] = true;
+  });
   const patchVersion = {};
   Object.keys(patchNames).forEach(function (k) {
     const v = patchNames[k] && patchNames[k].version;
@@ -381,7 +391,22 @@ async function main() {
     if (c && categoryName[c]) usedCat[c] = categoryName[c];
   });
   console.log('物品版本・分類:', Object.keys(itemMeta).length, '筆');
-  const marketableTw = marketItems.filter(function (id) { return itemNamesTw[id]; }).sort(function (a, b) { return a - b; });
+  // 只以台服資料表為準，不再併入 Teamcraft 的 market-items.json：那份清單反映的是國際服的規則，
+  // 會漏收台服能交易的物品（染劑），也會多收台服不能交易的物品（例如魔法水桶）。
+  const marketableTw = Object.keys(twMarketable).map(Number).filter(function (id) { return itemNamesTw[id]; }).sort(function (a, b) { return a - b; });
+  // 安全檢查：新清單比現有的 js/item-names-tw.js 少超過 5% 就中止，避免上游資料暫時壞掉時覆蓋掉好的清單
+  try {
+    const prevText = fs.readFileSync(OUT.itemNamesTw, 'utf8');
+    const pm = /const ITEM_MARKETABLE_TW=(\[[^\]]*\]);/.exec(prevText);
+    const prevCount = pm ? JSON.parse(pm[1]).length : 0;
+    if (prevCount > 0 && marketableTw.length < prevCount * 0.95) {
+      throw new Error('可交易清單從 ' + prevCount + ' 筆驟減為 ' + marketableTw.length + ' 筆（少超過5%），疑似上游資料異常，已停止更新');
+    }
+  } catch (e) {
+    if (/已停止更新/.test(e.message)) throw e; // 只有驟減才中止；讀不到舊檔（第一次產生）就略過檢查
+  }
+  const tcOnly = marketItems.filter(function (id) { return itemNamesTw[id] && !twMarketable[id]; }).length;
+  console.log('Teamcraft 清單有、台服資料表判定不可交易（已排除）:', tcOnly, '筆');
   console.log('可交易（有繁中名稱）:', marketableTw.length, '筆');
 
   fs.writeFileSync(OUT.craftData,
