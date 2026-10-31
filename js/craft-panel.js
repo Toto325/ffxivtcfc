@@ -262,74 +262,71 @@ app._craftReady = function () {
 
   root.innerHTML =
     '<div class="craft-layout">' +
-      '<header class="cw-head"><h2 class="cw-title"><i class="ph ph-hammer"></i>生產</h2><p class="cw-sub">選配方、確認數值，一鍵求解最佳手法</p></header>' +
-      '<section class="cw-actor" id="cf-actor">' +
-        '<div class="cw-actor-top">' +
-          '<span id="cf-job-wrap" style="display:none"><select id="cf-job" class="craft-select"></select></span>' +
-          '<div id="cf-stats-scope-tag" class="craft-stats-scope-tag"></div>' +
-          '<label class="craft-check-inline craft-profile-toggle"><input id="cf-profile-mode" type="checkbox" />個人設定檔</label>' +
-          '<button type="button" id="cf-profile-manage-btn" class="craft-link" style="display:none">管理全部職業 <i class="ph ph-caret-down"></i></button>' +
+      '<header class="cw-bar">' +
+        '<h2 class="cw-title"><i class="ph ph-hammer"></i>生產</h2>' +
+        '<span id="cf-job-wrap" style="display:none"><select id="cf-job" class="craft-select"></select></span>' +
+        '<div id="cf-stats-scope-tag" class="craft-stats-scope-tag"></div>' +
+        '<label class="craft-check-inline craft-profile-toggle" title="想分別記錄不同職業的數值時開啟；切換職業會自動套用該職業的數值與可製作清單"><input id="cf-profile-mode" type="checkbox" />個人設定檔</label>' +
+        '<button type="button" id="cf-profile-manage-btn" class="craft-link" style="display:none">管理全部職業 <i class="ph ph-caret-down"></i></button>' +
+      '</header>' +
+      '<p id="cf-profile-hint-off" class="craft-hint">想分別記錄不同職業的數值，可開啟個人設定檔。</p>' +
+      '<p id="cf-profile-hint-on" class="craft-hint" style="display:none">切換職業會自動套用該職業的數值與可製作清單。</p>' +
+      '<div id="cf-profile-manager" class="craft-profile-manager" style="display:none"></div>' +
+      '<section class="cw-dock" id="cf-actor">' +
+        '<div class="cw-dock-row cw-dock-stats">' +
+          '<div class="cw-cell"><label>等級</label>' + numberField('cf-lvl', 100, 1) + '</div>' +
+          '<div class="cw-cell"><label>作業精度</label>' + numberField('cf-craftsmanship', 4444, 10) + '</div>' +
+          '<div class="cw-cell"><label>加工精度</label>' + numberField('cf-control', 4444, 10) + '</div>' +
+          '<div class="cw-cell"><label>CP</label>' + numberField('cf-cp', 888, 5) + '</div>' +
+          '<label class="cw-cell cw-spec"><input id="cf-specialist" type="checkbox" /><span class="cw-spec-box"><i class="ph ph-check"></i></span><span>專家</span></label>' +
         '</div>' +
-        '<p id="cf-profile-hint-off" class="craft-hint">想分別記錄不同職業的數值，可開啟個人設定檔。</p>' +
-        '<p id="cf-profile-hint-on" class="craft-hint" style="display:none">切換職業會自動套用該職業的數值與可製作清單。</p>' +
-        '<div id="cf-profile-manager" class="craft-profile-manager" style="display:none"></div>' +
-        '<div class="cw-stats">' +
-          '<div class="cw-stat cw-stat-lv"><label>等級</label>' + numberField('cf-lvl', 100, 1) + '</div>' +
-          '<div class="cw-stat"><label>作業精度</label>' + numberField('cf-craftsmanship', 4444, 10) + '</div>' +
-          '<div class="cw-stat"><label>加工精度</label>' + numberField('cf-control', 4444, 10) + '</div>' +
-          '<div class="cw-stat"><label>CP</label>' + numberField('cf-cp', 888, 5) + '</div>' +
-          '<label class="cw-stat cw-spec"><input id="cf-specialist" type="checkbox" /><span class="cw-spec-box"><i class="ph ph-check"></i></span><span>專家</span></label>' +
-        '</div>' +
-        '<div class="cw-cons">' +
-          '<div class="cw-tile">' +
+        '<div class="cw-dock-row cw-dock-cons">' +
+          '<div class="cw-cell cw-cons">' +
             '<div class="craft-row craft-row-tight"><span class="craft-label"><i class="ph ph-bowl-food"></i>食物</span><div class="craft-toggle" id="cf-food-tier"><button data-v="nq">NQ</button><button data-v="hq" class="active">HQ</button></div></div>' +
             '<select id="cf-food" class="craft-select craft-select-block"><option value="">不使用</option></select>' +
           '</div>' +
-          '<div class="cw-tile">' +
+          '<div class="cw-cell cw-cons">' +
             '<div class="craft-row craft-row-tight"><span class="craft-label"><i class="ph ph-flask"></i>藥水</span><div class="craft-toggle" id="cf-pot-tier"><button data-v="nq">NQ</button><button data-v="hq" class="active">HQ</button></div></div>' +
             '<select id="cf-pot" class="craft-select craft-select-block"><option value="">不使用</option></select>' +
           '</div>' +
+          '<div class="cw-cell cw-skills" id="cf-skills">' +
+            '<button type="button" id="cf-skills-bar" class="cw-skills-bar" aria-expanded="false"><span class="craft-label"><i class="ph ph-graduation-cap"></i>技能</span><span id="cf-skills-summary" class="cw-skills-summary"></span><i class="ph ph-caret-down cw-caret"></i></button>' +
+            '<div id="cf-special-list" class="craft-special-list"></div>' +
+          '</div>' +
         '</div>' +
         '<div id="cf-consumable-summary" class="craft-consumable-summary"></div>' +
-        '<div class="cw-skills" id="cf-skills">' +
-          '<button type="button" id="cf-skills-bar" class="cw-skills-bar" aria-expanded="false"><span class="craft-label"><i class="ph ph-graduation-cap"></i>特殊技能</span><span id="cf-skills-summary" class="cw-skills-summary"></span><i class="ph ph-caret-down cw-caret"></i></button>' +
-          '<div id="cf-special-list" class="craft-special-list"></div>' +
-        '</div>' +
       '</section>' +
       '<div class="craft-work">' +
-      '<div class="craft-col craft-col-recipe">' +
-        '<div class="craft-card">' +
-          '<div class="craft-search-row"><input id="cf-recipe-search" class="craft-search" placeholder="搜尋配方名稱⋯" autocomplete="off" />' +
-            '<button type="button" id="cf-lunar-btn" class="craft-lunar-btn" title="依職業與任務等級瀏覽月球製作配方"><i class="ph ph-moon"></i>月球製作</button></div>' +
-          '<div class="craft-filter-row">' +
-            '<div id="cf-job-filter" class="craft-job-filter"></div>' +
-            '<div class="craft-lvl-filter">' +
-              '<span class="craft-label">Lv</span>' +
-              '<input id="cf-filter-lvl-min" type="number" class="craft-filter-lvl-input" placeholder="最低" min="1" max="100" />' +
-              '<span class="craft-muted">～</span>' +
-              '<input id="cf-filter-lvl-max" type="number" class="craft-filter-lvl-input" placeholder="最高" min="1" max="100" />' +
-            '</div>' +
+      '<div class="craft-col craft-col-recipe"><div class="cw-pick">' +
+        '<div class="craft-search-row"><input id="cf-recipe-search" class="craft-search" placeholder="搜尋配方名稱⋯" autocomplete="off" />' +
+          '<button type="button" id="cf-lunar-btn" class="craft-lunar-btn" title="依職業與任務等級瀏覽月球製作配方"><i class="ph ph-moon"></i>月球製作</button></div>' +
+        '<div class="craft-filter-row">' +
+          '<div id="cf-job-filter" class="craft-job-filter"></div>' +
+          '<div class="craft-lvl-filter">' +
+            '<span class="craft-label">Lv</span>' +
+            '<input id="cf-filter-lvl-min" type="number" class="craft-filter-lvl-input" placeholder="最低" min="1" max="100" />' +
+            '<span class="craft-muted">～</span>' +
+            '<input id="cf-filter-lvl-max" type="number" class="craft-filter-lvl-input" placeholder="最高" min="1" max="100" />' +
           '</div>' +
-          '<div id="cf-recipe-results" class="craft-recipe-results"></div>' +
+        '</div>' +
+        '<div id="cf-recipe-results" class="craft-recipe-results"><div class="craft-recipe-empty"><i class="ph ph-magnifying-glass"></i>輸入配方名稱，或點職業、設定等級範圍來瀏覽</div></div>' +
+      '</div></div>' +
+      '<div class="craft-col craft-col-solve">' +
+        '<div class="cw-modebar">' +
+          '<span class="craft-label">模式</span>' +
+          '<div class="craft-toggle" id="cf-mode-toggle"><button data-v="auto" class="active">自動求解</button><button data-v="manual">手動求解</button></div>' +
+        '</div>' +
+        '<div class="cw-make">' +
           '<div id="cf-recipe-selected" class="craft-recipe-selected"></div>' +
           '<div id="cf-add-batch-wrap" style="display:none" class="craft-add-batch-box">' +
             '<div class="craft-row">' +
               numberField('cf-batch-qty', 1, 1) +
-              '<button id="cf-add-batch" type="button" class="craft-copy-btn" style="margin-left:8px"><i class="ph ph-plus"></i>加入批次規劃</button>' +
+              '<button id="cf-add-batch" type="button" class="craft-copy-btn" title="只加進規劃清單，不影響求解"><i class="ph ph-plus"></i>加入批次規劃</button>' +
               '<span class="craft-add-batch-caption"><i class="ph ph-arrow-bend-right-down"></i>只加進規劃清單，不影響下面求解</span>' +
             '</div>' +
             '<p id="cf-add-batch-confirm" class="craft-add-batch-confirm"></p>' +
           '</div>' +
           '<div id="cf-ingredients" class="craft-ingredients"></div>' +
-        '</div>' +
-        /* 求解區塊緊接在「選配方＋設定材料HQ」後面，主流程到這裡就結束，畫面乾淨、視線不會被打斷。
-         * 材料圖譜、批次規劃是探索/規劃用的附加內容，跟主要求解流程完全分開，收進側邊抽屜面板，
-         * 用分頁籤切換，不用一直往下滑、也不會跟求解流程的內容混在一起分不清楚。 */
-      '</div>' +
-      '<div class="craft-col craft-col-solve">' +
-        '<div class="cw-modebar">' +
-          '<span class="craft-label">模式</span>' +
-          '<div class="craft-toggle" id="cf-mode-toggle"><button data-v="auto" class="active">自動求解</button><button data-v="manual">手動求解</button></div>' +
         '</div>' +
         '<div id="cf-auto-block">' +
           '<div class="craft-card craft-row">' +
@@ -1803,13 +1800,16 @@ app._craftReady = function () {
     return r ? r.name : '';
   }
 
+  let searchTerm = '';
   function runSearch() {
-    const q = $('cf-recipe-search').value.trim();
+    /* 選定配方後搜尋框會被填成配方名稱；清單要保持原本的搜尋結果（不縮成只剩一筆），所以記住使用者真正打的關鍵字 */
+    const rawQ = $('cf-recipe-search').value.trim();
+    const q = (selectedRecipe && rawQ === selectedRecipe.name) ? searchTerm : (searchTerm = rawQ);
     const lvlMin = parseInt($('cf-filter-lvl-min').value, 10);
     const lvlMax = parseInt($('cf-filter-lvl-max').value, 10);
     const hasFilter = filterJob !== 'all' || !isNaN(lvlMin) || !isNaN(lvlMax);
     const box = $('cf-recipe-results');
-    if (!q && !hasFilter) { box.innerHTML = ''; box.classList.remove('open'); return; }
+    if (!q && !hasFilter) { box.innerHTML = '<div class="craft-recipe-empty"><i class="ph ph-magnifying-glass"></i>輸入配方名稱，或點職業、設定等級範圍來瀏覽</div>'; box.classList.remove('open'); return; }
     const matches = RECIPE_INDEX.filter(function (r) {
       if (q && r.name.indexOf(q) === -1) return false;
       if (filterJob !== 'all' && String(r.jobId) !== filterJob) return false;
@@ -1830,7 +1830,7 @@ app._craftReady = function () {
     box.innerHTML = matches.map(function (r, i) {
       const recipe = CRAFT_RECIPES[r.id];
       const badge = (crafterStatsForCheck && i < FEASIBILITY_LIMIT) ? feasibilityBadgeHtml(quickFeasibility(recipe, crafterStatsForCheck)) : '';
-      return '<div class="craft-recipe-item" data-id="' + r.id + '">' + itemIconHtml(r.itemId, 22) +
+      return '<div class="craft-recipe-item' + ((selectedRecipe && selectedRecipe.id === r.id) ? ' is-selected' : '') + '" data-id="' + r.id + '">' + itemIconHtml(r.itemId, 22) +
         '<span class="craft-recipe-item-name">' + r.name + '</span>' +
         badge +
         '<span class="craft-muted">' + (JOB_NAME_BY_ID[r.jobId] || '') + '・Lv' + r.lvl + '　rlvl' + r.rlvl + '</span></div>';
@@ -1839,7 +1839,8 @@ app._craftReady = function () {
     box.querySelectorAll('.craft-recipe-item').forEach(function (item) {
       item.addEventListener('click', function () {
         selectRecipeById(item.dataset.id);
-        box.innerHTML = ''; box.classList.remove('open');
+        box.querySelectorAll('.is-selected').forEach(function (e) { e.classList.remove('is-selected'); });
+        item.classList.add('is-selected');
       });
     });
   }
@@ -3207,6 +3208,8 @@ app._craftReady = function () {
         }).join('')
       ) : '');
 
+    /* 答案出來後自動捲到看得見的位置，使用者不用自己往下滑找結果 */
+    try { box.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { /* 不支援就算了 */ }
     if (result.success) {
       // 每一段各自獨立複製，不能只給一顆「全部複製」按鈕——遊戲一組巨集本來就只能塞15行，
       // 會切成好幾段正是因為塞不下同一組，如果複製出來是全部段落黏在一起，貼回遊戲一樣會超過行數塞不下，
@@ -3424,4 +3427,7 @@ app._craftReady = function () {
     });
     $('cf-solve').addEventListener('click', function () { $('cf-result').classList.remove('is-stale'); });
   })();
+
+  /* 數值工具列固定在頂端：外框自己的上內距要拿掉，否則工具列上方會露出被捲走的內容（內距改由內容自己的 padding 補上） */
+  (function () { const sc = $('cf-actor').closest('.tool-layout'); if (sc) sc.style.setProperty('padding-top', '0', 'important'); })();
 };
