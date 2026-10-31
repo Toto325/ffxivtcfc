@@ -777,3 +777,54 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-explore-drawer.wide .craft-mat-wd{width:96px;text-align:left}
 @media (max-width:719px){.craft-explore-wide{display:none}}
 @media (max-width:719px){.craft-explore-drawer.wide .craft-explore-panel{width:100%}.craft-explore-drawer.wide .craft-explore-panel .craft-mat-extra{display:none !important}}
+
+/* ============================================================
+ * 生產頁新版面（參數區在上、配方與求解並排）
+ * 只覆蓋版面與外觀，不改任何 id / 功能。放在檔案最後，確保蓋過上面的舊規則。
+ * ============================================================ */
+.craft-layout{display:flex;flex-direction:column;gap:16px;align-items:stretch}
+.craft-params{display:flex;flex-direction:column;gap:12px}
+/* 摘要列：沿用市場頁設定按鈕（.market-settings-btn）的分段寫法 */
+.craft-params-bar{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:4px 12px;border:1px solid var(--tb);border-radius:9px;background:rgba(255,255,255,.03);color:var(--main);font-family:inherit;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.craft-params-bar:hover{border-color:var(--gold);background:rgba(197,160,89,.09)}
+.craft-params-summary{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;flex:1;min-width:0}
+.craft-params-summary .mss{padding:0 12px;line-height:22px;border-left:1px solid var(--tb)}
+.craft-params-summary .mss:first-child{padding-left:0;border-left:0}
+.craft-params-summary .mss i{font-style:normal;font-size:11px;color:var(--dim)}
+.craft-params-summary .mss b{font-size:14px;font-weight:700;color:var(--gold-bright);font-variant-numeric:tabular-nums}
+.craft-sum-skill{font-size:11.5px;padding:0 8px;border:1px solid var(--tb);border-radius:20px;color:var(--gold-bright);background:rgba(197,160,89,.1);white-space:nowrap}
+.mss-skills{flex-wrap:wrap;gap:5px}
+.mss-default{font-size:11px;color:#e0a05a;border:1px dashed rgba(224,160,90,.55)!important;border-radius:20px;margin-left:8px;padding:0 9px!important}
+.craft-params-toggle{flex:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gold)}
+.craft-params-caret{transition:transform .2s}
+.craft-params:not(.collapsed) .craft-params-caret{transform:rotate(180deg)}
+/* 展開後：三張設定卡橫排，技能確認整列放在下面 */
+.craft-params-body.craft-col-left{flex:none;display:grid;grid-template-columns:1.05fr 1.25fr 1.2fr;gap:14px;align-items:stretch}
+.craft-params-body>.craft-card:last-child{grid-column:1/-1}
+.craft-params.collapsed .craft-params-body{display:none}
+.craft-special-list{display:flex;flex-wrap:wrap;gap:6px 10px}
+/* 配方與求解並排 */
+.craft-work{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,430px);gap:18px;align-items:start}
+.craft-col-recipe,.craft-col-solve{flex:none;min-width:0;padding-bottom:0}
+/* 主要行動：亮金漸層，只有求解按鈕用，其他維持暗金 */
+.craft-solve-btn{font-weight:700;letter-spacing:.08em;color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep));border-color:var(--gold-bright);box-shadow:0 0 18px rgba(197,160,89,.3)}
+.craft-solve-btn:not(:disabled):hover{filter:brightness(1.08);background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep))}
+.craft-solve-btn:disabled{background:rgba(255,255,255,.04);border:1px dashed var(--tb);color:var(--dim);opacity:1;font-weight:400}
+/* 模式切換：改成跟市場頁分頁一樣的底線式 */
+#cf-mode-toggle{gap:22px}
+#cf-mode-toggle button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:6px 2px;font-size:13px;color:var(--dim)}
+#cf-mode-toggle button.active{color:var(--gold-bright);border-bottom-color:var(--gold);background:none}
+/* 舊結果：設定改變後變淡並標示，不清掉 */
+.craft-result{transition:opacity .3s,filter .3s}
+.craft-result.is-stale{opacity:.5;filter:saturate(.5)}
+.craft-result.is-stale::before{content:"設定已變更";position:absolute;top:8px;right:12px;font-size:11px;padding:1px 10px;color:var(--gold-bright);border:1px dashed var(--gold);border-radius:20px;background:#0b0806}
+.craft-result{position:relative}
+/* 觸控友善 */
+.craft-step-btn,.craft-select,.craft-search{min-height:40px}
+@media (max-width:860px){
+  .craft-params-body.craft-col-left{grid-template-columns:1fr}
+  .craft-work{grid-template-columns:1fr}
+  .craft-params-summary .mss{padding:0 9px}
+  .craft-col-solve #cf-solve{position:sticky;bottom:10px;z-index:5}
+}
+@media (prefers-reduced-motion:reduce){.craft-result,.craft-params-caret{transition:none}}
