@@ -202,6 +202,13 @@
     if (!marketableSet) marketableSet = new Set(ITEM_MARKETABLE_TW.map(String));
     return marketableSet.has(String(id));
   }
+  // 台服可交易、但 Universalis 沒有資料的物品（例如國際服 7.5 已停用的舊染劑；台服版本較舊，仍可交易）。
+  let noUniversalisSet = null;
+  function isNoUniversalis(id) {
+    if (typeof ITEM_NO_UNIVERSALIS_TW === 'undefined' || !ITEM_NO_UNIVERSALIS_TW.length) return false;
+    if (!noUniversalisSet) noUniversalisSet = new Set(ITEM_NO_UNIVERSALIS_TW.map(String));
+    return noUniversalisSet.has(String(id));
+  }
   function bindSearchBox() {
     const input = $('mk-search');
     const box = $('mk-search-results');
@@ -947,7 +954,9 @@
     if (footNotes.length) html += '<p class="market-stat-foot craft-muted">' + footNotes.join('　·　') + '</p>';
 
     if (!overview || !overview.listings.length) {
-      html += isMarketable(itemId)
+      html += isNoUniversalis(itemId)
+        ? '<div class="market-untradable"><i class="ph ph-info"></i><div><b>價格資料來源未收錄這個物品</b><span>這個物品在台服仍可交易，但價格資料來源（Universalis）跟著國際服版本走，已不收錄它，所以這裡看不到掛單與價格。請以遊戲內市場板為準。</span></div></div>'
+        : isMarketable(itemId)
         ? '<p class="craft-muted">目前查無掛單（可能沒有人在賣）</p>'
         : '<div class="market-untradable"><i class="ph ph-prohibit"></i><div><b>這個物品不能在市場交易</b><span>所以沒有掛單、成交紀錄跟市價可以查。右邊可以看它的供應鏈，上方「取得方式」會告訴你要去哪裡拿。</span></div></div>';
       box.innerHTML = html;
