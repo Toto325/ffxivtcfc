@@ -779,109 +779,99 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 @media (max-width:719px){.craft-explore-drawer.wide .craft-explore-panel{width:100%}.craft-explore-drawer.wide .craft-explore-panel .craft-mat-extra{display:none !important}}
 
 /* ============================================================
- * 生產頁重新設計 v3：配方列表與求解結果是主角，數值收成一條工具列
- * 只覆蓋版面與外觀，所有功能 id 不變。放在檔案最後。
+ * 生產頁重新設計 v4：沿用市場頁的標題／設定摘要／市場下拉／自動整齊排列，
+ * 沿用潛水艇的方形 −／＋。數值收成摘要列、點開浮出面板；配方列表選定後收成一條。
+ * 全部放在檔案最後覆蓋舊的版面規則，功能 id 不變。
  * ============================================================ */
-.craft-layout{container-type:inline-size;display:flex;flex-direction:column;gap:12px;align-items:stretch}
-.cw-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:34px}
-.cw-title{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:700;letter-spacing:.3em;margin-right:4px;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 65%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;color:transparent}
-.cw-title i{font-size:21px;-webkit-text-fill-color:var(--gold)}
-.cw-bar .craft-stats-scope-tag{width:auto;flex:none;margin:0;grid-column:auto}
-.cw-bar .craft-profile-toggle{width:auto;margin:0 0 0 auto;flex:none;font-size:13px;color:var(--main);min-height:30px}
-.cw-bar .craft-profile-toggle input{accent-color:var(--gold);width:16px;height:16px}
-.cw-bar #cf-profile-manage-btn{margin:0}
+.craft-layout{container-type:inline-size;display:flex;flex-direction:column;gap:12px;align-items:stretch;width:100%}
 .craft-layout .craft-hint{display:none!important}
-/* 數值工具列：兩行、一條外框，微調不用離開視線 */
-.cw-dock{border:1px solid var(--tb);border-radius:10px;background:linear-gradient(180deg,rgba(197,160,89,.06),rgba(0,0,0,.25))}
-.cw-dock-row{display:grid;align-items:stretch}
-.cw-dock-stats{grid-template-columns:1fr 1.25fr 1.25fr 1.15fr auto}
-.cw-dock-cons{grid-template-columns:1fr 1fr 1.25fr;border-top:1px solid var(--tb)}
-.cw-cell{display:flex;align-items:center;gap:8px;min-width:0;min-height:46px;padding:5px 12px;border-left:1px solid var(--tb)}
-.cw-cell:first-child{border-left:0}
-.cw-cell>label:first-child{flex:none;font-size:12px;color:var(--dim);letter-spacing:.08em}
-.cw-cell .craft-stepper{display:flex;align-items:center;gap:3px;flex:1;min-width:0}
-.cw-cell .craft-stepper input{flex:1;min-width:0;width:100%;height:32px;border:0;background:transparent;text-align:center;font:700 20px/1 "Noto Serif TC",serif;color:var(--gold-bright);font-variant-numeric:tabular-nums;padding:0}
-.cw-cell .craft-stepper input:focus{background:rgba(197,160,89,.1);border-radius:6px;outline:0}
-.cw-cell .craft-step-btn{flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--tb);background:rgba(255,255,255,.03);color:var(--gold);font-size:14px;line-height:1;padding:0;display:grid;place-items:center}
-.cw-cell .craft-step-btn:hover{border-color:var(--gold);background:rgba(197,160,89,.16)}
-.cw-spec{cursor:pointer;padding:5px 16px;font-size:14px;color:var(--main);gap:8px}
-.cw-spec input{position:absolute;opacity:0;pointer-events:none}
-.cw-spec-box{width:20px;height:20px;border:1px solid var(--gold);border-radius:5px;display:grid;place-items:center;color:transparent;font-size:13px}
-.cw-spec input:checked+.cw-spec-box{background:var(--gold);color:#1a1208}
-.cw-spec input:focus-visible+.cw-spec-box{outline:2px solid var(--gold-bright);outline-offset:2px}
-.cw-cons .craft-row-tight{flex:none;gap:7px;flex-wrap:nowrap}
-.cw-cons .craft-label{font-size:12px;color:var(--dim);white-space:nowrap;letter-spacing:.08em}
-.cw-cons .craft-label i{color:var(--gold);margin-right:4px}
-.cw-cons .craft-select,.cw-cons .craft-select-block{flex:1 1 0;min-width:0;height:32px;margin:0;font-size:13px}
-.cw-dock .craft-toggle button{padding:2px 9px;font-size:11px}
-.craft-layout .craft-consumable-summary{padding:6px 12px;border-top:1px solid var(--tb);font-size:12px}
-.craft-layout .craft-consumable-summary:empty{display:none}
-/* 特殊技能：收合列顯示已勾選名稱，點開浮出面板（不推動版面） */
-.cw-skills{position:relative;padding:0}
-.cw-skills-bar{display:flex;align-items:center;gap:8px;width:100%;min-height:46px;padding:5px 12px;background:none;border:0;color:inherit;font-family:inherit;text-align:left;cursor:pointer}
-.cw-skills-bar:hover{background:rgba(197,160,89,.08)}
-.cw-skills-bar .craft-label{flex:none;font-size:12px;color:var(--dim);white-space:nowrap}
-.cw-skills-summary{display:flex;flex-wrap:wrap;gap:4px;flex:1;min-width:0}
+.cw-header{margin-bottom:0}
+/* 數值摘要列（市場頁 .market-settings-btn 同款） */
+.cw-dock-bar{width:100%;height:auto;min-height:46px;padding:5px 12px 5px 14px;justify-content:space-between;gap:12px;white-space:normal;text-align:left;cursor:pointer}
+.cw-dock-summary{display:flex;flex-wrap:wrap;align-items:center;row-gap:4px;flex:1;min-width:0}
+.cw-dock-summary .mss{line-height:22px;padding:0 12px;gap:6px}
+.cw-dock-summary .mss:first-child{padding-left:0;border-left:0}
+.cw-dock-summary .mss i{font-style:normal;font-size:11.5px;color:var(--dim)}
+.cw-dock-summary .mss b{font-size:14px;font-weight:700;color:var(--gold-bright);font-variant-numeric:tabular-nums}
+.cw-dock-summary .mss-skills{flex-wrap:wrap;gap:4px}
 .cw-skill-tag{font-size:11.5px;padding:0 8px;border:1px solid rgba(197,160,89,.5);border-radius:20px;color:var(--gold-bright);background:rgba(197,160,89,.1);white-space:nowrap;line-height:20px}
-.cw-caret{flex:none;color:var(--gold);transition:transform .2s}
-.cw-skills.open .cw-caret{transform:rotate(180deg)}
-.cw-skills .craft-special-list{display:none;position:absolute;z-index:40;top:calc(100% + 6px);right:0;width:min(520px,92vw);grid-template-columns:1fr 1fr;gap:8px;padding:12px;border:1px solid var(--gold);border-radius:12px;background:#0d0a06;box-shadow:0 18px 40px rgba(0,0,0,.85),0 0 24px rgba(197,160,89,.15)}
-.cw-skills.open .craft-special-list{display:grid}
-.cw-skills .craft-skill-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;margin:0;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.02);cursor:pointer}
-.cw-skills .craft-skill-item:has(input:checked){border-color:var(--gold);background:rgba(197,160,89,.14)}
-.cw-skills .craft-skill-item.craft-skill-locked{opacity:.5;cursor:not-allowed}
-.cw-skills .craft-skill-item input{accent-color:var(--gold);width:16px;height:16px}
-.cw-skills .craft-skill-lvl{font-size:11px;color:var(--dim);line-height:1.4;padding-left:24px}
-/* 主工作區：左＝配方列表（最大），右＝製作與答案 */
-.craft-work{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:14px;align-items:start}
+.cw-dock-toggle{flex:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--gold);white-space:nowrap}
+.cw-caret{transition:transform .2s}
+.cw-dockwrap.open .cw-caret{transform:rotate(180deg)}
+.cw-dockwrap.open .cw-dock-bar{border-color:var(--gold);background:rgba(197,160,89,.09)}
+/* 浮出面板：蓋在內容上，不推開版面 */
+.cw-dockwrap{position:relative;z-index:30}
+.cw-dock-panel{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);flex-direction:column;gap:12px;padding:14px 16px;border:1px solid var(--gold);border-radius:12px;background:#0b0806;box-shadow:0 22px 50px rgba(0,0,0,.88),0 0 26px rgba(197,160,89,.14)}
+.cw-dockwrap.open .cw-dock-panel{display:flex}
+.cw-panel-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.cw-panel-top .craft-stats-scope-tag{width:auto;flex:none;margin:0;grid-column:auto}
+.cw-panel-top .craft-profile-toggle{margin-left:auto}
+.cw-panel-top #cf-profile-manage-btn{margin:0}
+.cw-stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.cw-cell{display:flex;flex-direction:column;gap:6px;min-width:0;padding:8px 10px;border:1px solid var(--tb);border-radius:8px;background:rgba(0,0,0,.25)}
+.cw-cell>label:first-child{font-size:11.5px;color:var(--dim);letter-spacing:.08em}
+.cw-cell .craft-stepper{display:flex;width:100%}
+.cw-cell .craft-stepper input{flex:1;min-width:0;width:auto;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.cw-cell-spec{justify-content:center;align-items:flex-start}
+.cw-cons-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.cw-cons .craft-row-tight{justify-content:space-between;flex-wrap:nowrap}
+.cw-cons .craft-select{display:none}
+.cw-cons .craft-dd,.cw-panel-top .craft-dd{flex:1 1 auto;width:100%}
+.cw-cons .craft-dd .wl-dd-btn{width:100%;min-width:0;font-size:13px;padding:7px 10px;justify-content:space-between}
+.cw-cons .craft-dd .wl-dd-list{left:0;right:0;max-height:240px;overflow:auto}
+.cw-panel-top .craft-dd .wl-dd-btn{min-width:140px;font-size:13px;padding:6px 10px}
+.cw-panel-top .craft-dd .wl-dd-list{left:0;right:auto;min-width:160px}
+.craft-layout .craft-consumable-summary:empty{display:none}
+.cw-sec-label{font-size:12px;color:var(--gold);letter-spacing:.1em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.cw-skills-box .craft-special-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.cw-skills-box .craft-skill-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:8px 10px;margin:0;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.02);cursor:pointer}
+.cw-skills-box .craft-skill-item:has(input:checked){border-color:var(--gold);background:rgba(197,160,89,.14)}
+.cw-skills-box .craft-skill-item.craft-skill-locked{opacity:.5;cursor:not-allowed}
+.cw-skills-box .craft-skill-lvl{font-size:11px;color:var(--dim);line-height:1.4}
+.cw-panel-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--tb);padding-top:10px}
+/* 主工作區 */
+.craft-work{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:14px;align-items:start}
 .craft-col-recipe,.craft-col-solve{flex:none;min-width:0;padding:0}
-.craft-col-recipe{position:sticky;top:0}
 .cw-pick{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--tb);border-radius:12px;background:linear-gradient(180deg,rgba(197,160,89,.06),rgba(255,255,255,.01))}
+.cw-pick-list{display:flex;flex-direction:column;gap:10px}
+.cw-pick.is-picked .cw-pick-list{display:none}
+.cw-pick:not(.is-picked) #cf-recipe-selected,.cw-pick:not(.is-picked) .cw-pick-detail{display:none}
+.cw-pick-detail{display:flex;flex-direction:column;gap:10px}
 .craft-search-row{display:flex;gap:8px;margin:0}
-.craft-search-row .craft-search{height:46px;font-size:15px;padding:0 14px;border-color:rgba(197,160,89,.55);border-radius:9px}
-.craft-lunar-btn{height:46px;border-radius:9px;white-space:nowrap}
-.craft-filter-row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:0}
-.craft-job-filter{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px}
-.craft-job-filter-btn{padding:4px 12px;font-size:12.5px;border-radius:20px;min-height:30px}
-.craft-job-filter-btn.active{background:linear-gradient(180deg,var(--gold-bright),var(--gold));color:#1a1208;border-color:var(--gold-bright);font-weight:700}
-.craft-lvl-filter{display:flex;align-items:center;gap:6px}
-.craft-filter-lvl-input{width:58px!important}
+.craft-filter-row{margin:0}
 .craft-recipe-results,.craft-recipe-results.open{display:block;position:static;max-height:none;height:clamp(300px,calc(82vh - 330px),560px);overflow:auto;margin:0;border:1px solid var(--tb);border-radius:10px;background:rgba(0,0,0,.28);padding:4px;scrollbar-width:thin;scrollbar-color:rgba(197,160,89,.4) transparent}
-.craft-recipe-item{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer;flex-wrap:wrap}
+.craft-recipe-item{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 10px;border-radius:8px;border:1px solid transparent;cursor:pointer}
 .craft-recipe-item:hover{background:rgba(197,160,89,.1)}
 .craft-recipe-item.is-selected{border-color:var(--gold);background:rgba(197,160,89,.18)}
-.craft-recipe-item-name{font-size:14.5px;font-weight:600}
-.craft-recipe-item .craft-muted{margin-left:auto;font-size:11.5px}
+.craft-recipe-item-name{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px;font-weight:600}
+.craft-recipe-item>.craft-badge-ph,.craft-recipe-item>.craft-feas{flex:0 0 76px;text-align:center}
+.craft-recipe-item .craft-muted{flex:0 0 150px;text-align:right;font-size:11.5px;white-space:nowrap}
 .craft-recipe-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;min-height:200px;color:var(--dim);font-size:13px;text-align:center;padding:20px}
 .craft-recipe-empty i{font-size:28px;color:var(--gold);opacity:.7}
-/* 右欄 */
-.cw-modebar{display:flex;align-items:center;gap:16px;border-bottom:1px solid var(--tb);margin:0 0 10px;padding:0 2px}
-.cw-modebar .craft-label{display:none}
-#cf-mode-toggle{display:flex;gap:22px;background:none;border:0;padding:0}
-#cf-mode-toggle button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:7px 2px;font-size:14px;color:var(--dim);margin-bottom:-1px}
-#cf-mode-toggle button.active{color:var(--gold-bright);border-bottom-color:var(--gold);background:none;font-weight:700}
-.cw-make{display:flex;flex-direction:column;gap:8px;padding:12px;margin-bottom:10px;border:1px solid var(--tb);border-radius:12px;background:linear-gradient(180deg,rgba(197,160,89,.06),rgba(255,255,255,.01))}
 .craft-recipe-selected{margin:0}
 .craft-recipe-chip{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;padding:0;border:0;background:none;font-size:19px;font-weight:700;color:var(--gold-bright)}
 .craft-recipe-chip .craft-muted{font-size:12px;font-weight:400;padding:0}
+.cw-change{margin-left:auto;font-size:12.5px;font-weight:400;white-space:nowrap}
 .craft-add-batch-box{margin:0;padding:0;border:0;background:none}
-.craft-add-batch-box .craft-row{gap:8px}
 .craft-add-batch-caption{display:none}
-.craft-add-batch-box .craft-stepper{width:104px}
-.craft-ingredients{margin:0;padding:8px 0 0;border-top:1px solid var(--tb);display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.craft-ingredients{margin:0;padding:10px 0 0;border-top:1px solid var(--tb);display:grid;grid-template-columns:1fr;gap:6px}
 .craft-ingredients:empty{display:none}
-.craft-ingredients-title{grid-column:1/-1;margin:0;font-size:11.5px;color:var(--gold);letter-spacing:.1em}
-.craft-ingredients .craft-ing-row{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 8px;min-height:38px;border:1px solid var(--tb);border-radius:8px;background:rgba(0,0,0,.2)}
-.craft-ing-name{font-size:12.5px;display:flex;align-items:center;gap:6px;min-width:0}
-.craft-ingredients .craft-ing-fixed{font-size:11.5px;color:var(--dim)}
-.craft-ing-hq-control{border-radius:7px}
+.craft-ingredients .craft-ing-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px 10px;min-height:38px;border:1px solid var(--tb);border-radius:8px;background:rgba(0,0,0,.2)}
+.craft-ing-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 右欄 */
+.craft-col-solve{position:relative}
+.cw-modebar{display:flex;align-items:center;border-bottom:1px solid var(--tb);margin:0 0 10px;padding:0 2px}
+#cf-mode-toggle{display:flex;gap:22px;background:none;border:0;padding:0}
+#cf-mode-toggle button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 2px;font-size:14px;color:var(--dim);margin-bottom:-1px}
+#cf-mode-toggle button.active{color:var(--gold-bright);border-bottom-color:var(--gold);background:none;font-weight:700}
 #cf-auto-block{display:flex;flex-direction:column;gap:8px}
-#cf-auto-block>.craft-card{margin:0;padding:8px 12px;border-radius:9px}
-.craft-solve-target{margin:0;padding:5px 10px;border-radius:8px;font-size:12px}
-.craft-solve-btn{height:52px;padding:0;font-size:16px;font-weight:700;letter-spacing:.1em;color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep));border:1px solid var(--gold-bright);box-shadow:0 0 18px rgba(197,160,89,.28);margin:0}
+#cf-auto-block>.craft-card.craft-row:first-child{position:absolute;top:-1px;right:0;width:auto;padding:0;border:0;background:none;gap:12px;min-height:36px;margin:0}
+.cw-solverow{display:flex;align-items:center;gap:10px}
+.craft-solve-target{flex:1;min-width:0;margin:0;padding:8px 12px;border-radius:9px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-solve-btn{flex:none;width:auto;min-width:150px;height:40px;padding:0 22px;margin:0;font-size:14.5px;font-weight:700;letter-spacing:.08em;color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep));border:1px solid var(--gold-bright);box-shadow:0 0 14px rgba(197,160,89,.26)}
 .craft-solve-btn:not(:disabled):hover{filter:brightness(1.08);background:linear-gradient(180deg,var(--gold-bright),var(--gold) 70%,var(--gold-deep))}
 .craft-solve-btn:disabled{background:rgba(255,255,255,.035);border:1px dashed var(--tb);color:var(--dim);opacity:1;font-weight:400;box-shadow:none}
-/* 結果：結論→進度品質→耐久CP→巨集，一眼看完 */
+/* 結果：結論→進度品質→耐久CP→巨集，一頁內看完 */
 #cf-result.craft-result[style*="block"]{display:grid!important}
 #cf-result.craft-result{grid-template-columns:1fr 1fr;gap:10px 14px;padding:12px 14px;position:relative;transition:opacity .3s,filter .3s;border-color:rgba(197,160,89,.5)}
 #cf-result>*{grid-column:1/-1;margin:0}
@@ -890,74 +880,44 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 #cf-result .craft-hq-line.craft-status-fail{border-color:rgba(224,96,122,.5);background:rgba(224,96,122,.08);color:#f08aa0;font-size:13.5px}
 #cf-result>.craft-bar-row{grid-column:auto}
 #cf-result .craft-result-meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
-#cf-result .craft-macro-head{margin:0}
-#cf-result .craft-macro{max-height:150px;overflow:auto;border-radius:9px}
-#cf-result .craft-macro-seg-head{flex-direction:row-reverse;justify-content:space-between}
-#cf-result .craft-macro-copy-btn{height:38px;padding:0 18px;border-radius:8px;color:#1a1208;border:1px solid var(--gold-bright);background:linear-gradient(180deg,var(--gold-bright),var(--gold));font-weight:700}
+#cf-result .craft-macro{max-height:140px;overflow:auto;border-radius:9px}
+#cf-result .craft-macro-copy-btn{height:30px;padding:0 12px;font-size:12px;border-radius:7px;color:var(--gold-bright);border:1px solid var(--gold);background:rgba(197,160,89,.14)}
 #cf-result.is-stale{opacity:.5;filter:saturate(.5)}
 #cf-result.is-stale::before{content:"設定已變更";position:absolute;top:-10px;right:12px;font-size:11px;padding:1px 10px;color:var(--gold-bright);border:1px dashed var(--gold);border-radius:20px;background:#0b0806;z-index:2}
+.craft-solve-nav{margin:0}
 .cw-skel{display:none;border:1px dashed var(--tb);border-radius:12px;padding:12px}
 #cf-result[style*="none"]~.cw-skel{display:block}
-.cw-skel i,.cw-skel-h,.cw-skel-btn{display:block;border-radius:8px;background:linear-gradient(90deg,rgba(197,160,89,.05),rgba(197,160,89,.13),rgba(197,160,89,.05));background-size:200% 100%;animation:cwsk 2.4s ease-in-out infinite}
+.cw-skel i,.cw-skel-h{display:block;border-radius:8px;background:linear-gradient(90deg,rgba(197,160,89,.05),rgba(197,160,89,.13),rgba(197,160,89,.05));background-size:200% 100%;animation:cwsk 2.4s ease-in-out infinite}
 .cw-skel-h{height:36px;margin-bottom:10px}
-.cw-skel-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.cw-skel-tiles i{height:34px}.cw-skel-tiles i:nth-child(3){display:none}
-.cw-skel-seq{display:flex;gap:6px;margin-bottom:10px}.cw-skel-seq i{width:36px;height:36px}
-.cw-skel-btn{height:36px}
+.cw-skel-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}.cw-skel-tiles i{height:34px}
+.cw-skel-seq{display:flex;gap:6px}.cw-skel-seq i{width:36px;height:36px}
 @keyframes cwsk{0%,100%{background-position:0 0}50%{background-position:100% 0}}
-@media (prefers-reduced-motion:reduce){.cw-skel i,.cw-skel-h,.cw-skel-btn,.cw-caret,#cf-result{animation:none;transition:none}}
-/* 窄版／手機：數值工具列兩欄，列表在上、答案在下，求解鈕貼底 */
+@media (prefers-reduced-motion:reduce){.cw-skel i,.cw-skel-h,.cw-caret,#cf-result{animation:none;transition:none}}
+/* 窄版／手機：面板改為向下展開，欄位改單欄 */
 @container (max-width:760px){
+  .cw-dock-panel{position:static;margin-top:6px;box-shadow:none}
   .craft-work{grid-template-columns:1fr}
-  .craft-col-recipe{position:static}
-  .craft-recipe-results,.craft-recipe-results.open{height:clamp(240px,40vh,380px)}
-  .cw-dock-stats{grid-template-columns:1fr 1fr}
-  .cw-dock-stats .cw-cell:nth-child(3){border-left:0}
-  .cw-dock-stats .cw-cell:nth-child(n+3){border-top:1px solid var(--tb)}
-  .cw-spec{grid-column:1/-1;border-left:0;border-top:1px solid var(--tb)}
-  .cw-dock-cons{grid-template-columns:1fr}
-  .cw-dock-cons .cw-cell{border-left:0;border-top:1px solid var(--tb)}
-  .cw-dock-cons .cw-cell:first-child{border-top:0}
-  .cw-skills .craft-special-list{left:0;right:0;width:auto;grid-template-columns:1fr}
-  .craft-col-solve #cf-solve{position:sticky;bottom:10px;z-index:6;box-shadow:0 0 0 6px rgba(5,4,6,.85),0 0 18px rgba(197,160,89,.3)}
+  .craft-recipe-results,.craft-recipe-results.open{height:clamp(240px,45vh,400px)}
+  .craft-recipe-item .craft-muted{flex-basis:auto;font-size:11px}
+  .craft-recipe-item{flex-wrap:wrap}
+  .craft-recipe-item .craft-muted{flex:1 1 100%;text-align:left;margin:-3px 0 0 32px}
+  #cf-auto-block>.craft-card.craft-row:first-child{position:static;padding:2px 0}
+  .cw-solverow{position:sticky;bottom:8px;z-index:6;background:rgba(5,4,6,.92);padding:6px;border-radius:10px;box-shadow:0 0 0 1px var(--tb)}
 }
-@container (max-width:520px){.craft-ingredients{grid-template-columns:1fr}#cf-result.craft-result{grid-template-columns:1fr}#cf-result .craft-result-meta{grid-template-columns:1fr}}
+@container (max-width:520px){#cf-result.craft-result{grid-template-columns:1fr}#cf-result .craft-result-meta{grid-template-columns:1fr}.cw-dock-summary .mss{padding:0 8px}}
 
-/* v3.1：更緊湊 */
-.craft-job-filter{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;gap:6px}
-.craft-job-filter::-webkit-scrollbar{display:none}
-.craft-job-filter-btn{flex:none!important;width:auto!important;white-space:nowrap}
-.craft-col-solve{position:relative}
-#cf-auto-block>.craft-card.craft-row:first-child{position:absolute;top:-1px;right:0;width:auto;padding:0;border:0;background:none;gap:12px;min-height:34px}
-#cf-solve-target{display:none}
-.cw-make{gap:6px;padding:10px 12px}
-.cw-make:has(.craft-recipe-chip) .craft-add-batch-box{position:absolute;top:10px;right:12px}
-.cw-make{position:relative}
-.craft-add-batch-box .craft-copy-btn{margin:0;white-space:nowrap}
-.craft-recipe-chip{padding-right:250px;min-height:34px}
-.cw-dock-row .cw-cell{min-height:42px}
-@container (max-width:760px){.craft-recipe-chip{padding-right:0}.cw-make:has(.craft-recipe-chip) .craft-add-batch-box{position:static}#cf-auto-block>.craft-card.craft-row:first-child{position:static;padding:4px 0}}
-
-/* v3.2：數值工具列固定在頂端（任何捲動位置都能微調）、材料單欄 */
-.cw-dock{position:sticky;top:0;z-index:30;background:#0a0705;box-shadow:0 8px 14px -6px rgba(0,0,0,.9)}
-.craft-col-recipe{top:104px}
-#cf-result{scroll-margin-top:104px;scroll-margin-bottom:12px}
-.craft-ingredients{grid-template-columns:1fr}
-.craft-ingredients .craft-ing-row{min-height:34px;padding:3px 8px}
-.craft-ing-name{flex:1}
-.craft-recipe-results,.craft-recipe-results.open{height:clamp(280px,calc(82vh - 360px),540px)}
-@container (max-width:760px){.cw-dock{position:static}.craft-col-recipe{top:0}}
-
-/* v3.3：sticky 要扣掉外框的內距（否則上方會露出被捲走的內容）、窄版列表與工具列 */
-.craft-layout{padding-top:32px}
-.cw-dock{top:0}
-.craft-col-recipe{top:104px}
-#cf-result{scroll-margin-top:104px}
-.cw-dock-cons{grid-template-columns:1.25fr 1.25fr .9fr}
-.cw-skills-summary{flex-wrap:wrap}
-.cw-cons .craft-label i{display:none}
-@container (max-width:900px){
-  .craft-recipe-item{row-gap:0}
-  .craft-recipe-item-name{flex:1 1 0;min-width:0;white-space:normal}
-  .craft-recipe-item .craft-muted{flex:1 1 100%;order:9;margin:-3px 0 0 32px;font-size:11px}
-}
+/* v4.1 */
+.cw-panel-top{padding-right:150px;min-height:34px}
+.cw-panel-foot{position:absolute;top:12px;right:16px;border:0;padding:0;gap:12px}
+.cw-panel-foot .craft-copy-btn{height:34px;padding:0 16px;border-color:var(--gold);color:var(--gold-bright)}
+.cw-cell .craft-stepper input{font:700 18px/1.2 "Noto Serif TC",serif;color:var(--gold-bright)}
+.cw-skills-box .craft-special-list{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.cw-stat-grid{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.cw-cons-grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.craft-recipe-results,.craft-recipe-results.open{height:clamp(220px,calc(82vh - 470px),520px)}
+#cf-job-wrap{flex:none;min-width:150px}
+.cw-panel-top .craft-dd{width:150px;flex:none}
+.cw-cell-spec{justify-content:center;align-items:center}
+.cw-cell-spec .craft-check-inline{font-size:14px;margin:0}
+.cw-dock-bar{height:auto!important;min-height:46px;display:flex!important;align-items:center;overflow:visible}
+@container (max-width:760px){.cw-dock-bar{align-items:flex-start;padding-top:8px;padding-bottom:8px}.cw-dock-toggle{margin-top:2px}.cw-dock-summary .mss{padding:0 9px 0 0;border-left:0;margin-right:9px;border-right:1px solid var(--tb)}.craft-solve-target .craft-muted{display:none}}
