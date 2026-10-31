@@ -408,6 +408,12 @@ async function main() {
   const tcOnly = marketItems.filter(function (id) { return itemNamesTw[id] && !twMarketable[id]; }).length;
   console.log('Teamcraft 清單有、台服資料表判定不可交易（已排除）:', tcOnly, '筆');
   console.log('可交易（有繁中名稱）:', marketableTw.length, '筆');
+  // 台服可交易、但 Teamcraft（≈Universalis 可交易名單，跟國際服規則走）沒收的物品，例如國際服 7.5 已停用的舊染劑。
+  // 這些物品 Universalis 沒有資料，市場頁用它來顯示正確的提示，而不是誤導的「查無掛單」。
+  const marketItemSet = {};
+  marketItems.forEach(function (id) { marketItemSet[id] = true; });
+  const noUniversalisTw = marketableTw.filter(function (id) { return !marketItemSet[id]; });
+  console.log('台服可交易但 Universalis 無資料:', noUniversalisTw.length, '筆');
 
   fs.writeFileSync(OUT.craftData,
     '/* craft-data.js — 生產製作「資料」：配方庫（含精確材料HQ權重/專家配方狀態旗標/台服可用性）、道具繁中名稱表。\n' +
@@ -444,6 +450,7 @@ async function main() {
     '/* ITEM_MARKETABLE_TW：可在市場交易（有繁中名稱）的物品編號。市場頁搜尋只列這些；貨幣、不可交易的\n' +
     ' * 物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去查看。 */\n' +
     'const ITEM_MARKETABLE_TW=' + JSON.stringify(marketableTw) + ';\n' +
+    'const ITEM_NO_UNIVERSALIS_TW=' + JSON.stringify(noUniversalisTw) + ';\n' +
     '/* ITEM_META_TW：{ 物品id: 加入版本代碼×1000 + 道具分類編號 }，用於市場頁物品詳情顯示「版本・分類」。\n' +
     ' * ITEM_PATCH_TW：版本代碼 → 版本（只取 X.Y，例如 6.28 → 6.2）；ITEM_CATEGORY_TW：分類編號 → 繁中分類名稱（台服 ItemUICategory）。 */\n' +
     'const ITEM_META_TW=' + JSON.stringify(itemMeta) + ';\n' +
