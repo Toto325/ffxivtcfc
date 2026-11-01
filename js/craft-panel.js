@@ -749,6 +749,14 @@ app._craftReady = function () {
       '<div class="craft-settings-field"><label>我的世界<span class="craft-muted">（賣出參考只看這裡）</span></label><select id="cf-market-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
       '<div class="craft-settings-field" id="cf-market-city-field" style="display:none"><label>賣出城市<span class="craft-muted">（決定賣方稅率）</span></label><select id="cf-market-city" class="craft-select craft-select-block"></select></div>';
     document.body.appendChild(pop);
+    // 三個下拉全部換成市場頁同款的 wl-dd（金框、高亮選項），選項是之後才載入的，所以選項一變或值一變就重畫
+    ['cf-market-dc', 'cf-market-world', 'cf-market-city'].forEach(function (id) {
+      const sel = $(id); if (!sel) return;
+      const sync = function () { enhanceSelect(sel); if (sel._ddRender) sel._ddRender(); };
+      sync();
+      new MutationObserver(sync).observe(sel, { childList: true });
+      sel.addEventListener('change', sync);
+    });
     $('cf-market-dc').addEventListener('change', async function () {
       await MarketData.setDataCenter(this.value);
       await refreshWorldOptions(this.value, null);
@@ -790,6 +798,7 @@ app._craftReady = function () {
         updateMarketSettingsSummary();
       } catch (e) { /* 抓不到清單（例如離線）就先不管，畫面照常運作，只是價格功能暫時查不到 */ }
     }
+    ['cf-market-dc', 'cf-market-world', 'cf-market-city'].forEach(function (id) { const e = $(id); if (e && e._ddRender) e._ddRender(); });
     pop.style.display = 'flex';
     const btnRect = anchorBtn.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(btnRect.left, window.innerWidth - 280)) + 'px';
@@ -840,6 +849,7 @@ app._craftReady = function () {
    * 額外算一次「自己做（往下一層材料的買價加總）」跟「直接買」哪個划算，用顏色標示——
    * 這是最早設計討論時說的「買vs自己做」決策樹，這裡先做到「往下一層」的比較（不整棵樹遞迴到底），
    * 一來效能／API呼叫量可控，二來材料圖譜本來就是玩家自己一層層點開來看的，跟這個深度一致。 ── */
+  const graphWorldCache = {};
   function fillNodePrices(container) {
     if (typeof MarketData === 'undefined') return;
     const nodes = Array.from(container.querySelectorAll('[data-price-item]:not([data-price-filled])'));
@@ -861,6 +871,7 @@ app._craftReady = function () {
       ings.forEach(function (ing) { combinedSubNeed[ing.itemId] = (combinedSubNeed[ing.itemId] || 0) + ing.amount; });
     });
 
+    bindWorldPopover();
     Promise.all([
       MarketData.resolveBuyCosts(unitNeed),
       Object.keys(combinedSubNeed).length ? MarketData.resolveBuyCosts(combinedSubNeed) : Promise.resolve({}),
@@ -871,7 +882,10 @@ app._craftReady = function () {
         const r = unitResults[itemId];
         if (!r || !r.filledQty) { el.textContent = '目前無人出售'; el.classList.add('craft-muted'); return; }
         const world = r.breakdown && r.breakdown[0] ? r.breakdown[0].world : '';
-        let html = Math.round(r.totalCost).toLocaleString() + '金／' + world; // unitNeed是1個，totalCost即單價
+        graphWorldCache[itemId] = { breakdown: r.breakdown || [], remaining: r.remainingListings || [] }; // 讓資訊圖示能彈出各世界價格（獨立一份，批次重算時不會被清掉）
+        const row = el.closest('.craft-mat-row');
+        if (row) row.classList.remove('is-profit', 'is-loss');
+        let html = '<span class="cmp-p">' + Math.round(r.totalCost).toLocaleString() + '<small>金</small></span><span class="cmp-w">' + world + '</span>'; // unitNeed是1個，totalCost即單價
         el.title = '該世界目前最低掛單價，僅供參考';
         const ings = nodeSubIngredients[itemId];
         if (ings) {
@@ -882,8 +896,10 @@ app._craftReady = function () {
             craftCost += rr.avgPrice * ing.amount;
           });
           if (allResolved && craftCost > 0) {
-            html += ' ' + decisionCellHtml('buy', craftCost, r.totalCost);
-            el.title += '\n往下一層材料成本約' + Math.round(craftCost).toLocaleString() + '金（不含精製工錢）';
+            // 這一列的底色直接代表「自己做划不划算」：微綠＝自己做比直接買省、微紅＝自己做比直接買貴；差多少放在滑過的提示裡
+            const diff = r.totalCost - craftCost;
+            if (row && Math.abs(diff) >= 1) row.classList.add(diff > 0 ? 'is-profit' : 'is-loss');
+            el.title += '\n往下一層材料成本約' + Math.round(craftCost).toLocaleString() + '金（不含精製工錢）\n自己做比直接買' + (diff > 0 ? '省 ' : '貴 ') + Math.round(Math.abs(diff)).toLocaleString() + ' 金';
           }
         }
         el.innerHTML = html;
@@ -902,7 +918,8 @@ app._craftReady = function () {
   }
   function openWorldPopover(btn, itemId) {
     const pop = ensureBodyPopover('cf-world-popover', 'craft-mat-worlds-popover');
-    const cached = worldBreakdownCache[itemId];
+    const cached = worldBreakdownCache[itemId] || graphWorldCache[itemId]; // 批次清單裡的材料優先用整批規劃的結果，其他（材料圖譜）用單件查詢
+    const fromGraph = !worldBreakdownCache[itemId];
     const breakdown = cached ? cached.breakdown : [];
     if (!breakdown.length) return;
     // 之前這裡直接用breakdown.length當「跨幾個世界」，但同一個世界常常會被拆成好幾筆不同價位的掛單
@@ -938,7 +955,7 @@ app._craftReady = function () {
     }
 
     const planned = groupByWorld(breakdown);
-    let html = '<p class="craft-mat-worlds-title">目前規劃：分' + planned.order.length + '個世界湊齊，由便宜到貴</p>' + renderWorldRows(planned);
+    let html = '<p class="craft-mat-worlds-title">' + (fromGraph ? '目前最便宜的掛單' : '目前規劃：分' + planned.order.length + '個世界湊齊，由便宜到貴') + '</p>' + renderWorldRows(planned);
 
     // 「還可以加購」：把這批規劃「沒用到」的剩餘掛單也列出來（單價通常比規劃內的更高），
     // 讓玩家在決定要不要多做一批之前，先看到追加的邊際成本大概是多少，而不是只看到規劃內剛好夠用的數字。
@@ -947,7 +964,7 @@ app._craftReady = function () {
       const cappedRemaining = remaining.slice(0, 8); // 只列最便宜的前8筆，太多反而看不出重點
       const moreCount = remaining.length - cappedRemaining.length;
       const extra = groupByWorld(cappedRemaining);
-      html += '<p class="craft-mat-worlds-title" style="margin-top:8px">還可以加購（規劃外，價格通常更高）</p>' + renderWorldRows(extra) +
+      html += '<p class="craft-mat-worlds-title" style="margin-top:8px">' + (fromGraph ? '其他世界的掛單（價格通常更高）' : '還可以加購（規劃外，價格通常更高）') + '</p>' + renderWorldRows(extra) +
         (moreCount > 0 ? '<p class="craft-muted" style="font-size:10px;margin-top:2px">還有更多掛單未列出</p>' : '');
     } else {
       html += '<p class="craft-muted" style="font-size:10px;margin-top:8px">目前市場上這個材料已經沒有更多庫存了</p>';
@@ -1014,7 +1031,7 @@ app._craftReady = function () {
     });
   }
   async function openAvgPopover(btn, itemId) {
-    const settings = MarketData.getSettings(), scope = settings.worldName || '';
+    const scope = profitScopeWorld;
     const pop = ensureBodyPopover('cf-avg-popover', 'craft-mat-worlds-popover mav-pop');
     const title = '均價比較（' + (scope || '所有世界') + '）';
     pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取歷史成交中⋯</p>';
@@ -1198,7 +1215,8 @@ app._craftReady = function () {
     document.querySelectorAll('#cf-batch-list .craft-batch-row').forEach(function (row) {
       const rid = row.dataset.rid, p = lastBatchProfits[rid];
       const num = row.querySelector('.craft-batch-order-num'), box = row.querySelector('.craft-batch-profit');
-      if (num) { num.classList.toggle('is-good', !!p && p.total >= 0); num.classList.toggle('is-bad', !!p && p.total < 0); num.title = p ? '預估淨利 ' + money(p.total) + ' 金（綠＝賺、紅＝虧）' : ''; }
+      row.classList.toggle('is-profit', !!p && p.total >= 0); row.classList.toggle('is-loss', !!p && p.total < 0);
+      row.title = p ? '預估淨利 ' + money(p.total) + ' 金（底色微綠＝賺、微紅＝虧）' : '';
       if (!box) return;
       box.innerHTML = p ? '<span class="craft-chip ' + (p.total >= 0 ? 'good' : 'bad') + '" title="這一項整批的預估淨利（材料成本以整批平均單價估算）">整項 ' + money(p.total) + '<small>金</small></span>' +
         '<span class="craft-chip" title="每件預估淨利">每件 ' + money(p.unit) + '<small>金</small></span>' +
@@ -1965,6 +1983,14 @@ app._craftReady = function () {
   /* ── 單一配方的利潤參考：材料成本查整個DC（貪婪填充）、賣出價只看「我的世界」，兩支查詢的資料來源
    * 本來就不一樣，算完才合併成一個淨利數字給玩家看。晶體類材料通常沒有掛單或本身不值錢，成本算不出來
    * 就當作0處理，並且如果有算不出來的材料就註明「不含XX項」，不要讓玩家誤以為淨利是精確值。 ── */
+  /* 價格列的基準：「我的世界」或「所有世界（整個資料中心）」，記在瀏覽器裡，沒設定世界時只能看所有世界 */
+  const PROFIT_SCOPE_KEY = 'cf-profit-scope';
+  let profitScopeWorld = ''; // 目前價格列基準的世界名稱（空字串＝整個資料中心），成交均價彈窗跟著用同一個
+  function getProfitScope(settings) {
+    if (!settings.worldName) return 'dc';
+    let v = null; try { v = localStorage.getItem(PROFIT_SCOPE_KEY); } catch (e) { /* 存取不到就用預設 */ }
+    return v === 'dc' ? 'dc' : 'world';
+  }
   function fillProfitReference(recipe) {
     lastSelectedRecipeForProfit = recipe; // 記住目前顯示的是哪個配方，市場設定一改（世界/城市）才能立刻重算
     const el = $('cf-recipe-sell-ref');
@@ -1972,14 +1998,18 @@ app._craftReady = function () {
     const settings = MarketData.getSettings();
     if (!settings.dcName) { el.innerHTML = '<span style="opacity:.7">尚未設定資料中心，抽屜市場設定裡選一下就能看到成本／利潤參考</span>'; return; }
     el.textContent = '查詢成本與賣出參考中…';
+    const scope = getProfitScope(settings);
+    profitScopeWorld = scope === 'world' ? settings.worldName : '';
 
     const needMap = {};
     (recipe.ingredients || []).forEach(function (ing) { needMap[ing.itemId] = ing.amount; });
     const costPromise = Object.keys(needMap).length ? MarketData.resolveBuyCosts(needMap) : Promise.resolve({});
-    const sellPromise = settings.worldName ? MarketData.getSellPrice(recipe.itemId) : Promise.resolve(null);
+    const sellPromise = (scope === 'world' && settings.worldName) ? MarketData.getSellPrice(recipe.itemId) : Promise.resolve(null);
     const taxPromise = settings.worldName ? MarketData.getSellTaxInfo(settings.worldName) : Promise.resolve(null);
     // 銷售速度只需要資料中心（不用等玩家選好世界），有世界時函式內部會自動改用更精準的世界範圍
-    const velocityPromise = MarketData.fetchSaleVelocity(recipe.itemId).catch(function () { return null; });
+    const velocityPromise = (scope === 'dc'
+      ? MarketData.fetchSaleVelocityBatch([Number(recipe.itemId)], settings.dcName).then(function (o) { return o[recipe.itemId] || null; })
+      : MarketData.fetchSaleVelocity(recipe.itemId)).catch(function () { return null; });
     // 沒設定我的世界時，在售最低改看整個資料中心（跟市場頁預設的範圍一樣）
     const overviewPromise = MarketData.getItemMarketOverview(recipe.itemId).catch(function () { return null; });
 
@@ -1995,39 +2025,49 @@ app._craftReady = function () {
       const tiles = [{ label: '材料成本', value: Math.round(materialCost).toLocaleString(), unit: '金', title: '材料成本（已含買方稅）' }];
       const chips = [];
       // 在售最低：有設定世界就看自己的世界，沒有就看整個資料中心；跟市場頁「在售最低」同一個意思
-      const minListing = sellRef ? sellRef.price : (overview && overview.minPrice ? overview.minPrice : null);
-      if (minListing) tiles.push({ label: '在售最低', value: Math.round(minListing).toLocaleString(), unit: '金', cls: 'good', title: '目前掛單中最低的單價（' + (sellRef ? settings.worldName : '整個資料中心') + '）' });
+      const scopeName = scope === 'world' ? settings.worldName : '所有世界';
+      const minListing = scope === 'world' ? (sellRef ? sellRef.price : null) : (overview && overview.minPrice ? overview.minPrice : null);
+      if (minListing) tiles.push({ label: '在售最低', value: Math.round(minListing).toLocaleString(), unit: '金', color: '#4ade80', cls: 'good', title: '目前掛單中最低的單價（' + scopeName + '）' });
+      else tiles.push({ label: '在售最低', value: '<span class="craft-muted">無在售</span>', title: scopeName + '目前沒有人在賣' });
       // 成交均價：先放「計算中」，30天成交紀錄讀好後再原地換成數字（不拖慢整條統計列）；點開可看當前／近1天／3天／7天／30天
       tiles.push({ label: '成交均價<i class="ph ph-caret-down"></i>', value: '計算中⋯', title: '近24小時實際成交均價・點擊看不同天數的均價比較', attrs: ' id="cf-avg-tile" data-avg-toggle="' + recipe.itemId + '" role="button" tabindex="0"', cls: 'cst-btn' });
       if (unresolvedCount) chips.push({ cls: 'warn', icon: 'ph-warning', text: unresolvedCount + '項查無掛單', title: unresolvedCount + '項材料查無掛單，未計入成本' });
-      if (sellRef) {
+      // 所有世界模式：假設在資料中心裡最便宜的那個價格賣出（稅率仍用「我的世界」的）；沒設定世界就不知道稅率，不算淨利
+      const netRef = scope === 'world' ? sellRef : ((settings.worldName && overview && overview.minPrice) ? { price: overview.minPrice } : null);
+      if (netRef) {
         // 賣方稅依退休所在城市而不同，這裡假設玩家會把退休放在「目前稅率最低」的城市（理性賣家的作法），
         // 抓不到稅率資料時退回不扣稅並註明；主要顯示稅後實拿金額，原始掛單價可以點旁邊的世界資訊icon查。
         const rate = taxInfo ? taxInfo.ratePercent : 0;
-        const netSell = sellRef.price * (1 - rate / 100);
+        const netSell = netRef.price * (1 - rate / 100);
         const profit = netSell - materialCost;
-        tiles.push({ label: settings.worldName + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
-          title: taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅',
-          extra: ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' });
+        tiles.push({ label: (scope === 'world' ? settings.worldName : '最低價') + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
+          title: (taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅') + (scope === 'dc' ? '・以整個資料中心最便宜的掛單價計算' : ''),
+          extra: scope === 'world' ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '' });
         tiles.push({ label: '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? '#4ade80' : '#f87171', cls: profit >= 0 ? 'good' : 'bad', title: '僅單件製作，不含製作時間成本' });
         if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣賣方稅', title: '稅率查詢失敗，賣出與淨利未扣賣方稅' });
       } else if (!settings.worldName) {
         chips.push({ icon: 'ph-info', text: '未設定我的世界', title: '未設定「我的世界」，看不到賣出參考與淨利' });
       } else {
-        chips.push({ icon: 'ph-info', text: settings.worldName + '查無掛單', title: settings.worldName + '目前查無掛單（可能沒有人在賣），看不到賣出參考與淨利' });
+        chips.push({ icon: 'ph-info', text: scopeName + '查無掛單', title: scopeName + '目前查無掛單（可能沒有人在賣），看不到賣出參考與淨利' });
       }
       if (velocity && velocity.totalVelocityPerDay) {
         const fv = function (n) { return n == null ? '—' : (Math.round(n * 100) / 100).toString(); };
         const hasSplit = velocity.nqVelocityPerDay != null || velocity.hqVelocityPerDay != null;
         tiles.push({ label: '賣速／天', value: hasSplit ? '<span class="mst-q">NQ</span>' + fv(velocity.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fv(velocity.hqVelocityPerDay) : velocity.totalVelocityPerDay.toFixed(1), unit: hasSplit ? '' : '件/天', color: '#4ade80', title: '近4天每天賣出幾件（成交頻率）' + (velocity.usedScope === 'world' ? '' : '・DC整體，僅供參考') });
-        if (velocity.usedScope !== 'world') chips.push({ icon: 'ph-globe', text: '賣速為所有世界', title: '賣出速度是整個資料中心的數字，僅供參考' });
+        if (scope === 'world' && velocity.usedScope !== 'world') chips.push({ icon: 'ph-globe', text: '賣速為所有世界', title: '賣出速度是整個資料中心的數字，僅供參考' });
       } else if (velocity && velocity.usedScope === null) {
         chips.push({ icon: 'ph-snowflake', text: '近4天無成交', title: '近4天查無成交紀錄，可能較冷門' });
       }
       mountCraftStat(el, tiles, chips);
+      // 價格基準快速切換：我的世界／所有世界，一鍵比較；沒設定世界時沒有「我的世界」可選，就不顯示
+      if (settings.worldName) {
+        el.insertAdjacentHTML('afterbegin', '<div class="cw-scope" role="group" aria-label="價格基準"><span class="cw-scope-label"><i class="ph ph-scales"></i>價格基準</span>' +
+          '<button type="button" class="cw-scope-btn' + (scope === 'world' ? ' on' : '') + '" data-profit-scope="world">' + escapeHtml(settings.worldName) + '</button>' +
+          '<button type="button" class="cw-scope-btn' + (scope === 'dc' ? ' on' : '') + '" data-profit-scope="dc">所有世界</button></div>');
+      }
       bindSellDepthPopover();
       bindAvgPopover();
-      loadAvgTile(recipe, settings.worldName || '', overview);
+      loadAvgTile(recipe, profitScopeWorld, overview);
     }).catch(function () { el.textContent = ''; });
   }
 
@@ -2133,14 +2173,15 @@ app._craftReady = function () {
     return '<div class="craft-mat-node" data-item="' + itemId + '" data-dir="' + direction + '" data-path="' + seenPath + '">' +
       '<div class="craft-mat-row">' +
         (expandable ? '<button type="button" class="craft-mat-toggle" data-item="' + itemId + '" data-dir="' + direction + '" data-path="' + seenPath + '">▸</button>' : '<span class="craft-mat-toggle-placeholder"></span>') +
-        '<span class="craft-mat-name">' + itemIconHtml(itemId, 18) + itemName(itemId) + '</span>' +
-        (list.length > 1 ? '<span class="craft-muted">' + list.length + ' 種做法／用途</span>' : '') +
+        '<span class="craft-mat-name" title="' + itemName(itemId) + '">' + itemIconHtml(itemId, 18) + '<span class="craft-mat-name-txt">' + itemName(itemId) +
+          (list.length > 1 ? '<small class="craft-mat-sub">' + list.length + ' 種' + (direction === 'down' ? '做法' : '用途') + '</small>' : '') + '</span></span>' +
         '<div class="craft-mat-right-col">' +
-          '<div class="craft-mat-actions">' +
-            (craftableRecipeId ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + craftableRecipeId + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '') +
-            (craftableRecipeId ? '<button type="button" class="craft-mat-quickadd" data-quickadd-recipe="' + craftableRecipeId + '" title="加入批次規劃"><i class="ph ph-plus"></i></button>' : '') +
-          '</div>' +
           '<span class="craft-mat-price" data-price-item="' + itemId + '"' + (craftableRecipeId ? ' data-craft-recipe="' + craftableRecipeId + '"' : '') + '></span>' +
+          '<div class="craft-mat-actions">' +
+            '<button type="button" class="craft-mat-worlds-icon" data-worlds-toggle="' + itemId + '" title="看看這個材料在各世界賣多少、還有多少庫存可以加購"><i class="ph ph-info"></i></button>' +
+            (craftableRecipeId ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + craftableRecipeId + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '<span class="cmp-ph"></span>') +
+            (craftableRecipeId ? '<button type="button" class="craft-mat-quickadd" data-quickadd-recipe="' + craftableRecipeId + '" title="加入批次規劃"><i class="ph ph-plus"></i></button>' : '<span class="cmp-ph"></span>') +
+          '</div>' +
         '</div>' +
       '</div>' +
       '<div class="craft-mat-children"></div>' +
@@ -3507,6 +3548,22 @@ app._craftReady = function () {
     const box = $('cf-dock-summary'); if (!box) return;
     ['cf-job', 'cf-food', 'cf-pot'].forEach(function (id) { const e = $(id); if (!e) return; enhanceSelect(e); if (e._ddRender) e._ddRender(); });
     const seg = function (k, v) { return '<span class="mss"><i>' + k + '</i><b>' + v + '</b></span>'; };
+    /* 作業／加工／CP：顯示吃了食物與藥水之後的「最終數值」，有加成就在後面標出加了多少（綠色），沒加成就維持原本的數字 */
+    let finalStats = null;
+    try {
+      const num = function (id) { return parseInt($(id).value, 10) || 0; };
+      const bonusOf = function (entry, hq) { return entry ? { percent: hq ? entry.percentHQ : entry.percent, cap: hq ? entry.capHQ : entry.cap } : null; };
+      const food = CRAFT_FOODS[$('cf-food').value], pot = CRAFT_FOODS[$('cf-pot').value];
+      const hf = isHQ('cf-food-tier'), hp = isHQ('cf-pot-tier');
+      const meal = food ? { craftsmanship: bonusOf(food.craftsmanship, hf), control: bonusOf(food.control, hf), cp: bonusOf(food.cp, hf) } : null;
+      const med = pot ? { craftsmanship: bonusOf(pot.craftsmanship, hp), control: bonusOf(pot.control, hp), cp: bonusOf(pot.cp, hp) } : null;
+      finalStats = CraftConsumables.computeFinalStats({ craftsmanship: num('cf-craftsmanship'), control: num('cf-control'), cp: num('cf-cp') }, meal, med);
+    } catch (e) { finalStats = null; }
+    const statSeg = function (label, key) {
+      const base = parseInt($({ craftsmanship: 'cf-craftsmanship', control: 'cf-control', cp: 'cf-cp' }[key]).value, 10) || 0;
+      const fin = finalStats ? finalStats[key] : base, bonus = fin - base;
+      return '<span class="mss"' + (bonus > 0 ? ' title="基礎 ' + base.toLocaleString() + '，食物／藥水加成 +' + bonus + '，最終 ' + fin.toLocaleString() + '"' : '') + '><i>' + label + '</i><b>' + fin.toLocaleString() + '</b>' + (bonus > 0 ? '<span class="cw-bonus">+' + bonus + '</span>' : '') + '</span>';
+    };
     const tier = function (id) { const a = $(id).querySelector('.active'); return a && a.dataset.v === 'hq' ? ' HQ' : ' NQ'; };
     const opt = function (id, tid) { const e = $(id), o = e.options[e.selectedIndex]; return (!o || !o.value) ? '<span class="craft-muted">不使用</span>' : escapeHtml(o.textContent) + tier(tid); };
     const skills = Array.prototype.map.call($('cf-special-list').querySelectorAll('[data-special]:checked'), function (cb) {
@@ -3514,7 +3571,7 @@ app._craftReady = function () {
     });
     const prof = $('cf-profile-mode').checked, jo = $('cf-job').options[$('cf-job').selectedIndex];
     box.innerHTML = (prof && jo ? seg('職業', escapeHtml(jo.textContent)) : '') +
-      seg('Lv', $('cf-lvl').value) + seg('作業', $('cf-craftsmanship').value) + seg('加工', $('cf-control').value) + seg('CP', $('cf-cp').value) +
+      seg('Lv', $('cf-lvl').value) + statSeg('作業', 'craftsmanship') + statSeg('加工', 'control') + statSeg('CP', 'cp') +
       seg('食物', opt('cf-food', 'cf-food-tier')) + seg('藥水', opt('cf-pot', 'cf-pot-tier')) +
       seg('專家', $('cf-specialist').checked ? '開' : '關') +
       '<span class="mss mss-skills"><i>技能</i>' + (skills.length ? skills.join('') : '<span class="craft-muted">未勾選</span>') + '</span>';
@@ -3544,6 +3601,12 @@ app._craftReady = function () {
     $('cf-actor').addEventListener('click', function () { setTimeout(renderDockSummary, 0); });
     renderDockSummary();
   })();
+  /* 價格基準切換（我的世界／所有世界） */
+  $('cf-recipe-selected').addEventListener('click', function (e) {
+    const b = e.target.closest('[data-profit-scope]'); if (!b) return;
+    try { localStorage.setItem(PROFIT_SCOPE_KEY, b.dataset.profitScope); } catch (err) { /* 存不了就只對這次有效 */ }
+    if (lastSelectedRecipeForProfit) fillProfitReference(lastSelectedRecipeForProfit);
+  });
   /* 已選配方那一條上的「更換配方」：展開列表（沿用上次的搜尋條件），選了之後會再自動收起 */
   $('cf-recipe-selected').addEventListener('click', function (e) {
     if (!e.target.closest('#cf-change-recipe')) return;
