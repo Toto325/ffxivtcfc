@@ -854,10 +854,10 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .cw-change{margin-left:auto;font-size:12.5px;font-weight:400;white-space:nowrap}
 .craft-add-batch-box{margin:0;padding:0;border:0;background:none}
 .craft-add-batch-caption{display:none}
-.craft-ingredients{margin:0;padding:10px 0 0;border-top:1px solid var(--tb);display:grid;grid-template-columns:1fr;gap:6px}
-.craft-ingredients:empty{display:none}
-.craft-ingredients .craft-ing-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px 10px;min-height:38px;border:1px solid var(--tb);border-radius:8px;background:rgba(0,0,0,.2)}
-.craft-ing-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cw-pick-detail .craft-ingredients{margin:0;padding:10px 0 0;border-top:1px solid var(--tb);display:grid;grid-template-columns:1fr;gap:6px}
+.cw-pick-detail .craft-ingredients:empty{display:none}
+.cw-pick-detail .craft-ingredients .craft-ing-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px 10px;min-height:38px;border:1px solid var(--tb);border-radius:8px;background:rgba(0,0,0,.2)}
+.cw-pick-detail .craft-ing-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 右欄 */
 .craft-col-solve{position:relative}
 .cw-modebar{display:flex;align-items:center;border-bottom:1px solid var(--tb);margin:0 0 10px;padding:0 2px}
@@ -971,3 +971,60 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .cw-col-char .craft-special-list{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}
 .cw-col-char .craft-skill-item{padding:6px 9px}
 @container (max-width:760px){.cw-panel-top{flex-wrap:wrap}.cw-panel-top .cw-panel-foot{margin-left:0}}
+
+/* v6：成交均價可展開、賣速 NQ／HQ（沿用市場頁 .mst-q／.mst-sep 的寫法）、面板收起鈕 */
+.craft-stat-tile.cst-btn{cursor:pointer;transition:background .15s}
+.craft-stat-tile.cst-btn:hover,.craft-stat-tile.cst-btn:focus-visible{background:rgba(197,160,89,.12);outline:0}
+.craft-stat-tile .cst-label .ph{font-size:9px;margin-left:3px}
+.craft-stat-tile .cst-val .mst-q{font-size:10px;font-weight:600;color:var(--dim);margin-right:3px}
+.craft-stat-tile .cst-val .mst-sep{margin:0 6px;color:var(--dim);font-weight:400}
+
+
+/* ============ v6：抽屜（材料圖譜／批次規劃）改版——沿用市場頁分段列與底線分頁，欄位對齊 ============ */
+.craft-explore-panel{background:linear-gradient(180deg,#0e0a06,#070504)}
+.craft-explore-head{padding:4px 10px 0 18px;align-items:flex-end;gap:6px}
+.craft-explore-tabs{gap:24px;flex:1}
+.craft-explore-tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:12px 2px 10px;font-size:14.5px;margin-bottom:-1px;letter-spacing:.06em}
+.craft-explore-tab.active{background:none;border-color:transparent;border-bottom-color:var(--gold);color:var(--gold-bright);font-weight:700}
+.craft-explore-wide,.craft-explore-close{align-self:center}
+.craft-explore-current-target{margin:0;padding:10px 18px;border-bottom:1px solid var(--tb);background:linear-gradient(90deg,rgba(197,160,89,.1),transparent);gap:10px}
+.craft-explore-current-name{font-size:15px;font-weight:700;color:var(--gold-bright);gap:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-explore-current-target .craft-copy-btn{height:32px;padding:0 12px;font-size:12.5px;white-space:nowrap;flex:none}
+#cf-market-settings{padding:10px 18px 0!important}
+.cw-ms-btn{width:100%;height:auto;min-height:38px;justify-content:flex-start;gap:10px;flex-wrap:nowrap;overflow:hidden}
+.cw-ms-sum{display:flex;align-items:center;min-width:0;flex:1}
+.cw-ms-sum .mss{display:inline-flex;align-items:center;gap:5px;padding:0 10px;white-space:nowrap}
+.cw-ms-sum .mss:first-child{padding-left:0;border-left:0}
+.craft-explore-body{padding:12px 18px 24px}
+/* 區塊標題統一：金色小標＋菱形，下面一條淡線 */
+.craft-explore-drawer .craft-ingredients-title,.craft-explore-drawer .craft-mat-section-label,.craft-explore-drawer .craft-batch-head .craft-label{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--gold);letter-spacing:.12em;margin:0 0 8px}
+.craft-explore-drawer .craft-ingredients-title::before{content:"";width:6px;height:6px;transform:rotate(45deg);background:linear-gradient(135deg,#fffbd0,#c5a059);flex:none}
+.craft-explore-drawer .craft-mat-section-label{color:var(--dim);font-size:11.5px;letter-spacing:.06em;margin:10px 0 4px}
+/* 材料圖譜：一行一個，名稱｜操作｜價格三段固定欄，價格不再掉到第二行 */
+.craft-explore-drawer .craft-mat-row{align-items:center;gap:8px;padding:5px 6px;border-radius:8px;min-height:36px}
+.craft-explore-drawer .craft-mat-row:hover{background:rgba(197,160,89,.09)}
+.craft-explore-drawer .craft-mat-name{flex:1 1 0;min-width:0;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.craft-explore-drawer .craft-mat-right-col{flex-direction:row;align-items:center;gap:10px;margin-left:0}
+.craft-explore-drawer .craft-mat-actions{margin-left:0;gap:6px;min-width:52px;justify-content:flex-end}
+.craft-explore-drawer .craft-mat-right-col .craft-mat-price{min-width:86px;font-size:12.5px;color:var(--main);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.craft-explore-drawer .craft-mat-children{margin-left:14px;padding-left:8px}
+/* 批次規劃：先看總結（採購／收入／淨利），再看操作，再看明細 */
+.craft-explore-drawer .craft-batch-head{margin-bottom:6px}
+.craft-explore-drawer .craft-batch-list{border:1px solid var(--tb);border-radius:10px;background:rgba(0,0,0,.22);padding:2px 6px;margin-bottom:16px}
+.craft-explore-drawer .craft-batch-list:empty{display:none}
+.craft-explore-drawer .craft-batch-row{padding:7px 4px;min-height:42px}
+.craft-explore-drawer .craft-batch-row:last-child{border-bottom:0}
+.craft-explore-pane>.craft-ingredients{display:flex;flex-direction:column;margin:0;padding:0;border:0;gap:0}
+#cf-batch-cost-summary{order:1;margin:0 0 10px!important}
+.craft-explore-pane>.craft-ingredients>.craft-ingredients-title{order:0}
+.craft-explore-pane>.craft-ingredients>div:nth-of-type(1){order:2;margin:0 0 8px!important}
+#cf-batch-autosuggest-status{order:3}
+.craft-explore-pane>.craft-ingredients>div:nth-of-type(3){order:4;margin:6px 0 4px!important;border-bottom:1px solid var(--tb);padding-bottom:0;align-items:flex-end}
+#cf-batch-materials,#cf-batch-byworld{order:5}
+.craft-batchview-tab{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:6px 2px;margin:0 14px -1px 0;font-size:13px}
+.craft-batchview-tab.active{background:none;border-bottom-color:var(--gold);color:var(--gold-bright);font-weight:700}
+.craft-explore-drawer .craft-mat-head{position:sticky;top:-12px;z-index:3;background:#0b0806;padding:6px 0 5px}
+.craft-explore-drawer .craft-mat-buy-block .craft-ing-row{padding:6px 2px;border-bottom:1px solid rgba(197,160,89,.1);min-height:38px}
+.craft-explore-drawer .craft-mat-buy-block:hover{background:rgba(197,160,89,.06)}
+.craft-explore-drawer .craft-ing-name{font-size:13.5px}
+.craft-explore-drawer .craft-mat-price{font-variant-numeric:tabular-nums}
