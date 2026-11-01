@@ -271,7 +271,7 @@ app._craftReady = function () {
             '<div id="cf-stats-scope-tag" class="craft-stats-scope-tag"></div>' +
             '<label class="craft-check-inline craft-profile-toggle" title="想分別記錄不同職業的數值時開啟；切換職業會自動套用該職業的數值與可製作清單"><input id="cf-profile-mode" type="checkbox" />使用個人設定檔</label>' +
             '<button type="button" id="cf-profile-manage-btn" class="craft-link" style="display:none">管理全部職業 <i class="ph ph-caret-down"></i></button>' +
-            '<div class="cw-panel-foot"><button type="button" id="cf-dock-close" class="craft-link"><i class="ph ph-caret-up"></i>收起</button><button type="button" id="cf-dock-solve" class="craft-copy-btn"><i class="ph ph-play"></i>求解</button></div>' +
+            '<div class="cw-panel-foot"><button type="button" id="cf-dock-close" class="craft-link"><i class="ph ph-caret-up"></i>收起</button></div>' +
           '</div>' +
           '<p id="cf-profile-hint-off" class="craft-hint">想分別記錄不同職業的數值，可開啟個人設定檔。</p>' +
           '<p id="cf-profile-hint-on" class="craft-hint" style="display:none">切換職業會自動套用該職業的數值與可製作清單。</p>' +
@@ -407,7 +407,7 @@ app._craftReady = function () {
          * 改成一顆按鈕，點開才彈出直立排列、每個欄位都有獨立標籤的設定小卡，欄位再長也不會被裁切，
          * 而且這個彈出卡跟世界明細一樣掛在<body>底下，不會被抽屜的transform影響定位。 */
         '<div id="cf-market-settings" class="craft-row" style="gap:8px;padding:0 2px 8px">' +
-          '<button type="button" id="cf-market-settings-btn" class="craft-copy-btn"><i class="ph ph-currency-circle-dollar"></i><span id="cf-market-settings-summary">市場設定⋯</span></button>' +
+          '<button type="button" id="cf-market-settings-btn" class="market-settings-btn cw-ms-btn"><i class="ph ph-gear-six"></i><span id="cf-market-settings-summary" class="cw-ms-sum">市場設定⋯</span></button>' +
         '</div>' +
         '<div class="craft-explore-body">' +
           '<div id="cf-explore-material" class="craft-explore-pane">' +
@@ -543,7 +543,7 @@ app._craftReady = function () {
   /* 數字摘要格＋小標籤：標籤放警告／附註（原本是整行長句），完整說明放進 title，需要時才看 */
   function craftStatHtml(tiles, chips) {
     return '<div class="craft-stat-bar">' + tiles.map(function (t) {
-      return '<div class="craft-stat-tile' + (t.cls ? ' ' + t.cls : '') + '"' + (t.title ? ' title="' + t.title + '"' : '') + '>' +
+      return '<div class="craft-stat-tile' + (t.cls ? ' ' + t.cls : '') + '"' + (t.title ? ' title="' + t.title + '"' : '') + (t.attrs || '') + '>' +
         '<span class="cst-label">' + t.label + '</span>' +
         '<span class="cst-val"' + (t.color ? ' style="color:' + t.color + '"' : '') + '>' + t.value + (t.unit ? '<small>' + t.unit + '</small>' : '') + (t.extra || '') + '</span></div>';
     }).join('') + '</div>' +
@@ -801,7 +801,8 @@ app._craftReady = function () {
     const s = MarketData.getSettings();
     const parts = [s.dcName || '未選資料中心', s.worldName || '未選世界'];
     if (s.worldName) parts.push(s.sellCityKey ? '手動選城市稅率' : '自動最低稅率');
-    el.textContent = parts.join('・');
+    const icons = ['ph-globe', 'ph-map-pin', 'ph-percent']; // 跟市場頁設定列一樣的分段寫法：資料中心｜世界｜稅率
+    el.innerHTML = parts.map(function (t, i) { return '<span class="mss"><i class="ph ' + icons[i] + '"></i>' + escapeHtml(t) + '</span>'; }).join('');
   }
   async function refreshWorldOptions(dcName, presetWorld) {
     if (!dcName) return;
@@ -980,6 +981,77 @@ app._craftReady = function () {
     window.addEventListener('scroll', closeWorldPopover, true);
     window.addEventListener('resize', closeWorldPopover);
     document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeWorldPopover(); });
+  }
+
+  /* ── 成交均價：跟市場頁「均價比較」同一套算法（一次抓30天成交紀錄，當前／近1天／3天／7天／30天都在本地切、已排除異常成交）。
+   * 以我的世界為範圍；沒設定世界就看整個資料中心。同一個物品同一個範圍只抓一次，統計列跟彈窗共用。 ── */
+  const avgWindowsCache = {};
+  function fetchAvgWindows(itemId, scopeWorld) {
+    const key = (scopeWorld || 'DC') + '|' + itemId;
+    if (avgWindowsCache[key]) return avgWindowsCache[key];
+    avgWindowsCache[key] = MarketData.fetchFullHistory(itemId, 30, scopeWorld || undefined).then(function (full) {
+      const now = Date.now() / 1000;
+      const inRange = function (a, b) { return full.filter(function (h) { return h.timestamp >= now - b * 3600 && h.timestamp < now - a * 3600; }); };
+      const within = function (d) { return full.filter(function (h) { return h.timestamp >= now - d * 86400; }); };
+      const avgOf = function (list) {
+        const clean = MarketData.excludeOutlierEntries(list, function (h) { return h.pricePerUnit; });
+        return clean.length ? Math.round(clean.reduce(function (t, h) { return t + h.pricePerUnit; }, 0) / clean.length) : null;
+      };
+      return { current: avgOf(inRange(0, 24)), d1: avgOf(inRange(0, 48)), d3: avgOf(within(3)), d7: avgOf(within(7)), d30: avgOf(within(30)) };
+    }).catch(function () { delete avgWindowsCache[key]; return null; });
+    return avgWindowsCache[key];
+  }
+  function loadAvgTile(recipe, scopeWorld, overview) {
+    const tile = $('cf-avg-tile'); if (!tile) return;
+    const val = tile.querySelector('.cst-val'), label = tile.querySelector('.cst-label');
+    fetchAvgWindows(recipe.itemId, scopeWorld).then(function (w) {
+      if (!$('cf-avg-tile') || !lastSelectedRecipeForProfit || lastSelectedRecipeForProfit.itemId !== recipe.itemId) return; // 期間換了配方就不要蓋掉新畫面
+      const cur = w && w.current != null ? w.current : null;
+      if (cur != null) { val.innerHTML = cur.toLocaleString() + '<small>金</small>'; return; }
+      // 24小時內沒有成交的冷門物品：退回目前掛單均價，並明確標示這不是成交價
+      if (overview && overview.avgPrice) { label.innerHTML = '掛單均價<i class="ph ph-caret-down"></i>'; val.innerHTML = Math.round(overview.avgPrice).toLocaleString() + '<small>金</small>'; return; }
+      val.innerHTML = '<span class="craft-muted">近期無成交</span>';
+    });
+  }
+  async function openAvgPopover(btn, itemId) {
+    const settings = MarketData.getSettings(), scope = settings.worldName || '';
+    const pop = ensureBodyPopover('cf-avg-popover', 'craft-mat-worlds-popover mav-pop');
+    const title = '均價比較（' + (scope || '所有世界') + '）';
+    pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取歷史成交中⋯</p>';
+    pop.style.display = 'block';
+    positionPopoverNear(pop, btn);
+    const w = await fetchAvgWindows(itemId, scope);
+    if (!w) { pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取失敗，請稍後再試。</p>'; positionPopoverNear(pop, btn); return; }
+    const rows = [['當前', w.current, '最近24小時內的成交均價'], ['近1天', w.d1, '最近48小時內（當天＋昨天）的成交均價'], ['近3天', w.d3, '過去3天所有成交的平均'], ['近7天', w.d7, '過去7天所有成交的平均'], ['近30天', w.d30, '過去30天所有成交的平均']];
+    const maxV = Math.max.apply(null, rows.map(function (r) { return r[1] || 0; })) || 1;
+    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均，已排除異常成交。「掛單」是現在架上還沒賣掉的掛單價格平均，不是成交價。">？</span></p>' +
+      rows.map(function (r, i) {
+        return '<div class="mav-row' + (i === 0 ? ' is-now' : '') + '" title="' + r[2] + '"><span class="mav-l">' + r[0] + '</span><span class="mav-bar"><i style="width:' + (r[1] != null ? Math.max(4, r[1] / maxV * 100).toFixed(0) : 0) + '%"></i></span><strong>' + (r[1] != null ? r[1].toLocaleString() : '—') + '</strong><small>金</small></div>';
+      }).join('') + '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均，不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small></div>';
+    positionPopoverNear(pop, btn);
+    try {
+      const ov = await MarketData.getItemMarketOverview(itemId);
+      const row = $('cf-avg-listing');
+      if (row) { row.querySelector('strong').textContent = (ov && ov.avgPrice) ? Math.round(ov.avgPrice).toLocaleString() : '—'; if (!(ov && ov.avgPrice)) row.querySelector('small').textContent = '無掛單'; }
+    } catch (e) { const row = $('cf-avg-listing'); if (row) { row.querySelector('strong').textContent = '—'; row.querySelector('small').textContent = '讀取失敗'; } }
+  }
+  let avgPopoverBound = false;
+  function bindAvgPopover() {
+    if (avgPopoverBound) return;
+    avgPopoverBound = true;
+    const toggle = function (btn) {
+      const pop = $('cf-avg-popover');
+      const same = pop && pop.style.display !== 'none' && pop.dataset.forItem === btn.dataset.avgToggle;
+      if (pop) pop.style.display = 'none';
+      if (!same) { openAvgPopover(btn, btn.dataset.avgToggle); const p2 = $('cf-avg-popover'); if (p2) p2.dataset.forItem = btn.dataset.avgToggle; }
+    };
+    document.addEventListener('click', function (ev) {
+      const btn = ev.target.closest('[data-avg-toggle]'), pop = $('cf-avg-popover');
+      if (btn) { ev.stopPropagation(); toggle(btn); return; }
+      if (pop && !pop.contains(ev.target)) pop.style.display = 'none';
+    });
+    document.addEventListener('keydown', function (ev) { if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.closest && ev.target.closest('[data-avg-toggle]')) { ev.preventDefault(); toggle(ev.target.closest('[data-avg-toggle]')); } });
+    window.addEventListener('scroll', function () { const p = $('cf-avg-popover'); if (p) p.style.display = 'none'; }, true);
   }
 
   /* ── 賣出深度彈出卡：跟世界明細共用同一套「掛在body、用按鈕座標動態定位」的做法，避免transform定位bug。
@@ -1908,9 +1980,11 @@ app._craftReady = function () {
     const taxPromise = settings.worldName ? MarketData.getSellTaxInfo(settings.worldName) : Promise.resolve(null);
     // 銷售速度只需要資料中心（不用等玩家選好世界），有世界時函式內部會自動改用更精準的世界範圍
     const velocityPromise = MarketData.fetchSaleVelocity(recipe.itemId).catch(function () { return null; });
+    // 沒設定我的世界時，在售最低改看整個資料中心（跟市場頁預設的範圍一樣）
+    const overviewPromise = MarketData.getItemMarketOverview(recipe.itemId).catch(function () { return null; });
 
-    Promise.all([costPromise, sellPromise, taxPromise, velocityPromise]).then(function (out) {
-      const costResults = out[0], sellRef = out[1], taxInfo = out[2], velocity = out[3];
+    Promise.all([costPromise, sellPromise, taxPromise, velocityPromise, overviewPromise]).then(function (out) {
+      const costResults = out[0], sellRef = out[1], taxInfo = out[2], velocity = out[3], overview = out[4];
       // materialCost 已經是含買方稅的實際花費（resolveBuyCosts/greedyFill算出來的totalCost本身就含稅）
       let materialCost = 0, unresolvedCount = 0;
       Object.keys(costResults).forEach(function (id) {
@@ -1920,6 +1994,11 @@ app._craftReady = function () {
       });
       const tiles = [{ label: '材料成本', value: Math.round(materialCost).toLocaleString(), unit: '金', title: '材料成本（已含買方稅）' }];
       const chips = [];
+      // 在售最低：有設定世界就看自己的世界，沒有就看整個資料中心；跟市場頁「在售最低」同一個意思
+      const minListing = sellRef ? sellRef.price : (overview && overview.minPrice ? overview.minPrice : null);
+      if (minListing) tiles.push({ label: '在售最低', value: Math.round(minListing).toLocaleString(), unit: '金', cls: 'good', title: '目前掛單中最低的單價（' + (sellRef ? settings.worldName : '整個資料中心') + '）' });
+      // 成交均價：先放「計算中」，30天成交紀錄讀好後再原地換成數字（不拖慢整條統計列）；點開可看當前／近1天／3天／7天／30天
+      tiles.push({ label: '成交均價<i class="ph ph-caret-down"></i>', value: '計算中⋯', title: '近24小時實際成交均價・點擊看不同天數的均價比較', attrs: ' id="cf-avg-tile" data-avg-toggle="' + recipe.itemId + '" role="button" tabindex="0"', cls: 'cst-btn' });
       if (unresolvedCount) chips.push({ cls: 'warn', icon: 'ph-warning', text: unresolvedCount + '項查無掛單', title: unresolvedCount + '項材料查無掛單，未計入成本' });
       if (sellRef) {
         // 賣方稅依退休所在城市而不同，這裡假設玩家會把退休放在「目前稅率最低」的城市（理性賣家的作法），
@@ -1938,13 +2017,17 @@ app._craftReady = function () {
         chips.push({ icon: 'ph-info', text: settings.worldName + '查無掛單', title: settings.worldName + '目前查無掛單（可能沒有人在賣），看不到賣出參考與淨利' });
       }
       if (velocity && velocity.totalVelocityPerDay) {
-        tiles.push({ label: '賣速', value: velocity.totalVelocityPerDay.toFixed(1), unit: '件/天', color: '#4ade80', title: '近4天賣出速度' + (velocity.usedScope === 'world' ? '' : '（DC整體，僅供參考）') });
+        const fv = function (n) { return n == null ? '—' : (Math.round(n * 100) / 100).toString(); };
+        const hasSplit = velocity.nqVelocityPerDay != null || velocity.hqVelocityPerDay != null;
+        tiles.push({ label: '賣速／天', value: hasSplit ? '<span class="mst-q">NQ</span>' + fv(velocity.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fv(velocity.hqVelocityPerDay) : velocity.totalVelocityPerDay.toFixed(1), unit: hasSplit ? '' : '件/天', color: '#4ade80', title: '近4天每天賣出幾件（成交頻率）' + (velocity.usedScope === 'world' ? '' : '・DC整體，僅供參考') });
         if (velocity.usedScope !== 'world') chips.push({ icon: 'ph-globe', text: '賣速為所有世界', title: '賣出速度是整個資料中心的數字，僅供參考' });
       } else if (velocity && velocity.usedScope === null) {
         chips.push({ icon: 'ph-snowflake', text: '近4天無成交', title: '近4天查無成交紀錄，可能較冷門' });
       }
       mountCraftStat(el, tiles, chips);
       bindSellDepthPopover();
+      bindAvgPopover();
+      loadAvgTile(recipe, settings.worldName || '', overview);
     }).catch(function () { el.textContent = ''; });
   }
 
@@ -3455,7 +3538,6 @@ app._craftReady = function () {
     if (window.ResizeObserver) new ResizeObserver(reserve).observe($('cf-actor'));
     bar.addEventListener('click', function () { setOpen(!wrap.classList.contains('open')); });
     $('cf-dock-close').addEventListener('click', function () { setOpen(false); });
-    $('cf-dock-solve').addEventListener('click', function () { setOpen(false); const b = $('cf-solve'); if (!b.disabled) b.click(); });
     document.addEventListener('click', function (e) { if (isOverlay() && wrap.classList.contains('open') && !wrap.contains(e.target)) setOpen(false); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && wrap.classList.contains('open') && !document.querySelector('.craft-dd.open')) setOpen(false); });
     ['input', 'change'].forEach(function (ev) { $('cf-actor').addEventListener(ev, function () { setTimeout(renderDockSummary, 0); }); });
