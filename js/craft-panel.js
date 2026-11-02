@@ -3562,7 +3562,9 @@ app._craftReady = function () {
     const statSeg = function (label, key) {
       const base = parseInt($({ craftsmanship: 'cf-craftsmanship', control: 'cf-control', cp: 'cf-cp' }[key]).value, 10) || 0;
       const fin = finalStats ? finalStats[key] : base, bonus = fin - base;
-      return '<span class="mss"' + (bonus > 0 ? ' title="基礎 ' + base.toLocaleString() + '，食物／藥水加成 +' + bonus + '，最終 ' + fin.toLocaleString() + '"' : '') + '><i>' + label + '</i><b>' + fin.toLocaleString() + '</b>' + (bonus > 0 ? '<span class="cw-bonus">+' + bonus + '</span>' : '') + '</span>';
+      return '<span class="mss' + (bonus > 0 ? ' is-boosted' : '') + '"' + (bonus > 0 ? ' title="基礎 ' + base.toLocaleString() + '，食物／藥水加成 +' + bonus + '，最終 ' + fin.toLocaleString() + '"' : '') + '><i>' + label + '</i>' +
+        // 有加成：暗色小字的「原本數值」→ 綠色大字的「最終數值」，一眼就看出哪個是求解實際會用的；沒加成：只有一個金色數字
+        (bonus > 0 ? '<span class="cw-base">' + base.toLocaleString() + '</span><i class="ph ph-arrow-right cw-arrow"></i><b class="cw-final">' + fin.toLocaleString() + '</b>' : '<b>' + fin.toLocaleString() + '</b>') + '</span>';
     };
     const tier = function (id) { const a = $(id).querySelector('.active'); return a && a.dataset.v === 'hq' ? ' HQ' : ' NQ'; };
     const opt = function (id, tid) { const e = $(id), o = e.options[e.selectedIndex]; return (!o || !o.value) ? '<span class="craft-muted">不使用</span>' : escapeHtml(o.textContent) + tier(tid); };
