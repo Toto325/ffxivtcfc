@@ -734,15 +734,23 @@
     els.drawer.classList.toggle('wide', isWide());
     renderHead(); renderToolbar(); renderTagbar(); renderSettings(); renderBody(); renderStatus(); updateBadge();
   }
+  /* 徽章＝清單裡的物品總數（跟生產頁「批次規劃」的徽章同一個邏輯：加一個就 +1、移除就 -1，馬上跳數字）。
+   * 「已達目標價」改用顏色表達：有達標時徽章變綠、金框呼吸綠光，數量寫在滑鼠提示裡。 */
+  var lastBadgeN = null;
   function updateBadge() {
     if (!els.badge) return;
-    var sc = effScope(), n = 0;
-    list.forEach(function (w) { var p = priceInfo(w.itemId, sc); if (p && isReached(w, p.min)) n++; });
-    els.badge.textContent = n;
-    els.badge.style.display = n > 0 ? 'inline-flex' : 'none';
+    var sc = effScope(), hit = 0, total = list.length;
+    list.forEach(function (w) { var p = priceInfo(w.itemId, sc); if (p && isReached(w, p.min)) hit++; });
+    els.badge.textContent = total > 99 ? '99+' : total;
+    els.badge.style.display = total > 0 ? 'inline-flex' : 'none';
+    els.badge.classList.toggle('has-hit', hit > 0);
+    if (lastBadgeN !== null && lastBadgeN !== total && total > 0) { // 數量變了才彈一下（第一次載入不彈）
+      els.badge.classList.remove('bump'); void els.badge.offsetWidth; els.badge.classList.add('bump');
+    }
+    lastBadgeN = total;
     if (els.fab) {
-      els.fab.title = '關注清單（' + list.length + '）' + (n ? '・' + n + ' 個已達目標價' : '');
-      els.fab.classList.toggle('has-hit', n > 0);
+      els.fab.title = '關注清單（' + total + '）' + (hit ? '・' + hit + ' 個已達目標價' : '');
+      els.fab.classList.toggle('has-hit', hit > 0);
     }
   }
 

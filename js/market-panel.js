@@ -782,6 +782,7 @@
     return {
       velocity: { nqVelocityPerDay: row[0], hqVelocityPerDay: row[1], usedScope: 'pc' },
       avg24h: D && D[0] > 0 ? D[1] : null,
+      txnFreq: liquidityOf('x', { items: { x: row } }).txnFreq, // 成交頻率（筆/天），跟熱度排行、代幣兌換同一套；近30天成交不到5筆時是 0
     };
   }
 
@@ -914,8 +915,8 @@
     }
     function buildStatBarHtml(st) {
       const parts = [];
-      // 三個價格裡只要有一個到千萬以上，三個一起改用萬／億簡寫（一起改才看得出大小關係），完整數字放在滑鼠提示
-      const compact = Math.max(st.minPrice || 0, st.avgDisplay || 0, st.maxPrice || 0) >= 1e7;
+      // 兩個價格裡只要有一個到千萬以上，兩個一起改用萬／億簡寫（一起改才看得出大小關係），完整數字放在滑鼠提示
+      const compact = Math.max(st.minPrice || 0, st.avgDisplay || 0) >= 1e7;
       const fmtP = function (n) { return compact ? fmtCompactGil(n) : n.toLocaleString(); };
       const U = compact ? '' : '<small>金</small>'; // 簡寫（萬／億）本身就是金幣的習慣單位，再加「金」是重複，還會把賣速擠到第二行
       if (st.minPrice) parts.push(statTile('在售最低', fmtP(st.minPrice) + U, 'market-stat-tile-strong', ' title="目前掛單中最低的單價：' + st.minPrice.toLocaleString() + ' 金"'));
@@ -923,9 +924,13 @@
       // 24小時內沒有成交的冷門物品，退回用掛單均價，並明確標成「掛單均價」，註明這不是真的成交均價。
       if (st.avgLoading) parts.push(statTile('均價', '計算中⋯', 'market-stat-tile-muted'));
       else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-tile market-stat-tile-btn" id="mk-avgprice-badge" title="' + st.avgDisplay.toLocaleString() + ' 金・點擊看不同天數的均價比較"><span class="mst-label">' + (st.avgIsFallback ? '掛單均價' : '成交均價') + '<i class="ph ph-caret-down"></i></span><span class="mst-val">' + fmtP(st.avgDisplay) + U + '</span></button>');
-      if (st.maxPrice) parts.push(statTile('在售最高', fmtP(st.maxPrice) + U, '', ' title="目前掛單中最高的單價：' + st.maxPrice.toLocaleString() + ' 金"'));
       if (st.velLoading) parts.push(statTile('賣速', '計算中⋯', 'market-stat-tile-muted'));
       else { const vt = velTileHtml(st.velocity, st.scopeWorld); if (vt) parts.push(vt); }
+      // 成交頻率：每天成交「幾筆」（不是幾件），只在有預先計算資料時才有，沒有就不顯示這格
+      if (!st.velLoading && st.txnFreq != null) { // 載入中不先擺這格，免得算完又消失造成跳動
+        if (st.txnFreq > 0) parts.push(statTile('成交頻率', st.txnFreq.toFixed(2) + '<small>筆/天</small>', '', ' title=\"每天平均成交幾筆（' + (st.scopeWorld || '所有世界') + '），跟賣速（每天賣幾件）不同\"'));
+        else parts.push(statTile('成交頻率', '<5<small>筆/月</small>', 'market-stat-tile-muted', ' title=\"近30天成交不到5筆，筆數太少算不出可靠的頻率（不代表完全沒有成交）\"'));
+      }
       return parts.join('');
     }
     const last24hRaw = (overview && overview.history) ? overview.history.filter(function (h) { return h.timestamp >= Date.now() / 1000 - 86400; }) : [];
@@ -938,6 +943,7 @@
       avgDisplay: avg24h != null ? avg24h : (overview && overview.avgPrice ? Math.round(overview.avgPrice) : null),
       avgIsFallback: avg24h == null && !!(overview && overview.avgPrice),
       velocity: velocity, scopeWorld: null,
+      txnFreq: pcStat ? pcStat.txnFreq : null,
     };
     // 買賣方稅率／資料新鮮度是輔助小字，跟徽章列分開放，但合併成一行，不再各佔一整行<p>。
     // 稅後估算基準用目前最低掛單價，不是均價：要有競爭力就得訂在最低價附近，均價不是你實際能賣到的價格。
@@ -1049,7 +1055,7 @@
         let avgDisplay = st.avg24h, avgIsFallback = false;
         if (avgDisplay == null && ls.length) { avgDisplay = Math.round(ls.reduce(function (t, l) { return t + l.pricePerUnit; }, 0) / ls.length); avgIsFallback = true; }
         // 注意：st.avg24h 是抓取腳本算好的，已經在伺服器那邊排除過異常成交，這裡不用重複處理
-        setStatBar(Object.assign({ avgDisplay: avgDisplay, avgIsFallback: avgIsFallback, velocity: st.velocity }, base));
+        setStatBar(Object.assign({ avgDisplay: avgDisplay, avgIsFallback: avgIsFallback, velocity: st.velocity, txnFreq: st.txnFreq }, base));
         return;
       }
       setStatBar(Object.assign({ avgLoading: true, velLoading: true }, base));
