@@ -1090,3 +1090,49 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .cw-change{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid rgba(197,160,89,.5);color:var(--main);font-weight:500}
 .cw-change i{color:var(--gold)}
 .cw-change:hover{background:rgba(197,160,89,.16);border-color:var(--gold);color:#fff}
+
+/* ============ v9 ============ */
+/* 更換配方：直接使用市場頁的 .market-solve-btn（製作求解／取得方式同款），這裡只管位置 */
+.cw-change{margin-left:auto;background:linear-gradient(135deg,rgba(197,160,89,.25),rgba(197,160,89,.08));border:1px solid rgba(197,160,89,.6);color:var(--gold-bright);font-weight:400;font-size:12px;padding:6px 12px}
+.cw-change i{color:inherit}
+.cw-change:hover{background:linear-gradient(135deg,rgba(197,160,89,.25),rgba(197,160,89,.08));color:var(--gold-bright)}
+/* 價格基準（左）＋ 數量與加入批次規劃（右）同一行 */
+.cw-meta-row{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin:8px 0 6px}
+.cw-scope-slot{min-width:0}
+.cw-scope{margin:0;flex-wrap:wrap}
+.cw-batch-slot{position:relative;margin-left:auto}
+.cw-batch-slot .craft-add-batch-box .craft-row{gap:6px;flex-wrap:nowrap}
+.cw-batch-slot .craft-stepper{width:86px}
+.cw-batch-slot .craft-stepper input,.cw-batch-slot .craft-step-btn{height:30px;min-height:30px}
+.cw-batch-slot .craft-copy-btn{height:30px;padding:0 10px;font-size:12px;white-space:nowrap}
+.cw-batch-slot .craft-add-batch-confirm{position:absolute;right:0;top:calc(100% + 2px);margin:0;font-size:11px;white-space:nowrap;z-index:3}
+.craft-add-batch-confirm:empty{display:none}
+/* 摘要列：最終數值(+加成) */
+.cw-dock-summary .mss .cw-plus{font-size:10.5px;font-weight:600;color:rgba(74,222,128,.8);margin-left:2px;letter-spacing:0}
+.cw-dock-summary .mss.is-boosted b.cw-final{color:#4ade80;text-shadow:0 0 10px rgba(74,222,128,.3)}
+/* 食物／藥水下拉：分類＋效果 */
+.cw-dd-filter{display:flex;gap:6px;position:sticky;top:-5px;z-index:2;margin:-5px -7px 4px -5px;padding:7px 8px 7px 6px;background:#0b0806;border-bottom:1px solid rgba(197,160,89,.3)}
+.cw-dd-f{flex:1;padding:4px 0;border:1px solid var(--tb);border-radius:20px;background:none;color:var(--dim);font-size:12px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.cw-dd-f:hover{border-color:var(--gold);color:var(--main)}
+.cw-dd-f.on{background:var(--gold-deep);border-color:var(--gold);color:var(--gold-bright);font-weight:700}
+.craft-dd .wl-dd-opt.cw-food-opt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;white-space:normal;text-align:left;padding:7px 10px}
+.cw-food-none{flex-direction:row!important;color:var(--dim)}
+.cw-food-name{font-size:13.5px;line-height:1.3}
+.cw-fx{display:flex;flex-wrap:wrap;gap:5px}
+.cw-fx b{font-size:11px;font-weight:600;padding:0 8px;border-radius:10px;border:1px solid;line-height:18px;opacity:.78}
+.cw-fx b.is-hit{opacity:1;box-shadow:0 0 8px currentColor}
+.cw-fx .fx-craft{color:#f0b45a;border-color:rgba(240,180,90,.5);background:rgba(240,180,90,.1)}
+.cw-fx .fx-control{color:#6cb7ff;border-color:rgba(108,183,255,.5);background:rgba(108,183,255,.1)}
+.cw-fx .fx-cp{color:#c99bff;border-color:rgba(201,155,255,.5);background:rgba(201,155,255,.1)}
+.cw-dd-empty{padding:16px 10px;text-align:center;color:var(--dim);font-size:12.5px}
+/* v9.1：配方名稱列不要把「更換配方」擠到下一行；食物清單高一點，一次看到更多 */
+.craft-recipe-chip{flex-wrap:nowrap;align-items:flex-start;white-space:nowrap}
+.craft-recipe-chip .craft-muted{flex:1 1 0;min-width:0;white-space:normal;line-height:1.35;padding-top:5px}
+.cw-change{flex:none;align-self:flex-start;white-space:nowrap}
+.cw-cons .craft-dd .wl-dd-list{max-height:320px}
+.cw-scope-label{margin-right:0;font-size:14px;color:var(--gold)}
+.cw-batch-slot .craft-stepper{width:78px}
+.cw-batch-slot .craft-copy-btn{padding:0 9px}
+.cw-meta-row{flex-wrap:nowrap}
+@container (max-width:520px){.cw-meta-row{flex-wrap:wrap}}
+.craft-recipe-chip .craft-muted{font-size:11.5px;letter-spacing:-.2px}
