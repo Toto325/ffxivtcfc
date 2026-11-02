@@ -321,7 +321,7 @@ app._craftReady = function () {
             '<div id="cf-recipe-results" class="craft-recipe-results"><div class="craft-recipe-empty"><i class="ph ph-magnifying-glass"></i>輸入配方名稱，或點職業、設定等級範圍來瀏覽</div></div>' +
           '</div>' +
           '<div id="cf-recipe-selected" class="craft-recipe-selected"></div>' +
-          '<div class="cw-pick-detail">' +
+          '<div class="cw-pick-detail" id="cf-pick-detail">' +
             '<div id="cf-add-batch-wrap" style="display:none" class="craft-add-batch-box">' +
               '<div class="craft-row">' +
                 numberField('cf-batch-qty', 1, 1) +
@@ -502,11 +502,46 @@ app._craftReady = function () {
     const cols = Math.ceil(kids.length / rows);
     row.style.display = 'grid'; row.style.gridTemplateColumns = 'repeat(' + cols + ',minmax(0,1fr))'; row.classList.add('is-grid');
   }
+  /* 食物／藥水的下拉：上面一排依「加成哪個屬性」快速分類（全部／作業／加工／CP），每個選項除了名字還直接列出
+   * 以你目前的精度與 NQ/HQ 算出來的實際加成，不用選了才知道。分類後依該屬性的加成由高到低排。 */
+  const FX_DEFS = [['craftsmanship', '作業', 'fx-craft'], ['control', '加工', 'fx-control'], ['cp', 'CP', 'fx-cp']];
+  function foodEffects(foodId, tierId) {
+    const food = CRAFT_FOODS[foodId]; if (!food) return [];
+    const hq = isHQ(tierId), base = { craftsmanship: parseInt($('cf-craftsmanship').value, 10) || 0, control: parseInt($('cf-control').value, 10) || 0, cp: parseInt($('cf-cp').value, 10) || 0 };
+    const out = [];
+    FX_DEFS.forEach(function (d) {
+      const e = food[d[0]]; if (!e) return;
+      const v = CraftConsumables.applyBonus(base[d[0]], { percent: hq ? e.percentHQ : e.percent, cap: hq ? e.capHQ : e.cap });
+      if (v > 0) out.push({ key: d[0], label: d[1], cls: d[2], value: v });
+    });
+    return out;
+  }
+  function richListHtml(sel, opts) {
+    const filter = sel._ddFilter || 'all';
+    const chips = [['all', '全部']].concat(FX_DEFS.map(function (d) { return [d[0], '+' + d[1]]; }));
+    let rows = Array.prototype.filter.call(sel.options, function (o) { return o.value; }).map(function (o) {
+      return { o: o, fx: foodEffects(o.value, opts.tierId) };
+    });
+    if (filter !== 'all') {
+      rows = rows.filter(function (r) { return r.fx.some(function (x) { return x.key === filter; }); });
+      const val = function (r) { const x = r.fx.find(function (y) { return y.key === filter; }); return x ? x.value : 0; };
+      rows.sort(function (a, b) { return val(b) - val(a); });
+    }
+    const none = sel.options[0] && !sel.options[0].value ? sel.options[0] : null;
+    return '<div class="cw-dd-filter">' + chips.map(function (c) { return '<button type="button" class="cw-dd-f' + (filter === c[0] ? ' on' : '') + '" data-f="' + c[0] + '">' + c[1] + '</button>'; }).join('') + '</div>' +
+      (none ? '<button type="button" role="option" class="wl-dd-opt cw-food-opt cw-food-none' + (none.selected ? ' on' : '') + '" data-v="">' + none.text + '</button>' : '') +
+      (rows.length ? rows.map(function (r) {
+        return '<button type="button" role="option" class="wl-dd-opt cw-food-opt' + (r.o.selected ? ' on' : '') + '" data-v="' + r.o.value + '"><span class="cw-food-name">' + r.o.text + '</span>' +
+          '<span class="cw-fx">' + r.fx.map(function (x) { return '<b class="' + x.cls + (x.key === filter ? ' is-hit' : '') + '">' + x.label + ' +' + x.value + '</b>'; }).join('') + '</span></button>';
+      }).join('') : '<div class="cw-dd-empty">沒有符合的選項</div>');
+  }
   /* 瀏覽器原生下拉的選項列表改不了高亮和邊框，所以用自製的取代：原本的 <select> 留著（隱藏），
    * 選了之後照樣改它的值並觸發 change，原本的邏輯完全不用動。樣式共用 .wl-dd*（page-market-watchlist.css）。 */
-  function enhanceSelect(sel) {
+  function enhanceSelect(sel, opts) {
     if (!sel || sel._enhanced) return;
     sel._enhanced = true;
+    const rich = !!(opts && opts.rich);
+    sel._ddFilter = 'all';
     sel.style.display = 'none';
     const wrap = document.createElement('div');
     wrap.className = 'wl-dd craft-dd';
@@ -518,6 +553,7 @@ app._craftReady = function () {
       const cur = sel.options[sel.selectedIndex];
       btn.firstElementChild.textContent = cur ? cur.text : '';
       btn.disabled = sel.disabled;
+      if (rich) { list.innerHTML = richListHtml(sel, opts); return; }
       list.innerHTML = Array.prototype.map.call(sel.options, function (o) {
         return '<button type="button" role="option" class="wl-dd-opt' + (o.selected ? ' on' : '') + '" data-v="' + o.value + '">' + o.text + '</button>';
       }).join('');
@@ -530,6 +566,8 @@ app._craftReady = function () {
       if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
     });
     list.addEventListener('click', function (e) {
+      const f = e.target.closest('.cw-dd-f');
+      if (f) { e.stopPropagation(); sel._ddFilter = f.dataset.f; render(); return; } // 切換分類不關閉清單（重畫後被點的按鈕已不在清單裡，要擋掉往上傳的點擊，免得被當成點到外面）
       const o = e.target.closest('.wl-dd-opt'); if (!o) return;
       sel.value = o.dataset.v;
       sel.dispatchEvent(new Event('change', { bubbles: true }));
@@ -1961,6 +1999,8 @@ app._craftReady = function () {
 
   function renderRecipeSelected() {
     const box = $('cf-recipe-selected');
+    // 批次區塊要常駐：重畫這個框之前先搬出去，重畫完再搬進價格基準那一行，不然會跟著被清掉
+    const bw = $('cf-add-batch-wrap'); if (bw && box.contains(bw)) $('cf-pick-detail').insertBefore(bw, $('cf-pick-detail').firstChild);
     if (!selectedRecipe) {
       box.innerHTML = ''; $('cf-add-batch-wrap').style.display = 'none';
       $('cf-solve-target').textContent = '尚未選擇配方';
@@ -1970,8 +2010,11 @@ app._craftReady = function () {
     const recipe = CRAFT_RECIPES[selectedRecipe.id];
     box.innerHTML = '<div class="craft-recipe-chip">' + selectedRecipe.name +
       '<span class="craft-muted">　需求Lv' + recipe.lvl + '・進展' + recipe.progress + '・品質' + recipe.quality + '・耐久' + recipe.durability + '</span>' +
-      '<button type="button" class="craft-link cw-change" id="cf-change-recipe"><i class="ph ph-arrows-left-right"></i>更換配方</button></div>' +
+      '<button type="button" class="market-solve-btn cw-change" id="cf-change-recipe"><i class="ph ph-arrows-left-right"></i>更換配方</button></div>' +
+      // 價格基準（左）與「數量＋加入批次規劃」（右）同一行：省掉原本獨立的一行
+      '<div class="cw-meta-row"><div id="cf-scope-slot" class="cw-scope-slot"></div><div id="cf-batch-slot" class="cw-batch-slot"></div></div>' +
       '<div class="craft-muted" id="cf-recipe-sell-ref" style="font-size:11px;margin-top:2px"></div>';
+    const bw2 = $('cf-add-batch-wrap'); if (bw2) { $('cf-batch-slot').appendChild(bw2); }
     $('cf-add-batch-wrap').style.display = 'block';
     $('cf-solve-target').innerHTML = '<i class="ph ph-target"></i>　求解目標：<strong>' + selectedRecipe.name + '</strong>' +
       '<span class="craft-muted">　（跟批次清單無關，只算這一項）</span>';
@@ -2000,6 +2043,10 @@ app._craftReady = function () {
     el.textContent = '查詢成本與賣出參考中…';
     const scope = getProfitScope(settings);
     profitScopeWorld = scope === 'world' ? settings.worldName : '';
+    const scopeSlot = $('cf-scope-slot');
+    if (scopeSlot) scopeSlot.innerHTML = settings.worldName ? '<div class="cw-scope" role="group" aria-label="價格基準"><span class="cw-scope-label" title="價格基準：在售最低、成交均價、賣速要看哪個範圍"><i class="ph ph-scales"></i></span>' +
+      '<button type="button" class="cw-scope-btn' + (scope === 'world' ? ' on' : '') + '" data-profit-scope="world">' + escapeHtml(settings.worldName) + '</button>' +
+      '<button type="button" class="cw-scope-btn' + (scope === 'dc' ? ' on' : '') + '" data-profit-scope="dc">所有世界</button></div>' : '';
 
     const needMap = {};
     (recipe.ingredients || []).forEach(function (ing) { needMap[ing.itemId] = ing.amount; });
@@ -2059,12 +2106,6 @@ app._craftReady = function () {
         chips.push({ icon: 'ph-snowflake', text: '近4天無成交', title: '近4天查無成交紀錄，可能較冷門' });
       }
       mountCraftStat(el, tiles, chips);
-      // 價格基準快速切換：我的世界／所有世界，一鍵比較；沒設定世界時沒有「我的世界」可選，就不顯示
-      if (settings.worldName) {
-        el.insertAdjacentHTML('afterbegin', '<div class="cw-scope" role="group" aria-label="價格基準"><span class="cw-scope-label"><i class="ph ph-scales"></i>價格基準</span>' +
-          '<button type="button" class="cw-scope-btn' + (scope === 'world' ? ' on' : '') + '" data-profit-scope="world">' + escapeHtml(settings.worldName) + '</button>' +
-          '<button type="button" class="cw-scope-btn' + (scope === 'dc' ? ' on' : '') + '" data-profit-scope="dc">所有世界</button></div>');
-      }
       bindSellDepthPopover();
       bindAvgPopover();
       loadAvgTile(recipe, profitScopeWorld, overview);
@@ -3546,7 +3587,11 @@ app._craftReady = function () {
   /* ═══ 新版面：數值摘要列（點開浮出完整數值面板）、配方列表收放、統一的市場風格下拉 ═══ */
   function renderDockSummary() {
     const box = $('cf-dock-summary'); if (!box) return;
-    ['cf-job', 'cf-food', 'cf-pot'].forEach(function (id) { const e = $(id); if (!e) return; enhanceSelect(e); if (e._ddRender) e._ddRender(); });
+    ['cf-job', 'cf-food', 'cf-pot'].forEach(function (id) {
+      const e = $(id); if (!e) return;
+      enhanceSelect(e, id === 'cf-food' ? { rich: true, tierId: 'cf-food-tier' } : id === 'cf-pot' ? { rich: true, tierId: 'cf-pot-tier' } : undefined);
+      if (e._ddRender) e._ddRender();
+    });
     const seg = function (k, v) { return '<span class="mss"><i>' + k + '</i><b>' + v + '</b></span>'; };
     /* 作業／加工／CP：顯示吃了食物與藥水之後的「最終數值」，有加成就在後面標出加了多少（綠色），沒加成就維持原本的數字 */
     let finalStats = null;
@@ -3563,8 +3608,8 @@ app._craftReady = function () {
       const base = parseInt($({ craftsmanship: 'cf-craftsmanship', control: 'cf-control', cp: 'cf-cp' }[key]).value, 10) || 0;
       const fin = finalStats ? finalStats[key] : base, bonus = fin - base;
       return '<span class="mss' + (bonus > 0 ? ' is-boosted' : '') + '"' + (bonus > 0 ? ' title="基礎 ' + base.toLocaleString() + '，食物／藥水加成 +' + bonus + '，最終 ' + fin.toLocaleString() + '"' : '') + '><i>' + label + '</i>' +
-        // 有加成：暗色小字的「原本數值」→ 綠色大字的「最終數值」，一眼就看出哪個是求解實際會用的；沒加成：只有一個金色數字
-        (bonus > 0 ? '<span class="cw-base">' + base.toLocaleString() + '</span><i class="ph ph-arrow-right cw-arrow"></i><b class="cw-final">' + fin.toLocaleString() + '</b>' : '<b>' + fin.toLocaleString() + '</b>') + '</span>';
+        // 數字本身就是「最終數值」（有加成時變綠），後面括號小字只是告訴你其中有多少是食物／藥水加的
+        (bonus > 0 ? '<b class="cw-final">' + fin.toLocaleString() + '</b><span class="cw-plus">(+' + bonus + ')</span>' : '<b>' + fin.toLocaleString() + '</b>') + '</span>';
     };
     const tier = function (id) { const a = $(id).querySelector('.active'); return a && a.dataset.v === 'hq' ? ' HQ' : ' NQ'; };
     const opt = function (id, tid) { const e = $(id), o = e.options[e.selectedIndex]; return (!o || !o.value) ? '<span class="craft-muted">不使用</span>' : escapeHtml(o.textContent) + tier(tid); };
