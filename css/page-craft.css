@@ -1066,3 +1066,27 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-settings-field .craft-dd .wl-dd-list{left:0;right:0;max-height:230px;overflow:auto}
 .craft-settings-popover{overflow:visible!important;max-height:none!important}
 .craft-settings-popover .craft-dd .wl-dd-list{z-index:5}
+
+/* ============ v8 ============ */
+/* 全站一致的金色細捲軸：下拉清單、彈窗、抽屜、列表、結果巨集…凡是會捲動的地方都不再出現預設的灰色捲軸 */
+.craft-layout *,.craft-explore-drawer *,.craft-settings-popover,.craft-settings-popover *,.craft-mat-worlds-popover,.craft-mat-worlds-popover *,.craft-dd .wl-dd-list{scrollbar-width:thin;scrollbar-color:rgba(197,160,89,.4) transparent}
+.craft-layout ::-webkit-scrollbar,.craft-explore-drawer ::-webkit-scrollbar,.craft-settings-popover ::-webkit-scrollbar,.craft-mat-worlds-popover ::-webkit-scrollbar,.craft-dd .wl-dd-list::-webkit-scrollbar{width:6px;height:6px}
+.craft-layout ::-webkit-scrollbar-thumb,.craft-explore-drawer ::-webkit-scrollbar-thumb,.craft-settings-popover ::-webkit-scrollbar-thumb,.craft-mat-worlds-popover ::-webkit-scrollbar-thumb,.craft-dd .wl-dd-list::-webkit-scrollbar-thumb{background:rgba(197,160,89,.4);border-radius:3px}
+.craft-layout ::-webkit-scrollbar-thumb:hover,.craft-explore-drawer ::-webkit-scrollbar-thumb:hover,.craft-settings-popover ::-webkit-scrollbar-thumb:hover,.craft-dd .wl-dd-list::-webkit-scrollbar-thumb:hover{background:rgba(197,160,89,.7)}
+.craft-layout ::-webkit-scrollbar-track,.craft-explore-drawer ::-webkit-scrollbar-track,.craft-settings-popover ::-webkit-scrollbar-track,.craft-mat-worlds-popover ::-webkit-scrollbar-track,.craft-dd .wl-dd-list::-webkit-scrollbar-track,.craft-layout ::-webkit-scrollbar-corner{background:transparent}
+/* 下拉選單整體：按鈕改金邊＋微金底（不再是灰框），清單金框、選項高亮，與市場頁一致 */
+.craft-dd .wl-dd-btn{border:1px solid rgba(197,160,89,.5);background:linear-gradient(180deg,rgba(197,160,89,.1),rgba(0,0,0,.45));color:var(--main)}
+.craft-dd .wl-dd-btn:hover,.craft-dd.open .wl-dd-btn{border-color:var(--gold-bright);background:linear-gradient(180deg,rgba(197,160,89,.18),rgba(0,0,0,.5))}
+.craft-dd .wl-dd-btn .ph{color:var(--gold-bright)}
+.craft-dd .wl-dd-list{border:1px solid var(--gold);background:#0b0806;padding:5px 7px 5px 5px;box-shadow:0 14px 34px rgba(0,0,0,.85),0 0 18px rgba(197,160,89,.12)}
+.craft-dd .wl-dd-opt{border-radius:7px}
+.craft-dd .wl-dd-sep{background:rgba(197,160,89,.3)}
+/* 數值摘要列：有食物／藥水加成時，「原本 → 最終」，最終用綠色大字 */
+.cw-dock-summary .mss .cw-base{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.cw-dock-summary .mss .cw-arrow{font-size:10px;color:var(--gold);margin:0 -1px}
+.cw-dock-summary .mss.is-boosted b.cw-final{color:#4ade80;text-shadow:0 0 10px rgba(74,222,128,.35)}
+.cw-dock-summary .mss.is-boosted{gap:5px}
+/* 更換配方：跟市場頁「製作求解／取得方式」同一種按鈕（深底、金邊、米白字、金色圖示），不跟金色的物品名稱混在一起 */
+.cw-change{background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));border:1px solid rgba(197,160,89,.5);color:var(--main);font-weight:500}
+.cw-change i{color:var(--gold)}
+.cw-change:hover{background:rgba(197,160,89,.16);border-color:var(--gold);color:#fff}
