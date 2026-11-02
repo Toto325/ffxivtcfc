@@ -49,9 +49,13 @@
 .wl-fab-badge {
   position: absolute; top: -5px; right: -1px; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
-  background: linear-gradient(180deg, #58d68d, #2e9e5f); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 1;
+  background: linear-gradient(180deg, #e0607a, #c5405a); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 1; /* 物品總數：跟生產頁批次徽章同色（紅） */
   box-shadow: 0 0 0 2px #0a0705, 0 0 0 3px rgba(252,246,186,.55);
+  transition: background .2s;
 }
+.wl-fab-badge.has-hit { background: linear-gradient(180deg, #58d68d, #2e9e5f); } /* 有物品已達目標價：轉綠 */
+.wl-fab-badge.bump { animation: wl-badge-bump .32s cubic-bezier(.2,.8,.2,1); }
+@keyframes wl-badge-bump { 0% { transform: scale(1); } 45% { transform: scale(1.45); } 100% { transform: scale(1); } }
 /* 有物品已達目標價：金框轉成會呼吸的綠光 */
 .wl-fab.has-hit .wl-fab-medal { animation: wl-pulse 2.4s ease-in-out infinite; }
 @keyframes wl-pulse {
