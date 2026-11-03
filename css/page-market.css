@@ -242,7 +242,7 @@
 .market-stat-bar[data-fit="1"] .mst-val{font-size:15.5px}
 .market-stat-bar[data-fit="1"] .mst-label{font-size:11px}
 .market-stat-bar[data-fit="1"] .mst-sep{margin:0 5px}
-.market-stat-bar[data-fit="2"] .market-stat-tile,.market-stat-bar[data-fit="3"] .market-stat-tile{padding:5px 6px;gap:3px}
+.market-stat-bar[data-fit="2"] .market-stat-tile,.market-stat-bar[data-fit="3"] .market-stat-tile,.market-stat-bar[data-fit="4"] .market-stat-tile{padding:5px 6px;gap:3px}
 .market-stat-bar[data-fit="2"] .mst-val,.market-stat-bar[data-fit="3"] .mst-val{font-size:14px}
 .market-stat-bar[data-fit="2"] .mst-label,.market-stat-bar[data-fit="3"] .mst-label{font-size:10.5px}
 .market-stat-bar[data-fit="2"] .mst-val small,.market-stat-bar[data-fit="3"] .mst-val small{margin-left:2px}
@@ -270,7 +270,7 @@
 .mws-cell.active{border-color:var(--gold);background:rgba(197,160,89,.15)}
 .mws-cell.active .mws-name{color:var(--gold-bright)}
 /* 成交均價面板（緊湊版）：標籤＋長條＋數字，長條＝相對高低 */
-.mav-pop{min-width:224px;max-width:260px;padding:9px 12px 10px}
+.mav-pop{min-width:260px;max-width:300px;padding:9px 12px 10px}
 .mav-title{margin:0 0 7px;padding-bottom:5px;border-bottom:1px solid var(--tb);font-size:11px;color:var(--dim)}
 .mav-help{margin-left:6px;display:inline-block;width:14px;height:14px;line-height:14px;text-align:center;border:1px solid var(--tb);border-radius:50%;font-size:9px;cursor:help}
 .mav-row{display:flex;align-items:center;gap:8px;padding:2px 0;font-size:12.5px}
@@ -810,3 +810,77 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-untradable b{display:block;margin-bottom:3px;font-size:14px}
 .market-untradable span{font-size:12px;color:var(--dim);line-height:1.6}
 .market-watch-btn-header:disabled{opacity:.4;cursor:not-allowed}
+
+
+/* ═══ 鍵盤焦點：base.css 有全域的 outline:none，沒補這段的話，用鍵盤（Tab）操作時完全看不出現在停在哪個按鈕 ═══
+ * 只在「鍵盤操作」時出現（:focus-visible），滑鼠點擊不會跳出外框；搜尋框本來就有自己的邊框高亮，不重複加。 */
+#market-root :focus-visible:not(.craft-search),
+[id^="mk-"] :focus-visible,
+.wl-drawer :focus-visible,
+.wl-fab:focus-visible {
+  outline: 2px solid var(--gold-bright);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 搜尋結果：鍵盤選到的那一列／超過上限的提示 */
+.craft-search-item.is-active { background: rgba(197,160,89,.22); }
+.mk-search-more { padding: 8px 12px; font-size: 12px; border-top: 1px solid var(--tb); }
+
+/* 數量計算器（在售分頁上方一列） */
+.market-calc { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 6px; font-size: 12px; color: var(--dim); }
+.market-calc-input { width: 84px; padding: 4px 8px; border: 1px solid var(--tb); border-radius: 6px; background: rgba(0,0,0,.35); color: var(--main); font: inherit; }
+.market-calc-input:focus { border-color: rgba(197,160,89,.6); }
+.market-calc-q { flex: 0 0 auto; width: auto; }
+.market-calc-out { flex: 1 1 220px; min-width: 0; line-height: 1.5; }
+.market-calc-total { color: var(--gold-bright); font-size: 14px; }
+.market-calc-out small { margin: 0 6px 0 2px; color: var(--dim); }
+.market-calc-per { color: var(--dim); margin-right: 6px; }
+.market-calc-warn { color: #e0a05a; margin-left: 6px; white-space: nowrap; }
+
+/* 世界條：最低價不在前 N 筆時的「≥ 下限」，以及確定沒有掛單的「無」——都用淡色，跟真正查到的價格區分 */
+.mws-lb, .mws-none { color: var(--dim); font-weight: 600; font-size: 13px; }
+.mws-none { font-weight: 500; opacity: .8; }
+
+/* 統計列放不下一排時（fit=4）：格子依自然寬度換行並撐滿整排；每排最後一格不畫右線，最後一排不畫底線 */
+.market-stat-bar[data-fit="4"] .market-stat-tile{flex:1 1 auto;border-right:1px solid var(--tb);border-bottom:1px solid var(--tb)}
+.market-stat-bar[data-fit="4"] .market-stat-tile.ms-end{border-right:0}
+.market-stat-bar[data-fit="4"] .market-stat-tile.ms-last-row{border-bottom:0}
+
+/* 均價比較彈窗：每列最右邊「當前相對這個窗口」的漲跌%（紅＝當前較貴、綠＝較便宜，跟關注抽屜同色） */
+.mav-chg{flex:0 0 46px;text-align:right;font-style:normal;font-size:11.5px;font-weight:600;color:var(--dim)}
+.mav-chg.up{color:#f87171}.mav-chg.down{color:#4ade80}.mav-chg.flat{color:var(--dim);font-weight:500}
+
+/* 價格訊號：綠＝對你有利、紅＝不利、灰＝持平；▲▼＝比成交均價高／低 */
+.market-sig { margin-left: auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.market-sig-lead { color: var(--dim); }
+.market-sig-chip { display: inline-block; padding: 0 6px; border-radius: 9px; font-size: 11.5px; font-weight: 700; line-height: 18px; background: rgba(255,255,255,.07); color: var(--dim); }
+.market-sig-chip.good { background: rgba(74,222,128,.15); color: #4ade80; }
+.market-sig-chip.bad { background: rgba(248,113,113,.15); color: #f87171; }
+
+/* 全站共用的取價切換列：[買 範圍｜基準] [賣 範圍｜基準]。「買／賣」是小標，兩組各是一個分段按鈕 */
+.pp-bar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.pp-side { display: inline-flex; align-items: center; gap: 5px; }
+.pp-lead { color: var(--gold-bright); font-weight: 700; font-size: 12px; }
+.pp-seg { display: inline-flex; border: 1px solid var(--tb); border-radius: 7px; overflow: hidden; }
+.pp-btn { padding: 3px 9px; font-size: 11.5px; line-height: 1.4; background: transparent; color: var(--dim); border: 0; border-right: 1px solid var(--tb); cursor: pointer; white-space: nowrap; font-family: inherit; }
+.pp-btn:last-child { border-right: 0; }
+.pp-btn.on { background: rgba(197,160,89,.28); color: var(--gold-bright); }
+.pp-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* 製作商機：成本欄的 ✓（依數量精算）／≈（最低價估算），售價欄的 ⚠（最低掛單價遠低於成交均價） */
+.mk-ref { margin-right: 3px; color: var(--dim); font-size: 11px; }
+.mk-ref.ok { color: #4ade80; font-weight: 700; }
+.mk-warn { margin-right: 3px; color: #e0a05a; font-size: 12px; }
+
+/* 數字欄不要被擠到換行（製作商機表格）：數字欄一律不換行，多出來的寬度由「物品」欄吸收 */
+.market-radar-scroll thead th, .market-radar-scroll tbody tr:not(.market-radar-detail-row) > td:not(:last-child) { white-space: nowrap; }
+.cw-scope .pp-bar { flex: 1 1 auto; min-width: 0; }
+
+/* 篩選區收合鈕：收起時顯示「目前選了什麼」摘要；展開時摘要隱藏 */
+.market-fold-btn { display: flex; align-items: center; gap: 6px; width: 100%; margin: 4px 0; padding: 4px 10px; background: rgba(255,255,255,.03); border: 1px solid var(--tb); border-radius: 8px; color: var(--dim); font-size: 12px; cursor: pointer; text-align: left; font-family: inherit; }
+.market-fold-btn:hover { border-color: var(--gold); color: var(--main); }
+.market-fold-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--gold-bright); }
+.market-fold-btn.open .market-fold-sum { visibility: hidden; }
+.market-fold-caret { transition: transform .15s; }
+.market-fold-btn.open .market-fold-caret { transform: rotate(180deg); }
