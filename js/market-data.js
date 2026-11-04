@@ -965,7 +965,7 @@ window.MarketData = (function () {
       }).join('') + '</span>';
     };
     return '<span class="pp-bar">' + (sides || ['buy', 'sell']).map(function (side) {
-      return '<span class="pp-side"><span class="pp-lead">' + (side === 'buy' ? '買' : '賣') + '</span>' +
+      return '<span class="pp-side"><span class="pp-lead">' + (side === 'buy' ? '買入' : '賣出') + '</span>' +
         seg(side + 'Scope', [['dc', '所有世界'], ['world', w || '我的世界', !w]]) +
         seg(side + 'Basis', [['listing', '最低價'], ['avg', '均價']]) + '</span>';
     }).join('') + '</span>';
@@ -974,21 +974,78 @@ window.MarketData = (function () {
   function bindPricePrefsBars() {
     if (ppBound) return;
     ppBound = true;
+    // 用「捕獲階段」接收：供應鏈設定彈窗等地方會擋住事件往上傳（stopPropagation），一般的 click 監聽收不到，按鈕就點不動
     document.addEventListener('click', function (e) {
       const b = e.target.closest && e.target.closest('.pp-btn');
       if (!b || b.disabled) return;
       const patch = {}; patch[b.dataset.ppKey] = b.dataset.ppVal;
       setPricePrefs(patch);
-    });
+    }, true);
     onPricePrefsChange(function (cur) { // 全頁所有切換列同步亮起目前的選擇
       document.querySelectorAll('.pp-btn').forEach(function (btn) { btn.classList.toggle('on', cur[btn.dataset.ppKey] === btn.dataset.ppVal); });
     });
+  }
+
+  /* ── 自製下拉：取代瀏覽器原生的灰色下拉（選項列表、邊框、捲動條都改不了），樣式共用關注抽屜的 .wl-dd ──
+   * 原本的 <select> 留著（隱藏），選了之後照樣改它的值並觸發 change，原本的程式不用動；
+   * 程式之後改 select.value、換 option、改 disabled，按鈕上的字也會跟著更新。 */
+  function enhanceSelect(sel) {
+    if (!sel || sel._enhanced) return;
+    sel._enhanced = true;
+    sel.style.display = 'none';
+    const wrap = document.createElement('div');
+    wrap.className = 'wl-dd craft-dd mk-dd';
+    wrap.innerHTML = '<button type="button" class="wl-dd-btn" aria-haspopup="listbox" aria-expanded="false"><span></span><i class="ph ph-caret-down"></i></button><div class="wl-dd-list" role="listbox" hidden></div>';
+    sel.parentNode.insertBefore(wrap, sel.nextSibling);
+    const btn = wrap.querySelector('.wl-dd-btn'), list = wrap.querySelector('.wl-dd-list');
+    const close = function () { list.hidden = true; wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+    const render = function () {
+      const cur = sel.options[sel.selectedIndex];
+      btn.firstElementChild.textContent = cur ? cur.text : '';
+      btn.disabled = sel.disabled;
+      list.innerHTML = Array.prototype.map.call(sel.options, function (o) {
+        return '<button type="button" role="option" class="wl-dd-opt' + (o.selected ? ' on' : '') + '" data-v="' + String(o.value).replace(/"/g, '&quot;') + '">' + o.text + '</button>';
+      }).join('');
+    };
+    render();
+    sel._ddRender = render;
+    const d = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+    Object.defineProperty(sel, 'value', { configurable: true, get: function () { return d.get.call(sel); }, set: function (v) { d.set.call(sel, v); render(); } });
+    new MutationObserver(render).observe(sel, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled'] });
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const was = !list.hidden;
+      document.querySelectorAll('.mk-dd .wl-dd-list').forEach(function (l) { l.hidden = true; l.parentNode.classList.remove('open'); });
+      if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); const on = list.querySelector('.wl-dd-opt.on'); if (on) on.scrollIntoView({ block: 'nearest' }); }
+    });
+    list.addEventListener('click', function (e) {
+      const o = e.target.closest('.wl-dd-opt'); if (!o) return;
+      e.stopPropagation();
+      sel.value = o.dataset.v;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      close();
+    });
+    document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !list.hidden) { close(); e.stopPropagation(); } }, true);
+  }
+  /* 市場頁所有 id 以 mk- 開頭的下拉（設定、走勢、供應鏈、計算器…）自動換成自製下拉，之後動態產生的也會處理 */
+  let selectWatcher = null;
+  function autoEnhanceSelects() {
+    if (selectWatcher) return;
+    const scan = function (root) {
+      (root.querySelectorAll ? root.querySelectorAll('select[id^="mk-"]') : []).forEach(function (s) { if (s.id !== 'mk-world-filter') enhanceSelect(s); });
+      if (root.matches && root.matches('select[id^="mk-"]') && root.id !== 'mk-world-filter') enhanceSelect(root);
+    };
+    scan(document);
+    selectWatcher = new MutationObserver(function (muts) { muts.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scan(n); }); }); });
+    selectWatcher.observe(document.body, { childList: true, subtree: true });
   }
 
   /* 買方稅：不管在哪個城市買，買家一律固定 5%（賣方稅才依城市不同）。畫面上所有「買」的總價估算都用這個數字。 */
   const BUY_TAX_RATE = 0.05;
   return {
     buyTaxRate: BUY_TAX_RATE,
+    enhanceSelect: enhanceSelect, autoEnhanceSelects: autoEnhanceSelects,
     resolveBuyCostsByPrefs: resolveBuyCostsByPrefs,
     getPricePrefs: getPricePrefs, setPricePrefs: setPricePrefs, onPricePrefsChange: onPricePrefsChange, pricePrefsBarHtml: pricePrefsBarHtml, bindPricePrefsBars: bindPricePrefsBars,
     weightedAvgPrice: weightedAvgPrice,

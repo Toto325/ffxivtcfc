@@ -112,6 +112,7 @@
     bindTabSwitch();
     renderRadarShell();
     MarketData.bindPricePrefsBars();
+    MarketData.autoEnhanceSelects(); // 市場頁的下拉全部換成站內設計的自製下拉
     if (!prefsSupplyHooked) { // 全站取價設定改了：物品頁的供應鏈圖要原地重畫
       prefsSupplyHooked = true;
       MarketData.onPricePrefsChange(function () { if (lastSupplyCtx && lastSupplyCtx.box.isConnected) renderSupplyChainWithBreakdown(lastSupplyCtx.itemId, lastSupplyCtx.rid, lastSupplyCtx.box); });
@@ -882,19 +883,21 @@
       bar.dataset.fit = String(lvl);
       if (oneRow()) return;
     }
-    // 三段都放不下：改成依各格自然寬度自動換行，每一排的格子再撐滿整排寬度（不用等寬格子——
-    // 5 格用等寬會變成 2+2+1，最後一排孤單一格）。用 offsetTop 判斷哪格在哪一排，標出每排最後一格和最後一排（畫分隔線用）。
-    bar.dataset.fit = '4';
-    let rowTop = null, prev = null;
-    tiles.forEach(function (t) {
-      if (rowTop !== null && t.offsetTop - rowTop > 2 && prev) prev.classList.add('ms-end');
-      if (rowTop === null || t.offsetTop - rowTop > 2) rowTop = t.offsetTop;
-      prev = t;
+    // 三段都放不下：格子寬度＝最寬那格的自然寬度，算出一排放得下幾格，再把格數平均分到每一排
+    let maxW = 0;
+    tiles.forEach(function (t) { maxW = Math.max(maxW, t.offsetWidth); });
+    const W = bar.clientWidth;
+    if (!W || !maxW) return;
+    const k = Math.max(1, Math.floor(W / maxW));
+    const rows = Math.ceil(tiles.length / k), cols = Math.ceil(tiles.length / rows);
+    bar.dataset.fit = '3';
+    bar.style.setProperty('--ms-cols', String(cols));
+    tiles.forEach(function (t, i) {
+      if ((i + 1) % cols === 0 || i === tiles.length - 1) t.classList.add('ms-end');
+      if (i >= cols * (rows - 1)) t.classList.add('ms-last-row');
     });
-    if (prev) prev.classList.add('ms-end');
-    const lastTop = tiles[tiles.length - 1].offsetTop;
-    tiles.forEach(function (t) { if (t.offsetTop >= lastTop - 2) t.classList.add('ms-last-row'); });
   }
+
   function fitWorldStrip(strip) {
     if (!strip || !strip.isConnected) return;
     const n = strip.querySelectorAll('.mws-cell').length, W = strip.clientWidth;
@@ -1073,11 +1076,12 @@
     html += '<div class="market-world-strip" id="mk-world-strip"></div>';
     html += '<div class="market-listing-bar">' +
         '<div class="market-tabs-mini" id="mk-tabs" role="tablist">' +
-          '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true">在售 <span id="mk-tab-count">' + overview.listings.length + '</span></button>' +
+          '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true" title="目前掛單；超過 100 筆時只列最便宜的 100 筆">在售 <span id="mk-tab-count">' + (overview.listings.length >= 100 ? '100+' : overview.listings.length) + '</span></button>' +
           '<button type="button" class="market-tab-mini" data-mk-tab="history" role="tab" aria-selected="false">成交</button>' +
           '<button type="button" class="market-tab-mini" data-mk-tab="trend" role="tab" aria-selected="false">走勢</button>' +
         '</div>' +
         '<button type="button" class="market-history-btn" id="mk-hq-filter-btn">只顯示HQ</button>' +
+        '<button type="button" class="market-history-btn" id="mk-calc-btn" title="想買幾件？算總價" aria-expanded="false"><i class="ph ph-calculator"></i></button>' +
         '<select id="mk-world-filter" class="craft-select" style="display:none" aria-hidden="true" tabindex="-1">' +
           // optgroup 的標題列看起來像分類、不能被選取，只當說明用；預設選中的仍是裡面第一個「所有世界」（標題的配色見 page-market.css）
           '<optgroup label="顯示範圍・最低價' + (hasWorldTimes ? '・資料更新' : '') + '">' +
@@ -1090,12 +1094,15 @@
             }).join('') +
           '</optgroup>' +
         '</select>' +
-        '<label class="market-fee-toggle-inline" id="mk-fee-label" title="買方稅固定 5%"><input type="checkbox" id="mk-fee-toggle"/> 含買方稅 5%</label>' +
+        '<span class="market-listing-bar-r" id="mk-bar-r"><span class="market-sig" id="mk-sig-sell" style="display:none"></span>' +
+          '<label class="market-fee-toggle-inline" id="mk-fee-label" title="買方稅固定 5%"><input type="checkbox" id="mk-fee-toggle"/> 含買方稅 5%</label></span>' +
+        '<div class="market-calc-pop" id="mk-calc" style="display:none"><div class="market-calc-row">' +
+          '<span class="craft-stepper"><button type="button" class="craft-step-btn" data-calc-dir="-1" aria-label="減少">−</button><input type="number" id="mk-calc-n" min="1" max="99999" inputmode="numeric" placeholder="數量" aria-label="想買的數量"><button type="button" class="craft-step-btn" data-calc-dir="1" aria-label="增加">+</button></span>' +
+          '<span class="market-calc-unit">件</span>' +
+          '<select id="mk-calc-q" class="craft-select market-calc-q" aria-label="品質"><option value="">不限品質</option><option value="nq">只買NQ</option><option value="hq">只買HQ</option></select></div>' +
+          '<div class="market-calc-out" id="mk-calc-out"></div></div>' +
       '</div>' +
       // 表頭獨立在捲動區域外面，欄寬用同一組mfl-*class對齊（不用<table>），捲動時表頭固定不動，內容在下面單獨捲動
-      '<div class="market-calc" id="mk-calc"><span class="market-calc-lead">想買</span><input type="number" id="mk-calc-n" class="market-calc-input" min="1" max="99999" inputmode="numeric" placeholder="數量" aria-label="想買的數量"><span>件</span>' +
-        '<select id="mk-calc-q" class="craft-select market-calc-q" aria-label="品質"><option value="">不限品質</option><option value="nq">只買NQ</option><option value="hq">只買HQ</option></select>' +
-        '<span class="market-calc-out" id="mk-calc-out"></span><span class="market-sig" id="mk-sig-sell" style="display:none"></span></div>' +
       '<div id="mk-tab-head"></div>' +
       '<div id="mk-listing-table-slot"></div>';
     box.innerHTML = html;
@@ -1165,7 +1172,7 @@
     let activeListingSet = overview.listings;
     function setActiveListingSet(list) {
       activeListingSet = list;
-      const c = $('mk-tab-count'); if (c) c.textContent = list.length;
+      const c = $('mk-tab-count'); if (c) c.textContent = list.length >= 100 ? '100+' : list.length;
       if (typeof updateSignals === 'function') updateSignals();
     }
     // 欄位排版：價格→數量→總價是一組（總價＝價格×數量，是前兩欄的結果，所以緊靠在一起），
@@ -1248,8 +1255,9 @@
         b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
       });
       $('mk-hq-filter-btn').style.display = tab === 'trend' ? 'none' : '';   // 走勢圖自己有NQ/HQ選單
-      $('mk-fee-label').style.display = tab === 'listing' ? '' : 'none';      // 買方稅只影響在售表格的總價
-      $('mk-calc').style.display = tab === 'listing' ? '' : 'none';           // 數量計算器也只跟在售有關
+      $('mk-bar-r').style.display = tab === 'listing' ? '' : 'none';          // 買方稅、掛單訊號只跟在售表格有關
+      $('mk-calc-btn').style.display = tab === 'listing' ? '' : 'none';       // 數量計算器也只跟在售有關
+      if (tab !== 'listing') closeCalc();
       renderActiveTab();
     }
     box.querySelectorAll('[data-mk-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.mkTab); }); });
@@ -1325,7 +1333,7 @@
     function updateCalc() {
       const inp = $('mk-calc-n'), out = $('mk-calc-out'), q = $('mk-calc-q'); if (!inp || !out) return;
       const n = parseInt(inp.value, 10);
-      if (!(n > 0)) { out.textContent = ''; return; } // 沒輸入時不佔一整行說明文字（說明放在輸入框的提示裡）
+      if (!(n > 0)) { out.textContent = ''; return; }
       if (listingError) { out.textContent = '掛單查詢失敗，暫時無法計算'; return; }
       const want = q.value;
       const rows = (activeListingSet || []).filter(function (l) { return want === 'hq' ? l.hq : (want === 'nq' ? !l.hq : true); });
@@ -1344,16 +1352,16 @@
         (remain > 0 ? '<span class="market-calc-warn" title="目前掛單（最便宜的 ' + (activeListingSet || []).length + ' 筆）只夠 ' + got + ' 件"><i class="ph ph-warning"></i>' + got + '件</span>' : '');
     }
     /* ── 價格訊號（沒有開關）：把「現在要付／能賣到的價」跟「成交均價（件數加權）」比。
-     *   買：用上面輸入的數量，吃最便宜的 N 件的實際均價。低於成交均價＝綠 ▼（買得便宜），高於＝紅 ▲。
-     *   賣：最低 3 筆掛單的均價（件數加權）＝你要面對的行情，比單看最低價不容易被一兩筆特例拉歪。高於成交均價＝綠 ▲（賣得到好價），低於＝紅 ▼。
+     *   買（計算器裡）：輸入的數量，吃最便宜的 N 件的實際均價 對比 成交均價。
+     *   賣（在售列右側「掛單」）：最低 3 筆掛單的均價（件數加權）對比 成交均價，比單看最低價不容易被一兩筆特例拉歪。
+     * 顏色跟全站漲跌一致：紅＝比成交均價高（▲）、綠＝比成交均價低（▼）、灰＝差在 3% 以內。
      * 沒有成交均價（只剩掛單均價可用）或資料不足就不顯示。±3% 以內算持平（灰）。 */
     let refAvg = null;
     function sigChipHtml(kind, price) {
       if (refAvg == null || !(price > 0)) return '';
       const pct = (price - refAvg) / refAvg * 100, abs = Math.abs(pct);
-      const good = kind === 'buy' ? pct < 0 : pct > 0;
-      const cls = abs < 3 ? 'flat' : (good ? 'good' : 'bad');
-      return '<span class="market-sig-chip ' + cls + '" title="' + Math.round(price).toLocaleString() + ' vs 成交均價 ' + refAvg.toLocaleString() + '">' + (pct > 0 ? '▲' : '▼') + (abs >= 10 ? abs.toFixed(0) : abs.toFixed(1)) + '%</span>';
+      const cls = abs < 3 ? 'flat' : (pct > 0 ? 'up' : 'down'); // 顏色跟全站漲跌一致：紅＝比成交均價高、綠＝比成交均價低
+      return '<span class="market-sig-chip ' + cls + '" title="' + Math.round(price).toLocaleString() + ' ／ 成交均價 ' + refAvg.toLocaleString() + '">' + (pct > 0 ? '▲' : '▼') + (abs >= 10 ? abs.toFixed(0) : abs.toFixed(1)) + '%</span>';
     }
     function updateSignals() {
       const el = $('mk-sig-sell'); if (!el) return;
@@ -1361,9 +1369,22 @@
       let v = 0, q = 0; set.forEach(function (l) { v += l.pricePerUnit * l.quantity; q += l.quantity; });
       const chip = (!listingError && q > 0) ? sigChipHtml('sell', v / q) : '';
       el.style.display = chip ? '' : 'none';
-      el.innerHTML = chip ? '<span class="market-sig-lead">賣</span>' + chip : '';
+      el.innerHTML = chip ? '<span class="market-sig-lead" title="最低 3 筆掛單的均價，對比成交均價">掛單</span>' + chip : '';
       updateCalc();
     }
+    // 計算器浮出面板：點小按鈕開關，點外面或按 Esc 關；不佔表格的列數
+    function closeCalc() { const pop = $('mk-calc'); if (pop) pop.style.display = 'none'; const b = $('mk-calc-btn'); if (b) { b.classList.remove('on'); b.setAttribute('aria-expanded', 'false'); } }
+    $('mk-calc-btn').addEventListener('click', function (e) {
+      e.stopPropagation();
+      const pop = $('mk-calc'), open = pop.style.display === 'none';
+      pop.style.display = open ? '' : 'none'; this.classList.toggle('on', open); this.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) { $('mk-calc-n').focus(); updateCalc(); }
+    });
+    document.addEventListener('click', function (e) { const pop = $('mk-calc'); if (pop && pop.style.display !== 'none' && !pop.contains(e.target) && !e.target.closest('.wl-dd-list')) closeCalc(); });
+    $('mk-calc').addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeCalc(); $('mk-calc-btn').focus(); e.stopPropagation(); } });
+    $('mk-calc').querySelectorAll('[data-calc-dir]').forEach(function (b) {
+      b.addEventListener('click', function () { const inp = $('mk-calc-n'); inp.value = Math.max(1, (parseInt(inp.value, 10) || 0) + parseInt(b.dataset.calcDir, 10)); updateCalc(); });
+    });
     $('mk-calc-n').addEventListener('input', updateCalc);
     $('mk-calc-q').addEventListener('change', updateCalc);
 
@@ -3325,7 +3346,7 @@
         JOB_LIST.map(function (j) { return '<button type="button" class="craft-job-filter-btn" data-mk-radar-job="' + j.id + '">' + j.name + '</button>'; }).join('') +
       '</div>' +
       '<div class="market-hot-controls market-pane-fixed" id="mk-radar-filters" style="display:none">' +
-        '<div class="market-hot-row-filter"><span class="market-hot-filter-label">取價</span>' + MarketData.pricePrefsBarHtml(['buy', 'sell']) + '</div>' +
+        '<div class="market-hot-row-filter">' + MarketData.pricePrefsBarHtml(['buy', 'sell']) + '</div>' +
         '<button type="button" class="market-fold-btn" id="mk-radar-fold-btn" aria-expanded="false"><i class="ph ph-funnel"></i><span class="market-fold-sum" id="mk-radar-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>' +
         '<div id="mk-radar-fold" style="display:none">' +
         row('材料成本', 'matMode', [['buy', '直接買'], ['auto', '自動選較便宜（買或自己做）']]) +
@@ -3490,7 +3511,7 @@
             else if (pct < 5) craftNote = BUY + '材料就好（' + CRAFT_DIM + '只省 ' + fmtGil(save) + ' 金・' + pct.toFixed(1) + '%，不划算）';
             else craftNote = CRAFT + '省 ' + fmtGil(save) + ' 金（' + pct.toFixed(1) + '%）' + (ui.matMode === 'auto' && r.craftedN ? '，已套用（' + r.craftedN + ' 項）' : '');
           } else if (r.costBuy == null && r.costAuto != null) craftNote = '有些材料市場上沒有人賣，只能' + CRAFT + '（成本 ' + fmtGil(r.costAuto) + ' 金）';
-          const trendColor = r.change >= 0 ? '#4ade80' : '#f87171';
+          const trendColor = r.change > 0 ? '#f87171' : (r.change < 0 ? '#4ade80' : 'var(--dim)'); // 全站一致：紅＝漲、綠＝跌
           const trendNote = r.P ? windowCoverageLabel(r.P) + '・漲跌 <span style="color:' + trendColor + '">' + (r.change >= 0 ? '+' : '') + r.change.toFixed(1) + '%</span>' : '成交筆數太少，沒有漲跌';
           const hasBreakdown = (CRAFT_RECIPES[r.rid].ingredients || []).length > 0;
           const expandBtn = hasBreakdown ? ' <button type="button" class="market-radar-expand" data-mk-radar-expand="' + r.rid + '" data-item="' + r.itemId + '">▸ 材料明細</button>' : '';
@@ -4020,7 +4041,7 @@
       '</div>';
     }
     function renderScope() {
-      $('mk-token-scope').innerHTML = '<span class="mts-label">賣出</span>' + MarketData.pricePrefsBarHtml(['sell']).replace('<span class="pp-lead">賣</span>', '');
+      $('mk-token-scope').innerHTML = MarketData.pricePrefsBarHtml(['sell']);
     }
     function renderCats() {
       $('mk-token-cats').innerHTML =
@@ -4227,7 +4248,8 @@
     function hotFoldSummary() {
       return ['metric', 'persp', 'freq', 'dir', 'band'].map(function (k) {
         const b = box.querySelector('[data-hk="' + k + '"].active'); const row = b && b.closest('.market-hot-row-filter');
-        return b && (!row || row.style.display !== 'none') && b.dataset.hv !== 'all' ? b.textContent : '';
+        const t = b && (!row || row.style.display !== 'none') && b.dataset.hv !== 'all' ? b.textContent : '';
+        return t && k === 'freq' ? '頻率' + t : t; // 「較高」單獨出現看不出是什麼，加上「頻率」
       }).filter(Boolean).join('・');
     }
     function setHotFold(open) {
@@ -4301,7 +4323,7 @@
           top.map(function (e, i) {
             const v = e.value;
             const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
-            const barColor = v >= 0 ? '#c5a059' : '#f87171';
+            const barColor = ui.metric === 'changePct' ? (v > 0 ? '#f87171' : (v < 0 ? '#4ade80' : '#c5a059')) : '#c5a059'; // 漲跌幅度：紅＝漲、綠＝跌（全站一致）；賣速等指標不是價格方向，維持金色
             // 第1、2點：賣速、每日成交額這兩個指標，本來就有算好的價格漲跌（跟「漲跌幅度」指標是同一套算法），
             // 只是原本沒有拿出來顯示；這裡不管選哪個指標，只要有P資料，都順便把價格漲跌標出來，方便對照。
             function priceChangeTxt(P) {
@@ -4537,7 +4559,7 @@
       const down = withValue.filter(function (r) { return r.stats.changePct < -0.05; }).length;
       const flat = withValue.length - up - down;
       const skipped = rows.length - withValue.length;
-      summaryLine = '<p class="craft-muted" style="margin-bottom:8px">共 ' + withValue.length + ' 項可判斷：<span style="color:#c5a059">漲 ' + up + '</span>／<span style="color:#f87171">跌 ' + down + '</span>／平 ' + flat +
+      summaryLine = '<p class="craft-muted" style="margin-bottom:8px">共 ' + withValue.length + ' 項可判斷：<span style="color:#f87171">漲 ' + up + '</span>／<span style="color:#4ade80">跌 ' + down + '</span>／平 ' + flat +
         (skipped > 0 ? '（另有 ' + skipped + ' 項成交筆數不足，未列入）' : '') + '</p>';
     }
     const notes = [];
@@ -4555,7 +4577,7 @@
           const v = r.stats[metricKey];
           // 數值跨好幾個數量級時用對數比例，才分得出差異
           const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
-          const barColor = v >= 0 ? '#c5a059' : '#f87171';
+          const barColor = ui.metric === 'changePct' ? (v > 0 ? '#f87171' : (v < 0 ? '#4ade80' : '#c5a059')) : '#c5a059'; // 漲跌幅度：紅＝漲、綠＝跌（全站一致）；賣速等指標不是價格方向，維持金色
           let subLine = '';
           if (metricKey === 'velocity' && (r.stats.nqVelocity != null || r.stats.hqVelocity != null)) {
             subLine = '<span class="market-hot-sub">NQ ' + (r.stats.nqVelocity || 0).toFixed(1) + '　HQ ' + (r.stats.hqVelocity || 0).toFixed(1) + '</span>';
