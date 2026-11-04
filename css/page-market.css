@@ -242,7 +242,7 @@
 .market-stat-bar[data-fit="1"] .mst-val{font-size:15.5px}
 .market-stat-bar[data-fit="1"] .mst-label{font-size:11px}
 .market-stat-bar[data-fit="1"] .mst-sep{margin:0 5px}
-.market-stat-bar[data-fit="2"] .market-stat-tile,.market-stat-bar[data-fit="3"] .market-stat-tile,.market-stat-bar[data-fit="4"] .market-stat-tile{padding:5px 6px;gap:3px}
+.market-stat-bar[data-fit="2"] .market-stat-tile,.market-stat-bar[data-fit="3"] .market-stat-tile{padding:5px 6px;gap:3px}
 .market-stat-bar[data-fit="2"] .mst-val,.market-stat-bar[data-fit="3"] .mst-val{font-size:14px}
 .market-stat-bar[data-fit="2"] .mst-label,.market-stat-bar[data-fit="3"] .mst-label{font-size:10.5px}
 .market-stat-bar[data-fit="2"] .mst-val small,.market-stat-bar[data-fit="3"] .mst-val small{margin-left:2px}
@@ -568,8 +568,8 @@
 .market-hot-bar{height:100%;border-radius:4px;transition:width .3s ease}
 .market-hot-value{width:110px;flex-shrink:0;text-align:right;font-size:12px;color:var(--main);white-space:nowrap}
 /* 第1、2點：賣速／每日成交額指標的子行也顯示價格漲跌，跟「漲跌幅度」指標用同一套配色 */
-.market-hot-pricechg-up{color:var(--gold)}
-.market-hot-pricechg-down{color:#f87171}
+.market-hot-pricechg-up{color:#f87171}
+.market-hot-pricechg-down{color:#4ade80}
 .market-hot-sub{display:block;font-size:10px;color:var(--dim)}
 
 /* ── 製作求解彈窗（iframe）──
@@ -827,36 +827,16 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .craft-search-item.is-active { background: rgba(197,160,89,.22); }
 .mk-search-more { padding: 8px 12px; font-size: 12px; border-top: 1px solid var(--tb); }
 
-/* 數量計算器（在售分頁上方一列） */
-.market-calc { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 6px; font-size: 12px; color: var(--dim); }
-.market-calc-input { width: 84px; padding: 4px 8px; border: 1px solid var(--tb); border-radius: 6px; background: rgba(0,0,0,.35); color: var(--main); font: inherit; }
-.market-calc-input:focus { border-color: rgba(197,160,89,.6); }
-.market-calc-q { flex: 0 0 auto; width: auto; }
-.market-calc-out { flex: 1 1 220px; min-width: 0; line-height: 1.5; }
-.market-calc-total { color: var(--gold-bright); font-size: 14px; }
-.market-calc-out small { margin: 0 6px 0 2px; color: var(--dim); }
-.market-calc-per { color: var(--dim); margin-right: 6px; }
-.market-calc-warn { color: #e0a05a; margin-left: 6px; white-space: nowrap; }
 
 /* 世界條：最低價不在前 N 筆時的「≥ 下限」，以及確定沒有掛單的「無」——都用淡色，跟真正查到的價格區分 */
 .mws-lb, .mws-none { color: var(--dim); font-weight: 600; font-size: 13px; }
 .mws-none { font-weight: 500; opacity: .8; }
 
-/* 統計列放不下一排時（fit=4）：格子依自然寬度換行並撐滿整排；每排最後一格不畫右線，最後一排不畫底線 */
-.market-stat-bar[data-fit="4"] .market-stat-tile{flex:1 1 auto;border-right:1px solid var(--tb);border-bottom:1px solid var(--tb)}
-.market-stat-bar[data-fit="4"] .market-stat-tile.ms-end{border-right:0}
-.market-stat-bar[data-fit="4"] .market-stat-tile.ms-last-row{border-bottom:0}
 
 /* 均價比較彈窗：每列最右邊「當前相對這個窗口」的漲跌%（紅＝當前較貴、綠＝較便宜，跟關注抽屜同色） */
 .mav-chg{flex:0 0 46px;text-align:right;font-style:normal;font-size:11.5px;font-weight:600;color:var(--dim)}
 .mav-chg.up{color:#f87171}.mav-chg.down{color:#4ade80}.mav-chg.flat{color:var(--dim);font-weight:500}
 
-/* 價格訊號：綠＝對你有利、紅＝不利、灰＝持平；▲▼＝比成交均價高／低 */
-.market-sig { margin-left: auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
-.market-sig-lead { color: var(--dim); }
-.market-sig-chip { display: inline-block; padding: 0 6px; border-radius: 9px; font-size: 11.5px; font-weight: 700; line-height: 18px; background: rgba(255,255,255,.07); color: var(--dim); }
-.market-sig-chip.good { background: rgba(74,222,128,.15); color: #4ade80; }
-.market-sig-chip.bad { background: rgba(248,113,113,.15); color: #f87171; }
 
 /* 全站共用的取價切換列：[買 範圍｜基準] [賣 範圍｜基準]。「買／賣」是小標，兩組各是一個分段按鈕 */
 .pp-bar { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
@@ -884,3 +864,48 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-fold-btn.open .market-fold-sum { visibility: hidden; }
 .market-fold-caret { transition: transform .15s; }
 .market-fold-btn.open .market-fold-caret { transform: rotate(180deg); }
+
+/* 篩選區收合：外層容器不參與排版（display:contents），裡面的選項組維持原本的橫向並排、自動換行 */
+#mk-hot-fold, #mk-radar-fold { display: contents; }
+#mk-radar-filters .market-fold-btn { flex: 1 1 100%; }
+
+/* 在售列：計算器小按鈕＋右側「掛單」訊號與含稅勾選，都在同一列，不多佔列數 */
+.market-listing-bar { position: relative; }
+.market-listing-bar-r { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; }
+.market-listing-bar-r .market-fee-toggle-inline { margin-left: 0; }
+#mk-calc-btn.on { border-color: var(--gold); color: var(--gold-bright); background: rgba(197,160,89,.18); }
+.market-calc-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 250px; padding: 10px 12px; background: #14101c; border: 1px solid var(--gold); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.6); }
+.market-calc-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.market-calc-unit { color: var(--dim); font-size: 12px; }
+.market-calc-pop .craft-stepper input { width: 64px; }
+.market-calc-out { margin-top: 8px; font-size: 12px; min-height: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.market-calc-out:empty { display: none; }
+.market-calc-total { color: var(--gold-bright); font-size: 15px; }
+.market-calc-out small { color: var(--dim); margin: 0 4px 0 -4px; }
+.market-calc-per { color: var(--dim); }
+.market-calc-warn { color: #e0a05a; white-space: nowrap; }
+
+/* 價格訊號：顏色跟全站漲跌一致——紅＝比成交均價高（▲）、綠＝比成交均價低（▼）、灰＝差在 3% 以內 */
+.market-sig { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+.market-sig-lead { color: var(--dim); font-size: 12px; }
+.market-sig-chip { display: inline-block; padding: 0 6px; border-radius: 9px; font-size: 11.5px; font-weight: 700; line-height: 18px; background: rgba(255,255,255,.07); color: var(--dim); }
+.market-sig-chip.up { background: rgba(248,113,113,.15); color: #f87171; }
+.market-sig-chip.down { background: rgba(74,222,128,.15); color: #4ade80; }
+
+/* 全站漲跌顏色統一：紅＝漲、綠＝跌（跟關注抽屜一致） */
+.market-hot-pricechg-up { color: #f87171; }
+.market-hot-pricechg-down { color: #4ade80; }
+
+/* 自製下拉在彈窗／窄欄位裡：選項列表有上限高度與捲動、層級高於彈窗 */
+.mk-dd .wl-dd-list { max-height: 240px; overflow-y: auto; z-index: 10060; }
+.market-trend-sel + .mk-dd, .market-calc-q + .mk-dd { flex: 0 0 auto; }
+.market-calc-pop .mk-dd .wl-dd-btn { min-width: 110px; }
+
+/* 取價切換列：「買入／賣出」標示不換行；窄的彈窗裡兩組按鈕可以自己換行 */
+.pp-lead { white-space: nowrap; }
+.pp-side { flex-wrap: wrap; }
+
+.mk-dd .wl-dd-list { scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.35) transparent; }
+.mk-dd .wl-dd-list::-webkit-scrollbar { width: 5px; }
+.mk-dd .wl-dd-list::-webkit-scrollbar-thumb { background: rgba(197,160,89,.35); border-radius: 3px; }
+.mk-dd .wl-dd-list::-webkit-scrollbar-track { background: transparent; }
