@@ -774,6 +774,8 @@ app._craftReady = function () {
   let lastBatchFinancials = null; // 記住整批訂單最近一次算出來的成本/收入/淨利，給自動建議算前後差、持續關注背景比對、依成本排序共用
   let batchSortMode = 'id'; // 'id'(預設，物品ID小到大) | 'amount' | 'name' | 'cost'（需要已經查過價，沒查到就退回用amount）
 
+  /* 買入／賣出切換列：「我的世界」按鈕上顯示世界名稱，所以世界一換就要重畫 */
+  function renderPricePrefsSlot() { const slot = $('cf-pp-slot'); if (slot) slot.innerHTML = MarketData.pricePrefsBarHtml(['buy', 'sell']); }
   function ensureMarketSettingsPopoverDom() {
     let pop = $('cf-market-settings-popover');
     if (pop) return pop;
@@ -784,9 +786,11 @@ app._craftReady = function () {
     pop.innerHTML =
       '<p class="craft-mat-worlds-title">市場設定</p>' +
       '<div class="craft-settings-field"' + (MarketData.dcSelectorVisible ? '' : ' style="display:none"') + '><label>資料中心<span class="craft-muted">（材料成本查詢範圍）</span></label><select id="cf-market-dc" class="craft-select craft-select-block"><option value="">資料中心⋯</option></select></div>' +
-      '<div class="craft-settings-field"><label>我的世界<span class="craft-muted">（賣出參考只看這裡）</span></label><select id="cf-market-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
-      '<div class="craft-settings-field" id="cf-market-city-field" style="display:none"><label>賣出城市<span class="craft-muted">（決定賣方稅率）</span></label><select id="cf-market-city" class="craft-select craft-select-block"></select></div>';
+      '<div class="craft-settings-field"><label>我的世界<span class="craft-muted">（範圍選「我的世界」時看這裡）</span></label><select id="cf-market-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
+      '<div class="craft-settings-field" id="cf-market-city-field" style="display:none"><label>賣出城市<span class="craft-muted">（決定賣方稅率）</span></label><select id="cf-market-city" class="craft-select craft-select-block"></select></div>' +
+      '<div class="craft-settings-field"><label>取價設定<span class="craft-muted">（買入／賣出，跟市場頁共用同一份）</span></label><div id="cf-pp-slot"></div></div>';
     document.body.appendChild(pop);
+    renderPricePrefsSlot();
     // 三個下拉全部換成市場頁同款的 wl-dd（金框、高亮選項），選項是之後才載入的，所以選項一變或值一變就重畫
     ['cf-market-dc', 'cf-market-world', 'cf-market-city'].forEach(function (id) {
       const sel = $(id); if (!sel) return;
@@ -805,6 +809,7 @@ app._craftReady = function () {
     $('cf-market-world').addEventListener('change', async function () {
       const w = this.value;
       await MarketData.setWorld(w);
+      renderPricePrefsSlot();
       await refreshCityOptions(w, null);
       updateMarketSettingsSummary();
       refreshMarketDependentDisplays();
@@ -824,6 +829,7 @@ app._craftReady = function () {
   }
   async function openMarketSettingsPopover(anchorBtn) {
     const pop = ensureMarketSettingsPopoverDom();
+    renderPricePrefsSlot();
     if (!marketMetaLoaded) {
       marketMetaLoaded = true;
       try {
@@ -911,8 +917,8 @@ app._craftReady = function () {
 
     bindWorldPopover();
     Promise.all([
-      MarketData.resolveBuyCosts(unitNeed),
-      Object.keys(combinedSubNeed).length ? MarketData.resolveBuyCosts(combinedSubNeed) : Promise.resolve({}),
+      MarketData.resolveBuyCostsByPrefs(unitNeed),
+      Object.keys(combinedSubNeed).length ? MarketData.resolveBuyCostsByPrefs(combinedSubNeed) : Promise.resolve({}),
     ]).then(function (out) {
       const unitResults = out[0], combinedCraftResults = out[1];
       nodes.forEach(function (el) {
@@ -924,7 +930,7 @@ app._craftReady = function () {
         const row = el.closest('.craft-mat-row');
         if (row) row.classList.remove('is-profit', 'is-loss');
         let html = '<span class="cmp-p">' + Math.round(r.totalCost).toLocaleString() + '<small>金</small></span><span class="cmp-w">' + world + '</span>'; // unitNeed是1個，totalCost即單價
-        el.title = '該世界目前最低掛單價，僅供參考';
+        el.title = r.fromAverage ? '成交均價（件數加權、已排除異常成交），僅供參考' : '該世界目前最低掛單價，僅供參考';
         const ings = nodeSubIngredients[itemId];
         if (ings) {
           let craftCost = 0, allResolved = true;
@@ -1038,28 +1044,12 @@ app._craftReady = function () {
     document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeWorldPopover(); });
   }
 
-  /* ── 成交均價：跟市場頁「均價比較」同一套算法（一次抓30天成交紀錄，當前／近1天／3天／7天／30天都在本地切、已排除異常成交）。
-   * 以我的世界為範圍；沒設定世界就看整個資料中心。同一個物品同一個範圍只抓一次，統計列跟彈窗共用。 ── */
-  const avgWindowsCache = {};
-  function fetchAvgWindows(itemId, scopeWorld) {
-    const key = (scopeWorld || 'DC') + '|' + itemId;
-    if (avgWindowsCache[key]) return avgWindowsCache[key];
-    avgWindowsCache[key] = MarketData.fetchFullHistory(itemId, 30, scopeWorld || undefined).then(function (full) {
-      const now = Date.now() / 1000;
-      const inRange = function (a, b) { return full.filter(function (h) { return h.timestamp >= now - b * 3600 && h.timestamp < now - a * 3600; }); };
-      const within = function (d) { return full.filter(function (h) { return h.timestamp >= now - d * 86400; }); };
-      const avgOf = function (list) {
-        const clean = MarketData.excludeOutlierEntries(list, function (h) { return h.pricePerUnit; });
-        return clean.length ? Math.round(clean.reduce(function (t, h) { return t + h.pricePerUnit; }, 0) / clean.length) : null;
-      };
-      return { current: avgOf(inRange(0, 24)), d1: avgOf(inRange(0, 48)), d3: avgOf(within(3)), d7: avgOf(within(7)), d30: avgOf(within(30)) };
-    }).catch(function () { delete avgWindowsCache[key]; return null; });
-    return avgWindowsCache[key];
-  }
+  /* ── 成交均價：直接用市場頁共用的 MarketData.getAvgWindows（件數加權、已排除異常成交、一次抓30天、10分鐘快取），
+   * 統計列、彈窗、賣出估算全部共用同一份結果，不再自己算一套。以目前價格基準的世界為範圍；沒設定世界就看整個資料中心。 ── */
   function loadAvgTile(recipe, scopeWorld, overview) {
     const tile = $('cf-avg-tile'); if (!tile) return;
     const val = tile.querySelector('.cst-val'), label = tile.querySelector('.cst-label');
-    fetchAvgWindows(recipe.itemId, scopeWorld).then(function (w) {
+    MarketData.getAvgWindows(recipe.itemId, scopeWorld || undefined).then(function (w) {
       if (!$('cf-avg-tile') || !lastSelectedRecipeForProfit || lastSelectedRecipeForProfit.itemId !== recipe.itemId) return; // 期間換了配方就不要蓋掉新畫面
       const cur = w && w.current != null ? w.current : null;
       if (cur != null) { val.innerHTML = cur.toLocaleString() + '<small>金</small>'; return; }
@@ -1075,14 +1065,10 @@ app._craftReady = function () {
     pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取歷史成交中⋯</p>';
     pop.style.display = 'block';
     positionPopoverNear(pop, btn);
-    const w = await fetchAvgWindows(itemId, scope);
+    const w = await MarketData.getAvgWindows(itemId, scope || undefined);
     if (!w) { pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取失敗，請稍後再試。</p>'; positionPopoverNear(pop, btn); return; }
-    const rows = [['當前', w.current, '最近24小時內的成交均價'], ['近1天', w.d1, '最近48小時內（當天＋昨天）的成交均價'], ['近3天', w.d3, '過去3天所有成交的平均'], ['近7天', w.d7, '過去7天所有成交的平均'], ['近30天', w.d30, '過去30天所有成交的平均']];
-    const maxV = Math.max.apply(null, rows.map(function (r) { return r[1] || 0; })) || 1;
-    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均，已排除異常成交。「掛單」是現在架上還沒賣掉的掛單價格平均，不是成交價。">？</span></p>' +
-      rows.map(function (r, i) {
-        return '<div class="mav-row' + (i === 0 ? ' is-now' : '') + '" title="' + r[2] + '"><span class="mav-l">' + r[0] + '</span><span class="mav-bar"><i style="width:' + (r[1] != null ? Math.max(4, r[1] / maxV * 100).toFixed(0) : 0) + '%"></i></span><strong>' + (r[1] != null ? r[1].toLocaleString() : '—') + '</strong><small>金</small></div>';
-      }).join('') + '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均，不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small></div>';
+    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均（件數加權），已排除異常成交（可在設定裡關閉）。「掛單」是現在架上還沒賣掉的掛單價格平均，不是成交價。">？</span></p>' + MarketData.avgWindowRowsHtml(w) +
+      '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均，不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small><em class="mav-chg"></em></div>';
     positionPopoverNear(pop, btn);
     try {
       const ov = await MarketData.getItemMarketOverview(itemId);
@@ -1178,6 +1164,46 @@ app._craftReady = function () {
   /* ── 整批訂單的核心財務計算：買方成本（貪婪填充跨世界湊量）＋賣方收入（扣賣方稅）＋淨利，
    * 抽成獨立函式是因為不只「畫面上顯示」需要這個結果，「自動建議」要算前後差多少、「持續關注」背景檢查
    * 要拿來跟上次結果比對，都是同一套算法，不想散落三份幾乎一樣的Promise串接。 ── */
+  /* ── 賣出參考價：跟全站共用的「賣出」取價設定（範圍＋基準）同一套，市場頁、生產頁一致 ──
+   * 均價＝近24小時成交均價（件數加權、已排除異常成交）：先用預先計算快照（快），沒有再用即時30天紀錄切出來的；
+   * 近期完全沒成交的物品算不出均價，退回最低掛單價（fallback:true，畫面上會標示，不假裝是均價）。 */
+  async function getAvgSellPrices(itemIds, worldForScope) {
+    const out = {};
+    let snap = null;
+    try {
+      const r = await MarketData.loadPrecomputed(worldForScope || 'ALL');
+      if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) snap = r.data;
+    } catch (e) { snap = null; }
+    const rest = [];
+    itemIds.forEach(function (id) {
+      const row = snap && snap.items && snap.items[id], D = row && row[6];
+      if (D && D[0] > 0 && D[1] > 0) out[id] = D[1]; else rest.push(id);
+    });
+    await Promise.all(rest.map(async function (id) {
+      try { const w = await MarketData.getAvgWindows(id, worldForScope || undefined); if (w && w.current != null) out[id] = w.current; } catch (e) { /* 這項查不到就退回最低價 */ }
+    }));
+    return out;
+  }
+  async function getSellRefs(itemIds, pf, worldName) {
+    const ids = Array.from(new Set(itemIds.map(Number)));
+    const useWorld = pf.sellScope === 'world' && !!worldName;
+    const out = {};
+    if (pf.sellBasis === 'avg') {
+      const avgMap = await getAvgSellPrices(ids, useWorld ? worldName : '');
+      ids.forEach(function (id) { if (avgMap[id] != null) out[id] = { price: avgMap[id], basis: 'avg' }; });
+    }
+    const need = ids.filter(function (id) { return !out[id]; });
+    if (need.length) {
+      let listing = {};
+      if (useWorld) listing = await MarketData.getSellPricesBatch(need);
+      else {
+        const lm = await MarketData.fetchListingsBatch(need);
+        need.forEach(function (id) { const l = lm[id]; listing[id] = l && l.length ? { price: l[0].pricePerUnit } : null; });
+      }
+      need.forEach(function (id) { if (listing[id]) out[id] = { price: listing[id].price, basis: 'listing', fallback: pf.sellBasis === 'avg' }; });
+    }
+    return out;
+  }
   async function computeBatchFinancials(rows) {
     const needMap = {};
     rows.forEach(function (r) { needMap[r.itemId] = r.amount; });
@@ -1185,12 +1211,13 @@ app._craftReady = function () {
     const sellItemIds = Array.from(new Set(batchList.map(function (b) { return b.itemId; })));
     // 一次把整批要賣的itemId合併成一個請求（跟買方查價同一套做法），避免逐項各打一次API
     // 被Universalis的流量限制擋掉（429 Too Many Requests）。
+    const pf = MarketData.getPricePrefs(); // 賣出的範圍／基準：跟市場頁共用同一份設定
     const sellPromise = settings.worldName
-      ? MarketData.getSellPricesBatch(sellItemIds)
+      ? getSellRefs(sellItemIds, pf, settings.worldName)
       : Promise.resolve({});
     const taxPromise = settings.worldName ? MarketData.getSellTaxInfo(settings.worldName) : Promise.resolve(null);
 
-    const out = await Promise.all([MarketData.resolveBuyCosts(needMap), sellPromise, taxPromise]);
+    const out = await Promise.all([MarketData.resolveBuyCostsByPrefs(needMap), sellPromise, taxPromise]);
     const results = out[0], sellByItem = out[1], taxInfo = out[2];
 
     let totalCost = 0, shortageCount = 0;
@@ -1200,17 +1227,17 @@ app._craftReady = function () {
       if (!r.resolved) shortageCount++;
     });
 
-    let grossRevenue = 0, missingSell = 0;
+    let grossRevenue = 0, missingSell = 0, fallbackCount = 0;
     batchList.forEach(function (b) {
       const ref = sellByItem[b.itemId];
-      if (ref) grossRevenue += ref.price * b.quantity;
+      if (ref) { grossRevenue += ref.price * b.quantity; if (ref.fallback) fallbackCount++; }
       else missingSell++;
     });
     const rate = taxInfo ? taxInfo.ratePercent : 0;
     const netRevenue = grossRevenue * (1 - rate / 100);
     const profit = settings.worldName ? netRevenue - totalCost : null;
 
-    return { results: results, sellByItem: sellByItem, totalCost: totalCost, shortageCount: shortageCount, netRevenue: netRevenue, missingSell: missingSell, taxInfo: taxInfo, profit: profit, settings: settings };
+    return { results: results, sellByItem: sellByItem, totalCost: totalCost, shortageCount: shortageCount, netRevenue: netRevenue, missingSell: missingSell, fallbackCount: fallbackCount, taxInfo: taxInfo, profit: profit, settings: settings };
   }
 
   /* ── 整批訂單的「需要採購」清單：一次把所有itemId送去resolveBuyCosts（貪婪填充跨世界湊量），
@@ -1324,7 +1351,7 @@ app._craftReady = function () {
         });
       });
       if (Object.keys(combinedSubNeed).length) {
-        MarketData.resolveBuyCosts(combinedSubNeed).then(function (combinedResults) {
+        MarketData.resolveBuyCostsByPrefs(combinedSubNeed).then(function (combinedResults) {
           craftableRows.forEach(function (r) {
             const ings = rowIngredients[r.itemId];
             let craftCost = 0, allResolved = true;
@@ -1352,7 +1379,7 @@ app._craftReady = function () {
       if (craftRowsWithRecipe.length) {
         const ownPriceNeed = {};
         craftRowsWithRecipe.forEach(function (r) { ownPriceNeed[r.itemId] = 1; });
-        MarketData.resolveBuyCosts(ownPriceNeed).then(function (ownResults) {
+        MarketData.resolveBuyCostsByPrefs(ownPriceNeed).then(function (ownResults) {
           craftRowsWithRecipe.forEach(function (r) {
             const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
             const recipe = CRAFT_RECIPES[rid];
@@ -1385,6 +1412,7 @@ app._craftReady = function () {
           tiles.push({ label: '預估淨利', value: (fin.profit >= 0 ? '+' : '') + Math.round(fin.profit).toLocaleString(), unit: '金', color: fin.profit >= 0 ? '#4ade80' : '#f87171', cls: fin.profit >= 0 ? 'good' : 'bad', title: '不含製作時間成本，僅供參考' });
           if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣賣方稅', title: '稅率查詢失敗，收入與淨利未扣賣方稅' });
           if (fin.missingSell > 0) chips.push({ icon: 'ph-info', text: fin.missingSell + '項無賣出價', title: fin.missingSell + '項無賣出掛單，未計入收入' });
+          if (fin.fallbackCount > 0) chips.push({ icon: 'ph-info', text: fin.fallbackCount + '項無成交均價，改用最低價', title: fin.fallbackCount + '項近24小時沒有成交、算不出成交均價，這幾項的賣出改用目前最低掛單價' });
         }
         mountCraftStat(summaryEl, tiles, chips);
         bindSellDepthPopover();
@@ -2027,12 +2055,10 @@ app._craftReady = function () {
    * 本來就不一樣，算完才合併成一個淨利數字給玩家看。晶體類材料通常沒有掛單或本身不值錢，成本算不出來
    * 就當作0處理，並且如果有算不出來的材料就註明「不含XX項」，不要讓玩家誤以為淨利是精確值。 ── */
   /* 價格列的基準：「我的世界」或「所有世界（整個資料中心）」，記在瀏覽器裡，沒設定世界時只能看所有世界 */
-  const PROFIT_SCOPE_KEY = 'cf-profit-scope';
   let profitScopeWorld = ''; // 目前價格列基準的世界名稱（空字串＝整個資料中心），成交均價彈窗跟著用同一個
   function getProfitScope(settings) {
     if (!settings.worldName) return 'dc';
-    let v = null; try { v = localStorage.getItem(PROFIT_SCOPE_KEY); } catch (e) { /* 存取不到就用預設 */ }
-    return v === 'dc' ? 'dc' : 'world';
+    return MarketData.getPricePrefs().sellScope === 'world' ? 'world' : 'dc'; // 跟市場頁共用的「賣出範圍」是同一個值
   }
   function fillProfitReference(recipe) {
     lastSelectedRecipeForProfit = recipe; // 記住目前顯示的是哪個配方，市場設定一改（世界/城市）才能立刻重算
@@ -2042,6 +2068,7 @@ app._craftReady = function () {
     if (!settings.dcName) { el.innerHTML = '<span style="opacity:.7">尚未設定資料中心，抽屜市場設定裡選一下就能看到成本／利潤參考</span>'; return; }
     el.textContent = '查詢成本與賣出參考中…';
     const scope = getProfitScope(settings);
+    const pf = MarketData.getPricePrefs();
     profitScopeWorld = scope === 'world' ? settings.worldName : '';
     const scopeSlot = $('cf-scope-slot');
     if (scopeSlot) scopeSlot.innerHTML = settings.worldName ? '<div class="cw-scope" role="group" aria-label="價格基準"><span class="cw-scope-label" title="價格基準：在售最低、成交均價、賣速要看哪個範圍"><i class="ph ph-scales"></i></span>' +
@@ -2050,7 +2077,7 @@ app._craftReady = function () {
 
     const needMap = {};
     (recipe.ingredients || []).forEach(function (ing) { needMap[ing.itemId] = ing.amount; });
-    const costPromise = Object.keys(needMap).length ? MarketData.resolveBuyCosts(needMap) : Promise.resolve({});
+    const costPromise = Object.keys(needMap).length ? MarketData.resolveBuyCostsByPrefs(needMap) : Promise.resolve({});
     const sellPromise = (scope === 'world' && settings.worldName) ? MarketData.getSellPrice(recipe.itemId) : Promise.resolve(null);
     const taxPromise = settings.worldName ? MarketData.getSellTaxInfo(settings.worldName) : Promise.resolve(null);
     // 銷售速度只需要資料中心（不用等玩家選好世界），有世界時函式內部會自動改用更精準的世界範圍
@@ -2059,9 +2086,13 @@ app._craftReady = function () {
       : MarketData.fetchSaleVelocity(recipe.itemId)).catch(function () { return null; });
     // 沒設定我的世界時，在售最低改看整個資料中心（跟市場頁預設的範圍一樣）
     const overviewPromise = MarketData.getItemMarketOverview(recipe.itemId).catch(function () { return null; });
+    // 賣出基準＝均價：用加權成交均價（跟市場頁同一套）；算不出來（近期沒成交）就是 null，下面退回最低價並標示
+    const avgSellPromise = pf.sellBasis === 'avg'
+      ? getAvgSellPrices([Number(recipe.itemId)], scope === 'world' ? settings.worldName : '').then(function (o) { return o[recipe.itemId] != null ? o[recipe.itemId] : null; }).catch(function () { return null; })
+      : Promise.resolve(null);
 
-    Promise.all([costPromise, sellPromise, taxPromise, velocityPromise, overviewPromise]).then(function (out) {
-      const costResults = out[0], sellRef = out[1], taxInfo = out[2], velocity = out[3], overview = out[4];
+    Promise.all([costPromise, sellPromise, taxPromise, velocityPromise, overviewPromise, avgSellPromise]).then(function (out) {
+      const costResults = out[0], sellRef = out[1], taxInfo = out[2], velocity = out[3], overview = out[4], avgSell = out[5];
       // materialCost 已經是含買方稅的實際花費（resolveBuyCosts/greedyFill算出來的totalCost本身就含稅）
       let materialCost = 0, unresolvedCount = 0;
       Object.keys(costResults).forEach(function (id) {
@@ -2080,18 +2111,22 @@ app._craftReady = function () {
       tiles.push({ label: '成交均價<i class="ph ph-caret-down"></i>', value: '計算中⋯', title: '近24小時實際成交均價・點擊看不同天數的均價比較', attrs: ' id="cf-avg-tile" data-avg-toggle="' + recipe.itemId + '" role="button" tabindex="0"', cls: 'cst-btn' });
       if (unresolvedCount) chips.push({ cls: 'warn', icon: 'ph-warning', text: unresolvedCount + '項查無掛單', title: unresolvedCount + '項材料查無掛單，未計入成本' });
       // 所有世界模式：假設在資料中心裡最便宜的那個價格賣出（稅率仍用「我的世界」的）；沒設定世界就不知道稅率，不算淨利
-      const netRef = scope === 'world' ? sellRef : ((settings.worldName && overview && overview.minPrice) ? { price: overview.minPrice } : null);
+      const listingRef = scope === 'world' ? sellRef : ((settings.worldName && overview && overview.minPrice) ? { price: overview.minPrice } : null);
+      const useAvg = pf.sellBasis === 'avg' && avgSell != null && !!settings.worldName;
+      const avgFallback = pf.sellBasis === 'avg' && !useAvg && !!listingRef; // 想看均價但近期沒成交：退回最低價，並在畫面上標示
+      const netRef = useAvg ? { price: avgSell } : listingRef;
       if (netRef) {
         // 賣方稅依退休所在城市而不同，這裡假設玩家會把退休放在「目前稅率最低」的城市（理性賣家的作法），
         // 抓不到稅率資料時退回不扣稅並註明；主要顯示稅後實拿金額，原始掛單價可以點旁邊的世界資訊icon查。
         const rate = taxInfo ? taxInfo.ratePercent : 0;
         const netSell = netRef.price * (1 - rate / 100);
         const profit = netSell - materialCost;
-        tiles.push({ label: (scope === 'world' ? settings.worldName : '最低價') + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
-          title: (taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅') + (scope === 'dc' ? '・以整個資料中心最便宜的掛單價計算' : ''),
+        tiles.push({ label: useAvg ? '均價賣出' : (scope === 'world' ? settings.worldName : '最低價') + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
+          title: (taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅') + (useAvg ? '・以' + (scope === 'dc' ? '整個資料中心' : settings.worldName) + '近24小時成交均價（件數加權）計算' : (scope === 'dc' ? '・以整個資料中心最便宜的掛單價計算' : '')),
           extra: scope === 'world' ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '' });
         tiles.push({ label: '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? '#4ade80' : '#f87171', cls: profit >= 0 ? 'good' : 'bad', title: '僅單件製作，不含製作時間成本' });
         if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣賣方稅', title: '稅率查詢失敗，賣出與淨利未扣賣方稅' });
+        if (avgFallback) chips.push({ icon: 'ph-info', text: '無成交均價，改用最低價', title: '近24小時沒有成交，算不出成交均價，賣出改用目前最低掛單價' });
       } else if (!settings.worldName) {
         chips.push({ icon: 'ph-info', text: '未設定我的世界', title: '未設定「我的世界」，看不到賣出參考與淨利' });
       } else {
@@ -2749,7 +2784,7 @@ app._craftReady = function () {
 
         const needMap = {};
         rows.forEach(function (r) { needMap[r.itemId] = r.amount; });
-        const buyResultsPromise = MarketData.resolveBuyCosts(needMap);
+        const buyResultsPromise = MarketData.resolveBuyCostsByPrefs(needMap);
         // 跟上面「自己做」決策提示同樣的道理：這一輪要評估的候選項目全部合併成「一次」查詢，
         // 不要每個候選項目各自打一次API，避免同時噴出一堆零散請求觸發Universalis的流量限制。
         const combinedSubNeed = {};
@@ -2762,7 +2797,7 @@ app._craftReady = function () {
           ings.forEach(function (ing) { combinedSubNeed[ing.itemId] = (combinedSubNeed[ing.itemId] || 0) + ing.amount; });
         });
         const craftResultsPromise = Object.keys(combinedSubNeed).length
-          ? MarketData.resolveBuyCosts(combinedSubNeed)
+          ? MarketData.resolveBuyCostsByPrefs(combinedSubNeed)
           : Promise.resolve({});
         const out = await Promise.all([buyResultsPromise, craftResultsPromise]);
         const buyResults = out[0], combinedCraftResults = out[1];
@@ -2811,8 +2846,8 @@ app._craftReady = function () {
             ownPriceNeed[r.itemId] = 1; // 自己這個成品本身的市場單價參考，只需要查1個的價格
           });
           const rOut = await Promise.all([
-            MarketData.resolveBuyCosts(ownPriceNeed),
-            Object.keys(reverseCombinedSubNeed).length ? MarketData.resolveBuyCosts(reverseCombinedSubNeed) : Promise.resolve({}),
+            MarketData.resolveBuyCostsByPrefs(ownPriceNeed),
+            Object.keys(reverseCombinedSubNeed).length ? MarketData.resolveBuyCostsByPrefs(reverseCombinedSubNeed) : Promise.resolve({}),
           ]);
           const ownResults = rOut[0], craftIngResults = rOut[1];
           reverseCandidates.forEach(function (r) {
@@ -3651,9 +3686,27 @@ app._craftReady = function () {
   /* 價格基準切換（我的世界／所有世界） */
   $('cf-recipe-selected').addEventListener('click', function (e) {
     const b = e.target.closest('[data-profit-scope]'); if (!b) return;
-    try { localStorage.setItem(PROFIT_SCOPE_KEY, b.dataset.profitScope); } catch (err) { /* 存不了就只對這次有效 */ }
-    if (lastSelectedRecipeForProfit) fillProfitReference(lastSelectedRecipeForProfit);
+    MarketData.setPricePrefs({ sellScope: b.dataset.profitScope }); // 寫進全站共用設定（市場頁的「賣出範圍」同一個值）；重畫由下面的 onPricePrefsChange 統一處理
   });
+  /* 全站共用的取價設定（買入／賣出 × 範圍／基準）不管在哪裡改，生產頁都要立刻跟著重算：
+   * 利潤列、整批訂單的成本與收入一定重算；買入設定有變時，材料圖譜節點的單價也一起重查。 */
+  (function () {
+    if (typeof MarketData === 'undefined') return;
+    const anchorEl = $('cf-recipe-selected');
+    MarketData.bindPricePrefsBars();
+    let lastKey = JSON.stringify(MarketData.getPricePrefs());
+    MarketData.onPricePrefsChange(function (cur) {
+      if (!anchorEl || !anchorEl.isConnected) return; // 生產頁已經被重建：舊的訂閱不動作
+      const key = JSON.stringify(cur); if (key === lastKey) return;
+      const buyChanged = JSON.parse(lastKey).buyScope !== cur.buyScope || JSON.parse(lastKey).buyBasis !== cur.buyBasis;
+      lastKey = key;
+      refreshMarketDependentDisplays();
+      if (buyChanged) {
+        document.querySelectorAll('[data-price-item][data-price-filled]').forEach(function (el) { el.removeAttribute('data-price-filled'); });
+        fillNodePrices(document);
+      }
+    });
+  })();
   /* 已選配方那一條上的「更換配方」：展開列表（沿用上次的搜尋條件），選了之後會再自動收起 */
   $('cf-recipe-selected').addEventListener('click', function (e) {
     if (!e.target.closest('#cf-change-recipe')) return;

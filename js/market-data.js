@@ -572,7 +572,7 @@ window.MarketData = (function () {
           const avg = D && D[0] > 0 ? D[1] : (P ? P[4] : null);
           if (!avg) { missing.push(id); return; }
           const q = needMap[id], cost = avg * q, tax = cost * BUY_TAX_RATE;
-          out[id] = { filledQty: q, totalCost: cost + tax, totalTax: tax, avgPrice: avg, breakdown: [], remainingListings: [], fromAverage: true };
+          out[id] = { filledQty: q, totalCost: cost + tax, totalTax: tax, avgPrice: avg, breakdown: [], remainingListings: [], fromAverage: true, resolved: true };
         });
       }
     }
