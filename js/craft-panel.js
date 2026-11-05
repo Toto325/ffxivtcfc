@@ -775,7 +775,11 @@ app._craftReady = function () {
   let batchSortMode = 'id'; // 'id'(預設，物品ID小到大) | 'amount' | 'name' | 'cost'（需要已經查過價，沒查到就退回用amount）
 
   /* 買入／賣出切換列：「我的世界」按鈕上顯示世界名稱，所以世界一換就要重畫 */
-  function renderPricePrefsSlot() { const slot = $('cf-pp-slot'); if (slot) slot.innerHTML = MarketData.pricePrefsBarHtml(['buy', 'sell'], { windows: true }); }
+  function renderPricePrefsSlot() {
+    const slot = $('cf-pp-slot'); if (!slot) return;
+    slot.innerHTML = MarketData.pricePrefsBarHtml(['buy', 'sell'], { windows: true });
+    slot.querySelectorAll('select.pp-win-sel').forEach(function (sel) { MarketData.enhanceSelect(sel); }); // 換成站內自製下拉，跟其他設定的下拉同款
+  }
   function ensureMarketSettingsPopoverDom() {
     let pop = $('cf-market-settings-popover');
     if (pop) return pop;

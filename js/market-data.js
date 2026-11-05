@@ -934,7 +934,7 @@ window.MarketData = (function () {
    * 預先計算快照每個道具的 row[6] 存了這四個窗口的［成交筆數, 均價］；買入／賣出各自有一個窗口設定（只有基準是均價才有意義）。 */
   const AVG_WINDOW_IDX = { current: [0, 1], '1d': [2, 3], '3d': [4, 5], '7d': [6, 7] };
   const AVG_WINDOW_LIVE_KEY = { current: 'current', '1d': 'd1', '3d': 'd3', '7d': 'd7' }; // getAvgWindows（即時）回傳的欄位名
-  const AVG_WINDOW_OPTS = [['current', '當前', '最近24小時的成交均價'], ['1d', '近1天', '最近48小時（當天＋昨天）的成交均價'], ['3d', '近3天', '過去3天所有成交的均價'], ['7d', '近7天', '過去7天所有成交的均價']];
+  const AVG_WINDOW_OPTS = [['current', '當前', '最近24小時的成交均價'], ['1d', '1天', '最近48小時（當天＋昨天）的成交均價'], ['3d', '3天', '過去3天所有成交的均價'], ['7d', '7天', '過去7天所有成交的均價']];
   function avgFromSnapshotRow(row, win) {
     const D = row && row[6], idx = AVG_WINDOW_IDX[win] || AVG_WINDOW_IDX.current;
     return (D && D[idx[0]] > 0 && D[idx[1]] > 0) ? D[idx[1]] : null; // 這個窗口湊不到成交（筆數0）就是 null，呼叫端自己決定怎麼退回
@@ -987,9 +987,12 @@ window.MarketData = (function () {
       return '<span class="pp-side"><span class="pp-lead">' + (side === 'buy' ? '買入' : '賣出') + '</span>' +
         seg(side + 'Scope', [['dc', '所有世界'], ['world', w || '我的世界', !w]]) +
         seg(side + 'Basis', [['listing', '最低價'], ['avg', '均價']]) + '</span>' +
-        // opts.windows：基準選「均價」時才出現的窗口選擇（當前／近1天／近3天／近7天）；平常 hidden，由 bindPricePrefsBars 的訂閱切換顯示
-        (opts && opts.windows ? '<span class="pp-win" data-pp-side="' + side + '"' + (p[side + 'Basis'] === 'avg' ? '' : ' hidden') + '><span class="pp-lead pp-lead-sub">均價取</span><span class="pp-seg" role="group">' +
-          AVG_WINDOW_OPTS.map(function (o) { return '<button type="button" class="pp-btn' + (p[side + 'AvgWindow'] === o[0] ? ' on' : '') + '" data-pp-key="' + side + 'AvgWindow" data-pp-val="' + o[0] + '" title="' + o[2] + '">' + o[1] + '</button>'; }).join('') + '</span></span>' : '');
+        // opts.windows：基準選「均價」時才出現的「均價窗口」下拉（跟供應鏈設定那一列同款：左邊文字、右邊下拉）；平常 hidden，由 bindPricePrefsBars 的訂閱切換顯示。
+        // 下拉要由呼叫端用 enhanceSelect 換成站內自製下拉（畫完 HTML 後對 select.pp-win-sel 呼叫）。
+        (opts && opts.windows ? '<span class="pp-win" data-pp-side="' + side + '"' + (p[side + 'Basis'] === 'avg' ? '' : ' hidden') + '><span class="pp-lead pp-lead-sub">均價窗口</span>' +
+          '<select class="craft-select pp-win-sel" data-pp-key="' + side + 'AvgWindow">' +
+          AVG_WINDOW_OPTS.map(function (o) { return '<option value="' + o[0] + '"' + (p[side + 'AvgWindow'] === o[0] ? ' selected' : '') + ' title="' + o[2] + '">' + o[1] + '</option>'; }).join('') +
+          '</select></span>' : '');
     }).join('') + '</span>';
   }
   let ppBound = false;
@@ -1003,9 +1006,14 @@ window.MarketData = (function () {
       const patch = {}; patch[b.dataset.ppKey] = b.dataset.ppVal;
       setPricePrefs(patch);
     }, true);
+    document.addEventListener('change', function (e) { // 均價窗口下拉
+      const t = e.target;
+      if (t && t.classList && t.classList.contains('pp-win-sel')) { const patch = {}; patch[t.dataset.ppKey] = t.value; setPricePrefs(patch); }
+    }, true);
     onPricePrefsChange(function (cur) { // 全頁所有切換列同步亮起目前的選擇
       document.querySelectorAll('.pp-btn').forEach(function (btn) { btn.classList.toggle('on', cur[btn.dataset.ppKey] === btn.dataset.ppVal); });
       document.querySelectorAll('.pp-win').forEach(function (el) { el.hidden = cur[el.dataset.ppSide + 'Basis'] !== 'avg'; });
+      document.querySelectorAll('select.pp-win-sel').forEach(function (sel) { if (sel.value !== cur[sel.dataset.ppKey]) sel.value = cur[sel.dataset.ppKey]; }); // 別處（供應鏈等）改了窗口：這裡的下拉跟著變
     });
   }
 
