@@ -333,3 +333,6 @@
   .wl-detail { padding-left: 6px; }
   .wl-fab { right: 12px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* 下拉清單往下放不完整時翻到按鈕上方（由 MarketData.fitDropdown 判斷） */
+.wl-dd.dd-up .wl-dd-list { top: auto; bottom: calc(100% + 5px); }

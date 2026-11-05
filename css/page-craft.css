@@ -1136,3 +1136,10 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .cw-meta-row{flex-wrap:nowrap}
 @container (max-width:520px){.cw-meta-row{flex-wrap:wrap}}
 .craft-recipe-chip .craft-muted{font-size:11.5px;letter-spacing:-.2px}
+
+/* 市場設定彈窗裡的買入／賣出切換列：「買入／賣出」＋範圍＋基準全部排在同一行，兩組上下各一行，不再拆成兩行 */
+.craft-settings-popover{width:284px}
+.craft-settings-popover .pp-bar{display:flex;flex-direction:column;align-items:flex-start;flex-wrap:nowrap;gap:6px}
+.craft-settings-popover .pp-side{flex-wrap:nowrap;gap:5px}
+.craft-settings-popover .pp-btn{padding:2px 7px;font-size:11px}
+.craft-settings-popover .pp-lead{font-size:11.5px}
