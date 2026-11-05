@@ -1143,3 +1143,10 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-settings-popover .pp-side{flex-wrap:nowrap;gap:5px}
 .craft-settings-popover .pp-btn{padding:2px 7px;font-size:11px}
 .craft-settings-popover .pp-lead{font-size:11.5px}
+
+/* 生產頁：缺貨小圖示、均價窗口選擇列 */
+.craft-short-ico{color:#f59e0b;margin-left:4px;font-size:12px;vertical-align:-1px;cursor:help}
+.pp-win{display:inline-flex;align-items:center;gap:5px}
+.pp-win[hidden]{display:none}
+.pp-lead-sub{opacity:.7;font-weight:400}
+.craft-settings-popover .pp-win{padding-left:2px}
