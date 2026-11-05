@@ -937,7 +937,6 @@
   border: 1px solid #c24545;
 }
 
-.sub-compact .sub-thr-strip,
 .sub-compact .sub-legend {
   display: none;
 }
@@ -1108,5 +1107,119 @@ html[data-nav-mode="top"] .news-outer,
 
 @media (max-width: 480px) {
 .sub-parts-row             { grid-template-columns: 1fr !important; }.sub-filter-row            { grid-template-columns: 1fr !important; }
+}
+
+/* ===== 表格式／卡片式 分段切換（放在結果區正上方，不跟頂部工具列擠在一起）===== */
+.sub-viewmode-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.sub-viewmode-row .sub-lbl { margin-bottom: 0; }
+.sub-seg { display: inline-flex; border: 1px solid var(--tb); border-radius: 14px; overflow: hidden; }
+.sub-seg-btn {
+  background: transparent; border: none; color: var(--dim); font-family: inherit;
+  font-size: .78rem; padding: 4px 14px; cursor: pointer; transition: background .18s, color .18s;
+}
+.sub-seg-btn.active { background: rgba(197,160,89,.18); color: var(--gold-bright); }
+.sub-seg-btn:not(.active):hover { color: var(--gold); }
+
+ * 目的地跟獲得物品的內容直接沿用 buildThresholdStrip／buildLootCell
+ * 產生的既有 class（.sub-thr-strip／.thr-stop／.thr-dot／.loot-cell-tiered
+ * 等），這裡只補卡片本身的排版樣式，不重複定義燈號顏色/形狀。 */
+.sub-card-sort-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 0; padding-bottom: 30px; }
+.sub-card-sort-pill {
+  background: transparent; border: 1px solid var(--tb); color: var(--dim);
+  font-family: inherit; font-size: .78rem; padding: 3px 12px; border-radius: 12px;
+  cursor: pointer; transition: background .18s, color .18s, border-color .18s;
+}
+.sub-card-sort-pill:hover { color: var(--gold); }
+.sub-card-sort-pill.active { background: rgba(197,160,89,.16); color: var(--gold-bright); border-color: rgba(197,160,89,.5); }
+
+.sub-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; margin-top: 4px; }
+
+.sub-route-card {
+  position: relative; display: flex; background: rgba(255,255,255,.02);
+  border: 1px solid var(--tb); border-radius: 10px; overflow: hidden;
+}
+.sub-route-card.sub-card-top { border: 1.5px solid var(--gold); }
+
+.sub-card-ribbon {
+  position: absolute; top: 0; right: 0; width: 0; height: 0;
+  border-style: solid; border-width: 0 44px 44px 0;
+  border-color: transparent var(--gold) transparent transparent;
+}
+.sub-card-ribbon span {
+  position: absolute; top: 9px; right: -37px; transform: rotate(45deg);
+  font-size: .68rem; font-weight: 700; color: #1a1408; letter-spacing: .5px;
+}
+
+.sub-card-left { width: 200px; flex-shrink: 0; display: flex; flex-direction: column; }
+.sub-card-left-top { padding: 14px 12px 12px; }
+.sub-card-rank { font-size: .68rem; color: var(--dim); font-weight: 600; letter-spacing: .5px; margin-bottom: 6px; }
+.sub-card-hero-val { font-size: 21px; font-weight: 700; color: var(--gold-bright); line-height: 1.2; word-break: break-word; }
+.sub-card-hero-underline { width: 26px; height: 2.5px; background: var(--gold); border-radius: 2px; margin: 5px 0 3px; }
+.sub-card-hero-label { font-size: .68rem; color: var(--dim); margin-bottom: 10px; }
+.sub-card-secondary { font-size: .78rem; color: var(--dim); line-height: 1.85; }
+.sub-card-tag {
+  margin-top: 10px; margin-bottom: 2px; display: inline-block; font-size: .68rem;
+  background: rgba(197,160,89,.14); color: var(--gold-bright);
+  padding: 3px 9px; border-radius: 10px; cursor: pointer; width: fit-content;
+}
+
+/* 分隔線改用網站本身慣用的絲線漸層（兩端淡出、中間金色），不用虛線或鋸齒。 */
+.sub-card-divider { width: 1px; flex-shrink: 0; background: linear-gradient(to bottom, transparent, var(--gold), transparent); opacity: .55; }
+
+.sub-card-right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* 左欄內部上下分區：主指標/次要數字在上，目的地在下，中間用絲線分隔線隔開。 */
+.sub-card-dest { padding: 10px 12px 14px; }
+.sub-card-dest-label { font-size: .68rem; color: var(--dim); margin-bottom: 6px; }
+/* 字母路線：不管完整/精簡模式都顯示，用邊框特效框起來，一眼看出站點順序。 */
+.sub-card-dest-letters {
+  display: inline-block; max-width: 100%; font-size: .72rem; font-weight: 600; letter-spacing: .3px;
+  color: var(--gold-bright); background: rgba(197,160,89,.09);
+  border: 1px solid rgba(197,160,89,.4); border-radius: 6px;
+  padding: 3px 7px; margin-bottom: 8px; white-space: nowrap;
+}
+.sub-card-dest-path { font-size: .68rem; color: var(--main); line-height: 1.5; margin-bottom: 7px; opacity: .85; }
+.sub-card-dest .sub-thr-strip { margin-top: 0; }
+/* 精簡模式，或完整模式下勾了「只顯示目的地字母」，都只留字母路線框，
+   完整地名不顯示——跟表格模式的 .sec-full／.sec-ltr 是同一套邏輯。 */
+.sub-compact .sub-card-dest-path,
+.sub-letter .sub-card-dest-path { display: none; }
+
+.sub-card-tear { height: 12px; display: flex; align-items: center; padding: 0 12px; }
+.sub-card-tear-line { height: 1.5px; width: 100%; background: linear-gradient(90deg, transparent, var(--gold), transparent); opacity: .55; }
+
+/* 右欄整欄都留給獲得物品。改用固定的 CSS max-height（不再用 JS 量左欄高度
+   動態套用），避免量測時機不準造成右欄跟卡片邊框對不齊、看起來斷開的問題；
+   左欄內容通常落在這個高度上下，數值抓寬鬆一點，明顯更高/更矮的極端情況
+   交給捲動處理。 */
+.sub-route-card { min-height: 320px; }
+.sub-card-items {
+  padding: 14px 16px; flex: 1; max-height: var(--items-max-h, 320px); overflow-y: auto; position: relative;
+  font-size: .78rem; line-height: 1.6;
+  scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.35) transparent;
+}
+.sub-card-items::-webkit-scrollbar { width: 5px; }
+.sub-card-items::-webkit-scrollbar-thumb { background: rgba(197,160,89,.35); border-radius: 3px; }
+.sub-card-items::-webkit-scrollbar-track { background: transparent; }
+.sub-card-items-label { font-size: .68rem; color: var(--dim); margin-bottom: 7px; }
+.sub-card-items .loot-tier-row { max-width: none; }
+/* 舊版用一塊「漸層到 var(--bg)」的色塊蓋在底部模擬淡出，但卡片本身背景是
+   rgba(255,255,255,.02) 疊在頁面底色上的半透明色，跟純色 var(--bg) 對不起來，
+   於是在遮罩開始的地方就會看到一條明顯的色差分界線（使用者說的「截斷線」）。
+   改用 mask-image 直接淡出卡片「實際渲染出來的像素」（文字＋卡片背景一起），
+   不管底色是什麼組合、之後改版面色票，都不會再對不起來。 */
+.sub-card-items.has-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 34px), transparent 100%);
+          mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - 34px), transparent 100%);
+}
+
+@media (max-width: 480px) {
+.sub-card-left { width: 170px; }
+.sub-card-left-top { padding: 12px 10px 10px; }
+.sub-card-dest { padding: 8px 10px 12px; }
+.sub-card-tear { padding: 0 10px; }
+.sub-card-hero-val { font-size: 19px; }
+.sub-card-ribbon { border-width: 0 36px 36px 0; }
+.sub-card-ribbon span { font-size: .6rem; top: 7px; right: -31px; }
 }
 
