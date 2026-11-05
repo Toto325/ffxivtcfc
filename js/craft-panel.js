@@ -789,9 +789,9 @@ app._craftReady = function () {
     pop.innerHTML =
       '<p class="craft-mat-worlds-title">市場設定</p>' +
       '<div class="craft-settings-field"' + (MarketData.dcSelectorVisible ? '' : ' style="display:none"') + '><label>資料中心<span class="craft-muted">（材料成本查詢範圍）</span></label><select id="cf-market-dc" class="craft-select craft-select-block"><option value="">資料中心⋯</option></select></div>' +
-      '<div class="craft-settings-field"><label>我的世界<span class="craft-muted">（決定價格基準選項）</span></label><select id="cf-market-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
+      '<div class="craft-settings-field"><label>我的世界</label><select id="cf-market-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
       '<div class="craft-settings-field" id="cf-market-city-field" style="display:none"><label>賣出城市<span class="craft-muted">（決定賣方稅率）</span></label><select id="cf-market-city" class="craft-select craft-select-block"></select></div>' +
-      '<div class="craft-settings-field"><label>價格基準</label><div id="cf-pp-slot"></div><p class="craft-muted pp-sync-hint">全站同步：市場頁、供應鏈會跟著變</p></div>';
+      '<div class="craft-settings-field"><label>價格基準</label><div id="cf-pp-slot"></div><p class="craft-muted pp-sync-hint">與市場頁同步</p></div>';
     document.body.appendChild(pop);
     renderPricePrefsSlot();
     // 三個下拉全部換成市場頁同款的 wl-dd（金框、高亮選項），選項是之後才載入的，所以選項一變或值一變就重畫

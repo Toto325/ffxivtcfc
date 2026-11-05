@@ -158,7 +158,7 @@
     const s = MarketData.getSettings();
     const segs = [];
     if (s.dcName) segs.push('<span class="mss" title="資料中心（買進、材料成本查價的範圍）"><i class="ph ph-globe-hemisphere-west"></i>' + s.dcName + '</span>');
-    if (s.worldName) segs.push('<span class="mss" title="我的世界（決定價格基準選項）"><i class="ph ph-map-pin"></i>' + s.worldName + '</span>');
+    if (s.worldName) segs.push('<span class="mss" title="我的世界"><i class="ph ph-map-pin"></i>' + s.worldName + '</span>');
     if (s.dcName && s.worldName) {
       segs.push('<span class="mss" title="' + (s.sellCityKey ? '賣出稅率：使用你手動選的城市' : '賣出稅率：自動採用目前稅率最低的城市') + '"><i class="ph ph-percent"></i>' + (s.sellCityKey ? '手動稅率' : '自動最低稅率') + '</span>');
     }
@@ -182,7 +182,7 @@
     pop.innerHTML =
       '<p class="craft-mat-worlds-title">市場設定</p>' +
       '<div class="craft-settings-field"' + (MarketData.dcSelectorVisible ? '' : ' style="display:none"') + '><label>資料中心<span class="craft-muted">（材料成本查詢範圍）</span></label><select id="mk-set-dc" class="craft-select craft-select-block"><option value="">資料中心⋯</option></select></div>' +
-      '<div class="craft-settings-field"><label>我的世界<span class="craft-muted">（決定價格基準選項）</span></label><select id="mk-set-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
+      '<div class="craft-settings-field"><label>我的世界</label><select id="mk-set-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
       '<div class="craft-settings-field" id="mk-set-city-field" style="display:none"><label>賣出城市<span class="craft-muted">（決定賣方稅率）</span></label><select id="mk-set-city" class="craft-select craft-select-block"></select></div>' +
       '<div class="craft-settings-field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="mk-set-exclude-outlier"' + (MarketData.getSettings().excludeOutlierTrades ? ' checked' : '') + '><span>排除異常成交<span class="craft-muted">（單筆成交價跟其他成交的中位數比，差距同時超過1000金和10倍，就不算進均價）</span></span></label></div>';
     document.body.appendChild(pop);
@@ -2296,7 +2296,7 @@
       '<p class="craft-mat-worlds-title">供應鏈比較設定</p>' +
       '<div class="market-supply-settings-row" style="margin-bottom:2px"><span class="pp-lead">價格基準</span></div>' +
       '<div class="market-supply-settings-row">' + MarketData.pricePrefsBarHtml(['buy'], { windows: true, lead: false }) + '</div>' +
-        '<p class="craft-muted pp-sync-hint">決定圖上卡片的顯示價與買/做比較的材料算法；全站同步，生產頁會跟著變</p>' +
+        '<p class="craft-muted pp-sync-hint">與生產頁同步</p>' +
             '<div class="market-supply-settings-row"><span>材料品質（全域）</span>' +
         '<select id="mk-sup-persp" class="craft-select" style="font-size:11px">' +
           '<option value="nq"' + (s.matPersp === 'nq' ? ' selected' : '') + '>NQ</option>' +
