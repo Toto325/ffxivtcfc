@@ -2620,14 +2620,14 @@
       const bg = negligible ? '#2b2822' : (delta > 0 ? '#16301f' : '#33261a'); // 不透明底色：跨在邊框上，不能讓邊框線透出來
       const icon = negligible ? '' : (delta > 0 ? '🔨' : '🛒');
       const label = negligible ? '≈' : icon + '▼' + fmtDeltaAbs(delta); // 圖示＝建議的做法（做／買），▼＝省下，數字＝省下的金額；兩種情況同一套說法
-      const bw = Math.max(30, 16 + label.length * 6.2);
-      const bx = x + w / 2 - bw - 3, by = topY - 7, bh = 14;
+      const bw = Math.max(36, 16 + label.length * 7.6);
+      const bx = x + w / 2 - bw - 3, by = topY - 9, bh = 18;
       const tip = negligible ? '這項買或做價格接近（差距<' + Math.round(limit).toLocaleString() + '金），建議直接買'
         : (delta > 0 ? '這項自己做比買省 ' + Math.round(delta).toLocaleString() + ' 金' : '這項直接買比做省 ' + Math.round(-delta).toLocaleString() + ' 金');
       // 徽章本身可以點，點了開明細面板——跟卡片本體的「點了跳轉」是分開的兩個互動區域，
       // 卡片本體click的時候要先判斷有沒有點在這個徽章上，點到了就不要再觸發跳轉（見cardClick綁定處）。
-      return '<g class="market-delta-badge" data-mk-detail-item="' + badgeItemId + '"><title>' + tip + '</title><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="7" fill="' + bg + '" stroke="' + color + '" stroke-width="0.8"/>' +
-        '<text x="' + (bx + bw / 2) + '" y="' + (by + bh / 2 + 3.5) + '" text-anchor="middle" font-size="9" fill="' + color + '" font-weight="600">' + label + '</text></g>';
+      return '<g class="market-delta-badge" data-mk-detail-item="' + badgeItemId + '"><title>' + tip + '</title><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="9" fill="' + bg + '" stroke="' + color + '" stroke-width="1"/>' +
+        '<text x="' + (bx + bw / 2) + '" y="' + (by + bh / 2 + 4) + '" text-anchor="middle" font-size="11" fill="' + color + '" font-weight="700">' + label + '</text></g>';
     }
     function cardHtml(x, topY, iconId, line1, line2, clickAttrs, isOverflow, opts) {
       opts = opts || {};
@@ -2637,7 +2637,7 @@
       const nameY = iconY + r + 12;
       const line2Y = nameY + 13;
       const priceY = (line2 ? line2Y : nameY) + 16; // 價格是整張卡片最重要的資訊，字級放大後多留一點行距
-      const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 10.5, 8) : { text: '', fontSize: 10.5, titleAttr: '' };
+      const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 11, 9.5) : { text: '', fontSize: 10.5, titleAttr: '' };
       // decision='craft'：這項材料自己做比買便宜，邊框改成跟「省錢」同一個綠色，一眼認出「這個該自己做」；
       // decision='buy' 或沒有比較結果：維持原本金色邊框，不用特別標記——「照原樣買」是預設情況，不需要額外提醒。
       const strokeColor = isOverflow ? '#7a736a' : (opts.highlight ? '#f0d9a0' : (opts.decision === 'craft' ? '#4ade80' : '#c5a059'));
@@ -2654,7 +2654,7 @@
       // 數量（×N）放在中心圖示右邊的空位，不另外佔位置
       const qtyHtml = opts.qtyText ? '<text x="' + (x + r + 10) + '" y="' + (iconY + 4) + '" font-size="12" fill="#fcf6ba" font-weight="700">' + opts.qtyText + '</text>' : '';
       // 水晶未計入成本：整張卡片變暗＋左上角一顆💎，不用另外放一個膠囊說明
-      const dimMark = opts.dim ? '<text x="' + (x - w / 2 + 5) + '" y="' + (topY + 13) + '" font-size="10">💎</text>' : '';
+      const dimMark = opts.dim ? '<text x="' + (x - w / 2 + 5) + '" y="' + (topY + 13) + '" font-size="12">💎</text>' : '';
       const titleHtml = opts.cardTitle ? '<title>' + opts.cardTitle + '</title>' : fit.titleAttr;
       return '<g class="mk-supply-node' + (opts.highlight ? ' mk-supply-node-center' : '') + '"' + (opts.dim ? ' opacity=".5"' : '') + clickAttrs + '>' + titleHtml +
         '<rect x="' + (x - w / 2) + '" y="' + topY + '" width="' + w + '" height="' + h + '" rx="8" fill="' + (opts.highlight ? 'rgba(197,160,89,.18)' : 'rgba(0,0,0,.4)') + '" stroke="' + strokeColor + '" stroke-width="' + strokeWidth + '"/>' +
@@ -2715,9 +2715,9 @@
     // 每次製作產出多個（yields>1）：標在材料連到中心的線上。「做」的單價已經除過產出數，
     // 不標的話玩家看下面材料加起來比「做」那行貴，會以為算錯。
     if (hasDown && yields > 1) {
-      const py = centerBottom + 12, pw = 38;
-      svgParts += '<g><rect x="' + (cx - pw / 2) + '" y="' + (py - 7) + '" width="' + pw + '" height="14" rx="7" fill="#14110d" stroke="#c5a059" stroke-width="0.8"/>' +
-        '<text x="' + cx + '" y="' + (py + 3.5) + '" text-anchor="middle" font-size="9" fill="#fcf6ba" font-weight="700">產×' + yields + '<title>每次製作產出 ' + yields + ' 個；下方材料是做一次的用量，「做」的價格已經除以產出數</title></text></g>';
+      const py = centerBottom + 12, pw = 48;
+      svgParts += '<g><rect x="' + (cx - pw / 2) + '" y="' + (py - 9) + '" width="' + pw + '" height="18" rx="9" fill="#14110d" stroke="#c5a059" stroke-width="0.8"/>' +
+        '<text x="' + cx + '" y="' + (py + 4) + '" text-anchor="middle" font-size="11" fill="#fcf6ba" font-weight="700">產×' + yields + '<title>每次製作產出 ' + yields + ' 個；下方材料是做一次的用量，「做」的價格已經除以產出數</title></text></g>';
     }
 
     // 中心卡片旁的數量調整：− 在卡片左邊、＋在卡片右邊（左右夾住卡片，視覺上比較自然），
