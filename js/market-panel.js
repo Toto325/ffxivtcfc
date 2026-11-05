@@ -131,7 +131,7 @@
           // 設定彈窗正開著：內容也要跟著重畫（例如基準切到「均價」才會出現「均價窗口」那一列），不用關掉再開。
           // 面板沿用原本的位置與方向（openSupplySettingsPopover 對「已開著」的面板就是這樣處理）。
           const pop = ensureAvgPricePopoverDom();
-          if (ctx === lastSupplyCtx && ctx.box.isConnected && pop.style.display === 'block' && pop.dataset.owner === 'supply') {
+          if (lastSupplyCtx && lastSupplyCtx.box === ctx.box && ctx.box.isConnected && pop.style.display === 'block' && pop.dataset.owner === 'supply') { // 不能比對 ctx 物件本身：每次重畫 lastSupplyCtx 都會換成新物件，只能比容器
             openSupplySettingsPopover(ctx.box, ctx.itemId, ctx.rid, freshDcData);
           }
         });
