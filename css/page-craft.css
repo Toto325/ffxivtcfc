@@ -1189,3 +1189,5 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-settings-popover .pp-win .pp-seg{flex:1 1 auto;min-width:0}
 .craft-settings-popover .pp-win .pp-btn{flex:1 1 0;text-align:center;padding:4px 4px;font-size:11.5px}
 .pp-sync-hint{font-size:10px;margin:6px 0 0}
+/* 選「最低價」時整列收起：上面的 display:flex 會蓋掉 [hidden]，這裡補回去 */
+.craft-settings-popover .pp-win[hidden]{display:none}
