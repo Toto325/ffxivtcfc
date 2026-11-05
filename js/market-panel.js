@@ -124,7 +124,18 @@
     MarketData.autoEnhanceSelects(); // 市場頁的下拉全部換成站內設計的自製下拉
     if (!prefsSupplyHooked) { // 全站取價設定改了：物品頁的供應鏈圖要原地重畫
       prefsSupplyHooked = true;
-      MarketData.onPricePrefsChange(function () { if (lastSupplyCtx && lastSupplyCtx.box.isConnected) renderSupplyChainWithBreakdown(lastSupplyCtx.itemId, lastSupplyCtx.rid, lastSupplyCtx.box); });
+      MarketData.onPricePrefsChange(function () {
+        const ctx = lastSupplyCtx;
+        if (!ctx || !ctx.box.isConnected) return;
+        Promise.resolve(renderSupplyChainWithBreakdown(ctx.itemId, ctx.rid, ctx.box)).then(function (freshDcData) {
+          // 設定彈窗正開著：內容也要跟著重畫（例如基準切到「均價」才會出現「均價窗口」那一列），不用關掉再開。
+          // 面板沿用原本的位置與方向（openSupplySettingsPopover 對「已開著」的面板就是這樣處理）。
+          const pop = ensureAvgPricePopoverDom();
+          if (ctx === lastSupplyCtx && ctx.box.isConnected && pop.style.display === 'block' && pop.dataset.owner === 'supply') {
+            openSupplySettingsPopover(ctx.box, ctx.itemId, ctx.rid, freshDcData);
+          }
+        });
+      });
     }
     fitMarketHeights();
     const hashItem = readHashItem(); // 網址帶著物品（重新整理、分享連結）就直接開那個物品
