@@ -80,7 +80,21 @@ initStars(){
     /* 切換到上次所在分頁 */
     var lastNav = 'home';
     try { lastNav = sessionStorage.getItem('xiv_nav') || 'home'; } catch (_) {}
+    // 第2點：市場頁「製作求解」改用iframe做真正獨立的彈窗，iframe載入的是全新、獨立的頁面
+    // 實例，跟外層那份市場頁完全不共用任何程式狀態。這裡讀網址hash裡的page=craft，讓iframe
+    // 一開就直接進生產頁，不用等使用者自己點導覽列；recipe=則是要預選的配方id。
+    var hashPageMatch = /page=([^&]+)/.exec(window.location.hash);
+    if (hashPageMatch) lastNav = hashPageMatch[1];
+    var hashRecipeMatch = /recipe=([^&]+)/.exec(window.location.hash);
+    if (hashRecipeMatch && lastNav === 'craft') {
+      this._craftPendingRecipeId = hashRecipeMatch[1]; // craft-panel.js的_craftReady()結尾會讀這個並自動選好
+    }
+    // 第2點：embed=1代表這份頁面是被嵌在iframe裡當彈窗用的，只要顯示工具本身，
+    // 導覽選單那些外框裝飾不需要（外層已經有自己的導覽了，重複顯示只會佔空間又混亂）。
+    if (/embed=1/.test(window.location.hash)) document.body.classList.add('embed-mode');
     this.nav(lastNav);
+    // embed 彈窗：初始導覽完成，內容區可以顯示了（在這之前用 CSS 藏著，避免閃出主選單或首頁）
+    if (document.documentElement.getAttribute('data-nav-mode') === 'embed') document.documentElement.classList.add('embed-ready');
 
     var _rsT;
     window.addEventListener('resize', function () {
@@ -136,7 +150,10 @@ initStars(){
 
   /* ══ nav ════════════════════════════════════════════════════════════ */
   app.nav = function (id) {
-    try { sessionStorage.setItem('xiv_nav', id); } catch (_) {}
+    // embed 彈窗實例跟外層同源、共用 sessionStorage，不能寫，否則外層重新整理會被帶到生產頁
+    if (!document.body.classList.contains('embed-mode')) {
+      try { sessionStorage.setItem('xiv_nav', id); } catch (_) {}
+    }
 
     document.querySelectorAll('.scene.active').forEach(function (s) {
       s.classList.remove('active');
@@ -174,30 +191,22 @@ initStars(){
     }
     if (id === 'submarine' && !this._sDone) { this._sDone = true; this.buildSub(); }
     if (id === 'airship' && !this._aDone) { this._aDone = true; this.buildAir(); }
+    if (id === 'craft' && !this._cDone) { this._cDone = true; this.buildCraft(); }
+    if (id === 'market' && !this._mkDone) { this._mkDone = true; this.buildMarket(); }
   };
 
   app._retryFashion = function () { this._fDone = false; this.nav('fashion'); };
 
-  /* ══ fetchNews ══════════════════════════════════════════════════════
-   * 直接讀取 data/news.json（由 GitHub Actions 排程的
-   * scripts/fetch_news.py 每 3 小時抓好、同源提供），
-   * 不再於瀏覽器端經由 CORS 代理即時抓官網頁面。
-   * ════════════════════════════════════════════════════════════════ */
+  /* ══ fetchNews ══════════════════════════════════════════════════════ */
   app.fetchNews = async function () {
-    var ctn      = document.getElementById('news-list');
+    var ctn     = document.getElementById('news-list');
     if (!ctn) return;
     var NEWS_URL = 'https://www.ffxiv.com.tw/web/news/news_list.aspx';
     var self     = this;
-
-    try {
-      var res = await fetch('data/news.json', { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var data  = await res.json();
-      var items = (data && data.items) || [];
-      if (!items.length) { ctn.innerHTML = '<div class="news-error"><span>暫時無法解析公告</span></div>'; return; }
-      self._renderNews(ctn, items);
-    } catch (e) {
-      console.error('[XIV] fetchNews (data/news.json) error:', e);
+    var html = await this._fetch(NEWS_URL);
+    if (html) {
+      self._renderNews(ctn, html);
+    } else {
       ctn.innerHTML =
         '<div class="news-error"><span>暫時無法讀取，' +
         '<a href="' + NEWS_URL + '" target="_blank" style="color:var(--gold)">請點此前往官網</a>' +
@@ -205,52 +214,84 @@ initStars(){
     }
   };
 
-  /* ══ _renderNews ════════════════════════════════════════════════════
-   * items: [{ title, date, href, pinned }]（來自 data/news.json）
-   * ════════════════════════════════════════════════════════════════ */
-  app._renderNews = function (ctn, items) {
+  /* ══ _renderNews ════════════════════════════════════════════════════ */
+  app._renderNews = function (ctn, html) {
+    var doc       = new DOMParser().parseFromString(html, 'text/html');
+    var container = doc.querySelector('.list.news_list');
+    if (!container) { ctn.innerHTML = '<div class="news-error"><span>暫時無法解析公告</span></div>'; return; }
+    var links = Array.from(container.querySelectorAll('a[href*="news_content"]'));
+    var dates = Array.from(container.querySelectorAll('.publish_date'));
+    if (!links.length) { ctn.innerHTML = '<div class="news-error"><span>暫時無法解析公告</span></div>'; return; }
     ctn.innerHTML = '';
-    items.forEach(function (it) {
-      if (!it.title || it.title.length < 2) return;
+    links.forEach(function (link, i) {
+      var title = link.textContent.trim();
+      if (!title || title.length < 2) return;
+      var rawDate = (dates[i + 1] ? dates[i + 1].textContent : '').trim();
+      var dm      = rawDate.match(/^(\d{4})(\d{2})(\d{2})$/);
+      var date    = dm ? dm[1] + '/' + dm[2] + '/' + dm[3] : rawDate;
+      var href    = link.getAttribute('href') || '';
+      if (!href.startsWith('http'))
+        href = 'https://www.ffxiv.com.tw/' + (href.startsWith('/') ? href.slice(1) : href);
+      var rowContainer = link.closest('li,tr,div');
+      var isPinned     = !!(rowContainer && rowContainer.querySelector('.badge.top,span.top'));
       var a = document.createElement('a');
-      a.className = 'news-item'; a.href = it.href; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      if (it.pinned) { var p = document.createElement('span'); p.className = 'news-pin'; p.textContent = '置頂'; a.appendChild(p); }
-      if (it.date)   { var d = document.createElement('span'); d.className = 'news-date'; d.textContent = it.date; a.appendChild(d); }
-      var h = document.createElement('span'); h.className = 'news-headline'; h.textContent = it.title; a.appendChild(h);
+      a.className = 'news-item'; a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      if (isPinned) { var p = document.createElement('span'); p.className = 'news-pin'; p.textContent = '置頂'; a.appendChild(p); }
+      if (date)     { var d = document.createElement('span'); d.className = 'news-date'; d.textContent = date; a.appendChild(d); }
+      var h = document.createElement('span'); h.className = 'news-headline'; h.textContent = title; a.appendChild(h);
       ctn.appendChild(a);
     });
     if (!ctn.childElementCount) ctn.innerHTML = '<div class="news-error"><span>暫時無法解析公告</span></div>';
   };
 
-  /* ══ fetchFashion ════════════════════════════════════════════════════
-   * 直接讀取 data/fashion.json（由 GitHub Actions 排程的
-   * scripts/fetch_fashion.py 每 3 小時抓好、同源提供），
-   * 不再於瀏覽器端經由 CORS 代理即時抓巴哈論壇——
-   * 那些免費代理（corsproxy.io / codetabs / allorigins）常常逾時、
-   * 被限流或直接掛掉，是「JSON 裡明明有資料，網站卻顯示暫時無法讀取」
-   * 的真正原因。
-   * ════════════════════════════════════════════════════════════════ */
+  /* ══ fetchFashion ════════════════════════════════════════════════════ */
   app.fetchFashion = async function () {
     var ctn  = document.getElementById('fashion-content');
     if (!ctn) return;
     var BASE = 'https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177';
     var self = this;
-
-    try {
-      var res = await fetch('data/fashion.json', { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var data  = await res.json();
-      var posts = (data && data.posts) || [];
-
-      if (!posts.length) {
-        ctn.innerHTML = '<div class="news-error"><span>未找到本週答案，<button class="fashion-retry-btn" onclick="app._retryFashion()">重新讀取</button>　或　<a href="' + BASE + '" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">前往原文查看</a></span></div>';
-        return;
-      }
-      self._renderFashionPosts(ctn, posts);
-    } catch (e) {
-      console.error('[XIV] fetchFashion (data/fashion.json) error:', e);
+    /* 抓第 1 頁只取頁碼資訊 */
+    var html1    = await this._fetch(BASE);
+    var lastPage = 1;
+    if (html1) {
+      var doc1     = new DOMParser().parseFromString(html1, 'text/html');
+      var pageNums = Array.from(doc1.querySelectorAll('a[href*="page="]'))
+        .map(function (a) { var m = (a.getAttribute('href') || '').match(/[?&]page=(\d+)/); return m ? parseInt(m[1]) : 0; })
+        .filter(function (n) { return n > 0; });
+      if (pageNums.length) lastPage = Math.max.apply(null, pageNums);
+    } else {
       ctn.innerHTML = '<div class="news-error"><span>無法連線，<button class="fashion-retry-btn" onclick="app._retryFashion()">重新讀取</button>　或　<a href="' + BASE + '" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">前往原文查看</a></span></div>';
+      return;
     }
+
+    /* 抓最後 2 頁（若只有 1 頁就只抓 1 頁），每頁明確請求 */
+    var pages = [];
+    for (var p = lastPage; p >= Math.max(1, lastPage - 1); p--) pages.push(p);
+
+    var allPosts = [];
+    for (var i = 0; i < pages.length; i++) {
+      var h = await this._fetch(BASE + '&page=' + pages[i]);
+      if (h) {
+        var parsed = self._parseFashionClean(h, pages[i]);
+        allPosts = allPosts.concat(parsed);
+      }
+    }
+
+    /* 降序排列、去重 */
+    allPosts.sort(function (a, b) { return b.floor - a.floor; });
+    var seen = new Set();
+    allPosts = allPosts.filter(function (p) { if (seen.has(p.floor)) return false; seen.add(p.floor); return true; });
+
+    /* PRIO 作者優先，取最新 3 筆 */
+    var prioPosts = allPosts.filter(function (p) { return PRIO.some(function (n) { return p.author.toLowerCase().includes(n); }); });
+    var othPosts  = allPosts.filter(function (p) { return !PRIO.some(function (n) { return p.author.toLowerCase().includes(n); }); });
+    var final     = (prioPosts.length > 0 ? prioPosts : othPosts).slice(0, 3);
+
+    if (!final.length) {
+      ctn.innerHTML = '<div class="news-error"><span>未找到本週答案，<button class="fashion-retry-btn" onclick="app._retryFashion()">重新讀取</button>　或　<a href="' + BASE + '" target="_blank" rel="noopener noreferrer" style="color:var(--gold)">前往原文查看</a></span></div>';
+      return;
+    }
+    self._renderFashionPosts(ctn, final);
   };
 
   /* ══ _parseFashionClean ══════════════════════════════════════════════
