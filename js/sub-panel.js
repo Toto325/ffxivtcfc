@@ -28,6 +28,10 @@ app.buildSub = function (){
        currentRoutes 保留最近一次搜尋結果，點表頭切換排序時直接重排、
        不需要重新呼叫 worker 計算。 */
     let sortKey='epm',sortDir=-1,currentRoutes=[],lootToggleSeq=0,renderRoutes=null;
+    /* 表格式／卡片式檢視模式，跟精簡模式一樣記在 localStorage。 */
+    const VIEW_MODE_KEY='xiv-sub-view-mode';
+    let viewMode='table';
+    try{if(localStorage.getItem(VIEW_MODE_KEY)==='card')viewMode='card';}catch(e){}
     const SORT_PROP={exp:'exp',time:'timeMins',epm:'epm',itemEff:'itemEff'};
     const SORT_LABEL={exp:'經驗値',time:'時間',epm:'EXP/分',itemEff:'物品效率'};
     const getStats=()=>selH&&selS&&selB&&selBr?subCalcStats(subRank,selH,selS,selB,selBr):null;
@@ -183,6 +187,7 @@ app.buildSub = function (){
 <div id="sub-range-disp" class="sub-range-disp">目前航行距離：—</div>
   </div>
 </div>
+<div class="sub-viewmode-row"><span class="sub-lbl">顯示方式</span><div class="sub-seg" id="sub-viewmode-seg"><button type="button" class="sub-seg-btn" data-mode="table">表格式</button><button type="button" class="sub-seg-btn" data-mode="card">卡片式</button></div></div>
 <div id="sub-results"><div class="sub-empty">選擇部件並按搜尋查看最佳路線</div></div>
 </div>
 <div id="sub-reverse-panel" style="display:none"></div>
@@ -727,7 +732,7 @@ app.buildSub = function (){
          超過的用「...等N種」收起來（滑鼠移過去看完整清單），避免一條路線物品
          一多，整行就被撐得很長。達標的物品正常顯示，未達標的變淺色；每個
          物品滑鼠移過去（或點一下）顯示來源目的地與門檻細節。 */
-      const buildLootCell=(secIds,curStats)=>{
+      const buildLootCell=(secIds,curStats,maxShow)=>{
         const detail=buildLootDetail(secIds);
         const groups={1:[],2:[],3:[]};
         Object.entries(detail).forEach(([idStr,tiers])=>{
@@ -748,7 +753,7 @@ app.buildSub = function (){
           (CAT_ORDER[a.cat]-CAT_ORDER[b.cat])||
           a.name.localeCompare(b.name,'zh-TW')
         ));
-        const MAX_SHOW=4;
+        const MAX_SHOW=maxShow||4;
         let html='';
         [1,2,3].forEach(t=>{
           const items=groups[t];
@@ -834,9 +839,150 @@ app.buildSub = function (){
           });
         }
 
+        /* 備註欄：卡片式／表格式都要用，搬到分流之前先算好。 */
+        const legendHtml=`<div class="sub-legend">`+
+          `<span class="sub-legend-title">備註</span>`+
+          `<span><b class="loot-tier-badge tier-badge-1">T1</b> 一般</span>`+
+          `<span><b class="loot-tier-badge tier-badge-2">T2</b> 需探索性能達標</span>`+
+          `<span><b class="loot-tier-badge tier-badge-3">T3</b> 需探索性能達最佳</span>`+
+          `<span class="sub-legend-sep">淺色字＝尚未達標</span>`+
+          `<span class="sub-legend-sep">物品顏色：<b class="cat-blueprint">設計圖材料</b>　<b class="cat-rare3">更稀有物品</b>　<b class="cat-rare2">稀有物品</b>　<b class="cat-general">一般材料</b>　<b class="cat-materia">魔晶石</b></span>`+
+          `<span class="sub-legend-sep">圓點（探索／收集／恩惠）：<i class="thr-dot thr-full"></i>最佳（實心）　<i class="thr-dot thr-part"></i>達標（半圓）　<i class="thr-dot thr-none"></i>未達標（空心）</span>`+
+          `<span class="sub-legend-sep">點擊物品名稱或圓點可查看完整資訊</span>`+
+          (showItemEff?`<span class="sub-legend-sep">物品效率＝${lootSortMode==='coverage'?'覆蓋種類數（不重複）':'命中件數（可重複累計）'}÷耗時，點欄位可查看該路線的明細</span>`:'')+
+        `</div>`;
+
         /* 依目前 sortKey / sortDir 排序（複製陣列，不改動原始 routes 順序） */
         const prop=SORT_PROP[sortKey]||'epm';
         const sorted=[...routes].sort((a,b)=>sortDir*(a[prop]-b[prop]));
+
+        /* ===== 卡片式（票根式）檢視 =====
+         * 目的地的「站名＋3燈」跟獲得物品清單直接沿用 buildThresholdStrip／
+         * buildLootCell 這兩個表格模式本來就在用的函式，保證顏色、燈號形狀、
+         * 提示文字兩種檢視完全一致，不會有兩套邏輯各自維護、結果不同步的風險。 */
+        if(viewMode==='card'){
+          const heroOf=r=>{
+            if(sortKey==='exp')return{val:r.exp.toLocaleString(),label:'經驗值'};
+            if(sortKey==='time')return{val:r.timeStr,label:'耗時'};
+            if(sortKey==='itemEff'&&showItemEff)return{val:r.itemEff.toFixed(2)+'／時',label:lootSortMode==='coverage'?'物品覆蓋效率':'物品數量效率'};
+            return{val:r.epm.toLocaleString(),label:'EXP/分'};
+          };
+          const mkCard=(r,idx)=>{
+            const rank=idx+1;
+            const rowStats=r.build?{sur:r.build.st.sur,ret:r.build.st.ret,fav:r.build.st.fav}:curStats;
+            const hero=heroOf(r);
+            const secondary=[`Lv${r.minRank}`];
+            if(hero.label!=='經驗值')secondary.push(`經驗值 ${r.exp.toLocaleString()}`);
+            if(hero.label!=='耗時')secondary.push(r.timeStr);
+            if(hero.label!=='EXP/分')secondary.push(`EXP/分 ${r.epm.toLocaleString()}`);
+            secondary.push(`距離${r.range}／燃料${r.tank}`);
+            const buildTag=r.build?(()=>{const b=r.build;const tip=`船體：${b.hull[1]}\n船尾：${b.stern[1]}\n船首：${b.bow[1]}\n艦橋：${b.bridge[1]}\n承載力：${b.cost}/${b.cap??'—'}`;return `<div class="sub-card-tag" data-tip="${tip}"><span>⚓</span> ${b.hull[0]}／${b.stern[0]}／${b.bow[0]}／${b.bridge[0]}</div>`;})():'';
+            const thrHtml=buildThresholdStrip(r.secIds,rowStats);
+            const lootHtml=buildLootCell(r.secIds,rowStats,10);
+            return `<div class="sub-route-card${rank===1?' sub-card-top':''}">`+
+              (rank===1?'<div class="sub-card-ribbon"><span>#1</span></div>':'')+
+              `<div class="sub-card-left">`+
+                `<div class="sub-card-left-top">`+
+                  (rank!==1?`<div class="sub-card-rank">第 ${rank} 名</div>`:'')+
+                  `<div class="sub-card-hero-val">${hero.val}</div>`+
+                  `<div class="sub-card-hero-underline"></div>`+
+                  `<div class="sub-card-hero-label">${hero.label}</div>`+
+                  `<div class="sub-card-secondary">${secondary.join('<br>')}</div>`+
+                  buildTag+
+                `</div>`+
+                `<div class="sub-card-tear"><div class="sub-card-tear-line"></div></div>`+
+                `<div class="sub-card-dest">`+
+                  `<div class="sub-card-dest-label">${r.mapStr||''}　目的地 ${r.secCount} 站</div>`+
+                  `<div class="sub-card-dest-letters">${r.secLetters||''}</div>`+
+                  `<div class="sub-card-dest-path">${r.secStr}</div>`+
+                  `<div class="sub-thr-strip">${thrHtml}</div>`+
+                `</div>`+
+              `</div>`+
+              `<div class="sub-card-divider"></div>`+
+              `<div class="sub-card-right">`+
+                `<div class="sub-card-items"><div class="sub-card-items-label">獲得物品</div>${lootHtml}</div>`+
+              `</div>`+
+            `</div>`;
+          };
+          const cardSortKeys=[{k:'epm',l:'EXP/分'},{k:'exp',l:'經驗值'},{k:'time',l:'耗時'}];
+          if(showItemEff)cardSortKeys.push({k:'itemEff',l:lootSortMode==='coverage'?'物品覆蓋效率':'物品數量效率'});
+          const sortPillsHtml=cardSortKeys.map(o=>{
+            const active=sortKey===o.k;
+            const arrow=active?(sortDir===-1?' ↓':' ↑'):'';
+            return `<button type="button" class="sub-card-sort-pill${active?' active':''}" data-sortkey="${o.k}">${o.l}${arrow}</button>`;
+          }).join('');
+          const CARD_BATCH=30;
+          const firstCards=sorted.slice(0,CARD_BATCH);
+          let cardShown=firstCards.length;
+          let cardHtml=`<div class="sub-card-sort-row">${sortPillsHtml}</div><div class="sub-card-grid">`+
+            firstCards.map((r,i)=>mkCard(r,i)).join('')+`</div>`;
+          res.innerHTML=legendHtml+cardHtml;
+          /* 「智能」決定右欄物品要顯示多少：不是猜一個固定筆數，而是量出左欄
+             實際渲染出來的高度，右欄照這個高度做限制，超出的部分用淡出遮罩
+             收起來——這樣卡片高度永遠跟著左欄（等級/路線這些內容量固定的
+             資訊）走，不會被物品清單撐得又長又難看。
+             用 ResizeObserver 量高度而不是量一次就算了：字型/圖片載入、
+             視窗縮放、路線文字換行都會讓左欄高度事後才變化，ResizeObserver
+             會在真正變化的當下重新觸發，不會有「量太早、量到還沒排版完」
+             的時機問題。 */
+          const MIN_ITEMS_H=220,MAX_ITEMS_H=520,FALLBACK_ITEMS_H=320;
+          const fitCardHeights=scope=>{
+            scope.querySelectorAll('.sub-route-card').forEach(card=>{
+              const left=card.querySelector('.sub-card-left');
+              const items=card.querySelector('.sub-card-items');
+              if(!items)return;
+              const updateFade=()=>{
+                const overflowing=items.scrollHeight>items.clientHeight+2;
+                const atBottom=items.scrollTop+items.clientHeight>=items.scrollHeight-2;
+                items.classList.toggle('has-fade',overflowing&&!atBottom);
+              };
+              const syncHeight=()=>{
+                const leftH=left?left.offsetHeight:0;
+                const h=Math.max(MIN_ITEMS_H,Math.min(MAX_ITEMS_H,leftH||FALLBACK_ITEMS_H));
+                card.style.setProperty('--items-max-h',h+'px');
+                updateFade();
+              };
+              if(!items.dataset.scrollBound){
+                items.addEventListener('scroll',updateFade);
+                items.dataset.scrollBound='1';
+              }
+              if(left&&!card.dataset.roBound){
+                new ResizeObserver(syncHeight).observe(left);
+                card.dataset.roBound='1';
+              }
+              syncHeight();
+            });
+          };
+          fitCardHeights(res);
+          /* 展開某個等級的「⋯等N種」之後，物品清單變長了，淡出遮罩／捲動狀態
+             要重新算一次，不然剛展開的內容可能被舊的遮罩狀態誤判。 */
+          res.addEventListener('click',e=>{
+            if(e.target.closest('.loot-toggle'))setTimeout(()=>fitCardHeights(res),0);
+          });
+          res.querySelectorAll('.sub-card-sort-pill').forEach(btn=>{
+            btn.addEventListener('click',()=>{
+              const k=btn.dataset.sortkey;
+              if(sortKey===k)sortDir=-sortDir;else{sortKey=k;sortDir=-1;}
+              renderRoutes(currentRoutes);
+            });
+          });
+          if(sorted.length>cardShown){
+            const moreBtn=document.createElement('button');
+            moreBtn.className='sub-more-btn';
+            moreBtn.textContent=`顯示更多（已顯示 ${cardShown} ／ 共 ${sorted.length} 筆）`;
+            moreBtn.onclick=()=>{
+              const grid=res.querySelector('.sub-card-grid');
+              const next=sorted.slice(cardShown,cardShown+CARD_BATCH);
+              next.forEach((r,i)=>{grid.insertAdjacentHTML('beforeend',mkCard(r,cardShown+i));});
+              cardShown+=next.length;
+              fitCardHeights(grid);
+              if(cardShown>=sorted.length)moreBtn.remove();
+              else moreBtn.textContent=`顯示更多（已顯示 ${cardShown} ／ 共 ${sorted.length} 筆）`;
+            };
+            res.appendChild(moreBtn);
+          }
+          return;
+        }
 
         const buildCell=r=>{
           if(!r.build)return'';
@@ -866,17 +1012,6 @@ app.buildSub = function (){
         };
 
         const firstBatch=sorted.slice(0,BATCH);shown=firstBatch.length;
-        const legendHtml=`<div class="sub-legend">`+
-          `<span class="sub-legend-title">備註</span>`+
-          `<span><b class="loot-tier-badge tier-badge-1">T1</b> 一般</span>`+
-          `<span><b class="loot-tier-badge tier-badge-2">T2</b> 需探索性能達標</span>`+
-          `<span><b class="loot-tier-badge tier-badge-3">T3</b> 需探索性能達最佳</span>`+
-          `<span class="sub-legend-sep">淺色字＝尚未達標</span>`+
-          `<span class="sub-legend-sep">物品顏色：<b class="cat-blueprint">設計圖材料</b>　<b class="cat-rare3">更稀有物品</b>　<b class="cat-rare2">稀有物品</b>　<b class="cat-general">一般材料</b>　<b class="cat-materia">魔晶石</b></span>`+
-          `<span class="sub-legend-sep">圓點（探索／收集／恩惠）：<i class="thr-dot thr-full"></i>最佳（實心）　<i class="thr-dot thr-part"></i>達標（半圓）　<i class="thr-dot thr-none"></i>未達標（空心）</span>`+
-          `<span class="sub-legend-sep">點擊物品名稱或圓點可查看完整資訊</span>`+
-          (showItemEff?`<span class="sub-legend-sep">物品效率＝${lootSortMode==='coverage'?'覆蓋種類數（不重複）':'命中件數（可重複累計）'}÷耗時，點欄位可查看該路線的明細</span>`:'')+
-        `</div>`;
         let html=legendHtml+`<div class="sub-scroll-hint">← 左右滑動查看全部欄位 →</div><table class="sub-table"><thead><tr>`+
           thCell('rank','等級')+
           thCell('exp',SORT_LABEL.exp)+
@@ -1160,6 +1295,26 @@ app.buildSub = function (){
     let _sc='0';try{_sc=localStorage.getItem('xiv-sub-compact')||'0';}catch(e){}
     setCompact(_sc==='1');
     viewToggle?.addEventListener('click',()=>setCompact(!mogship.classList.contains('sub-compact')));
+
+    /* ── 表格式／卡片式 檢視模式切換 ──────────────────────────────
+     * 純粹是「同一批搜尋結果換一種排版」，不用重新搜尋，直接重畫
+     * currentRoutes 就好，跟點表頭排序、換排序依據下拉選單同一套機制。
+     * 放在結果區正上方的分段鈕，不跟頂部工具列那排按鈕擠在一起。 */
+    const applyViewModeSeg=()=>{
+      root.querySelectorAll('#sub-viewmode-seg .sub-seg-btn').forEach(b=>{
+        b.classList.toggle('active',b.dataset.mode===viewMode);
+      });
+    };
+    applyViewModeSeg();
+    root.querySelectorAll('#sub-viewmode-seg .sub-seg-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        if(viewMode===btn.dataset.mode)return;
+        viewMode=btn.dataset.mode;
+        try{localStorage.setItem(VIEW_MODE_KEY,viewMode);}catch(e){}
+        applyViewModeSeg();
+        if(renderRoutes&&currentRoutes.length)renderRoutes(currentRoutes);
+      });
+    });
     filtersHdr?.addEventListener('click',()=>{
       filtersPanel.classList.toggle('sub-filters-open');
       filtersHdr.textContent=(filtersPanel.classList.contains('sub-filters-open')?'▾':'▸')+' 篩選條件';
