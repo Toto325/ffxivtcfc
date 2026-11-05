@@ -59,8 +59,17 @@
 
     if (!need.length) { renderMarketSkeleton(); return; }
     // 走共用載入器（定義在 craft-panel.js）：market-data.js 生產頁也會載，不能各載各的
+    // 載入卡住（網路停住、檔案一直沒回應）時，不要一直轉圈：30 秒後改成明確的提示；之後如果檔案終於載好，還是會自動接著顯示
+    const stuckTimer = setTimeout(function () {
+      if (root.querySelector('.craft-loading') && !root.querySelector('.craft-error')) root.innerHTML = '<div class="craft-loading craft-error">資料載入逾時，請重新整理頁面（Ctrl＋F5）再試一次。</div>';
+    }, 30000);
     Promise.all(need.map(function (n) { return app.loadScriptOnce(n[0], n[1]); })).then(function (results) {
-      if (results.every(Boolean)) { renderMarketSkeleton(); return; }
+      clearTimeout(stuckTimer);
+      if (results.every(Boolean)) {
+        try { renderMarketSkeleton(); }
+        catch (e) { root.innerHTML = '<div class="craft-loading craft-error">市場頁顯示失敗（' + String(e && e.message || e).slice(0, 80) + '），請重新整理再試一次。</div>'; throw e; } // 錯誤訊息直接顯示在畫面上，不再只是停在載入中
+        return;
+      }
       root.innerHTML = '<div class="craft-loading craft-error">資料載入失敗，請重新整理再試一次。</div>';
     });
   };
