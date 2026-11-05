@@ -724,12 +724,12 @@ window.MarketData = (function () {
    * 篩出來的結果會不完整、筆數異常少。改成直接對那個世界重新查一次，拿到它自己完整的掛單。 */
   async function getListingsForWorld(itemId, worldName) {
     await ensureMeta();
-    const url = API + '/' + encodeURIComponent(worldName) + '/' + itemId + '?listings=100&entries=0';
+    const url = API + '/' + encodeURIComponent(worldName) + '/' + itemId + '?entries=0'; // 不帶 listings 參數＝回傳全部掛單（以前限制100筆，掛單多的物品會被截斷）
     const data = await fetchJsonRetry(url); // 失敗會丟錯，讓畫面能顯示「查詢失敗」而不是「沒有掛單」
     const arr = (data.listings || []).map(function (l) {
       return { world: worldName, pricePerUnit: l.pricePerUnit, quantity: l.quantity, hq: !!l.hq, retainerName: l.retainerName };
     }).sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
-    arr.total = data.listingsCount != null ? data.listingsCount : arr.length; // 這個世界的掛單總數（表格只列最便宜的100筆）
+    arr.total = data.listingsCount != null ? data.listingsCount : arr.length; // 這個世界的掛單總數
     return arr;
   }
 
@@ -752,7 +752,7 @@ window.MarketData = (function () {
     await ensureMeta();
     const scope = scopeName || settings.dcName;
     if (!scope) return null;
-    const url = API + '/' + encodeURIComponent(scope) + '/' + itemId + '?listings=100&entries=200';
+    const url = API + '/' + encodeURIComponent(scope) + '/' + itemId + '?entries=200'; // 不帶 listings 參數＝回傳全部掛單（以前限制100筆，掛單多的物品會被截斷）
     let data;
     try { data = await fetchJsonRetry(url); }
     catch (e) { if (/HTTP 404/.test(String(e && e.message))) return null; throw e; } // 404＝這個道具在市場上沒有資料（例如目前版本找不到的染劑）：交給畫面顯示原本的特例說明，不當成「查詢失敗」
@@ -765,7 +765,7 @@ window.MarketData = (function () {
     // 各世界資料更新時間：API 給的 key 是世界ID，轉成世界名稱方便畫面直接用
     const worldUploadTimes = {};
     if (data.worldUploadTimes) Object.keys(data.worldUploadTimes).forEach(function (id) { worldUploadTimes[worldName(Number(id))] = data.worldUploadTimes[id]; });
-    listings.total = data.listingsCount != null ? data.listingsCount : listings.length; // 掛單總數（表格只列最便宜的100筆，標籤顯示總數）
+    listings.total = data.listingsCount != null ? data.listingsCount : listings.length; // 掛單總數（標籤顯示總數）
     return {
       listings: listings,
       listingsCount: data.listingsCount != null ? data.listingsCount : null,
@@ -991,6 +991,23 @@ window.MarketData = (function () {
     });
   }
 
+  /* ── 下拉清單自動貼合可見範圍：往下放不完整（被視窗底部、或外層會捲動／裁切的容器擋住）時，
+   * 空間比較大的那一側優先——上方比較大就整個翻到按鈕上方，否則留在下方、把清單高度縮到放得下為止
+   * （清單本身會捲動）。玩家不用為了看完選項去拖外層的捲動條。 ── */
+  function fitDropdown(wrap, btn, list) {
+    list.style.maxHeight = ''; wrap.classList.remove('dd-up');
+    let top = 0, bottom = window.innerHeight;
+    for (let p = wrap.parentElement; p && p !== document.documentElement; p = p.parentElement) {
+      if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(p).overflowY)) { const pr = p.getBoundingClientRect(); top = Math.max(top, pr.top); bottom = Math.min(bottom, pr.bottom); }
+    }
+    const br = btn.getBoundingClientRect();
+    const below = bottom - br.bottom - 14, above = br.top - top - 14;
+    const cssMax = parseFloat(getComputedStyle(list).maxHeight);
+    const natural = Math.min(list.scrollHeight + 2, isNaN(cssMax) ? Infinity : cssMax);
+    if (natural <= below) return;
+    if (above > below && above > 120) { wrap.classList.add('dd-up'); list.style.maxHeight = Math.floor(Math.min(natural, above)) + 'px'; }
+    else list.style.maxHeight = Math.max(Math.floor(below), 120) + 'px';
+  }
   /* ── 自製下拉：取代瀏覽器原生的灰色下拉（選項列表、邊框、捲動條都改不了），樣式共用關注抽屜的 .wl-dd ──
    * 原本的 <select> 留著（隱藏），選了之後照樣改它的值並觸發 change，原本的程式不用動；
    * 程式之後改 select.value、換 option、改 disabled，按鈕上的字也會跟著更新。 */
@@ -1021,7 +1038,7 @@ window.MarketData = (function () {
       e.stopPropagation();
       const was = !list.hidden;
       document.querySelectorAll('.mk-dd .wl-dd-list').forEach(function (l) { l.hidden = true; l.parentNode.classList.remove('open'); });
-      if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); const on = list.querySelector('.wl-dd-opt.on'); if (on) on.scrollIntoView({ block: 'nearest' }); }
+      if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); const on = list.querySelector('.wl-dd-opt.on'); fitDropdown(wrap, btn, list); if (on) on.scrollIntoView({ block: 'nearest' }); }
     });
     list.addEventListener('click', function (e) {
       const o = e.target.closest('.wl-dd-opt'); if (!o) return;
@@ -1050,7 +1067,7 @@ window.MarketData = (function () {
   const BUY_TAX_RATE = 0.05;
   return {
     buyTaxRate: BUY_TAX_RATE,
-    enhanceSelect: enhanceSelect, autoEnhanceSelects: autoEnhanceSelects,
+    enhanceSelect: enhanceSelect, fitDropdown: fitDropdown, autoEnhanceSelects: autoEnhanceSelects,
     resolveBuyCostsByPrefs: resolveBuyCostsByPrefs,
     getPricePrefs: getPricePrefs, setPricePrefs: setPricePrefs, onPricePrefsChange: onPricePrefsChange, pricePrefsBarHtml: pricePrefsBarHtml, bindPricePrefsBars: bindPricePrefsBars,
     weightedAvgPrice: weightedAvgPrice,

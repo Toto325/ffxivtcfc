@@ -1003,10 +1003,7 @@
       // 24小時內沒有成交的冷門物品，退回用掛單均價，並明確標成「掛單均價」，註明這不是真的成交均價。
       if (st.avgLoading) parts.push(statTile('均價', '計算中⋯', 'market-stat-tile-muted'));
       else if (st.avgDisplay != null) parts.push('<button type="button" class="market-stat-tile market-stat-tile-btn" id="mk-avgprice-badge" title="' + st.avgDisplay.toLocaleString() + ' 金・點擊看不同天數的均價比較"><span class="mst-label">' + (st.avgIsFallback ? '掛單均價' : '成交均價') + '<i class="ph ph-caret-down"></i></span><span class="mst-val">' + fmtP(st.avgDisplay) + U + '</span></button>');
-      // 排列：金額類（最低價、均價、每日成交額）在前，速度類（賣速、成交頻率）在後；放不下一排時會自然拆成「金額一排、速度一排」
-      if (!st.velLoading && st.turnover != null && st.turnover > 0) {
-        parts.push(statTile('每日成交額', fmtCompactGil(Math.round(st.turnover)) + '<small>金/天</small>', '', ' title="平均每天成交的總金額（成交單價×件數，已排除異常成交）：約 ' + Math.round(st.turnover).toLocaleString() + ' 金／天（' + (st.scopeWorld || '所有世界') + '）"'));
-      }
+      // 排列：金額類（最低價、均價）在前，速度類（賣速、成交頻率）在後；放不下一排時會自然拆成「金額一排、速度一排」
       if (st.velLoading) parts.push(statTile('賣速', '計算中⋯', 'market-stat-tile-muted'));
       else { const vt = velTileHtml(st.velocity, st.scopeWorld); if (vt) parts.push(vt); }
       // 成交頻率：每天成交「幾筆」（不是幾件），只在有預先計算資料時才有，沒有就不顯示這格
@@ -1059,8 +1056,8 @@
     // 第8點：世界欄位改成篩選下拉，預設「所有世界」，選了特定世界就只顯示那個世界的掛單。
     const dcWorlds = MarketData.getSettings().dcName ? await MarketData.listWorldNamesInDc(MarketData.getSettings().dcName).catch(function () { return []; }) : [];
     if (myLoad !== detailLoadToken) return;
-    // 各世界目前最低價（取自整個資料中心「最便宜的100筆」）：玩家不用逐一切換世界，打開下拉就看得出哪個世界最便宜。
-    // 沒有出現在這100筆裡的世界，最低價一定比第100筆還高，不顯示數字（不會誤導成「沒有在賣」）。
+    // 各世界目前最低價（取自整個資料中心的全部掛單）：玩家不用逐一切換世界，打開下拉就看得出哪個世界最便宜。
+    // 手上是全部掛單，所以沒出現的世界就是真的沒有在賣。
     const worldMinPrice = {};
     overview.listings.forEach(function (l) {
       if (worldMinPrice[l.world] == null || l.pricePerUnit < worldMinPrice[l.world]) worldMinPrice[l.world] = l.pricePerUnit;
@@ -1085,7 +1082,7 @@
     html += '<div class="market-world-strip" id="mk-world-strip"></div>';
     html += '<div class="market-listing-bar">' +
         '<div class="market-tabs-mini" id="mk-tabs" role="tablist">' +
-          '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true" title="目前掛單數；下面只列最便宜的 100 筆">在售 <span id="mk-tab-count">' + (overview.listingsCount != null ? overview.listingsCount : overview.listings.length) + '項</span></button>' +
+          '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true" title="目前掛單數">在售 <span id="mk-tab-count">' + (overview.listingsCount != null ? overview.listingsCount : overview.listings.length) + '項</span></button>' +
           '<button type="button" class="market-tab-mini" data-mk-tab="history" role="tab" aria-selected="false">成交</button>' +
           '<button type="button" class="market-tab-mini" data-mk-tab="trend" role="tab" aria-selected="false">走勢</button>' +
         '</div>' +
@@ -1292,7 +1289,7 @@
       // 手上只有「全服最便宜的 N 筆」掛單。沒出現在裡面的世界不代表沒人賣：它的最低價「至少」要等於這 N 筆裡最貴的那筆。
       // 只有確定手上這批就是全部掛單（總筆數沒超過 N），或是已經查過那個世界確實沒有掛單，才顯示「無」。
       const listedN = overview.listings.length;
-      const allShown = overview.listingsCount != null ? overview.listingsCount <= listedN : listedN < 100;
+      const allShown = overview.listingsCount != null ? overview.listingsCount <= listedN : true; // 現在抓的是全部掛單；API 沒給總數時也視為手上就是全部
       const lowerBound = listedN ? overview.listings[listedN - 1].pricePerUnit : null;
       // 每格兩行：世界名／最低價。資料更新距今只有「過舊」（超過6小時，橘色；超過1天，紅色）才在價格旁邊標出來，
       // 新鮮的不標——新鮮是常態，每格都寫一次只是雜訊，還會讓每格多一行高度；完整時間放在滑鼠停留的提示裡。
@@ -2165,7 +2162,7 @@
         const save = Math.abs(res.buy - res.craft);
         costHtml = '<div class="market-detail-cost-badge ' + (better ? 'is-craft' : 'is-buy') + '">' +
           (better ? '🔨 自製 ' + Math.round(res.craft).toLocaleString() : '🛒 直購 ' + Math.round(res.buy).toLocaleString()) +
-          '　省 ' + Math.round(save).toLocaleString() +
+          '　▼' + Math.round(save).toLocaleString() +
           '（' + (better ? '直購' : '自製') + ' ' + Math.round(better ? res.buy : res.craft).toLocaleString() + '）</div>';
       } else if (res.buy != null) {
         costHtml = '<div class="market-detail-cost-badge is-buy">🛒 市場價 ' + Math.round(res.buy).toLocaleString() + '（無法製作，只能買）</div>';
@@ -2591,16 +2588,17 @@
     /* 差額壓縮成短字串，卡片角落空間有限，數字位數不固定（幾金到幾萬金都可能），
      * 超過一萬就用「萬」簡寫，不然位數一多角落的小徽章會被撐爆。
      * 一萬以下一律加千分位（以前是 8024、9584 這種沒逗號，跟卡片上的 18,470 格式不一致，並排時很難比大小）。
-     * fmtDeltaAbs 不帶正負號（徽章用圖示表示方向）；fmtDeltaBadge 保留正負號（材料明細面板也在用，語意不變）。 */
+     * fmtDeltaAbs 不帶正負號（徽章用圖示表示方向）；fmtDeltaBadge 是「圖示＋▼＋金額」（材料明細面板用，跟卡片徽章同一套）。 */
     function fmtDeltaAbs(n) {
       const abs = Math.abs(n);
       return abs >= 10000 ? (abs / 10000).toFixed(1) + '萬' : Math.round(abs).toLocaleString();
     }
     function fmtDeltaBadge(n) {
-      return (n >= 0 ? '+' : '-') + fmtDeltaAbs(n);
+      return (n >= 0 ? '🔨' : '🛒') + '▼' + fmtDeltaAbs(n); // 跟卡片徽章同一套：圖示＝建議的做法，▼＝省下
     }
-    /* 卡片上緣的實際差額徽章（不是只有顏色）：🔨＝自己做這項省下這個數字，🛒＝直接買比較划算、做的話反而多花這個數字。
-     * 跨在卡片上邊框上（一半在框外），不再壓住圖示；數字旁的圖示就是方向，所以不用正負號。
+    /* 卡片上緣的差額徽章：「圖示＋▼＋金額」，▼＝省下（跟股價、折扣的「下降」同一個符號，不用文字就能表示「這個數字是省下的，不是成本」）。
+     * 🔨▼＝建議自己做，省這個數字；🛒▼＝建議直接買，省這個數字。兩種情況都是「建議的做法能省多少」，只靠圖示區分做或買。
+     * 跨在卡片上邊框上（一半在框外），不再壓住圖示。
      * negl＝這張卡片自己的「相近」門檻（買價的5%與10金取大者），差距小於它就顯示「≈」，不特別標方向。 */
     function deltaBadgeSvg(x, topY, w, delta, badgeItemId, negl) {
       if (delta == null) return '';
@@ -2609,7 +2607,7 @@
       const color = negligible ? '#a39c8f' : (delta > 0 ? '#4ade80' : '#e0a05a');
       const bg = negligible ? '#2b2822' : (delta > 0 ? '#16301f' : '#33261a'); // 不透明底色：跨在邊框上，不能讓邊框線透出來
       const icon = negligible ? '' : (delta > 0 ? '🔨' : '🛒');
-      const label = icon + (negligible ? '≈' : fmtDeltaAbs(delta));
+      const label = negligible ? '≈' : icon + '▼' + fmtDeltaAbs(delta); // 圖示＝建議的做法（做／買），▼＝省下，數字＝省下的金額；兩種情況同一套說法
       const bw = Math.max(30, 16 + label.length * 6.2);
       const bx = x + w / 2 - bw - 3, by = topY - 7, bh = 14;
       const tip = negligible ? '這項買或做價格接近（差距<' + Math.round(limit).toLocaleString() + '金），建議直接買'
@@ -2636,7 +2634,7 @@
       let priceHtml = '';
       if (opts.centerLines) {
         priceHtml = opts.centerLines.map(function (ln, k) {
-          return '<text x="' + x + '" y="' + (nameY + 14 + k * 14) + '" text-anchor="middle" font-size="12" fill="' + ln.fill + '" font-weight="' + ln.weight + '">' + ln.text + '</text>';
+          return '<text x="' + x + '" y="' + (nameY + 14 + k * 14) + '" text-anchor="middle" font-size="12" fill="' + ln.fill + '" font-weight="' + ln.weight + '"' + (ln.strike ? ' text-decoration="line-through"' : '') + '>' + ln.text + '</text>';
         }).join('');
       } else if (!isOverflow) {
         priceHtml = '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="14" font-weight="700" fill="#d6ffe0"></text>';
@@ -2735,8 +2733,8 @@
       const craftWins = c.winner === 'craft';
       const bright = craftWins ? '#4ade80' : '#fcf6ba';
       centerLines = [
-        { text: '買 ' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價'), fill: buyWins ? bright : DIM, weight: buyWins ? 700 : 400 },
-        { text: '做 ' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價'), fill: craftWins ? bright : DIM, weight: craftWins ? 700 : 400 }
+        { text: '買 ' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價'), fill: buyWins ? bright : DIM, weight: buyWins ? 700 : 400, strike: craftWins && c.buyT != null && c.craftT != null },
+        { text: '做 ' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價'), fill: craftWins ? bright : DIM, weight: craftWins ? 700 : 400, strike: c.winner === 'buy' && c.buyT != null && c.craftT != null }
       ];
       if (c.winner === 'craft' || c.winner === 'buy') centerDelta = c.save;
       const verdict = c.save == null ? ''
@@ -2759,7 +2757,7 @@
       '<div class="market-supply-bar">' +
         '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
         '<button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button>' +
-        '<span class="market-supply-key">🔨 做較省　🛒 買較省　≈ 相近（建議直接買）　單位：金</span>' +
+        '<span class="market-supply-key">▼ 省下　🔨 做　🛒 買　≈ 相近（建議直接買）　單位：金</span>' +
       '</div>';
 
     box.querySelector('[data-mk-open-fullchain]').addEventListener('click', function () { openFullChainModal(itemId, rid); });
@@ -3217,7 +3215,7 @@
     const save = (bd.totalBuy != null && bd.totalAuto != null) ? bd.totalBuy - bd.totalAuto : null;
     const summary = bd.totalBuy != null
       ? '每 1 個材料成本：<span class="' + (save > 0.5 ? '' : 'craft-muted') + '" style="' + (save > 0.5 ? 'color:#4ade80' : '') + '">直接買齊 ' + fmtGil(bd.totalBuy) + ' 金</span>' +
-        (bd.totalAuto != null && save > 0.5 ? '　自動選較便宜 <span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金（省 ' + fmtGil(save) + '）</span>' : '')
+        (bd.totalAuto != null && save > 0.5 ? '　自動選較便宜 <span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金（▼' + fmtGil(save) + '）</span>' : '')
       : (bd.totalAuto != null ? '每 1 個材料成本（部分材料市場沒有價格，只能算自動選較便宜）：<span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金</span>' : '<span class="craft-muted">材料成本無法完整估算（部分項目沒有價格）</span>');
     return '<div class="market-radar-breakdown-wrap" style="--d:' + depth + '">' +
       (depth > 0 ? '<p class="craft-muted" style="font-size:10px;margin:2px 0">' + summary + '</p>' : '') +
@@ -3238,8 +3236,8 @@
         if (p.buy != null && p.craft != null) {
           const diff = p.buy - p.craft; // 正值＝做比較便宜（買比做貴diff），負值＝買比較便宜
           if (Math.abs(diff) < 0.5) diffTxt = '<span class="craft-muted">打平</span>';
-          else if (diff > 0) diffTxt = '<span style="color:#4ade80">做省 ' + fmtGil(diff) + '</span>';
-          else diffTxt = '<span style="color:#4ade80">買省 ' + fmtGil(-diff) + '</span>';
+          else if (diff > 0) diffTxt = '<span style="color:#4ade80">🔨▼' + fmtGil(diff) + '</span>';
+          else diffTxt = '<span style="color:#4ade80">🛒▼' + fmtGil(-diff) + '</span>';
         }
         const canExpand = p.craftable && depth < MAT_BREAKDOWN_MAX_DEPTH;
         return '<tr class="market-radar-mat-row' + (canExpand ? ' is-expandable' : '') + '" data-mat-item="' + p.itemId + '" data-mat-depth="' + (depth + 1) + '">' +

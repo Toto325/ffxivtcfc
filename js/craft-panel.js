@@ -563,11 +563,11 @@ app._craftReady = function () {
     btn.addEventListener('click', function () {
       const was = !list.hidden;
       document.querySelectorAll('.craft-dd .wl-dd-list').forEach(function (l) { l.hidden = true; l.parentNode.classList.remove('open'); });
-      if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); }
+      if (!was) { list.hidden = false; wrap.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); if (typeof MarketData !== 'undefined') MarketData.fitDropdown(wrap, btn, list); }
     });
     list.addEventListener('click', function (e) {
       const f = e.target.closest('.cw-dd-f');
-      if (f) { e.stopPropagation(); sel._ddFilter = f.dataset.f; render(); return; } // 切換分類不關閉清單（重畫後被點的按鈕已不在清單裡，要擋掉往上傳的點擊，免得被當成點到外面）
+      if (f) { e.stopPropagation(); sel._ddFilter = f.dataset.f; render(); if (!list.hidden && typeof MarketData !== 'undefined') MarketData.fitDropdown(wrap, btn, list); return; } // 切換分類不關閉清單（重畫後被點的按鈕已不在清單裡，要擋掉往上傳的點擊，免得被當成點到外面）
       const o = e.target.closest('.wl-dd-opt'); if (!o) return;
       sel.value = o.dataset.v;
       sel.dispatchEvent(new Event('change', { bubbles: true }));
