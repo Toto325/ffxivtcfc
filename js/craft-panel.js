@@ -135,12 +135,15 @@ app._craftReady = function () {
   /* ── 配方搜尋索引：配方 id -> 道具名稱，只建一次。
    * 資料集裡有一批配方是台服目前沒有的物品（twAvailable:false，itemId留0佔位），
    * 這裡先濾掉，不然搜尋結果會冒出圖示空白、名稱是「道具#0」的怪東西。 ── */
+  /* 搜尋正規化：全形→半形（NFKC）、轉小寫、去掉所有空白，名稱跟關鍵字都先過同一套，才能比得準 */
+  function normSearch(str) { return String(str).normalize('NFKC').toLowerCase().replace(/\s+/g, ''); }
   const RECIPE_INDEX = Object.keys(CRAFT_RECIPES).filter(function (id) {
     const r = CRAFT_RECIPES[id];
     return r.twAvailable !== false && !!r.itemId;
   }).map(function (id) {
     const r = CRAFT_RECIPES[id];
-    return { id: id, itemId: r.itemId, jobId: r.jobId, lvl: r.lvl, rlvl: r.rlvl, name: CRAFT_ITEM_NAMES_TW[r.itemId] || ('道具#' + r.itemId) };
+    const nm = CRAFT_ITEM_NAMES_TW[r.itemId] || ('道具#' + r.itemId);
+    return { id: id, itemId: r.itemId, jobId: r.jobId, lvl: r.lvl, rlvl: r.rlvl, name: nm, nameN: normSearch(nm) };
   });
 
   const JOBS = [
@@ -164,6 +167,38 @@ app._craftReady = function () {
   let ingredientHqCounts = {}; // { itemId: 這個材料要用幾個HQ }
   let batchList = []; // [{recipeId, itemId, name, quantity}]
   let batchSeqIndex = -1; // 「依序求解」目前巡覽到批次清單的第幾項；-1代表沒有在巡覽狀態
+
+  /* ── 同一道具有多種做法時，玩家手動指定用哪一個（itemId -> recipeId），存在本機。沒指定就走 pickRecipeId 的預設規則。 ── */
+  const RECIPE_CHOICE_KEY = 'craftRecipeChoice:v1';
+  let recipeChoice = (function () { try { return JSON.parse(localStorage.getItem(RECIPE_CHOICE_KEY)) || {}; } catch (e) { return {}; } })();
+  function saveRecipeChoice() { try { localStorage.setItem(RECIPE_CHOICE_KEY, JSON.stringify(recipeChoice)); } catch (e) { /* 存不了就算了 */ } }
+
+  /* ── 求解中止機制 ──
+   * 同一時間只會有一個求解在跑（自動求解或手動「接續求解」）。換配方、或開始另一個求解時，
+   * 直接 terminate 掉整個 Worker：Worker 裡的 GA 運算會被瀏覽器立刻終止，不會殘留背景運算，
+   * 也不會有「舊結果晚到、蓋掉新畫面」的問題；下一次求解再重新建立新的 Worker（載入約一秒內）。
+   * 每個求解自帶 reset（還原按鈕／進度條）與 fail（引擎載入失敗時的顯示），由 cancelSolve／Worker error 統一呼叫。 */
+  let solveSeq = 0;
+  let activeSolve = null;
+  function ensureWorker() {
+    if (worker) return worker;
+    const w = worker = new Worker('js/craft-worker.js');
+    w.addEventListener('error', function (err) {
+      if (w !== worker) return;
+      worker = null;
+      try { w.terminate(); } catch (e) { /* 已經結束就算了 */ }
+      const s = activeSolve;
+      if (s) { activeSolve = null; s.fail(err && err.message ? err.message : '未知錯誤'); }
+    });
+    return w;
+  }
+  function cancelSolve() {
+    const s = activeSolve;
+    if (!s) return;
+    activeSolve = null;
+    if (worker) { worker.removeEventListener('message', s.onMsg); worker.terminate(); worker = null; }
+    s.reset();
+  }
 
   /* ── 批次清單持久化：存在本機 localStorage，不用帳號登入。
    * 只存 batchList 本身（recipeId/itemId/name/quantity 這幾個純資料欄位），
@@ -1235,7 +1270,7 @@ app._craftReady = function () {
     let grossRevenue = 0, missingSell = 0, fallbackCount = 0;
     batchList.forEach(function (b) {
       const ref = sellByItem[b.itemId];
-      if (ref) { grossRevenue += ref.price * b.quantity; if (ref.fallback) fallbackCount++; }
+      if (ref) { grossRevenue += ref.price * b.quantity * recipeYields(b.recipeId); if (ref.fallback) fallbackCount++; } // 數量＝製作次數，每次產出 yields 個，收入要乘上
       else missingSell++;
     });
     const rate = taxInfo ? taxInfo.ratePercent : 0;
@@ -1255,7 +1290,7 @@ app._craftReady = function () {
     function expand(itemId, amount, seen) {
       const recipeIds = ITEM_TO_RECIPES[itemId];
       if (seen.has(itemId) || seen.size > 12 || !expandedItems.has(itemId) || !recipeIds || !recipeIds.length) { buy[itemId] = (buy[itemId] || 0) + amount; return; }
-      const recipe = CRAFT_RECIPES[recipeIds[0]], crafts = Math.ceil(amount / (recipe.yields || 1));
+      const recipe = CRAFT_RECIPES[pickRecipeId(itemId)], crafts = Math.ceil(amount / (recipe.yields || 1));
       const nextSeen = new Set(seen); nextSeen.add(itemId);
       recipe.ingredients.forEach(function (ing) { expand(ing.itemId, ing.amount * crafts, nextSeen); });
     }
@@ -1274,8 +1309,9 @@ app._craftReady = function () {
         const needs = batchItemNeeds(b); let cost = 0, ok = true;
         Object.keys(needs).forEach(function (id) { const r = fin.results[id]; if (!r || !r.filledQty) { ok = false; return; } cost += needs[id] * (r.totalCost / r.filledQty); });
         if (!ok) return;
-        const revenue = ref.price * b.quantity * (1 - rate / 100);
-        lastBatchProfits[b.recipeId] = { total: revenue - cost, unit: (revenue - cost) / b.quantity };
+        const outQty = b.quantity * recipeYields(b.recipeId); // 實際產出件數
+        const revenue = ref.price * outQty * (1 - rate / 100);
+        lastBatchProfits[b.recipeId] = { total: revenue - cost, unit: (revenue - cost) / outQty };
       });
     }
     const ids = Object.keys(lastBatchProfits);
@@ -1346,11 +1382,11 @@ app._craftReady = function () {
       // 批次項目一多，短時間內會同時噴出好幾支零散的API請求，容易把Universalis的流量限制觸發（429），
       // 瀏覽器又會把429沒帶CORS header的回應誤報成「CORS政策封鎖」。改成把所有材料的子配方需求
       // 合併成「一次」查詢，查完之後用查回來的均價(avgPrice)在本機直接算每一項的成本，不用再各自查一次。
-      const craftableRows = rows.filter(function (r) { return r.craftable && (ITEM_TO_RECIPES[r.itemId] || [])[0]; });
+      const craftableRows = rows.filter(function (r) { return r.craftable && pickRecipeId(r.itemId); });
       const combinedSubNeed = {};
       const rowIngredients = {}; // rowItemId -> [{itemId, amount}]（amount已經乘上這批的需求量）
       craftableRows.forEach(function (r) {
-        const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
+        const rid = pickRecipeId(r.itemId);
         const recipe = CRAFT_RECIPES[rid];
         const ings = (recipe.ingredients || []).map(function (ing) { return { itemId: ing.itemId, amount: ing.amount * r.amount }; });
         rowIngredients[r.itemId] = ings;
@@ -1383,13 +1419,13 @@ app._craftReady = function () {
       // 「自行製作」清單也要標同一種決策數字（比買貴/省多少），但這些品項本身的市場價格
       // 從來沒被查過（決定要自己做，採購清單裡本來就不會列它自己），額外批次查一次它們自己的單價。
       // 材料成本則直接借用上面已經查好的 results（這些材料反正都在採購清單裡，不用再查一次）。
-      const craftRowsWithRecipe = craftRows.filter(function (r) { return (ITEM_TO_RECIPES[r.itemId] || [])[0]; });
+      const craftRowsWithRecipe = craftRows.filter(function (r) { return pickRecipeId(r.itemId); });
       if (craftRowsWithRecipe.length) {
         const ownPriceNeed = {};
         craftRowsWithRecipe.forEach(function (r) { ownPriceNeed[r.itemId] = 1; });
         MarketData.resolveBuyCostsByPrefs(ownPriceNeed).then(function (ownResults) {
           craftRowsWithRecipe.forEach(function (r) {
-            const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
+            const rid = pickRecipeId(r.itemId);
             const recipe = CRAFT_RECIPES[rid];
             let craftCostPerUnit = 0, allResolved = true;
             (recipe.ingredients || []).forEach(function (ing) {
@@ -1494,7 +1530,7 @@ app._craftReady = function () {
     // 依材料清單裡已經算好每項是不是可製作、對應哪個配方，這裡直接借用同一份，不用重算一次
     const craftInfoByItem = {};
     rows.forEach(function (r) {
-      craftInfoByItem[r.itemId] = { craftable: r.craftable, rid: (ITEM_TO_RECIPES[r.itemId] || [])[0] };
+      craftInfoByItem[r.itemId] = { craftable: r.craftable, rid: pickRecipeId(r.itemId) };
     });
     const byWorld = {}; // worldName -> [{itemId, name, qty, unitPrice}]
     Object.keys(results).forEach(function (itemId) {
@@ -1677,9 +1713,18 @@ app._craftReady = function () {
     }
   });
 
+  /* 等級／職業／數值會影響「辦不辦得到」，自動選的做法可能跟著變：只在批次裡真的有多做法的自製材料時才重算 */
+  ['cf-lvl', 'cf-job', 'cf-craftsmanship', 'cf-control', 'cf-profile-mode'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      const affected = Array.from(expandedItems).some(function (i) { return (ITEM_TO_RECIPES[i] || []).length > 1; });
+      if (affected && batchList.length) renderBatch();
+    });
+  });
   /* ── 食物／藥水下拉，同一份資料依 type 分開填入 ── */
-  const MEALS = Object.keys(CRAFT_FOODS).filter(function (id) { return CRAFT_FOODS[id].type === 'meal'; });
-  const MEDICINES = Object.keys(CRAFT_FOODS).filter(function (id) { return CRAFT_FOODS[id].type === 'medicine'; });
+  /* 名稱解析不到（資料裡是「道具#數字」）＝台服還沒實裝的新道具，先不放進選單，等名稱補齊後會自動出現 */
+  const hasTwName = function (id) { return !/^道具#\d+$/.test(CRAFT_FOODS[id].name || ''); };
+  const MEALS = Object.keys(CRAFT_FOODS).filter(function (id) { return CRAFT_FOODS[id].type === 'meal' && hasTwName(id); });
+  const MEDICINES = Object.keys(CRAFT_FOODS).filter(function (id) { return CRAFT_FOODS[id].type === 'medicine' && hasTwName(id); });
   $('cf-food').innerHTML += MEALS.map(function (id) {
     return '<option value="' + id + '">' + CRAFT_FOODS[id].name + '</option>';
   }).join('');
@@ -1943,6 +1988,7 @@ app._craftReady = function () {
   function selectRecipeById(recipeId, opts) {
     const found = RECIPE_INDEX.find(function (r) { return r.id === recipeId; });
     if (!found) return false;
+    if (!selectedRecipe || selectedRecipe.id !== recipeId) cancelSolve(); // 換了求解對象：舊求解直接中止（結束 Worker、還原按鈕），不會殘留
     selectedRecipe = found;
     $('cf-recipe-search').value = selectedRecipe.name;
     $('cf-pick').classList.add('is-picked'); // 選定後列表收成「已選配方」一條，下面接材料與批次
@@ -1961,8 +2007,10 @@ app._craftReady = function () {
     renderMaterialGraph();
     renderSpecialActions();
     manualRotation = []; renderManual(); // 換配方，手動模式的操作進度歸零重來
-    $('cf-solve').disabled = false;
-    $('cf-solve').innerHTML = '<i class="ph ph-play"></i>開始求解';
+    if (!activeSolve) { // 同一個配方還在求解中（例如重複點選同一項）就維持「求解中」狀態，不要把按鈕放開
+      $('cf-solve').disabled = false;
+      $('cf-solve').innerHTML = '<i class="ph ph-play"></i>開始求解';
+    }
     if (typeof updateCollectableSlider === 'function') updateCollectableSlider({ reset: true });
     return true;
   }
@@ -1984,13 +2032,15 @@ app._craftReady = function () {
     /* 選定配方後搜尋框會被填成配方名稱；清單要維持原本的搜尋結果，所以記住使用者真正打的關鍵字 */
     const rawQ = $('cf-recipe-search').value.trim();
     const q = (selectedRecipe && rawQ === selectedRecipe.name) ? searchTerm : (searchTerm = rawQ);
+    /* 關鍵字用空白分開＝每一段都要符合（例：「木 椅」找得到名稱同時含這兩段的配方）；全形字／大小寫不影響 */
+    const qTokens = q.normalize('NFKC').toLowerCase().split(/\s+/).filter(Boolean);
     const lvlMin = parseInt($('cf-filter-lvl-min').value, 10);
     const lvlMax = parseInt($('cf-filter-lvl-max').value, 10);
     const hasFilter = filterJob !== 'all' || !isNaN(lvlMin) || !isNaN(lvlMax);
     const box = $('cf-recipe-results');
     if (!q && !hasFilter) { box.innerHTML = '<div class="craft-recipe-empty"><i class="ph ph-magnifying-glass"></i>輸入配方名稱，或點職業、設定等級範圍來瀏覽</div>'; box.classList.remove('open'); return; }
     const matches = RECIPE_INDEX.filter(function (r) {
-      if (q && r.name.indexOf(q) === -1) return false;
+      if (qTokens.length && !qTokens.every(function (t) { return r.nameN.indexOf(t) !== -1; })) return false;
       if (filterJob !== 'all' && String(r.jobId) !== filterJob) return false;
       if (!isNaN(lvlMin) && r.lvl < lvlMin) return false;
       if (!isNaN(lvlMax) && r.lvl > lvlMax) return false;
@@ -2012,7 +2062,7 @@ app._craftReady = function () {
       return '<div class="craft-recipe-item' + ((selectedRecipe && selectedRecipe.id === r.id) ? ' is-selected' : '') + '" data-id="' + r.id + '">' + itemIconHtml(r.itemId, 22) +
         '<span class="craft-recipe-item-name" title="' + r.name + '">' + r.name + '</span>' +
         badge +
-        '<span class="craft-muted">' + (JOB_NAME_BY_ID[r.jobId] || '') + '・Lv' + r.lvl + '　rlvl' + r.rlvl + '</span></div>';
+        '<span class="craft-muted">' + (JOB_NAME_BY_ID[r.jobId] || '') + '・Lv' + r.lvl + '　配方等級' + r.rlvl + '</span></div>';
     }).join('') || '<div class="craft-recipe-empty">找不到符合的配方</div>';
     box.classList.add('open');
     box.querySelectorAll('.craft-recipe-item').forEach(function (item) {
@@ -2045,7 +2095,7 @@ app._craftReady = function () {
     }
     const recipe = CRAFT_RECIPES[selectedRecipe.id];
     box.innerHTML = '<div class="craft-recipe-chip">' + selectedRecipe.name +
-      '<span class="craft-muted">　需求Lv' + recipe.lvl + '・進展' + recipe.progress + '・品質' + recipe.quality + '・耐久' + recipe.durability + '</span>' +
+      '<span class="craft-muted">　需求Lv' + recipe.lvl + '・進度' + recipe.progress + '・品質' + recipe.quality + '・耐久' + recipe.durability + '</span>' +
       '<button type="button" class="market-solve-btn cw-change" id="cf-change-recipe"><i class="ph ph-arrows-left-right"></i>更換配方</button></div>' +
       // 價格基準（左）與「數量＋加入批次規劃」（右）同一行：省掉原本獨立的一行
       '<div class="cw-meta-row"><div id="cf-scope-slot" class="cw-scope-slot"></div><div id="cf-batch-slot" class="cw-batch-slot"></div></div>' +
@@ -2128,11 +2178,13 @@ app._craftReady = function () {
         // 抓不到稅率資料時退回不扣稅並註明；主要顯示稅後實拿金額，原始掛單價可以點旁邊的世界資訊icon查。
         const rate = taxInfo ? taxInfo.ratePercent : 0;
         const netSell = netRef.price * (1 - rate / 100);
-        const profit = netSell - materialCost;
+        const yl = recipe.yields || 1; // 每次製作產出幾個：材料成本是一次的，收入要乘上產出數
+        const profit = netSell * yl - materialCost;
         tiles.push({ label: useAvg ? (AVG_WIN_SHORT[pf.sellAvgWindow] + '均價賣出') : (scope === 'world' ? settings.worldName : '最低價') + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
           title: (taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅') + (useAvg ? '・以' + (scope === 'dc' ? '整個資料中心' : settings.worldName) + AVG_WIN_LABEL[pf.sellAvgWindow] + '成交均價（件數加權）計算' : (scope === 'dc' ? '・以整個資料中心最便宜的掛單價計算' : '')),
           extra: scope === 'world' ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '' });
-        tiles.push({ label: '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? '#4ade80' : '#f87171', cls: profit >= 0 ? 'good' : 'bad', title: '僅單件製作，不含製作時間成本' });
+        tiles.push({ label: yl > 1 ? '預估淨利／次' : '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? '#4ade80' : '#f87171', cls: profit >= 0 ? 'good' : 'bad', title: (yl > 1 ? '做一次產出 ' + yl + ' 個，已按整次計算；' : '僅單件製作，') + '不含製作時間成本' });
+        if (yl > 1) chips.push({ icon: 'ph-stack', text: '×' + yl, title: '每次製作產出 ' + yl + ' 個' });
         if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣稅', title: '稅率查詢失敗，賣出與淨利未扣賣方稅' });
         if (avgFallback) chips.push({ icon: 'ph-info', text: '改用最低價', title: AVG_WIN_LABEL[pf.sellAvgWindow] + '沒有成交，算不出成交均價，賣出改用目前最低掛單價' });
       } else if (!settings.worldName) {
@@ -2222,6 +2274,7 @@ app._craftReady = function () {
   const ITEM_USED_IN = {}; // itemId -> [recipeId]，這個道具被用在哪些配方的材料裡
   Object.keys(CRAFT_RECIPES).forEach(function (rid) {
     const r = CRAFT_RECIPES[rid];
+    if (r.twAvailable === false || !r.itemId) return; // 台服還沒有的配方不能算進「可以做」，也不算「被用在哪」
     (ITEM_TO_RECIPES[r.itemId] = ITEM_TO_RECIPES[r.itemId] || []).push(rid);
     r.ingredients.forEach(function (ing) {
       const list = (ITEM_USED_IN[ing.itemId] = ITEM_USED_IN[ing.itemId] || []);
@@ -2232,6 +2285,41 @@ app._craftReady = function () {
     });
   });
 
+  /* 玩家在某職業目前的等級：開著「個人設定檔」就用該職業存的等級，否則用主面板的等級 */
+  function jobLevelFor(jobId) {
+    const base = parseInt($('cf-lvl').value, 10) || 1;
+    const pm = $('cf-profile-mode');
+    if (pm && pm.checked) { const p = profiles[jobId]; if (p && p.level) return p.level; }
+    return base;
+  }
+  function allJobLevels() { return JOBS.map(function (j) { return jobLevelFor(j.id); }); }
+  /* 這個配方玩家「現在辦不辦得到」：職業等級夠、數值有達到配方要求的最低作業／加工精度 */
+  function recipeDoable(rid) {
+    const r = CRAFT_RECIPES[rid];
+    if (!r) return false;
+    if (jobLevelFor(r.jobId) < r.lvl) return false;
+    const cs = parseInt($('cf-craftsmanship').value, 10) || 0, ct = parseInt($('cf-control').value, 10) || 0;
+    return cs >= (r.reqCraftsmanship || 0) && ct >= (r.reqControl || 0);
+  }
+  /* 同一道具有多種做法（多半是不同職業都做得出來，差在水晶屬性／職業等級）時，要用哪一個：
+   * 1. 玩家手動指定過的優先；2. 否則依序比：辦得到 > 非專家配方 > 目前選的職業 > 需求等級低。 */
+  function pickRecipeId(itemId) {
+    const list = ITEM_TO_RECIPES[itemId];
+    if (!list || !list.length) return undefined;
+    const chosen = recipeChoice[itemId];
+    if (chosen && list.indexOf(chosen) !== -1) return chosen;
+    if (list.length === 1) return list[0];
+    const pm = $('cf-profile-mode'), curJob = (pm && pm.checked) ? parseInt($('cf-job').value, 10) : null;
+    const key = function (rid) { const r = CRAFT_RECIPES[rid]; return [recipeDoable(rid) ? 0 : 1, r.isExpert ? 1 : 0, (curJob != null && r.jobId === curJob) ? 0 : 1, r.lvl]; };
+    let best = null, bestKey = null;
+    list.forEach(function (rid) {
+      const k = key(rid);
+      if (!bestKey) { best = rid; bestKey = k; return; }
+      for (let i = 0; i < k.length; i++) { if (k[i] !== bestKey[i]) { if (k[i] < bestKey[i]) { best = rid; bestKey = k; } return; } }
+    });
+    return best;
+  }
+  function recipeYields(rid) { const r = CRAFT_RECIPES[rid]; return (r && r.yields) || 1; }
   function itemName(itemId) { return CRAFT_ITEM_NAMES_TW[itemId] || ('道具#' + itemId); }
 
   /* 道具圖示：查得到就顯示真實遊戲圖示，查不到或載入失敗就顯示預設圖示，不會出現破圖 */
@@ -2249,7 +2337,7 @@ app._craftReady = function () {
   function materialNodeHtml(itemId, direction, seenPath, knownRecipeId) {
     const list = direction === 'down' ? (ITEM_TO_RECIPES[itemId] || []) : (ITEM_USED_IN[itemId] || []);
     const expandable = list.length > 0 && !CRYSTAL_ITEM_IDS.has(itemId);
-    const craftableRecipeId = knownRecipeId || (ITEM_TO_RECIPES[itemId] || [])[0]; // 這個道具本身能不能做；往上查時上層已經知道確切配方，不用猜第一筆
+    const craftableRecipeId = knownRecipeId || pickRecipeId(itemId); // 這個道具本身能不能做；往上查時上層已經知道確切配方，不用猜第一筆
     // 價格／決策標籤放回名稱右邊比較好讀，但長度不固定（有時候只是「1,200金／伊弗利特」，
     // 有時候還要多塞「自己做省12,534金」），字數一多如果跟按鈕擠在同一行會不規則換行、每列高度不一致。
     // 解法是把「按鈕」跟「價格」收進同一個靠右的直立小欄位（craft-mat-right-col）：按鈕永遠在上面一行，
@@ -2442,7 +2530,7 @@ app._craftReady = function () {
             '</div>';
         }
         ingredientHqCounts[ing.itemId] = 0;
-        const rid = (ITEM_TO_RECIPES[ing.itemId] || [])[0]; // 這個材料本身可不可以做，可以的話帶一顆「求解」按鈕跳過去
+        const rid = pickRecipeId(ing.itemId); // 這個材料本身可不可以做，可以的話帶一顆「求解」按鈕跳過去
         return '<div class="craft-ing-row" data-item="' + ing.itemId + '" data-amount="' + ing.amount + '">' +
           '<span class="craft-ing-name">' + itemIconHtml(ing.itemId, 20) + name + '</span>' +
           '<div class="craft-row" style="gap:6px">' +
@@ -2512,7 +2600,7 @@ app._craftReady = function () {
         buyTotals[itemId] = (buyTotals[itemId] || 0) + amount;
         return;
       }
-      const recipe = CRAFT_RECIPES[recipeIds[0]]; // 同一道具多種做法時先取第一種
+      const recipe = CRAFT_RECIPES[pickRecipeId(itemId)]; // 同一道具多種做法時先取第一種
       const yields = recipe.yields || 1;
       const crafts = Math.ceil(amount / yields);
       craftCounts[itemId] = (craftCounts[itemId] || 0) + crafts;
@@ -2551,12 +2639,21 @@ app._craftReady = function () {
    * 欄位固定寬度：製作次數／決策數字／交換圖示／世界明細icon，跟下面採購清單的格線分開一套（少一欄單價），
    * 但同一區塊內部彼此對齊。決策數字（比買省/貴多少）要等額外查完這些品項自己的市場價才會填入，
    * 先留一個固定寬度的空白佔位，不要等資料回來才把版面撐開。 ── */
+  /* 這個材料有好幾種做法時，顯示「現在用哪一個」的小標籤（職業第一個字；辦不到的加鎖頭），點一下換下一種。
+   * 只有一種做法就不顯示，保持畫面乾淨。 */
+  function recipeChipHtml(itemId, rid) {
+    const list = ITEM_TO_RECIPES[itemId] || [];
+    if (list.length < 2 || !rid) return '';
+    const r = CRAFT_RECIPES[rid], ok = recipeDoable(rid), jn = JOB_NAME_BY_ID[r.jobId] || '';
+    return '<button type=\"button\" class=\"craft-rc-chip' + (ok ? '' : ' is-locked') + '\" data-cycle-recipe=\"' + itemId + '\" title=\"' + jn + ' Lv' + r.lvl + (r.isExpert ? '・專家配方' : '') + (ok ? '' : '・目前辦不到') + '（共 ' + list.length + ' 種做法，點擊切換）\">' +
+      jn.charAt(0) + (ok ? '' : '<i class=\"ph ph-lock-simple\"></i>') + '</button>';
+  }
   function craftOnlySectionHtml(craftRows) {
     if (!craftRows.length) return '';
     return '<p class="craft-mat-section-label">▾ 自行製作（材料已列在下方採購清單）</p>' +
       craftRows.map(function (r) {
-        const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
-        return '<div class="craft-ing-row"><span class="craft-ing-name">' + r.name + '</span>' +
+        const rid = pickRecipeId(r.itemId);
+        return '<div class="craft-ing-row"><span class="craft-ing-name">' + r.name + recipeChipHtml(r.itemId, rid) + '</span>' +
           '<span class="craft-row-grid-craft">' +
             (rid ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + rid + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '<span class="craft-grid-empty"></span>') +
             '<span class="craft-muted">製作' + r.times + '次</span>' +
@@ -2568,6 +2665,17 @@ app._craftReady = function () {
 
   /* 自己做／改採購的展開/收合按鈕，依材料跟依世界現在都會出現，綁定邏輯抽成共用函式 */
   function bindExpandCollapseToggles(container) {
+    container.querySelectorAll('[data-cycle-recipe]').forEach(function (btn) {
+      if (btn._cycleBound) return;
+      btn._cycleBound = true;
+      btn.addEventListener('click', function () {
+        const item = btn.dataset.cycleRecipe, list = ITEM_TO_RECIPES[item] || [];
+        if (list.length < 2) return;
+        recipeChoice[item] = list[(list.indexOf(pickRecipeId(item)) + 1) % list.length];
+        saveRecipeChoice();
+        renderBatch();
+      });
+    });
     container.querySelectorAll('[data-expand-toggle]').forEach(function (btn) {
       if (btn._toggleBound) return;
       btn._toggleBound = true;
@@ -2603,7 +2711,7 @@ app._craftReady = function () {
       return '<div class="craft-ing-row craft-batch-row' + (open ? ' is-open' : '') + (i === batchSeqIndex ? ' is-current' : '') + '" data-idx="' + i + '" data-rid="' + b.recipeId + '" draggable="true">' +
         '<span class="craft-batch-drag-handle" title="拖曳調整順序"><i class="ph ph-dots-six-vertical"></i></span>' +
         '<span class="craft-batch-order-num">' + (i + 1) + '</span>' +
-        '<span class="craft-ing-name">' + b.name + '</span>' +
+        '<span class="craft-ing-name">' + b.name + (recipeYields(b.recipeId) > 1 ? '<span class="craft-yield-chip" title="每次製作產出 ' + recipeYields(b.recipeId) + ' 個（×' + b.quantity + ' 次 ＝ ' + (b.quantity * recipeYields(b.recipeId)) + ' 個）"><i class="ph ph-stack"></i>' + recipeYields(b.recipeId) + '</span>' : '') + '</span>' +
         '<div class="craft-row" style="gap:6px">' +
           '<div class="craft-ing-hq-control">' +
             '<button type="button" class="craft-step-btn" data-batch-idx="' + i + '" data-dir="-1">−</button>' +
@@ -2666,7 +2774,7 @@ app._craftReady = function () {
       (craftRows.length ? '<p class="craft-mat-section-label" style="margin-top:8px">▾ 需要採購</p>' : '') +
       (rows.length ? '<div class="craft-mat-head" aria-hidden="true"><span class="craft-mat-head-name">材料</span><span class="craft-mat-extra craft-mat-unit">均價<small>金</small></span><span class="craft-mat-extra craft-mat-wd">主要世界</span><span class="craft-row-grid craft-mat-head-grid"><span></span><span>數量<small>個</small></span><span>小計<small>金</small></span><span></span><span></span><span></span></span></div>' : '') +
       (rows.map(function (r) {
-        const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
+        const rid = pickRecipeId(r.itemId);
         const swapBtn = r.craftable ? bmToggleHtml('buy', r.itemId) : '<span class="craft-grid-empty"></span>';
         return '<div class="craft-mat-buy-block" data-buy-item="' + r.itemId + '">' +
           '<div class="craft-ing-row" data-buy-qty="' + r.amount + '">' +
@@ -2788,7 +2896,7 @@ app._craftReady = function () {
       for (let iter = 0; iter < 6; iter++) {
         const rows = computeBatchRows().rows;
         const candidates = rows.filter(function (r) {
-          return r.craftable && !expandedItems.has(parseInt(r.itemId, 10)) && (ITEM_TO_RECIPES[r.itemId] || [])[0];
+          return r.craftable && !expandedItems.has(parseInt(r.itemId, 10)) && pickRecipeId(r.itemId);
         });
         if (!candidates.length) break;
 
@@ -2800,7 +2908,7 @@ app._craftReady = function () {
         const combinedSubNeed = {};
         const candidateIngredients = {}; // itemId -> [{itemId, amount}]
         candidates.forEach(function (r) {
-          const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
+          const rid = pickRecipeId(r.itemId);
           const recipe = CRAFT_RECIPES[rid];
           const ings = (recipe.ingredients || []).map(function (ing) { return { itemId: ing.itemId, amount: ing.amount * r.amount }; });
           candidateIngredients[r.itemId] = ings;
@@ -2837,14 +2945,14 @@ app._craftReady = function () {
         // 反過來：目前手動設成「自己做」的品項，也要檢查改回買會不會更划算——之前這裡完全沒做，
         // 導致手動改成自己做之後，就算變得比買貴，自動建議也永遠不會把它改回來。
         const reverseCandidates = computeBatchRows().craftRows.filter(function (r) {
-          return (ITEM_TO_RECIPES[r.itemId] || [])[0];
+          return pickRecipeId(r.itemId);
         });
         if (reverseCandidates.length) {
           const reverseIngredients = {};
           const reverseCombinedSubNeed = {};
           const ownPriceNeed = {};
           reverseCandidates.forEach(function (r) {
-            const rid = (ITEM_TO_RECIPES[r.itemId] || [])[0];
+            const rid = pickRecipeId(r.itemId);
             const recipe = CRAFT_RECIPES[rid];
             const ings = (recipe.ingredients || []).map(function (ing) { return { itemId: ing.itemId, amount: ing.amount }; });
             reverseIngredients[r.itemId] = ings;
@@ -3059,6 +3167,7 @@ app._craftReady = function () {
       control: final.control,
       cp: final.cp,
       level: parseInt($('cf-lvl').value, 10) || 1,
+      levels: allJobLevels(),
       specialist: $('cf-specialist').checked,
     };
   }
@@ -3185,23 +3294,32 @@ app._craftReady = function () {
 
   $('cf-m-continue').addEventListener('click', function () {
     if (!selectedRecipe) return;
+    cancelSolve();
     const btn = $('cf-m-continue');
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-spinner craft-spin"></i>求解中⋯';
     const stats = currentStatsForManual();
-    if (!worker) worker = new Worker('js/craft-worker.js');
-    const requestId = Date.now();
+    const w = ensureWorker();
+    const requestId = ++solveSeq;
+    const resetBtn = function () { btn.disabled = false; btn.innerHTML = '<i class="ph ph-magic-wand"></i>接續求解'; };
     // 接續求解：把目前手動選過的步驟當固定前綴傳給 Worker，讓它接著算剩下的部分並直接回傳完整巨集
     function onMsg(e) {
       if (e.data.requestId !== requestId || e.data.type === 'solve-progress') return;
-      worker.removeEventListener('message', onMsg);
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ph ph-magic-wand"></i>接續求解';
-      if (!e.data.ok) { $('cf-m-result').innerHTML = '<p class="craft-error">求解失敗：' + e.data.error + '</p>'; return; }
-      $('cf-m-result').innerHTML = '<pre class="craft-macro">' + (e.data.result.macroSegments || []).map(function (s) { return escapeHtml(s.join('\n')); }).join('\n') + '</pre>';
+      w.removeEventListener('message', onMsg);
+      activeSolve = null;
+      resetBtn();
+      if (!e.data.ok) { $('cf-m-result').innerHTML = '<p class="craft-error">求解失敗：' + escapeHtml(e.data.error || '未知錯誤') + '</p>'; return; }
+      const segs = e.data.result.macroSegments || [];
+      $('cf-m-result').innerHTML = macroSegmentsHtml(segs);
+      bindMacroCopy($('cf-m-result'), segs);
     }
-    worker.addEventListener('message', onMsg);
-    worker.postMessage({
+    activeSolve = {
+      onMsg: onMsg,
+      reset: resetBtn,
+      fail: function (msg) { resetBtn(); $('cf-m-result').innerHTML = '<p class="craft-error">求解引擎載入失敗：' + escapeHtml(msg) + '</p>'; },
+    };
+    w.addEventListener('message', onMsg);
+    w.postMessage({
       type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats,
       options: { lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: buildHqIngredients(), fixedPrefix: manualRotation.map(function (a) { return a.constructor.name; }) },
     });
@@ -3210,6 +3328,7 @@ app._craftReady = function () {
 
   $('cf-solve').addEventListener('click', function () {
     if (!selectedRecipe) return;
+    cancelSolve(); // 保險：萬一還有上一個求解在跑，先乾淨地結束它
     const btn = $('cf-solve');
     btn.disabled = true;
     btn.innerHTML = '<i class="ph ph-spinner craft-spin"></i>求解中⋯';
@@ -3226,52 +3345,58 @@ app._craftReady = function () {
       control: final.control,
       cp: final.cp,
       level: parseInt($('cf-lvl').value, 10) || 1,
+      levels: allJobLevels(),
       specialist: $('cf-specialist').checked,
       relicTool: false,
       excludedActions: excludedActions,
     };
 
-    if (!worker) {
-      worker = new Worker('js/craft-worker.js');
-      worker.addEventListener('error', function (err) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ph ph-play"></i>開始求解';
-        $('cf-progress').style.display = 'none';
-        $('cf-result').style.display = 'block';
-        $('cf-result').innerHTML = '<p class="craft-error">求解引擎載入失敗：' + (err.message || '未知錯誤') +
-          '。若是直接雙擊開啟本機檔案測試，瀏覽器會封鎖 Worker，請改用本機伺服器（例如 <code>python -m http.server</code>）開啟。</p>';
-      });
-    }
     lastCpMax = stats.cp;
-    const requestId = Date.now();
-    const solvingName = selectedRecipe.name; // 求解當下鎖定名稱，避免中途切換選定配方導致顯示錯亂
-    $('cf-progress').style.display = 'block';
-    $('cf-progress').textContent = '「' + solvingName + '」求解中⋯';
+    const requestId = ++solveSeq;
+    const solvingName = selectedRecipe.name; // 求解當下鎖定名稱
+    const progressEl = $('cf-progress');
+    progressEl.style.display = 'block';
+    progressEl.textContent = '「' + solvingName + '」求解中⋯';
+    const hqIngredients = buildHqIngredients();
+    const collectableGoal = $('cf-collectable').checked ? (parseInt($('cf-collectable-goal').value, 10) || 100) : null;
+    const w = ensureWorker();
+    const finish = function () {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ph ph-play"></i>開始求解';
+      progressEl.style.display = 'none';
+    };
     function onMsg(e) {
       if (e.data.requestId !== requestId) return;
       if (e.data.type === 'solve-progress') {
         const p = e.data.progress;
         const metric = p.bestCollectability != null ? ('收藏度 ' + p.bestCollectability) : ('優質率約 ' + Math.round(p.bestHqPercent) + '%');
-        $('cf-progress').textContent =
+        progressEl.textContent =
           '「' + solvingName + '」求解中⋯ 第 ' + p.trial + '/' + p.totalTrials + ' 輪・第 ' + p.generation + '/' + p.totalGenerations + ' 代' +
           '　目前最佳：' + (p.bestSuccess ? '✓ 已達成・' : '尚未達成・') + metric + '・' + p.bestSteps + ' 步';
         return;
       }
-      worker.removeEventListener('message', onMsg);
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ph ph-play"></i>開始求解';
-      $('cf-progress').style.display = 'none';
+      w.removeEventListener('message', onMsg);
+      activeSolve = null;
+      finish();
       if (!e.data.ok) {
         $('cf-result').style.display = 'block';
-        $('cf-result').innerHTML = '<p class="craft-error">「' + solvingName + '」求解失敗：' + e.data.error + '</p>';
+        $('cf-result').innerHTML = '<p class="craft-error">「' + escapeHtml(solvingName) + '」求解失敗：' + escapeHtml(e.data.error || '未知錯誤') + '</p>';
         return;
       }
       renderResult(e.data.craft, e.data.result, solvingName, stats, hqIngredients);
     }
-    worker.addEventListener('message', onMsg);
-    const collectableGoal = $('cf-collectable').checked ? (parseInt($('cf-collectable-goal').value, 10) || 100) : null;
-    const hqIngredients = buildHqIngredients();
-    worker.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal } });
+    activeSolve = {
+      onMsg: onMsg,
+      reset: finish,
+      fail: function (msg) {
+        finish();
+        $('cf-result').style.display = 'block';
+        $('cf-result').innerHTML = '<p class="craft-error">求解引擎載入失敗：' + escapeHtml(msg) +
+          '。若是直接雙擊開啟本機檔案測試，瀏覽器會封鎖 Worker，請改用本機伺服器（例如 <code>python -m http.server</code>）開啟。</p>';
+      },
+    };
+    w.addEventListener('message', onMsg);
+    w.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal } });
   });
 
   /* 求解失敗時的診斷建議：原本是拿「還差多少 ÷ 目前做到多少」的線性比例反推大概還要加多少點，
@@ -3397,6 +3522,43 @@ app._craftReady = function () {
     return '<div class="craft-meta-dur"><div class="craft-bar-label"><span><i class="ph ph-wrench"></i>耐久</span><span>' + cur + ' / ' + max + '</span></div><div class="craft-dur-blocks">' + durabilityBlocksHtml(cur, max) + '</div></div>';
   }
 
+  /* 巨集分段顯示＋各段獨立複製：自動求解結果、手動「接續求解」共用 */
+  function macroSegmentsHtml(segments) {
+    return (segments || []).map(function (seg, i) {
+      return '<div class="craft-macro-block">' +
+        ((segments.length > 1) ? '<div class="craft-macro-seg-head"><span>第 ' + (i + 1) + ' 段（' + seg.length + ' 行）</span><button type="button" class="craft-copy-btn craft-macro-copy-btn" data-seg="' + i + '"><i class="ph ph-copy"></i>複製第' + (i + 1) + '段</button></div>' : '<div class="craft-macro-seg-head"><span></span><button type="button" class="craft-copy-btn craft-macro-copy-btn" data-seg="' + i + '"><i class="ph ph-copy"></i>複製</button></div>') +
+        '<pre class="craft-macro">' + escapeHtml(seg.join('\n')) + '</pre>' +
+      '</div>';
+    }).join('');
+  }
+  function copyText(text) {
+    /* 非 https／被瀏覽器擋剪貼簿時，退回隱藏輸入框＋execCommand，不讓按鈕「按了沒反應」 */
+    const fallback = function () {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0;left:-9999px';
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+      ta.remove();
+      return ok;
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return true; }, function () { return fallback(); });
+    }
+    return Promise.resolve(fallback());
+  }
+  function bindMacroCopy(box, segments) {
+    box.querySelectorAll('.craft-macro-copy-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const text = (segments[parseInt(btn.dataset.seg, 10)] || []).join('\n');
+        const original = btn.innerHTML;
+        copyText(text).then(function (ok) {
+          btn.innerHTML = ok ? '<i class="ph ph-check"></i>已複製' : '<i class="ph ph-warning"></i>複製失敗，請手動選取';
+          setTimeout(function () { btn.innerHTML = original; }, 1500);
+        });
+      });
+    });
+  }
+
   function renderResult(craft, result, solvingName, stats, hqIngredients) {
     const box = $('cf-result');
     box.style.display = 'block';
@@ -3426,28 +3588,14 @@ app._craftReady = function () {
       (tips.length ? '<div class="craft-diagnosis"><p class="craft-diagnosis-title"><i class="ph ph-lightbulb"></i>' + (result.success ? '怎麼樣品質可能更高' : '怎麼樣可能就過了') + '（估計，不是保證）</p><ul>' + tips.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' : '') +
       (result.success ? (
         '<div class="craft-macro-head"><span class="craft-muted">巨集（繁中，可直接貼入遊戲，' + ((result.macroSegments || []).length > 1 ? '遊戲一組巨集最多15行，分成' + result.macroSegments.length + '段，要分開貼進不同的巨集欄位' : '可直接貼入遊戲') + '）</span></div>' +
-        (result.macroSegments || []).map(function (seg, i) {
-          return '<div class="craft-macro-block">' +
-            ((result.macroSegments.length > 1) ? '<div class="craft-macro-seg-head"><span>第 ' + (i + 1) + ' 段（' + seg.length + ' 行）</span><button type="button" class="craft-copy-btn craft-macro-copy-btn" data-seg="' + i + '"><i class="ph ph-copy"></i>複製第' + (i + 1) + '段</button></div>' : '<div class="craft-macro-seg-head"><span></span><button type="button" class="craft-copy-btn craft-macro-copy-btn" data-seg="' + i + '"><i class="ph ph-copy"></i>複製</button></div>') +
-            '<pre class="craft-macro">' + escapeHtml(seg.join('\n')) + '</pre>' +
-          '</div>';
-        }).join('')
+        macroSegmentsHtml(result.macroSegments)
       ) : '');
 
     if (result.success) {
       // 每一段各自獨立複製，不能只給一顆「全部複製」按鈕——遊戲一組巨集本來就只能塞15行，
       // 會切成好幾段正是因為塞不下同一組，如果複製出來是全部段落黏在一起，貼回遊戲一樣會超過行數塞不下，
       // 等於白切了。
-      box.querySelectorAll('.craft-macro-copy-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          const i = parseInt(btn.dataset.seg, 10);
-          const text = (result.macroSegments[i] || []).join('\n');
-          navigator.clipboard.writeText(text);
-          const original = btn.innerHTML;
-          btn.innerHTML = '<i class="ph ph-check"></i>已複製';
-          setTimeout(function () { btn.innerHTML = original; }, 1500);
-        });
-      });
+      bindMacroCopy(box, result.macroSegments || []);
     }
   }
 
