@@ -979,20 +979,19 @@ window.MarketData = (function () {
     const p = getPricePrefs(), w = settings.worldName;
     const seg = function (key, opts) {
       return '<span class="pp-seg" role="group">' + opts.map(function (o) {
-        const dis = o[2] ? ' disabled title="先在右上角設定我的世界"' : '';
-        return '<button type="button" class="pp-btn' + (p[key] === o[0] ? ' on' : '') + '" data-pp-key="' + key + '" data-pp-val="' + o[0] + '"' + dis + '>' + o[1] + '</button>';
+        const dis = o[2] === true ? ' disabled title="先在右上角設定我的世界"' : '';
+        const tip = !o[2] || o[2] === true ? '' : ' title="' + o[2] + '"';
+        return '<button type="button" class="pp-btn' + (p[key] === o[0] ? ' on' : '') + '" data-pp-key="' + key + '" data-pp-val="' + o[0] + '"' + dis + tip + '>' + o[1] + '</button>';
       }).join('') + '</span>';
     };
     return '<span class="pp-bar">' + (sides || ['buy', 'sell']).map(function (side) {
-      return '<span class="pp-side"><span class="pp-lead">' + (side === 'buy' ? '買入' : '賣出') + '</span>' +
+      return '<span class="pp-side">' + (opts && opts.lead === false ? '' : '<span class="pp-lead">' + (side === 'buy' ? '買入' : '賣出') + '</span>') +
         seg(side + 'Scope', [['dc', '所有世界'], ['world', w || '我的世界', !w]]) +
         seg(side + 'Basis', [['listing', '最低價'], ['avg', '均價']]) + '</span>' +
-        // opts.windows：基準選「均價」時才出現的「均價窗口」下拉（跟供應鏈設定那一列同款：左邊文字、右邊下拉）；平常 hidden，由 bindPricePrefsBars 的訂閱切換顯示。
-        // 下拉要由呼叫端用 enhanceSelect 換成站內自製下拉（畫完 HTML 後對 select.pp-win-sel 呼叫）。
+        // opts.windows：基準選「均價」時才出現的「均價窗口」分段切換（左邊文字、右邊 4 等分）；平常 hidden，由 bindPricePrefsBars 的訂閱切換顯示。
+        // 窗口現在是分段切換（pp-btn，data-pp-key=買/賣+AvgWindow），點擊與亮起狀態走跟其他切換一樣的委派，不再需要下拉。
         (opts && opts.windows ? '<span class="pp-win" data-pp-side="' + side + '"' + (p[side + 'Basis'] === 'avg' ? '' : ' hidden') + '><span class="pp-lead pp-lead-sub">均價窗口</span>' +
-          '<select class="craft-select pp-win-sel" data-pp-key="' + side + 'AvgWindow">' +
-          AVG_WINDOW_OPTS.map(function (o) { return '<option value="' + o[0] + '"' + (p[side + 'AvgWindow'] === o[0] ? ' selected' : '') + ' title="' + o[2] + '">' + o[1] + '</option>'; }).join('') +
-          '</select></span>' : '');
+          seg(side + 'AvgWindow', AVG_WINDOW_OPTS) + '</span>' : '');
     }).join('') + '</span>';
   }
   let ppBound = false;
