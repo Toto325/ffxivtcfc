@@ -1164,3 +1164,20 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-settings-popover .pp-win .craft-dd .wl-dd-btn{width:auto;min-width:96px;padding-top:5px;padding-bottom:5px;justify-content:space-between}
 .craft-settings-popover .pp-win .craft-dd .wl-dd-list{left:auto;right:0;min-width:100%}
 .craft-settings-popover .pp-win .craft-dd .wl-dd-opt{padding-top:8px;padding-bottom:8px}
+
+/* 生產頁：均價窗口下拉拉長，佔滿該行「文字」右邊剩下的寬度，不再留一大塊空白 */
+.craft-settings-popover .pp-win .craft-dd{flex:1 1 auto;width:auto;min-width:0}
+.craft-settings-popover .pp-win .craft-dd .wl-dd-btn{width:100%;min-width:0}
+.craft-settings-popover .pp-win .craft-dd .wl-dd-list{left:0;right:0;min-width:0}
+
+/* 市場頁「供應鏈比較設定」彈窗：它跟「市場設定」共用 .craft-settings-popover（寬度、區塊間距已經跟著變），
+ * 但裡面的列有 page-market.css 自己的樣式（載入較晚、會蓋掉上面的放寬），所以這裡用更高的優先順序補上：
+ * 同樣放寬行距、按鈕加高加大，下拉（均價窗口、材料品質）也拉長佔滿該行剩下的寬度。 */
+.craft-settings-popover .market-supply-settings-row{margin:10px 0;gap:10px}
+.craft-settings-popover .market-supply-settings-row .pp-side{gap:5px}
+.craft-settings-popover .market-supply-settings-row .pp-btn{padding:5px 9px;font-size:12px}
+.craft-settings-popover .market-supply-settings-row .pp-lead{font-size:12px}
+.craft-settings-popover .market-supply-settings-row .craft-dd{flex:1 1 auto;width:auto;min-width:0}
+.craft-settings-popover .market-supply-settings-row .craft-dd .wl-dd-btn{width:100%;min-width:0;padding:5px 9px;justify-content:space-between}
+.craft-settings-popover .market-supply-settings-row .craft-dd .wl-dd-list{left:0;right:0}
+.craft-settings-popover .market-supply-settings-row .craft-dd .wl-dd-opt{padding-top:8px;padding-bottom:8px}
