@@ -1150,3 +1150,17 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .pp-win[hidden]{display:none}
 .pp-lead-sub{opacity:.7;font-weight:400}
 .craft-settings-popover .pp-win{padding-left:2px}
+
+/* 市場設定彈窗：行距放寬一點、按鈕加高（手機比較不會點錯），彈窗略微加寬放得下；均價窗口＝左文字右下拉（跟供應鏈設定同款） */
+.craft-settings-popover{width:304px;max-width:calc(100vw - 16px)}
+.craft-settings-field{margin-bottom:12px}
+.craft-settings-field:last-child{margin-bottom:0}
+.craft-settings-field label{margin-bottom:5px}
+.craft-settings-popover .pp-bar{gap:10px}
+.craft-settings-popover .pp-btn{padding:5px 9px;font-size:12px}
+.craft-settings-popover .pp-lead{font-size:12px}
+.craft-settings-popover .pp-win{width:100%;justify-content:space-between;gap:8px}
+.craft-settings-popover .pp-win .craft-dd{width:auto;flex:0 0 auto}
+.craft-settings-popover .pp-win .craft-dd .wl-dd-btn{width:auto;min-width:96px;padding-top:5px;padding-bottom:5px;justify-content:space-between}
+.craft-settings-popover .pp-win .craft-dd .wl-dd-list{left:auto;right:0;min-width:100%}
+.craft-settings-popover .pp-win .craft-dd .wl-dd-opt{padding-top:8px;padding-bottom:8px}
