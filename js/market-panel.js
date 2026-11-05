@@ -934,6 +934,7 @@
       includeCrystal: true, matPersp: 'nq', hqOverrides: {},
     }, s || {});
     merged.materialsBasis = MarketData.getPricePrefs().buyBasis; // 價格基準＝全站共用的「買入基準」，不再各自存一份
+    merged.materialsAvgWindow = MarketData.getPricePrefs().buyAvgWindow; // 均價窗口同理：跟生產頁共用「買入」的窗口
     return merged;
   }
   function saveSupplySettings(s) {
@@ -2331,7 +2332,7 @@
     }
     $('mk-sup-persp').addEventListener('change', function () { apply({ matPersp: this.value }); });
     $('mk-sup-crystal').addEventListener('click', function () { apply({ includeCrystal: this.dataset.on !== '1' }); });
-    const mWin = $('mk-sup-mwindow'); if (mWin) mWin.addEventListener('change', function () { apply({ materialsAvgWindow: this.value }); });
+    const mWin = $('mk-sup-mwindow'); if (mWin) mWin.addEventListener('change', function () { MarketData.setPricePrefs({ buyAvgWindow: this.value }); }); // 寫進共用設定；圖由 onPricePrefsChange 重畫，生產頁也會跟著變
     const ovToggle = $('mk-sup-ov-toggle');
     if (ovToggle) {
       ovToggle.addEventListener('click', function () {

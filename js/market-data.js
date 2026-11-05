@@ -569,7 +569,7 @@ window.MarketData = (function () {
         missing = [];
         ids.forEach(function (id) {
           const row = snap.data.items[id], D = row && row[6], P = row && row[3];
-          const avg = D && D[0] > 0 ? D[1] : (P ? P[4] : null);
+          const avg = avgFromSnapshotRow(row, pf.buyAvgWindow) || (P ? P[4] : null); // 窗口湊不到成交才退回長窗口均價
           if (!avg) { missing.push(id); return; }
           const q = needMap[id], cost = avg * q, tax = cost * BUY_TAX_RATE;
           out[id] = { filledQty: q, totalCost: cost + tax, totalTax: tax, avgPrice: avg, breakdown: [], remainingListings: [], fromAverage: true, resolved: true };
@@ -930,8 +930,17 @@ window.MarketData = (function () {
    *   基準：listing＝最低價（掛單）、avg＝成交均價（件數加權）
    * 買入＝材料／要買的東西；賣出＝成品／要賣的東西。製作商機、供應鏈、代幣兌換、生產頁共用同一份，
    * 在任何一處切換，其他處跟著變（用 onPricePrefsChange 訂閱）。存在瀏覽器，沒設定我的世界時範圍一律當作 dc。 */
+  /* 均價的「窗口」（取多久的成交來平均）：當前＝最近24小時、近1天＝48小時、近3天、近7天。
+   * 預先計算快照每個道具的 row[6] 存了這四個窗口的［成交筆數, 均價］；買入／賣出各自有一個窗口設定（只有基準是均價才有意義）。 */
+  const AVG_WINDOW_IDX = { current: [0, 1], '1d': [2, 3], '3d': [4, 5], '7d': [6, 7] };
+  const AVG_WINDOW_LIVE_KEY = { current: 'current', '1d': 'd1', '3d': 'd3', '7d': 'd7' }; // getAvgWindows（即時）回傳的欄位名
+  const AVG_WINDOW_OPTS = [['current', '當前', '最近24小時的成交均價'], ['1d', '近1天', '最近48小時（當天＋昨天）的成交均價'], ['3d', '近3天', '過去3天所有成交的均價'], ['7d', '近7天', '過去7天所有成交的均價']];
+  function avgFromSnapshotRow(row, win) {
+    const D = row && row[6], idx = AVG_WINDOW_IDX[win] || AVG_WINDOW_IDX.current;
+    return (D && D[idx[0]] > 0 && D[idx[1]] > 0) ? D[idx[1]] : null; // 這個窗口湊不到成交（筆數0）就是 null，呼叫端自己決定怎麼退回
+  }
   const PRICE_PREFS_KEY = 'ff14fc-price-prefs-v1';
-  const PRICE_PREFS_DEFAULT = { buyScope: 'dc', buyBasis: 'listing', sellScope: 'dc', sellBasis: 'avg' };
+  const PRICE_PREFS_DEFAULT = { buyScope: 'dc', buyBasis: 'listing', sellScope: 'dc', sellBasis: 'avg', buyAvgWindow: 'current', sellAvgWindow: 'current' };
   let pricePrefs = null;
   const pricePrefListeners = [];
   function loadPricePrefs() {
@@ -942,7 +951,11 @@ window.MarketData = (function () {
       try { const sup = JSON.parse(localStorage.getItem('ff14fc-supply-settings') || 'null'); if (sup && (sup.materialsBasis === 'avg' || sup.materialsBasis === 'listing')) saved.buyBasis = sup.materialsBasis; } catch (e) { /* 沒有就用預設 */ }
       try { if (localStorage.getItem('ff14fc-token-scope') === 'world' || localStorage.getItem('cf-profit-scope') === 'world') saved.sellScope = 'world'; } catch (e) { /* 沒有就用預設 */ }
     }
+    if (!saved.buyAvgWindow) { // 以前窗口只有供應鏈自己存一份：帶過來當買入窗口
+      try { const sup = JSON.parse(localStorage.getItem('ff14fc-supply-settings') || 'null'); if (sup && AVG_WINDOW_IDX[sup.materialsAvgWindow]) saved.buyAvgWindow = sup.materialsAvgWindow; } catch (e) { /* 沒有就用預設 */ }
+    }
     pricePrefs = Object.assign({}, PRICE_PREFS_DEFAULT, saved);
+    ['buyAvgWindow', 'sellAvgWindow'].forEach(function (k) { if (!AVG_WINDOW_IDX[pricePrefs[k]]) pricePrefs[k] = 'current'; });
     ['buyScope', 'sellScope'].forEach(function (k) { if (pricePrefs[k] !== 'world') pricePrefs[k] = 'dc'; });
     ['buyBasis', 'sellBasis'].forEach(function (k) { if (pricePrefs[k] !== 'avg') pricePrefs[k] = 'listing'; });
   }
@@ -955,13 +968,14 @@ window.MarketData = (function () {
   function setPricePrefs(patch) {
     if (!pricePrefs) loadPricePrefs();
     Object.keys(patch).forEach(function (k) { if (k in PRICE_PREFS_DEFAULT) pricePrefs[k] = patch[k]; });
+    ['buyAvgWindow', 'sellAvgWindow'].forEach(function (k) { if (!AVG_WINDOW_IDX[pricePrefs[k]]) pricePrefs[k] = 'current'; });
     try { localStorage.setItem(PRICE_PREFS_KEY, JSON.stringify(pricePrefs)); } catch (e) { /* 存不了就只對這次有效 */ }
     pricePrefListeners.slice().forEach(function (fn) { try { fn(getPricePrefs()); } catch (e) { /* 單一訂閱者出錯不影響其他人 */ } });
   }
   function onPricePrefsChange(fn) { pricePrefListeners.push(fn); }
   /* 切換列：[買 範圍｜基準][賣 範圍｜基準]，只畫 sides 指定的那幾邊；「我的世界」按鈕直接顯示世界名稱。
    * 回傳 HTML；事件綁定用 bindPricePrefsBars()（全頁共用一個委派，不用每次重綁）。 */
-  function pricePrefsBarHtml(sides) {
+  function pricePrefsBarHtml(sides, opts) {
     const p = getPricePrefs(), w = settings.worldName;
     const seg = function (key, opts) {
       return '<span class="pp-seg" role="group">' + opts.map(function (o) {
@@ -972,7 +986,10 @@ window.MarketData = (function () {
     return '<span class="pp-bar">' + (sides || ['buy', 'sell']).map(function (side) {
       return '<span class="pp-side"><span class="pp-lead">' + (side === 'buy' ? '買入' : '賣出') + '</span>' +
         seg(side + 'Scope', [['dc', '所有世界'], ['world', w || '我的世界', !w]]) +
-        seg(side + 'Basis', [['listing', '最低價'], ['avg', '均價']]) + '</span>';
+        seg(side + 'Basis', [['listing', '最低價'], ['avg', '均價']]) + '</span>' +
+        // opts.windows：基準選「均價」時才出現的窗口選擇（當前／近1天／近3天／近7天）；平常 hidden，由 bindPricePrefsBars 的訂閱切換顯示
+        (opts && opts.windows ? '<span class="pp-win" data-pp-side="' + side + '"' + (p[side + 'Basis'] === 'avg' ? '' : ' hidden') + '><span class="pp-lead pp-lead-sub">均價取</span><span class="pp-seg" role="group">' +
+          AVG_WINDOW_OPTS.map(function (o) { return '<button type="button" class="pp-btn' + (p[side + 'AvgWindow'] === o[0] ? ' on' : '') + '" data-pp-key="' + side + 'AvgWindow" data-pp-val="' + o[0] + '" title="' + o[2] + '">' + o[1] + '</button>'; }).join('') + '</span></span>' : '');
     }).join('') + '</span>';
   }
   let ppBound = false;
@@ -988,6 +1005,7 @@ window.MarketData = (function () {
     }, true);
     onPricePrefsChange(function (cur) { // 全頁所有切換列同步亮起目前的選擇
       document.querySelectorAll('.pp-btn').forEach(function (btn) { btn.classList.toggle('on', cur[btn.dataset.ppKey] === btn.dataset.ppVal); });
+      document.querySelectorAll('.pp-win').forEach(function (el) { el.hidden = cur[el.dataset.ppSide + 'Basis'] !== 'avg'; });
     });
   }
 
@@ -1069,7 +1087,7 @@ window.MarketData = (function () {
     buyTaxRate: BUY_TAX_RATE,
     enhanceSelect: enhanceSelect, fitDropdown: fitDropdown, autoEnhanceSelects: autoEnhanceSelects,
     resolveBuyCostsByPrefs: resolveBuyCostsByPrefs,
-    getPricePrefs: getPricePrefs, setPricePrefs: setPricePrefs, onPricePrefsChange: onPricePrefsChange, pricePrefsBarHtml: pricePrefsBarHtml, bindPricePrefsBars: bindPricePrefsBars,
+    avgFromSnapshotRow: avgFromSnapshotRow, AVG_WINDOW_LIVE_KEY: AVG_WINDOW_LIVE_KEY, getPricePrefs: getPricePrefs, setPricePrefs: setPricePrefs, onPricePrefsChange: onPricePrefsChange, pricePrefsBarHtml: pricePrefsBarHtml, bindPricePrefsBars: bindPricePrefsBars,
     weightedAvgPrice: weightedAvgPrice,
     getAvgWindows: getAvgWindows,
     avgWindowRowsHtml: avgWindowRowsHtml,
