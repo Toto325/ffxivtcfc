@@ -1268,3 +1268,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-prog-text{text-align:center}
 .craft-timeout-mark{margin-left:6px;color:var(--dim);cursor:help}
 @media (prefers-reduced-motion:reduce){.craft-prog-bar span{transition:none}}
+
+/* 背景分析中的提示 */
+.craft-diag-loading{display:flex;align-items:center;gap:6px;margin-top:6px;padding:4px 12px;font-size:12px;color:var(--dim)}
+.craft-diag-loading>i:first-child{color:var(--gold)}

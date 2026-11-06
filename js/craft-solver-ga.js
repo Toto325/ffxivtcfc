@@ -191,8 +191,10 @@
     var MIN_POPULATION = 20;
     this.timedOut = false;
 
-    var population = [];
-    for (var i = 0; i < populationSize; i++) {
+    /* 種子手法（暖啟動）：把已知的好手法放進初始族群。評分時它跟其他個體一樣照新條件重算，
+     * 再加上菁英保留，所以新條件下的結果一定不會比這份種子手法差——用來回答「換了條件（HQ／食藥／數值）最好能到哪」。 */
+    var population = (this.config.seeds || []).filter(function (r) { return r && r.length; }).slice(0, populationSize);
+    for (var i = population.length; i < populationSize; i++) {
       if (deadline && i >= MIN_POPULATION && Date.now() > deadline) { this.timedOut = true; break; }
       population.push(this.generateRotation());
     }

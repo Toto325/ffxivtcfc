@@ -144,10 +144,14 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
         const seed = (baseSeed + round * 1000 + t) >>> 0;
         Math.random = mulberry32(seed); // 暫時接管，讓這一輪求解可重現
 
-        const fixedPrefix = (options.fixedPrefix || []).map(function (key) {
-          const entry = simulator.CraftingActionsRegistry.ALL_ACTIONS.find(function (e) { return e.name === key; });
-          return entry ? new entry.action.constructor() : null;
-        }).filter(Boolean);
+        const actionsFromKeys = function (keys) {
+          return (keys || []).map(function (key) {
+            const entry = simulator.CraftingActionsRegistry.ALL_ACTIONS.find(function (e) { return e.name === key; });
+            return entry ? new entry.action.constructor() : null;
+          }).filter(Boolean);
+        };
+        const fixedPrefix = actionsFromKeys(options.fixedPrefix);
+        const seeds = options.seedActionKeys ? [actionsFromKeys(options.seedActionKeys)] : []; // 每次嘗試各自建立新實例，不共用
         const solver = new CraftSolverGA(craft, crafterStats, {
           populationSize: options.populationSize || 150,
           generations: options.generations || 40,
@@ -156,6 +160,7 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
           safeMode: options.safeMode,
           collectableGoal: options.collectableGoal,
           fixedPrefix: fixedPrefix,
+          seeds: seeds,
           deadline: startedAt + slice,
         });
         const rotation = solver.run(function (p) {
