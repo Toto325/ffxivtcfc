@@ -2519,7 +2519,13 @@ app._craftReady = function () {
     if (!selectedRecipe) { box.innerHTML = ''; return; }
     const recipe = CRAFT_RECIPES[selectedRecipe.id];
     ingredientHqCounts = {};
-    box.innerHTML = '<p class="craft-ingredients-title">材料 HQ 設定</p>' +
+    /* 起始品質預覽：HQ 材料不加屬性，只增加製作的起始品質（每個 HQ 材料＋該材料的品質值），
+     * 跟模擬器算法一致。沒有任何材料有品質值（或配方沒有品質）就不顯示條與全HQ鈕。 */
+    const hqCapable = recipe.ingredients.filter(function (ing) { return !CRYSTAL_ITEM_IDS.has(ing.itemId) && ing.quality > 0; });
+    const showHqPreview = hqCapable.length > 0 && recipe.quality > 0;
+    box.innerHTML = '<div class="craft-hq-head"><p class="craft-ingredients-title">材料 HQ 設定</p>' +
+      (showHqPreview ? '<button type="button" class="craft-hq-all" id="cf-hq-all" title="品質材料全部用 HQ／全部取消"><i class="ph ph-star"></i>全 HQ</button>' : '') + '</div>' +
+      (showHqPreview ? '<div class="craft-hq-preview" id="cf-hq-preview" title="HQ 材料不加屬性，只提高製作的起始品質"><div class="craft-hq-preview-bar"><span id="cf-hq-preview-fill"></span></div><span class="craft-hq-preview-num" id="cf-hq-preview-num"><b id="cf-hq-preview-val" data-v="0">0</b> / <span id="cf-hq-preview-max"></span></span></div>' : '') +
       recipe.ingredients.map(function (ing) {
         const name = CRAFT_ITEM_NAMES_TW[ing.itemId] || ('道具#' + ing.itemId);
         const isCrystal = CRYSTAL_ITEM_IDS.has(ing.itemId);
@@ -2552,12 +2558,53 @@ app._craftReady = function () {
         const row = btn.closest('.craft-ing-row');
         const amount = parseInt(row.dataset.amount, 10);
         const dir = parseInt(btn.dataset.dir, 10);
-        const next = Math.max(0, Math.min(amount, (ingredientHqCounts[itemId] || 0) + dir));
-        ingredientHqCounts[itemId] = next;
-        row.querySelector('.craft-ing-nq').textContent = 'NQ ' + (amount - next);
-        row.querySelector('.craft-ing-hq').textContent = 'HQ ' + next;
+        setIngredientHq(row, itemId, Math.max(0, Math.min(amount, (ingredientHqCounts[itemId] || 0) + dir)));
+        updateHqPreview(recipe, true);
       });
     });
+    const allBtn = $('cf-hq-all');
+    if (allBtn) allBtn.addEventListener('click', function () {
+      // 全部已經滿 HQ → 全部取消；否則有品質值的材料全部拉滿（沒有品質值的材料用 HQ 沒有意義，不動）
+      const allOn = hqCapable.every(function (ing) { return ingredientHqCounts[ing.itemId] === ing.amount; });
+      hqCapable.forEach(function (ing) {
+        const row = box.querySelector('.craft-ing-row[data-item="' + ing.itemId + '"]');
+        if (row) setIngredientHq(row, ing.itemId, allOn ? 0 : ing.amount);
+      });
+      updateHqPreview(recipe, true);
+    });
+    updateHqPreview(recipe);
+  }
+  function setIngredientHq(row, itemId, n) {
+    const amount = parseInt(row.dataset.amount, 10);
+    ingredientHqCounts[itemId] = n;
+    row.querySelector('.craft-ing-nq').textContent = 'NQ ' + (amount - n);
+    row.querySelector('.craft-ing-hq').textContent = 'HQ ' + n;
+    row.classList.toggle('has-hq', n > 0);
+  }
+  /* 起始品質＝Σ（HQ 數量 × 該材料品質值），無條件捨去，跟模擬器一致；條的長度＝佔品質目標的比例 */
+  function updateHqPreview(recipe, animate) {
+    const wrap = $('cf-hq-preview'), fill = $('cf-hq-preview-fill'), val = $('cf-hq-preview-val');
+    if (!wrap || !fill || !val) return;
+    let q = 0;
+    recipe.ingredients.forEach(function (ing) { q += (ingredientHqCounts[ing.itemId] || 0) * (ing.quality || 0); });
+    q = Math.floor(q);
+    const prev = parseInt(val.dataset.v || '0', 10);
+    val.dataset.v = q;
+    $('cf-hq-preview-max').textContent = recipe.quality.toLocaleString();
+    rollNumber(val, prev, q, 450);
+    const pct = Math.min(100, q / recipe.quality * 100);
+    fill.style.width = pct + '%';
+    wrap.classList.toggle('is-full', q >= recipe.quality); // 起始品質就滿了：條發光、數字後面出現完成記號
+    if (animate && q !== prev && !reducedMotion()) {
+      const bar = fill.parentNode, f = document.createElement('span'), d = q - prev;
+      f.className = 'craft-hq-float' + (d < 0 ? ' neg' : '');
+      f.textContent = (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString();
+      f.style.left = Math.max(14, Math.min(bar.offsetLeft + bar.offsetWidth * pct / 100, bar.offsetLeft + bar.offsetWidth - 14)) + 'px';
+      wrap.appendChild(f);
+      setTimeout(function () { f.remove(); }, 950);
+    }
+    const allBtn = $('cf-hq-all');
+    if (allBtn) allBtn.classList.toggle('on', recipe.ingredients.some(function (ing) { return ingredientHqCounts[ing.itemId] > 0; }));
   }
 
   function buildHqIngredients() {
@@ -3349,6 +3396,7 @@ app._craftReady = function () {
       specialist: $('cf-specialist').checked,
       relicTool: false,
       excludedActions: excludedActions,
+      base: { craftsmanship: parseInt($('cf-craftsmanship').value, 10) || 0, control: parseInt($('cf-control').value, 10) || 0, cp: parseInt($('cf-cp').value, 10) || 0 }, // 未加食藥的數值，診斷建議要比較「換吃別的」用
     };
 
     lastCpMax = stats.cp;
@@ -3422,41 +3470,97 @@ app._craftReady = function () {
     const tips = [];
     const progressGap = craft.progress - Math.min(result.progression, craft.progress);
     const qualityGap = craft.quality > 0 ? craft.quality - Math.min(result.quality, craft.quality) : 0;
-    const cpNote = '增加CP可能會增加求解手法（這裡估的是同一套手法換上更多CP，不是重新求解出的新手法）';
     const actions = reconstructActions(result.actionKeys);
+    if (progressGap > 0 && result.progression <= 0) {
+      return [{ icon: 'ph-warning', short: '目前數值做不出進度', html: '目前數值做不出進度', hint: '這組數值連一點進度都推不動' }];
+    }
+    if (!actions.length) return tips;
 
-    if (progressGap > 0) {
-      if (result.progression > 0 && actions.length) {
-        const need = estimateStatNeeded(craft, actions, stats, hqIngredients, 'craftsmanship', function (simResult) { return simResult.progression >= craft.progress; });
-        tips.push(need != null
-          ? '進度還差 ' + progressGap + ' 點：把同一套手法換算過，作業精度加到約 <strong>' + need + '</strong>（目前 ' + stats.craftsmanship + '）就有機會補滿（拿這套手法實際重新模擬算出來的，不是憑比例亂猜的，但實際換手法求解可能有更好的結果）'
-          : '進度差距太大，光靠拉高作業精度、用同一套手法補不滿，建議先升等或換更好的裝備再挑戰這個配方');
-        const cpNeed = estimateStatNeeded(craft, actions, stats, hqIngredients, 'cp', function (simResult) { return simResult.progression >= craft.progress; });
-        if (cpNeed != null && cpNeed > stats.cp) {
-          tips.push('或者：CP加到約 <strong>' + cpNeed + '</strong>（目前 ' + stats.cp + '）配合同一套手法也可能補滿（同樣是實際重新模擬算出來的）');
-          tips.push(cpNote);
-        }
-      } else {
-        tips.push('目前的數值幾乎做不出進度，建議大幅提升作業精度，或考慮先升等再挑戰這個配方');
-      }
-    } else if (qualityGap > 0) {
-      // 進度已經達成才需要看品質，進度沒過的話品質再高也沒用
-      if (result.quality > 0 && actions.length) {
-        const need = estimateStatNeeded(craft, actions, stats, hqIngredients, 'control', function (simResult) { return simResult.quality >= craft.quality; });
-        tips.push(need != null
-          ? '進度沒問題，但品質還差 ' + qualityGap + ' 點：把同一套手法換算過，加工精度加到約 <strong>' + need + '</strong>（目前 ' + stats.control + '）就有機會補滿（拿這套手法實際重新模擬算出來的）'
-          : '進度沒問題，但品質差距太大，光靠拉高加工精度、用同一套手法補不滿，代表問題可能出在手法本身排的品質技能不夠多');
-        tips.push('作業精度提高其實也可能有幫助：進度需要的步驟變少了，省下來的步驟／CP／耐久可以挪去多排品質類技能，不是只有加工精度這一條路（但這需要重新求解才會排出新的手法，這裡沒辦法直接算給你看）');
-        const cpNeed = estimateStatNeeded(craft, actions, stats, hqIngredients, 'cp', function (simResult) { return simResult.quality >= craft.quality; });
-        if (cpNeed != null && cpNeed > stats.cp) {
-          tips.push('或者：CP加到約 <strong>' + cpNeed + '</strong>（目前 ' + stats.cp + '）配合同一套手法也可能補滿（同樣是實際重新模擬算出來的）');
-          tips.push(cpNote);
-        }
-      } else {
-        tips.push('進度沒問題，但目前的手法幾乎沒有品質產出，建議加工精度');
+    /* 建議只提「遊戲裡玩家真的做得到」的方向，而且每一條都用同一套手法換上新條件、實際重新模擬確認過（不是看到哪項不足就叫人補）：
+     *  1. HQ 材料：提高起始品質（只對品質缺口有用）
+     *  2. 食物＋藥水：照遊戲規則——一份食物＋一份藥水、百分比加成有上限；在全部組合裡找「剛好達標」且最陽春的一組
+     *  3. 兩者都用
+     *  4. 都補不滿，才報「最終數值需要多少」，並標示要靠裝備／魔晶石
+     * 達標標準：進度要滿；品質有缺口時品質也要滿。 */
+    const needQuality = progressGap <= 0 && qualityGap > 0;
+    const goalFn = needQuality
+      ? function (r) { return r.progression >= craft.progress && r.quality >= craft.quality; }
+      : function (r) { return r.progression >= craft.progress; };
+    const goalText = needQuality ? '可達滿品質' : '可完成進度';
+    const runWith = function (st, hq) { return simulateOnce(craft, actions, st, hq); };
+    const nameChip = function (icon, name) { return '<span class="craft-tip-item"><i class="ph ' + icon + '"></i>' + name + '<em>HQ</em></span>'; };
+    const comboHtml = function (combo) {
+      return (combo.mealId ? nameChip('ph-bowl-food', CRAFT_FOODS[combo.mealId].name) : '') + (combo.medId ? nameChip('ph-flask', CRAFT_FOODS[combo.medId].name) : '');
+    };
+    const comboShort = function (combo) {
+      return [combo.mealId ? CRAFT_FOODS[combo.mealId].name : null, combo.medId ? CRAFT_FOODS[combo.medId].name : null].filter(Boolean).join('＋');
+    };
+    /* 食物／藥水一律以 HQ 計（玩家實際會用的最佳情況）；挑「用的道具最少、加成總量最小」的達標組合，
+     * 避免硬叫人吃最頂級的。注意：資料裡沒有食物的使用等級限制，所以無法排除玩家等級吃不了的食物。 */
+    const findCombo = function (hq) {
+      if (!stats.base) return null;
+      const toEntry = function (f) { const pick = function (e) { return e ? { percent: e.percentHQ, cap: e.capHQ } : null; }; return { craftsmanship: pick(f.craftsmanship), control: pick(f.control), cp: pick(f.cp) }; };
+      let best = null, bestRank = null;
+      [null].concat(MEALS).forEach(function (mid) {
+        [null].concat(MEDICINES).forEach(function (pid) {
+          if (mid == null && pid == null) return;
+          const fin = CraftConsumables.computeFinalStats(stats.base, mid ? toEntry(CRAFT_FOODS[mid]) : null, pid ? toEntry(CRAFT_FOODS[pid]) : null);
+          const rank = [(mid ? 1 : 0) + (pid ? 1 : 0), fin.breakdown.craftsmanshipBonus + fin.breakdown.controlBonus + fin.breakdown.cpBonus];
+          if (bestRank && (rank[0] > bestRank[0] || (rank[0] === bestRank[0] && rank[1] >= bestRank[1]))) return; // 已經有更陽春的達標組合，不用再模擬
+          const r = runWith(Object.assign({}, stats, { craftsmanship: fin.craftsmanship, control: fin.control, cp: fin.cp }), hq);
+          if (goalFn(r)) { best = { mealId: mid, medId: pid }; bestRank = rank; }
+        });
+      });
+      return best;
+    };
+
+    // 1. HQ 材料（只對品質缺口有意義）
+    const hqCapable = (craft.ingredients || []).filter(function (ing) { return ing.quality > 0; });
+    const chosenHq = {}; (hqIngredients || []).forEach(function (h) { chosenHq[h.id] = h.amount; });
+    const hqAll = hqCapable.map(function (ing) { return { id: ing.id, amount: ing.amount }; });
+    const canHq = needQuality && hqCapable.some(function (ing) { return (chosenHq[ing.id] || 0) < ing.amount; });
+    let solved = false;
+    if (canHq) {
+      const r = runWith(stats, hqAll);
+      if (goalFn(r)) {
+        solved = true;
+        tips.push({ icon: 'ph-star', short: '全 HQ 材料可達滿品質', html: '全 HQ 材料<small class="craft-tip-ok">可達滿品質</small>', hint: '同一套手法，材料全用 HQ 提高起始品質後實際模擬的結果' });
+      } else if (r.quality > result.quality) {
+        const pct = Math.round(Math.min(r.quality, craft.quality) / craft.quality * 100);
+        tips.push({ icon: 'ph-star', short: '全 HQ 材料 品質 +' + (r.quality - result.quality).toLocaleString(), html: '全 HQ 材料<span class="craft-tip-v"><small>+' + (r.quality - result.quality).toLocaleString() + '</small><strong>' + pct + '%</strong></span>', hint: '同一套手法，材料全用 HQ 後品質可到的程度，還沒到滿' });
       }
     }
-    if (stats.cp && result.cpLeft <= stats.cp * 0.05) tips.push('CP幾乎用完：加 CP 的食物／藥水可能有幫助');
+    // 2. 食物＋藥水（維持目前的 HQ 材料設定）
+    const combo = findCombo(hqIngredients);
+    if (combo) {
+      solved = true;
+      tips.push({ icon: 'ph-bowl-food', short: comboShort(combo) + goalText.replace('可', ' 可'), html: comboHtml(combo) + '<small class="craft-tip-ok">' + goalText + '</small>', hint: '照遊戲規則（一份食物＋一份藥水、有加成上限）換上後，同一套手法實際模擬的結果；已挑道具最少、加成最小的一組' });
+    } else if (canHq && !solved) {
+      // 3. 兩個都用
+      const combo2 = findCombo(hqAll);
+      if (combo2) {
+        solved = true;
+        tips.push({ icon: 'ph-star', short: '全 HQ 材料＋' + comboShort(combo2) + ' ' + goalText, html: '全 HQ 材料＋' + comboHtml(combo2) + '<small class="craft-tip-ok">' + goalText + '</small>', hint: '材料全用 HQ，再搭配食物／藥水後，同一套手法實際模擬的結果' });
+      }
+    }
+    // 4. 都補不滿：報最終數值需求（要靠裝備／魔晶石），並提醒重新求解的方向
+    if (!solved) {
+      const key = needQuality ? 'control' : 'craftsmanship', label = needQuality ? '加工精度' : '作業精度';
+      const need = estimateStatNeeded(craft, actions, stats, hqIngredients, key, goalFn);
+      if (need != null) {
+        tips.push({ icon: needQuality ? 'ph-target' : 'ph-hammer', short: label + '最終需 ' + need.toLocaleString(),
+          html: '<span class="craft-tip-k">' + label + '</span><span class="craft-tip-v">' + stats[key].toLocaleString() + '<i class="ph ph-arrow-right"></i><strong>' + need.toLocaleString() + '</strong><small>+' + (need - stats[key]).toLocaleString() + '</small></span><span class="craft-tip-tag">裝備</span>',
+          hint: '同一套手法所需的最終數值（含食藥）；食物／藥水補不到，需要靠裝備或魔晶石' });
+        const cpNeed = estimateStatNeeded(craft, actions, stats, hqIngredients, 'cp', goalFn);
+        if (cpNeed != null && cpNeed > stats.cp) tips.push({ icon: 'ph-sparkle', short: 'CP 最終需 ' + cpNeed.toLocaleString(),
+          html: '<span class="craft-tip-k">CP</span><span class="craft-tip-v">' + stats.cp.toLocaleString() + '<i class="ph ph-arrow-right"></i><strong>' + cpNeed.toLocaleString() + '</strong><small>+' + (cpNeed - stats.cp).toLocaleString() + '</small></span><span class="craft-tip-tag">裝備</span>',
+          hint: '同一套手法所需的最終 CP（含食藥）' });
+        if (needQuality) tips.push({ icon: 'ph-info', short: '作業精度提高後重新求解', html: '作業精度提高後重新求解', hint: '作業精度提高，進度需要的步驟變少，省下的步驟、CP、耐久可以多排品質技能；這需要重新求解才排得出新手法，這裡算不出來' });
+      } else {
+        const nm = needQuality ? '數值再高這套手法也補不滿品質' : '數值再高這套手法也做不完';
+        tips.push({ icon: 'ph-warning', short: nm, html: nm, hint: '即使大幅提高數值，同一套手法仍達不成目標；問題在手法本身（耐久／CP／可用技能），要調整後重新求解' });
+      }
+    }
     return tips;
   }
 
@@ -3471,14 +3575,21 @@ app._craftReady = function () {
     crafterStats.excludedActions = stats.excludedActions || [];
     return crafterStats;
   }
+  /* 跑一次模擬並取出可比較的數字。注意 Simulation.run() 回傳的是 {steps, hqPercent, success, simulation}，
+   * 進度／品質要從 sim 本身讀（craft-worker.js 的 evaluateRotation 也是這樣取）。
+   * 以前這裡直接讀 run() 回傳值的 progression／quality，永遠是 undefined，所以「需要多少精度」的估算一直都是 null。 */
+  function simulateOnce(craft, actions, stats, hq) {
+    const sim = new simulator.Simulation(craft, actions, buildCrafterStatsForSim(stats), hq || []);
+    const res = sim.run(true, undefined, true); // safeMode=true，跟主要求解結果的保守假設一致，才有可比性
+    return { progression: sim.progression || 0, quality: sim.quality || 0, success: !!res.success };
+  }
   function estimateStatNeeded(craft, actions, stats, hqIngredients, statKey, checkFn) {
     const lo0 = stats[statKey];
     const hi0 = lo0 * 4 + 3000;
     function simulateWith(value) {
       const testStats = Object.assign({}, stats);
       testStats[statKey] = value;
-      const sim = new simulator.Simulation(craft, actions, buildCrafterStatsForSim(testStats), hqIngredients || []);
-      return sim.run(true, undefined, true); // safeMode=true，跟主要求解結果的保守假設一致，才有可比性
+      return simulateOnce(craft, actions, testStats, hqIngredients);
     }
     if (!checkFn(simulateWith(hi0))) return null; // 連上限都補不滿，是手法問題，不是數值問題
     let lo = lo0, hi = hi0;
@@ -3571,21 +3682,17 @@ app._craftReady = function () {
      * 函式提早中斷，box.innerHTML沒被寫到新內容，畫面就卡在上一次的舊結果上。
      * 包一層try/catch當最後防線，就算以後這段又有沒發現的問題，最多是少一條建議，
      * 不會再讓整個結果畫面掛掉。 */
-    let tips = [];
-    if (stats && (!result.success || hasQualityGap)) {
-      try { tips = diagnoseFailure(craft, result, stats, hqIngredients); }
-      catch (e) { console.warn('診斷建議計算失敗（不影響主要結果顯示）:', e); tips = []; }
-    }
+    const wantTips = !!(stats && (!result.success || hasQualityGap));
     box.innerHTML =
       (solvingName ? '<p class="craft-result-title">「' + solvingName + '」求解結果</p>' : '') +
-      bar('進度', Math.min(result.progression, craft.progress), craft.progress, 'craft-fill-progress') +
-      bar('品質', Math.min(result.quality, craft.quality), craft.quality, 'craft-fill-quality') +
+      animBarHtml('進度', Math.min(result.progression, craft.progress), craft.progress, 'craft-fill-progress', '', null) +
+      qualityBarHtml(craft, result, hqIngredients) +
       '<div class="craft-result-meta">' +
         durabilityBadge(result.durabilityLeft, craft.durability) +
         '<div class="craft-meta-cp"><div class="craft-bar-label"><span><i class="ph ph-sparkle"></i>CP</span><span>' + result.cpLeft + ' / ' + (lastCpMax || result.cpLeft) + '</span></div><div class="craft-bar-track"><div class="craft-bar-fill craft-fill-cp" style="width:' + Math.max(0, Math.round(result.cpLeft / (lastCpMax || result.cpLeft) * 100)) + '%"></div></div></div>' +
       '</div>' +
       '<div class="craft-hq-line ' + statusClass + '">' + (result.success ? '✓ 成功' : '✕ 未達成（已盡量算出完成度最高的手法，但這組數值/技能組合湊不到 100% 進度）') + '・' + (result.collectability != null ? '收藏度 ' + result.collectability : '優質率約 ' + Math.round(result.hqPercent) + '%') + '・' + result.steps + ' 步</div>' +
-      (tips.length ? '<div class="craft-diagnosis"><p class="craft-diagnosis-title"><i class="ph ph-lightbulb"></i>' + (result.success ? '怎麼樣品質可能更高' : '怎麼樣可能就過了') + '（估計，不是保證）</p><ul>' + tips.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul></div>' : '') +
+      (wantTips ? '<div id="cf-diag-slot"></div>' : '') +
       (result.success ? (
         '<div class="craft-macro-head"><span class="craft-muted">巨集（繁中，可直接貼入遊戲，' + ((result.macroSegments || []).length > 1 ? '遊戲一組巨集最多15行，分成' + result.macroSegments.length + '段，要分開貼進不同的巨集欄位' : '可直接貼入遊戲') + '）</span></div>' +
         macroSegmentsHtml(result.macroSegments)
@@ -3597,6 +3704,64 @@ app._craftReady = function () {
       // 等於白切了。
       bindMacroCopy(box, result.macroSegments || []);
     }
+    animateResult(box);
+    if (wantTips) {
+      // 建議要跑不少次模擬（找食物組合），先讓結果畫面立刻出來，建議晚一點再補上；包 try/catch，建議出問題絕不連累主結果
+      const slot = box.querySelector('#cf-diag-slot');
+      setTimeout(function () {
+        if (!slot || !slot.isConnected) return; // 這段期間已經換成別的結果了
+        let tips = [];
+        try { tips = diagnoseFailure(craft, result, stats, hqIngredients); }
+        catch (e) { console.warn('診斷建議計算失敗（不影響主要結果顯示）:', e); tips = []; }
+        if (!tips.length) return;
+        const hint = '都是用同一套手法換上新條件、實際重新模擬算出的估計（不重新求解、不含隨機狀態），不是保證';
+        if (tips.length === 1) {
+          // 只有一條建議就不用展開：直接在標題列顯示完整內容（含圖示小標籤），沒有重複的第二層
+          slot.innerHTML = '<div class="craft-diagnosis"><div class="craft-diagnosis-title" title="' + hint + '"><i class="ph ph-lightbulb"></i><span class="craft-tip-body">' + tips[0].html + '</span></div></div>';
+        } else {
+          slot.innerHTML = '<details class="craft-diagnosis"><summary class="craft-diagnosis-title" title="' + hint + '"><i class="ph ph-lightbulb"></i><span class="craft-tip-top">' + tips[0].short + '</span>' +
+            '<span class="craft-tip-count">+' + (tips.length - 1) + '</span><i class="ph ph-caret-down craft-tip-caret"></i></summary><ul>' +
+            tips.map(function (t) { return '<li class="craft-tip" title="' + t.hint + '"><i class="ph ' + t.icon + '"></i><span class="craft-tip-body">' + t.html + '</span></li>'; }).join('') + '</ul></details>';
+        }
+      }, 30);
+    }
+  }
+
+  /* ── 結果條狀圖：進度條平滑增長、數字滾動；品質條前段用不同色標出 HQ 材料帶來的起始品質；滿品質時發光 ── */
+  const reducedMotion = function () { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; };
+  function rollNumber(el, from, to, ms) {
+    if (el._roll) cancelAnimationFrame(el._roll);
+    if (reducedMotion() || from === to) { el.textContent = to.toLocaleString(); return; }
+    const t0 = performance.now();
+    (function tick(now) {
+      const t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      el.textContent = Math.round(from + (to - from) * e).toLocaleString();
+      if (t < 1) el._roll = requestAnimationFrame(tick); else el._roll = null;
+    })(t0);
+  }
+  function animateResult(box) {
+    const grow = function () { box.querySelectorAll('[data-w]').forEach(function (el) { el.style.width = el.dataset.w + '%'; }); };
+    if (reducedMotion()) grow(); else requestAnimationFrame(function () { requestAnimationFrame(grow); }); // 兩個 frame 後才設最終寬度，transition 才會從 0 長出來
+    box.querySelectorAll('[data-count]').forEach(function (el) { rollNumber(el, 0, parseInt(el.dataset.count, 10), 900); });
+  }
+  function animBarHtml(label, cur, max, cls, extraLabel, startPct) {
+    const pct = max ? Math.min(100, Math.round(cur / max * 100)) : 0;
+    const full = max > 0 && cur >= max;
+    return '<div class="craft-bar-row"><div class="craft-bar-label"><span>' + label + (extraLabel || '') + '</span><span>' + (full ? '<i class="ph ph-check-circle craft-full-mark"></i>' : '') + '<span data-count="' + cur + '">0</span> / ' + max.toLocaleString() + '</span></div>' +
+      '<div class="craft-bar-track' + (full ? ' is-full' : '') + '"><div class="craft-bar-fill ' + cls + '" data-w="' + pct + '" style="width:0"></div>' +
+      (startPct ? '<div class="craft-bar-fill craft-fill-start" data-w="' + startPct + '" style="width:0"></div>' : '') + '</div></div>';
+  }
+  /* HQ 材料帶來的起始品質＝Σ（HQ 數量 × 該材料品質值）；求解結果的品質本來就包含它，所以在條的前段用不同色疊出來 */
+  function startQualityOf(craft, hq) {
+    let q = 0;
+    (hq || []).forEach(function (h) { const ing = (craft.ingredients || []).find(function (i) { return i.id === h.id; }); if (ing && ing.quality) q += ing.quality * h.amount; });
+    return Math.floor(q);
+  }
+  function qualityBarHtml(craft, result, hq) {
+    const startQ = Math.min(startQualityOf(craft, hq), craft.quality);
+    const startPct = craft.quality ? Math.round(startQ / craft.quality * 100) : 0;
+    const tag = startQ > 0 ? '<span class="craft-start-tag" title="HQ 材料帶來的起始品質（條前段的金色部分）"><i class="ph ph-star"></i>' + startQ.toLocaleString() + '</span>' : '';
+    return animBarHtml('品質', Math.min(result.quality, craft.quality), craft.quality, 'craft-fill-quality', tag, startPct);
   }
 
   $('cf-collectable').addEventListener('change', function () {

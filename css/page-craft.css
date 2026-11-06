@@ -1200,3 +1200,63 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 /* 每次製作產出多個時，批次列名稱旁的小標記 */
 .craft-yield-chip{display:inline-flex;align-items:center;gap:2px;margin-left:6px;padding:0 5px;height:16px;font-size:11px;color:#4ade80;border:1px solid rgba(74,222,128,.5);border-radius:8px;vertical-align:middle}
 .craft-yield-chip i{font-size:10px}
+
+/* 診斷：預設收合的提升建議（圖示＋數字） */
+.craft-diagnosis{padding:0}
+.craft-diagnosis-title{cursor:pointer;list-style:none;margin:0;padding:7px 12px;user-select:none}
+.craft-diagnosis-title::-webkit-details-marker{display:none}
+.craft-tip-count{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:rgba(197,160,89,.22);color:var(--gold-bright);font-size:11px;line-height:16px;text-align:center}
+.craft-tip-caret{margin-left:auto;transition:transform .2s}
+.craft-diagnosis[open] .craft-tip-caret{transform:rotate(180deg)}
+.craft-diagnosis ul{list-style:none;margin:0;padding:2px 12px 8px}
+.craft-diagnosis li.craft-tip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);line-height:1.6;padding:2px 0}
+.craft-tip>i{color:var(--gold);flex:none}
+.craft-tip-k{flex:1;color:var(--main)}
+.craft-tip-v{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.craft-tip-v strong{color:var(--gold-bright)}
+.craft-tip-v small{color:#4ade80;font-size:11px}
+.craft-tip-note{color:var(--dim)}
+/* 材料 HQ：標題列＋全HQ鈕＋起始品質條 */
+.craft-hq-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.craft-hq-head .craft-ingredients-title{margin:0}
+.craft-hq-all{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 9px;font-size:12px;color:var(--dim);background:transparent;border:1px solid var(--tb);border-radius:12px;cursor:pointer}
+.craft-hq-all:hover{border-color:var(--gold);color:var(--gold-bright)}
+.craft-hq-all.on{color:var(--gold-bright);border-color:var(--gold);background:rgba(197,160,89,.16)}
+.craft-hq-preview{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.craft-hq-preview-bar{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
+.craft-hq-preview-bar span{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright));transition:width .25s}
+.craft-hq-preview-num{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.craft-ing-row.has-hq .craft-ing-hq{color:var(--gold-bright)}
+
+/* 診斷收合列：燈泡＋最重要的一條建議 */
+.craft-diagnosis-title{display:flex;align-items:center;gap:6px}
+.craft-tip-top{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--main)}
+.craft-tip-body{flex:1;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.craft-tip-item{display:inline-flex;align-items:center;gap:3px;padding:0 6px;height:18px;color:var(--main);border:1px solid rgba(197,160,89,.35);border-radius:9px}
+.craft-tip-item em{font-style:normal;font-size:10px;color:var(--gold-bright)}
+.craft-tip-ok{color:#4ade80;font-size:11px}
+.craft-tip-tag{font-size:10px;color:var(--dim);border:1px solid var(--tb);border-radius:8px;padding:0 5px}
+.craft-tip-body .craft-tip-k{flex:1}
+/* 結果條：起始品質分色、滿品質發光 */
+.craft-bar-track{position:relative}
+.craft-fill-start{position:absolute;left:0;top:0;background:linear-gradient(90deg,#a9741f,#e0a83a);z-index:1}
+.craft-start-tag{display:inline-flex;align-items:center;gap:2px;margin-left:8px;color:#e0a83a;font-size:11px}
+.craft-full-mark{color:var(--gold-bright);margin-right:4px}
+@keyframes craftGlow{0%,100%{box-shadow:0 0 3px rgba(255,214,120,.3)}50%{box-shadow:0 0 12px rgba(255,214,120,.9)}}
+.craft-bar-track.is-full{animation:craftGlow 1.8s ease-in-out infinite}
+.craft-bar-track.is-full .craft-fill-quality{background:linear-gradient(90deg,#d9a73a,#fff0b0)}
+/* HQ 起始品質預覽：浮動 +N、滿品質發光 */
+.craft-hq-preview{position:relative}
+.craft-hq-preview-bar span{transition:width .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes craftHqFloat{0%{opacity:0;transform:translate(-50%,2px)}18%{opacity:1}100%{opacity:0;transform:translate(-50%,-20px)}}
+.craft-hq-float{position:absolute;bottom:70%;font-size:12px;font-weight:700;color:var(--gold-bright);text-shadow:0 0 8px rgba(255,214,120,.65);pointer-events:none;animation:craftHqFloat .9s ease-out forwards}
+.craft-hq-float.neg{color:#f87171;text-shadow:none}
+.craft-hq-preview.is-full .craft-hq-preview-bar{animation:craftGlow 1.8s ease-in-out infinite}
+.craft-hq-preview.is-full .craft-hq-preview-bar span{background:linear-gradient(90deg,#d9a73a,#fff0b0)}
+.craft-hq-preview.is-full .craft-hq-preview-num{color:var(--gold-bright)}
+.craft-hq-preview.is-full .craft-hq-preview-num::after{content:" ✓"}
+@media (prefers-reduced-motion:reduce){
+  .craft-hq-float{display:none}
+  .craft-bar-track.is-full,.craft-hq-preview.is-full .craft-hq-preview-bar{animation:none}
+  .craft-bar-fill,.craft-hq-preview-bar span{transition:none}
+}
