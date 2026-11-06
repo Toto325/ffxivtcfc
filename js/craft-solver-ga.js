@@ -89,18 +89,46 @@
     return new picked.constructor();
   };
 
+  /* 在同一個模擬狀態上「多走一步」，邏輯對齊 Simulation.run 內每一步的處理（逐步版）。
+   * 效能關鍵：以前每選一步都要把整串技能從頭模擬兩次（選技能一次、判斷終局一次），產生一條 40 步的手法要重跑
+   * 約 80 次、成本隨步數平方成長；實測整個求解有 88% 的時間花在這裡。改成同一個模擬狀態一路往下走，每步只算一次。
+   * 狀態固定用「普通」：評分（evaluate）本來就是線性、每步普通狀態，選技能時用同一個前提，
+   * 才不會選到評分時其實用不了、被跳過的技能（需要「高品質」狀態的技能）。 */
+  CraftSolverGA.prototype._applyAction = function (sim, action, index) {
+    sim.state = simulator.StepState.NORMAL;
+    var canUse = false;
+    try { canUse = action.canBeUsed(sim, false); } catch (e) { canUse = false; }
+    var hasCP = action.getBaseCPCost(sim) <= sim.availableCP;
+    var result;
+    if (sim.success === undefined && hasCP && canUse) {
+      result = sim.runAction(action, false, this.safeMode, index);
+    } else {
+      result = { action: action, success: null, addedQuality: 0, addedProgression: 0, cpDifference: 0, skipped: true, solidityDifference: 0, state: sim.state };
+    }
+    var skipTicksOnFail = !result.success && action.skipOnFail();
+    if (sim.success === undefined && !action.skipsBuffTicks() && !skipTicksOnFail) sim.tickBuffs(false, action);
+    sim.steps.push(result);
+    return result;
+  };
+
   /* 隨機生成一條「能跑到終局」的手法序列（成功或失敗都算終局，只是不要半途而廢） */
   CraftSolverGA.prototype.generateRotation = function () {
+    var self = this;
     var rotation = this.fixedPrefix.slice(); // 接續求解：固定前綴一定保留在最前面，後面才是隨機生成
+    var sim = new simulator.Simulation(this.recipe, [], this.stats, this.hqIngredients);
+    sim.lastPossibleReclaimStep = -1;
+    rotation.forEach(function (action, i) { self._applyAction(sim, action, i); });
     var guard = 0;
     while (guard < this.config.maxSteps) {
       guard++;
-      var action = this._pickRandomValidAction(rotation);
-      if (!action) break; // 沒有可用技能了（通常是 CP 或耐久用盡）
-      rotation.push(action);
-      var sim = new simulator.Simulation(this.recipe, rotation, this.stats, this.hqIngredients);
-      sim.run(false, undefined, this.safeMode);
       if (sim.success !== undefined) break; // 已經是終局狀態（做完了 或 失敗了）
+      var usable = this.availableActions.filter(function (action) {
+        try { return action.canBeUsed(sim, false, self.safeMode); } catch (e) { return false; }
+      });
+      if (usable.length === 0) break; // 沒有可用技能了（通常是 CP 或耐久用盡）
+      var picked = new usable[Math.floor(Math.random() * usable.length)].constructor(); // 新實例，避免多個序列共用同一個物件
+      rotation.push(picked);
+      this._applyAction(sim, picked, rotation.length - 1);
     }
     return rotation;
   };
@@ -159,14 +187,22 @@
     var self = this;
     var populationSize = this.config.populationSize;
     var eliteCount = Math.max(1, Math.floor(populationSize * this.config.eliteRate));
+    var deadline = this.config.deadline || 0; // 絕對時間(ms)；到了就用目前找到最好的收工，不論這台電腦多慢都不會無限等
+    var MIN_POPULATION = 20;
+    this.timedOut = false;
 
     var population = [];
-    for (var i = 0; i < populationSize; i++) population.push(this.generateRotation());
+    for (var i = 0; i < populationSize; i++) {
+      if (deadline && i >= MIN_POPULATION && Date.now() > deadline) { this.timedOut = true; break; }
+      population.push(this.generateRotation());
+    }
 
     var best = null;
+    var evCache = new Map(); // 菁英個體會原封不動進下一代，不必重新模擬評分
     for (var gen = 0; gen < this.config.generations; gen++) {
+      if (best && deadline && Date.now() > deadline) { this.timedOut = true; break; }
       var scored = population.map(function (rotation) {
-        var ev = self.evaluate(rotation);
+        var ev = evCache.get(rotation) || self.evaluate(rotation);
         return { rotation: rotation, ev: ev };
       });
       scored.sort(function (a, b) { return b.ev.score - a.ev.score; });
@@ -189,7 +225,10 @@
         break;
       }
 
-      var elites = scored.slice(0, eliteCount).map(function (s) { return s.rotation; });
+      var eliteScored = scored.slice(0, eliteCount);
+      var elites = eliteScored.map(function (s) { return s.rotation; });
+      evCache = new Map();
+      eliteScored.forEach(function (s) { evCache.set(s.rotation, s.ev); });
       var nextGen = elites.slice();
       while (nextGen.length < populationSize) {
         var r = Math.random();
@@ -208,6 +247,11 @@
         }
       }
       population = nextGen;
+    }
+    if (!best) { // 時間上限在第一代評分前就到了（極慢的裝置）：至少評一次拿最好的，不能回空手法
+      var first = population.map(function (rotation) { return { rotation: rotation, ev: self.evaluate(rotation) }; });
+      first.sort(function (a, b) { return b.ev.score - a.ev.score; });
+      best = first[0];
     }
     return best.rotation;
   };

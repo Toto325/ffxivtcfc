@@ -125,6 +125,11 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
   const baseSeedStr = craft.id + '|' + crafterStats.craftsmanship + '|' + crafterStats.getControl({}) + '|' + crafterStats.cp;
   const baseSeed = hashSeed(baseSeedStr);
 
+  /* 時間上限：整個求解最多花 timeBudgetMs（預設 8 秒，留緩衝讓最慢的裝置也在約 10 秒內）。第一輪的各次嘗試平均分這段時間，
+   * 不論這台電腦多慢，時間到就用「目前找到最好的」收工並標記 timedOut，不會讓玩家無限等。 */
+  const BUDGET = options.timeBudgetMs || 8000;
+  const startedAt = Date.now();
+  let timedOut = false;
   const originalRandom = Math.random;
   let best = null;
   let attempts = 0;
@@ -133,6 +138,8 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
   try {
     for (let round = 0; round <= MAX_RETRY_ROUNDS; round++) {
       for (let t = 0; t < TRIALS; t++) {
+        if (best && Date.now() >= startedAt + BUDGET) { timedOut = true; break; } // 時間用完了，已經有結果就不再開新的嘗試
+        const slice = round === 0 ? BUDGET * (t + 1) / TRIALS : BUDGET; // 第一輪每次嘗試各佔一份；重試輪用剩下的時間
         attempts++;
         const seed = (baseSeed + round * 1000 + t) >>> 0;
         Math.random = mulberry32(seed); // 暫時接管，讓這一輪求解可重現
@@ -149,6 +156,7 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
           safeMode: options.safeMode,
           collectableGoal: options.collectableGoal,
           fixedPrefix: fixedPrefix,
+          deadline: startedAt + slice,
         });
         const rotation = solver.run(function (p) {
           if (typeof onProgress !== 'function') return;
@@ -159,6 +167,7 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
             bestCollectability: p.bestCollectability, bestSteps: p.bestSteps,
           });
         });
+        if (solver.timedOut) timedOut = true;
         const evalResult = evaluateRotation(craft, rotation, crafterStats, options.hqIngredients, options.safeMode, options.collectableGoal);
         let score;
         if (!evalResult.success) {
@@ -191,6 +200,7 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
     durabilityLeft: best ? best.eval.durabilityLeft : 0,
     cpLeft: best ? best.eval.cpLeft : 0,
     attempts: attempts,
+    timedOut: timedOut && !(best && best.eval.success && best.eval.hqPercent >= (options.hqTarget || 90)), // 時間到、而且結果還沒到理想程度才標記
     seed: best ? best.seed : null,
   };
 }

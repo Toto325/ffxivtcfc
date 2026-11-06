@@ -179,6 +179,7 @@ app._craftReady = function () {
    * 也不會有「舊結果晚到、蓋掉新畫面」的問題；下一次求解再重新建立新的 Worker（載入約一秒內）。
    * 每個求解自帶 reset（還原按鈕／進度條）與 fail（引擎載入失敗時的顯示），由 cancelSolve／Worker error 統一呼叫。 */
   let solveSeq = 0;
+  const SOLVE_BUDGET_MS = 8000; // 求解時間上限（Worker 端也是 8 秒，兩邊一致；留緩衝讓最慢的裝置也在約 10 秒內）；超過就用目前最佳結果收工
   let activeSolve = null;
   function ensureWorker() {
     if (worker) return worker;
@@ -198,7 +199,9 @@ app._craftReady = function () {
     activeSolve = null;
     if (worker) { worker.removeEventListener('message', s.onMsg); worker.terminate(); worker = null; }
     s.reset();
+    setTimeout(function () { try { ensureWorker(); } catch (e) { /* 預熱失敗不影響，按求解時會再試 */ } }, 150); // 中止後立刻在背景重新載好下一個 Worker
   }
+  setTimeout(function () { try { ensureWorker(); } catch (e) { /* 同上 */ } }, 600); // 進入生產頁後先在背景載好 Worker
 
   /* ── 批次清單持久化：存在本機 localStorage，不用帳號登入。
    * 只存 batchList 本身（recipeId/itemId/name/quantity 這幾個純資料欄位），
@@ -2535,8 +2538,18 @@ app._craftReady = function () {
             '<span class="craft-ing-fixed">NQ ×' + ing.amount + '</span>' +
             '</div>';
         }
-        ingredientHqCounts[ing.itemId] = 0;
         const rid = pickRecipeId(ing.itemId); // 這個材料本身可不可以做，可以的話帶一顆「求解」按鈕跳過去
+        if (!(ing.quality > 0)) {
+          // 沒有品質值＝沒有 HQ 版本（或 HQ 對起始品質沒貢獻），調 HQ 沒有任何效果，直接固定 NQ、不給加減鈕
+          return '<div class="craft-ing-row">' +
+            '<span class="craft-ing-name">' + itemIconHtml(ing.itemId, 20) + name + '</span>' +
+            '<div class="craft-row" style="gap:6px">' +
+              (rid ? '<button type="button" class="craft-hammer-icon" data-switch-recipe="' + rid + '" title="切換成求解對象"><i class="ph ph-hammer"></i></button>' : '') +
+              '<span class="craft-ing-fixed">NQ ×' + ing.amount + '</span>' +
+            '</div>' +
+          '</div>';
+        }
+        ingredientHqCounts[ing.itemId] = 0;
         return '<div class="craft-ing-row" data-item="' + ing.itemId + '" data-amount="' + ing.amount + '">' +
           '<span class="craft-ing-name">' + itemIconHtml(ing.itemId, 20) + name + '</span>' +
           '<div class="craft-row" style="gap:6px">' +
@@ -3404,11 +3417,20 @@ app._craftReady = function () {
     const solvingName = selectedRecipe.name; // 求解當下鎖定名稱
     const progressEl = $('cf-progress');
     progressEl.style.display = 'block';
-    progressEl.textContent = '「' + solvingName + '」求解中⋯';
+    const startedAt = performance.now();
+    /* 進度條＝「演算進度」跟「已用時間佔上限的比例」取較大者：求解有 10 秒上限，條一定會在上限前走完，不會看起來卡住 */
+    const setProgress = function (pct, text) {
+      progressEl.innerHTML = '<div class="craft-prog-bar"><span style="width:' + Math.round(pct) + '%"></span></div><div class="craft-prog-text">' + text + '</div>';
+    };
+    const prog = { gen: 0, text: '「' + escapeHtml(solvingName) + '」求解中⋯' };
+    const tickProgress = function () { setProgress(Math.min(99, Math.max(prog.gen, (performance.now() - startedAt) / SOLVE_BUDGET_MS) * 100), prog.text); };
+    tickProgress();
+    const ticker = setInterval(tickProgress, 250); // 引擎載入、還沒有進度回報的時候，條也會跟著時間走，不會停在 0% 像當掉
     const hqIngredients = buildHqIngredients();
     const collectableGoal = $('cf-collectable').checked ? (parseInt($('cf-collectable-goal').value, 10) || 100) : null;
     const w = ensureWorker();
     const finish = function () {
+      clearInterval(ticker);
       btn.disabled = false;
       btn.innerHTML = '<i class="ph ph-play"></i>開始求解';
       progressEl.style.display = 'none';
@@ -3418,9 +3440,10 @@ app._craftReady = function () {
       if (e.data.type === 'solve-progress') {
         const p = e.data.progress;
         const metric = p.bestCollectability != null ? ('收藏度 ' + p.bestCollectability) : ('優質率約 ' + Math.round(p.bestHqPercent) + '%');
-        progressEl.textContent =
-          '「' + solvingName + '」求解中⋯ 第 ' + p.trial + '/' + p.totalTrials + ' 輪・第 ' + p.generation + '/' + p.totalGenerations + ' 代' +
-          '　目前最佳：' + (p.bestSuccess ? '✓ 已達成・' : '尚未達成・') + metric + '・' + p.bestSteps + ' 步';
+        const genFrac = ((p.trial - 1) + p.generation / p.totalGenerations) / 3; // 第一輪三次嘗試
+        prog.gen = genFrac;
+        prog.text = '「' + escapeHtml(solvingName) + '」求解中⋯ ' + (p.bestSuccess ? '✓ ' : '尚未達成・') + metric + '・' + p.bestSteps + ' 步';
+        tickProgress();
         return;
       }
       w.removeEventListener('message', onMsg);
@@ -3480,7 +3503,9 @@ app._craftReady = function () {
      *  1. HQ 材料：提高起始品質（只對品質缺口有用）
      *  2. 食物＋藥水：照遊戲規則——一份食物＋一份藥水、百分比加成有上限；在全部組合裡找「剛好達標」且最陽春的一組
      *  3. 兩者都用
-     *  4. 都補不滿，才報「最終數值需要多少」，並標示要靠裝備／魔晶石
+     * 這裡只列「已經用目前這套手法實際模擬驗證過做得到」的建議（充分條件）：列出來的一定成立。
+     * 沒列出來不代表不行——手法本身可以重新求解，數值提升後可能找到更好的排法，這裡驗證不了，所以不下「補不滿／需要多少」的結論
+     * （作業精度、加工精度、CP 三項互相牽動，單看其中一項推「需要多少」會誤導）。
      * 達標標準：進度要滿；品質有缺口時品質也要滿。 */
     const needQuality = progressGap <= 0 && qualityGap > 0;
     const goalFn = needQuality
@@ -3526,7 +3551,7 @@ app._craftReady = function () {
         solved = true;
         tips.push({ icon: 'ph-star', short: '全 HQ 材料可達滿品質', html: '全 HQ 材料<small class="craft-tip-ok">可達滿品質</small>', hint: '同一套手法，材料全用 HQ 提高起始品質後實際模擬的結果' });
       } else if (r.quality > result.quality) {
-        const pct = Math.round(Math.min(r.quality, craft.quality) / craft.quality * 100);
+        const pct = Math.min(99, Math.floor(Math.min(r.quality, craft.quality) / craft.quality * 100)); // 沒達標就不能顯示 100%（無條件捨去，最高 99）
         tips.push({ icon: 'ph-star', short: '全 HQ 材料 品質 +' + (r.quality - result.quality).toLocaleString(), html: '全 HQ 材料<span class="craft-tip-v"><small>+' + (r.quality - result.quality).toLocaleString() + '</small><strong>' + pct + '%</strong></span>', hint: '同一套手法，材料全用 HQ 後品質可到的程度，還沒到滿' });
       }
     }
@@ -3543,32 +3568,9 @@ app._craftReady = function () {
         tips.push({ icon: 'ph-star', short: '全 HQ 材料＋' + comboShort(combo2) + ' ' + goalText, html: '全 HQ 材料＋' + comboHtml(combo2) + '<small class="craft-tip-ok">' + goalText + '</small>', hint: '材料全用 HQ，再搭配食物／藥水後，同一套手法實際模擬的結果' });
       }
     }
-    // 4. 都補不滿：報最終數值需求（要靠裝備／魔晶石），並提醒重新求解的方向
-    if (!solved) {
-      const key = needQuality ? 'control' : 'craftsmanship', label = needQuality ? '加工精度' : '作業精度';
-      const need = estimateStatNeeded(craft, actions, stats, hqIngredients, key, goalFn);
-      if (need != null) {
-        tips.push({ icon: needQuality ? 'ph-target' : 'ph-hammer', short: label + '最終需 ' + need.toLocaleString(),
-          html: '<span class="craft-tip-k">' + label + '</span><span class="craft-tip-v">' + stats[key].toLocaleString() + '<i class="ph ph-arrow-right"></i><strong>' + need.toLocaleString() + '</strong><small>+' + (need - stats[key]).toLocaleString() + '</small></span><span class="craft-tip-tag">裝備</span>',
-          hint: '同一套手法所需的最終數值（含食藥）；食物／藥水補不到，需要靠裝備或魔晶石' });
-        const cpNeed = estimateStatNeeded(craft, actions, stats, hqIngredients, 'cp', goalFn);
-        if (cpNeed != null && cpNeed > stats.cp) tips.push({ icon: 'ph-sparkle', short: 'CP 最終需 ' + cpNeed.toLocaleString(),
-          html: '<span class="craft-tip-k">CP</span><span class="craft-tip-v">' + stats.cp.toLocaleString() + '<i class="ph ph-arrow-right"></i><strong>' + cpNeed.toLocaleString() + '</strong><small>+' + (cpNeed - stats.cp).toLocaleString() + '</small></span><span class="craft-tip-tag">裝備</span>',
-          hint: '同一套手法所需的最終 CP（含食藥）' });
-        if (needQuality) tips.push({ icon: 'ph-info', short: '作業精度提高後重新求解', html: '作業精度提高後重新求解', hint: '作業精度提高，進度需要的步驟變少，省下的步驟、CP、耐久可以多排品質技能；這需要重新求解才排得出新手法，這裡算不出來' });
-      } else {
-        const nm = needQuality ? '數值再高這套手法也補不滿品質' : '數值再高這套手法也做不完';
-        tips.push({ icon: 'ph-warning', short: nm, html: nm, hint: '即使大幅提高數值，同一套手法仍達不成目標；問題在手法本身（耐久／CP／可用技能），要調整後重新求解' });
-      }
-    }
     return tips;
   }
 
-  /* 二分搜尋：同一套技能序列(actions)，只調整某一項數值(statKey)，重新跑一次真正的Simulation，
-   * 直到找出「剛好能讓 checkFn 通過」的最小值。search上限抓得很寬(目前值的4倍+3000)，
-   * 如果連這麼誇張的數值都補不滿，就回傳null，代表問題不是數值不夠、是手法本身的分配問題。
-   * Simulation要吃真正的CrafterStats實例（不是普通物件），這裡照craft-worker.js裡
-   * buildCrafterStats的做法原封不動搬過來組，避免傳一個普通物件進去導致模擬結果不準或直接壞掉。 */
   function buildCrafterStatsForSim(stats) {
     const levels = stats.levels || [90, 90, 90, 90, 90, 90, 90, 90];
     const crafterStats = new simulator.CrafterStats(stats.jobId, stats.craftsmanship, stats.control, stats.cp, !!stats.specialist, !!stats.relicTool, stats.level, levels);
@@ -3583,23 +3585,6 @@ app._craftReady = function () {
     const res = sim.run(true, undefined, true); // safeMode=true，跟主要求解結果的保守假設一致，才有可比性
     return { progression: sim.progression || 0, quality: sim.quality || 0, success: !!res.success };
   }
-  function estimateStatNeeded(craft, actions, stats, hqIngredients, statKey, checkFn) {
-    const lo0 = stats[statKey];
-    const hi0 = lo0 * 4 + 3000;
-    function simulateWith(value) {
-      const testStats = Object.assign({}, stats);
-      testStats[statKey] = value;
-      return simulateOnce(craft, actions, testStats, hqIngredients);
-    }
-    if (!checkFn(simulateWith(hi0))) return null; // 連上限都補不滿，是手法問題，不是數值問題
-    let lo = lo0, hi = hi0;
-    for (let i = 0; i < 22 && hi - lo > 1; i++) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (checkFn(simulateWith(mid))) hi = mid; else lo = mid + 1;
-    }
-    return hi;
-  }
-
   function bar(label, cur, max, cls) {
     const pct = max ? Math.min(100, Math.round(cur / max * 100)) : 0;
     return '<div class="craft-bar-row"><div class="craft-bar-label"><span>' + label + '</span><span>' + cur.toLocaleString() + ' / ' + max.toLocaleString() + '</span></div>' +
@@ -3691,7 +3676,7 @@ app._craftReady = function () {
         durabilityBadge(result.durabilityLeft, craft.durability) +
         '<div class="craft-meta-cp"><div class="craft-bar-label"><span><i class="ph ph-sparkle"></i>CP</span><span>' + result.cpLeft + ' / ' + (lastCpMax || result.cpLeft) + '</span></div><div class="craft-bar-track"><div class="craft-bar-fill craft-fill-cp" style="width:' + Math.max(0, Math.round(result.cpLeft / (lastCpMax || result.cpLeft) * 100)) + '%"></div></div></div>' +
       '</div>' +
-      '<div class="craft-hq-line ' + statusClass + '">' + (result.success ? '✓ 成功' : '✕ 未達成（已盡量算出完成度最高的手法，但這組數值/技能組合湊不到 100% 進度）') + '・' + (result.collectability != null ? '收藏度 ' + result.collectability : '優質率約 ' + Math.round(result.hqPercent) + '%') + '・' + result.steps + ' 步</div>' +
+      '<div class="craft-hq-line ' + statusClass + '">' + (result.success ? '✓ 成功' : '✕ 未達成（已盡量算出完成度最高的手法，但這組數值/技能組合湊不到 100% 進度）') + '・' + (result.collectability != null ? '收藏度 ' + result.collectability : '優質率約 ' + Math.round(result.hqPercent) + '%') + '・' + result.steps + ' 步' + (result.timedOut ? '<i class="ph ph-timer craft-timeout-mark" title="已達求解時間上限（約 8 秒），這是時間內找到的最佳結果；再按一次求解可能會更好"></i>' : '') + '</div>' +
       (wantTips ? '<div id="cf-diag-slot"></div>' : '') +
       (result.success ? (
         '<div class="craft-macro-head"><span class="craft-muted">巨集（繁中，可直接貼入遊戲，' + ((result.macroSegments || []).length > 1 ? '遊戲一組巨集最多15行，分成' + result.macroSegments.length + '段，要分開貼進不同的巨集欄位' : '可直接貼入遊戲') + '）</span></div>' +
@@ -3714,7 +3699,7 @@ app._craftReady = function () {
         try { tips = diagnoseFailure(craft, result, stats, hqIngredients); }
         catch (e) { console.warn('診斷建議計算失敗（不影響主要結果顯示）:', e); tips = []; }
         if (!tips.length) return;
-        const hint = '都是用同一套手法換上新條件、實際重新模擬算出的估計（不重新求解、不含隨機狀態），不是保證';
+        const hint = '這些建議都已用目前這套手法實際模擬驗證過做得到（不含隨機狀態）；沒列出的不代表不行，重新求解可能找到更好的手法';
         if (tips.length === 1) {
           // 只有一條建議就不用展開：直接在標題列顯示完整內容（含圖示小標籤），沒有重複的第二層
           slot.innerHTML = '<div class="craft-diagnosis"><div class="craft-diagnosis-title" title="' + hint + '"><i class="ph ph-lightbulb"></i><span class="craft-tip-body">' + tips[0].html + '</span></div></div>';
