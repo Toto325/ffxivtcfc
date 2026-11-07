@@ -121,19 +121,33 @@ function evaluateRotation(craft, actions, crafterStats, hqIngredients, safeMode,
 /* ---------- 主流程：多組族群平行跑 + 重試 ---------- */
 function solveWithMitigations(craft, crafterStats, options, onProgress) {
   const TRIALS = options.trials || 3;
-  const MAX_RETRY_ROUNDS = options.maxRetryRounds || 1;
+  const MAX_RETRY_ROUNDS = options.maxRetryRounds || 0; // 隨機重來命中率低，已改成下面「從目前最佳出發繼續搜尋」
+  const CONTINUE_ON_FAIL = options.continueOnFail !== false; // 背景分析的驗證求解會關掉（它們不需要這麼努力）
+  const FAIL_TOTAL = options.failBudgetMs || 8000; // 做不出來時，總共最多搜尋到這個時間
   const baseSeedStr = craft.id + '|' + crafterStats.craftsmanship + '|' + crafterStats.getControl({}) + '|' + crafterStats.cp;
   const baseSeed = hashSeed(baseSeedStr);
 
-  /* 時間上限：整個求解最多花 timeBudgetMs（預設 8 秒，留緩衝讓最慢的裝置也在約 10 秒內）。第一輪的各次嘗試平均分這段時間，
+  /* 時間上限：整個求解最多花 timeBudgetMs（預設 5.5 秒，之後最多再精修 3 秒，整體最慢約 8.5 秒）。第一輪的各次嘗試平均分這段時間，
    * 不論這台電腦多慢，時間到就用「目前找到最好的」收工並標記 timedOut，不會讓玩家無限等。 */
-  const BUDGET = options.timeBudgetMs || 8000;
+  const BUDGET = options.timeBudgetMs || 5500; // 這是「重複嘗試」的時間上限；之後最多再加精修 1.5～3 秒，整體最慢約 8.5 秒
   const startedAt = Date.now();
   let timedOut = false;
   const originalRandom = Math.random;
   let best = null;
   let attempts = 0;
   const totalTrials = (MAX_RETRY_ROUNDS + 1) * TRIALS;
+  const actionsFromKeys = function (keys) {
+    return (keys || []).map(function (key) {
+      const entry = simulator.CraftingActionsRegistry.ALL_ACTIONS.find(function (e) { return e.name === key; });
+      return entry ? new entry.action.constructor() : null;
+    }).filter(Boolean);
+  };
+  const scoreOf = function (ev) {
+    if (!ev.success) return (Math.min(ev.progression, craft.progress) / craft.progress) * 100;
+    if (options.collectableGoal) return 100 + Math.min(100, (ev.collectability / options.collectableGoal) * 100) - ev.steps * 0.01;
+    return 100 + ev.hqPercent - ev.steps * 0.01;
+  };
+  let continued = false;
 
   try {
     for (let round = 0; round <= MAX_RETRY_ROUNDS; round++) {
@@ -144,12 +158,6 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
         const seed = (baseSeed + round * 1000 + t) >>> 0;
         Math.random = mulberry32(seed); // 暫時接管，讓這一輪求解可重現
 
-        const actionsFromKeys = function (keys) {
-          return (keys || []).map(function (key) {
-            const entry = simulator.CraftingActionsRegistry.ALL_ACTIONS.find(function (e) { return e.name === key; });
-            return entry ? new entry.action.constructor() : null;
-          }).filter(Boolean);
-        };
         const fixedPrefix = actionsFromKeys(options.fixedPrefix);
         const seeds = options.seedActionKeys ? [actionsFromKeys(options.seedActionKeys)] : []; // 每次嘗試各自建立新實例，不共用
         const solver = new CraftSolverGA(craft, crafterStats, {
@@ -161,6 +169,7 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
           collectableGoal: options.collectableGoal,
           fixedPrefix: fixedPrefix,
           seeds: seeds,
+          goalQuality: options.goalQuality, // 有指定才啟用：成功且品質達標就提早結束（背景分析用）
           deadline: startedAt + slice,
         });
         const rotation = solver.run(function (p) {
@@ -184,11 +193,68 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
         }
 
         if (!best || score > best.score) {
-          best = { score: score, eval: evalResult, seed: seed };
+          best = { score: score, eval: evalResult, seed: seed, rotation: rotation, solver: solver };
         }
       }
       // 這一輪如果已經有成功的結果，不必再放寬繼續重試
       if (best && best.eval.success) break;
+    }
+
+    /* 做不出來（進度沒滿）：不要再隨機重來，改成「從目前最佳出發」反覆做 GA（以它為種子）＋精修，直到成功或時間用完。
+     * 實測：隨機重來幾乎都卡在同樣的局部最佳；從最佳手法出發繼續搜尋，常常只差一點就成功。
+     * 所以「做不出來」的結論是在把時間都用完之後才下的。 */
+    if (CONTINUE_ON_FAIL && best && !best.eval.success) {
+      continued = true;
+      let iter = 0;
+      while (!best.eval.success && Date.now() < startedAt + FAIL_TOTAL) {
+        iter++; attempts++;
+        const seed = (baseSeed + 5000 + iter) >>> 0;
+        Math.random = mulberry32(seed);
+        const remaining = startedAt + FAIL_TOTAL - Date.now();
+        const solver = new CraftSolverGA(craft, crafterStats, {
+          populationSize: options.populationSize || 150,
+          generations: options.generations || 40,
+          hqTarget: options.hqTarget || 90,
+          hqIngredients: options.hqIngredients || [],
+          safeMode: options.safeMode,
+          collectableGoal: options.collectableGoal,
+          fixedPrefix: actionsFromKeys(options.fixedPrefix),
+          seeds: [best.rotation.map(function (a) { return new a.constructor(); })], // 以目前最佳為種子
+          deadline: Date.now() + Math.min(remaining, 2500),
+        });
+        let rot = solver.run(function (p) {
+          if (typeof onProgress !== 'function') return;
+          onProgress({ trial: attempts, totalTrials: totalTrials + 3, generation: p.generation, totalGenerations: p.totalGenerations, bestSuccess: p.bestSuccess, bestHqPercent: p.bestHqPercent, bestCollectability: p.bestCollectability, bestSteps: p.bestSteps });
+        });
+        let ev = evaluateRotation(craft, rot, crafterStats, options.hqIngredients, options.safeMode, options.collectableGoal);
+        if (!ev.success) { // 這一輪 GA 還沒成功就接著精修
+          solver.config.deadline = Date.now() + Math.max(300, Math.min(1500, startedAt + FAIL_TOTAL - Date.now()));
+          rot = solver.polish(rot, 1500);
+          ev = evaluateRotation(craft, rot, crafterStats, options.hqIngredients, options.safeMode, options.collectableGoal);
+        }
+        const sc = scoreOf(ev);
+        if (sc > best.score) best = { score: sc, eval: ev, seed: seed, rotation: rot, solver: solver };
+      }
+      // 至少完整搜尋過兩輪（從最佳出發＋精修）還是沒成功，才下「做不出來」的結論；太慢的裝置只跑了一輪不到，結論不確定
+      if (!best.eval.success) timedOut = iter < 2;
+    }
+
+    /* 最終精修（爬山法）：GA 常卡在「差一點」的局部最佳，所以只對最後的最佳結果做一次，而且只在還不理想時才做
+     * （已經成功且優質率達標、或驗證用的目標已達成就跳過）。精修有自己的時間上限（預設 1.5 秒），
+     * 所以整體最慢約是「求解時間上限＋精修上限」。 */
+    const idealHq = options.hqTarget || 90;
+    const alreadyGood = best && best.eval.success && best.eval.hqPercent >= idealHq;
+    const goalMet = options.goalQuality != null && best && best.eval.success && best.eval.quality >= options.goalQuality;
+    // 做不出來時精修最有價值（常常只差一點），多給一些時間；已經成功只是想再提高優質率，給少一點
+    const polishMs = options.polishMs != null ? options.polishMs : (best && best.eval.success ? 1500 : 3000);
+    // 驗證用的求解（有指定 goalQuality）：離目標還很遠就不精修（精修救不回來，只是白花時間）
+    const nearGoal = options.goalQuality == null || !best || (best.eval.success ? best.eval.quality >= options.goalQuality * 0.6 : best.eval.progression >= craft.progress * 0.85);
+    if (best && best.solver && !continued && !alreadyGood && !goalMet && nearGoal && polishMs > 0 && !options.collectableGoal) {
+      best.solver.config.deadline = Date.now() + polishMs;
+      const polished = best.solver.polish(best.rotation, polishMs);
+      const ev2 = evaluateRotation(craft, polished, crafterStats, options.hqIngredients, options.safeMode, options.collectableGoal);
+      const score2 = !ev2.success ? (Math.min(ev2.progression, craft.progress) / craft.progress) * 100 : 100 + ev2.hqPercent - ev2.steps * 0.01;
+      if (score2 > best.score) best = { score: score2, eval: ev2, seed: best.seed, rotation: polished, solver: best.solver };
     }
   } finally {
     Math.random = originalRandom; // 一定要還原，避免影響 Worker 內其他邏輯

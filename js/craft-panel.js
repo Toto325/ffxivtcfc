@@ -159,8 +159,21 @@ app._craftReady = function () {
    * 用 solveHistoryIndex 指到目前在歷史裡的哪一格；按上一個/下一個只移動指標，不會重新推入新記錄，
    * 也不會清掉後面的記錄，直到玩家自己又手動選了別的配方（這時才截斷、蓋掉原本「未來」的那段，
    * 行為跟瀏覽器歷史一致）。 */
+  const SOLVE_HISTORY_KEY = 'craftSolveHistory:v1';
+  const SOLVE_HISTORY_MAX = 60;
   let solveHistory = [];
   let solveHistoryIndex = -1;
+  (function loadSolveHistory() { // 重新整理後保留「瀏覽紀錄」：只收還存在、台服有的配方，壞資料直接略過
+    try {
+      const d = JSON.parse(localStorage.getItem(SOLVE_HISTORY_KEY));
+      if (!d || !Array.isArray(d.h)) return;
+      const h = d.h.filter(function (id) { const r = CRAFT_RECIPES[id]; return r && r.twAvailable !== false && r.itemId; }).slice(-SOLVE_HISTORY_MAX);
+      if (!h.length) return;
+      solveHistory = h;
+      solveHistoryIndex = Math.max(0, Math.min(h.length - 1, parseInt(d.i, 10) || 0));
+    } catch (e) { /* 讀不到就當作沒有紀錄 */ }
+  })();
+  function saveSolveHistory() { try { localStorage.setItem(SOLVE_HISTORY_KEY, JSON.stringify({ h: solveHistory, i: solveHistoryIndex })); } catch (e) { /* 存不了（無痕模式等）就算了 */ } }
   let solveNavMode = 'history'; // 'history'=瀏覽紀錄／'batch'=批次順序，求解主界面上的上一個/下一個導覽現在切哪一套資料
   let worker = null;
   let lastCpMax = 0;
@@ -179,7 +192,7 @@ app._craftReady = function () {
    * 也不會有「舊結果晚到、蓋掉新畫面」的問題；下一次求解再重新建立新的 Worker（載入約一秒內）。
    * 每個求解自帶 reset（還原按鈕／進度條）與 fail（引擎載入失敗時的顯示），由 cancelSolve／Worker error 統一呼叫。 */
   let solveSeq = 0;
-  const SOLVE_BUDGET_MS = 8000; // 求解時間上限（Worker 端也是 8 秒，兩邊一致；留緩衝讓最慢的裝置也在約 10 秒內）；超過就用目前最佳結果收工
+  const SOLVE_BUDGET_MS = 8500; // 求解時間上限：重複嘗試最多 5.5 秒、之後最多再精修 3 秒，整體最慢約 8.5 秒（約 10 秒內）；超過就用目前最佳結果收工
   let activeSolve = null;
   function ensureWorker() {
     if (worker) return worker;
@@ -406,6 +419,7 @@ app._craftReady = function () {
               '<button type="button" id="cf-solve-prev" class="craft-solve-nav-btn"><i class="ph ph-caret-left"></i><span id="cf-solve-prev-label"></span></button>' +
               '<span id="cf-solve-nav-pos" class="craft-batch-seq-pos"></span>' +
               '<button type="button" id="cf-solve-next" class="craft-solve-nav-btn"><span id="cf-solve-next-label"></span><i class="ph ph-caret-right"></i></button>' +
+              '<button type="button" id="cf-solve-nav-clear" class="craft-solve-nav-clear" title="清空瀏覽紀錄"><i class="ph ph-trash"></i></button>' +
             '</div>' +
           '</div>' +
           '<div id="cf-progress" class="craft-progress" style="display:none"></div>' +
@@ -601,7 +615,15 @@ app._craftReady = function () {
     const close = function () { list.hidden = true; wrap.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
     const render = function () {
       const cur = sel.options[sel.selectedIndex];
-      btn.firstElementChild.textContent = cur ? cur.text : '';
+      if (rich && cur && cur.value) {
+        // 食物／藥水：選了之後按鈕也要看得到加成（跟清單裡一樣，會跟著 NQ／HQ 與基礎數值變動）
+        btn.classList.add('is-rich');
+        btn.firstElementChild.innerHTML = '<span class="cw-food-name">' + cur.text + '</span><span class="cw-fx">' +
+          foodEffects(cur.value, opts.tierId).map(function (x) { return '<b class="' + x.cls + '">' + x.label + ' +' + x.value + '</b>'; }).join('') + '</span>';
+      } else {
+        btn.classList.remove('is-rich');
+        btn.firstElementChild.textContent = cur ? cur.text : '';
+      }
       btn.disabled = sel.disabled;
       if (rich) { list.innerHTML = richListHtml(sel, opts); return; }
       list.innerHTML = Array.prototype.map.call(sel.options, function (o) {
@@ -1864,6 +1886,7 @@ app._craftReady = function () {
   function isHQ(toggleId) { return $(toggleId).querySelector('.active').dataset.v === 'hq'; }
   function recalcStats() {
     if (typeof renderDockSummary === 'function') renderDockSummary();
+    ['cf-food', 'cf-pot'].forEach(function (id) { const e = $(id); if (e && e._ddRender) e._ddRender(); }); // 基礎數值、NQ／HQ 變了，下拉裡已選項目顯示的加成也要重算
     const craftsmanship = parseInt($('cf-craftsmanship').value, 10) || 0;
     const control = parseInt($('cf-control').value, 10) || 0;
     const cp = parseInt($('cf-cp').value, 10) || 0;
@@ -2014,7 +2037,9 @@ app._craftReady = function () {
     if (!(opts && opts.fromHistory)) {
       solveHistory = solveHistory.slice(0, solveHistoryIndex + 1);
       solveHistory.push(recipeId);
+      if (solveHistory.length > SOLVE_HISTORY_MAX) solveHistory = solveHistory.slice(-SOLVE_HISTORY_MAX);
       solveHistoryIndex = solveHistory.length - 1;
+      saveSolveHistory();
     }
 
     renderRecipeSelected();
@@ -2032,9 +2057,14 @@ app._craftReady = function () {
 
   /* 上一個/下一個：純粹在歷史紀錄裡移動指標，不會推入新紀錄 */
   function stepSolveHistory(dir) {
+    if (!selectedRecipe && solveHistory.length) { // 重新整理後還沒選配方：按左邊＝回到上次看的那個配方
+      selectRecipeById(solveHistory[solveHistoryIndex], { fromHistory: true });
+      return;
+    }
     const nextIndex = solveHistoryIndex + dir;
     if (nextIndex < 0 || nextIndex >= solveHistory.length) return;
     solveHistoryIndex = nextIndex;
+    saveSolveHistory();
     selectRecipeById(solveHistory[solveHistoryIndex], { fromHistory: true });
   }
   function recipeNameById(recipeId) {
@@ -2097,6 +2127,14 @@ app._craftReady = function () {
       renderSolveNav();
     });
   });
+  $('cf-solve-nav-clear').addEventListener('click', function () {
+    // 清空：只留目前正在看的這一個（沒有就全空），之後從這裡重新累積
+    solveHistory = selectedRecipe ? [selectedRecipe.id] : [];
+    solveHistoryIndex = solveHistory.length - 1;
+    saveSolveHistory();
+    renderSolveNav();
+  });
+  renderSolveNav(); // 重新整理後如果有還原的紀錄，導覽列一開始就要顯示出來
 
   function renderRecipeSelected() {
     const box = $('cf-recipe-selected');
@@ -2257,6 +2295,7 @@ app._craftReady = function () {
     if (solveNavMode === 'batch' && !hasBatch) solveNavMode = 'history'; // 批次被清空了，自動退回瀏覽紀錄模式
     toggle.querySelectorAll('button').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === solveNavMode); });
 
+    $('cf-solve-nav-clear').style.display = solveNavMode === 'batch' ? 'none' : ''; // 清空鈕只屬於「瀏覽紀錄」
     if (solveNavMode === 'batch') {
       if (!hasBatch) { nav.style.display = 'none'; return; }
       nav.style.display = 'flex';
@@ -2271,15 +2310,18 @@ app._craftReady = function () {
     }
 
     // history模式：即使歷史紀錄不夠(沒有上一個/下一個可切)，只要有批次可以切換模式，導覽列本身還是要留著顯示切換鈕
-    const hasPrev = selectedRecipe && solveHistoryIndex > 0;
+    // 重新整理後還沒選配方：左邊按鈕顯示「上次看的配方」，按下去回到它（紀錄是從本機還原的）
+    const restoring = !selectedRecipe && solveHistory.length > 0;
+    const hasPrev = restoring || (selectedRecipe && solveHistoryIndex > 0);
     const hasNext = selectedRecipe && solveHistoryIndex < solveHistory.length - 1;
     if (!hasPrev && !hasNext && !hasBatch) { nav.style.display = 'none'; return; }
     nav.style.display = 'flex';
     $('cf-solve-prev').disabled = !hasPrev;
     $('cf-solve-next').disabled = !hasNext;
-    $('cf-solve-prev-label').textContent = hasPrev ? recipeNameById(solveHistory[solveHistoryIndex - 1]) : '';
+    $('cf-solve-prev-label').textContent = restoring ? recipeNameById(solveHistory[solveHistoryIndex]) : (hasPrev ? recipeNameById(solveHistory[solveHistoryIndex - 1]) : '');
     $('cf-solve-next-label').textContent = hasNext ? recipeNameById(solveHistory[solveHistoryIndex + 1]) : '';
     $('cf-solve-nav-pos').textContent = '';
+    $('cf-solve-nav-clear').style.display = solveHistory.length ? '' : 'none';
   }
 
   /* ── 材料關聯圖譜索引：正向(誰能做出這個道具)／反向(這個道具被用在哪些配方裡) ──
@@ -3624,7 +3666,7 @@ app._craftReady = function () {
         durabilityBadge(result.durabilityLeft, craft.durability) +
         '<div class="craft-meta-cp"><div class="craft-bar-label"><span><i class="ph ph-sparkle"></i>CP</span><span>' + result.cpLeft + ' / ' + (lastCpMax || result.cpLeft) + '</span></div><div class="craft-bar-track"><div class="craft-bar-fill craft-fill-cp" style="width:' + Math.max(0, Math.round(result.cpLeft / (lastCpMax || result.cpLeft) * 100)) + '%"></div></div></div>' +
       '</div>' +
-      '<div class="craft-hq-line ' + statusClass + '">' + (result.success ? '✓ 成功・' + (result.collectability != null ? '收藏度 ' + result.collectability : '優質率約 ' + Math.round(result.hqPercent) + '%') + '・' + result.steps + ' 步' : (result.timedOut ? '✕ 時間內未找到可完成的手法' : '✕ 目前數值無法完成')) + (result.timedOut ? '<i class="ph ph-timer craft-timeout-mark" title="已達求解時間上限（約 8 秒），這是時間內找到的最佳結果；再按一次求解可能會更好"></i>' : '') + '</div>' +
+      '<div class="craft-hq-line ' + statusClass + '">' + (result.success ? '✓ 成功・' + (result.collectability != null ? '收藏度 ' + result.collectability : '優質率約 ' + Math.round(result.hqPercent) + '%') + '・' + result.steps + ' 步' : (result.timedOut ? '✕ 時間內未找到可完成的手法' : '✕ 目前數值無法完成')) + (result.timedOut ? '<i class="ph ph-timer craft-timeout-mark" title="已達求解時間上限（約 8～9 秒），這是時間內找到的最佳結果；再按一次求解可能會更好"></i>' : '') + '</div>' +
       (wantTips ? '<div id="cf-diag-slot"></div>' : '') +
       (result.success ? (
         '<div class="craft-macro-head"><span class="craft-muted">巨集（繁中，可直接貼入遊戲，' + ((result.macroSegments || []).length > 1 ? '遊戲一組巨集最多15行，分成' + result.macroSegments.length + '段，要分開貼進不同的巨集欄位' : '可直接貼入遊戲') + '）</span></div>' +
@@ -3638,7 +3680,7 @@ app._craftReady = function () {
       bindMacroCopy(box, result.macroSegments || []);
     }
     animateResult(box);
-    if (wantTips) startDiagnosis(box, craft, result, stats, hqIngredients);
+    if (wantTips) startDiagnosis(box, craft, result, stats, hqIngredients, solvingName);
   }
 
   /* ── 建議顯示：分成「可完成」（任何品質都好，只要做得出來）與「滿品質」兩組 ── */
@@ -3675,7 +3717,7 @@ app._craftReady = function () {
    *  B. 其餘情況在背景「重新求解」驗證：每個情境都從目前手法出發重新排手法，只顯示驗證過做得到的，
    *     找到一個就先顯示一個（分析中陸續出現）；找不到就什麼都不顯示。
    *     用多個 Worker 平行跑、有時間上限（見 analyzeByResolve），開始新求解／換配方會立即中止。 */
-  function startDiagnosis(box, craft, result, stats, hqIngredients) {
+  function startDiagnosis(box, craft, result, stats, hqIngredients, solvingName) {
     const slot = box.querySelector('#cf-diag-slot');
     if (!slot) return;
     setTimeout(function () {
@@ -3694,10 +3736,14 @@ app._craftReady = function () {
         if (an.cancelled || !slot.isConnected) return;
         rows.push(row);
         renderDiagSlot(slot, rows, true);
-      }).then(function () {
+      }).then(function (upgrade) {
         if (activeAnalysis === an) activeAnalysis = null;
         if (an.cancel) an.cancel(); // 收掉分析專用的 Worker，釋放記憶體
-        if (!an.cancelled && slot.isConnected) renderDiagSlot(slot, rows, false);
+        if (an.cancelled || !slot.isConnected) return;
+        /* 分析時發現「目前這組數值其實做得到」（主求解沒搜尋到，背景從它的結果繼續搜尋才找到）：
+         * 直接用找到的手法更新結果，不要讓畫面停在「無法完成」或較差的結果。新結果會重新跑一次建議分析。 */
+        if (upgrade) { renderResult(craft, upgrade, solvingName, stats, hqIngredients); return; }
+        renderDiagSlot(slot, rows, false);
       }).catch(function (e) {
         console.warn('背景分析失敗（不影響主要結果顯示）:', e);
         if (activeAnalysis === an) activeAnalysis = null;
@@ -3754,19 +3800,21 @@ app._craftReady = function () {
     };
   }
 
-  /* 候選食物＋藥水階梯：只留「每一項都不比目前低」的組合，去掉被別的組合全面壓過的，依強度由弱到強排序，最多取 6 個點（含最弱和最強）。
-   * 食物／藥水一律以 HQ 計；注意資料沒有使用等級限制，無法排除玩家吃不了的高階食物。 */
-  function buildComboLadder(stats) {
-    if (!stats.base) return [];
+  /* 候選食物＋藥水：把所有（食物 × 藥水）組合算出最終數值，只留「沒有被別的組合全面壓過」的（Pareto 前緣），
+   * 再挑最多 10 個代表（各項最高、整體最強、其餘平均取樣）。
+   * 注意：不要求「比目前選的強」——玩家目前選的食藥只是其中一種，換成取捨不同的組合（例如 CP 較高、作業較低）也可能做得到。
+   * 食物／藥水一律以 HQ 計；資料沒有使用等級限制，無法排除玩家吃不了的高階食物。 */
+  function buildComboCandidates(stats) {
+    if (!stats.base) return { cands: [], all: [] };
     const toEntry = function (f) { const pick = function (e) { return e ? { percent: e.percentHQ, cap: e.capHQ } : null; }; return { craftsmanship: pick(f.craftsmanship), control: pick(f.control), cp: pick(f.cp) }; };
     const all = [];
     [null].concat(MEALS).forEach(function (mid) {
       [null].concat(MEDICINES).forEach(function (pid) {
         if (mid == null && pid == null) return;
         const fin = CraftConsumables.computeFinalStats(stats.base, mid ? toEntry(CRAFT_FOODS[mid]) : null, pid ? toEntry(CRAFT_FOODS[pid]) : null);
-        if (fin.craftsmanship < stats.craftsmanship || fin.control < stats.control || fin.cp < stats.cp) return;
-        if (fin.craftsmanship === stats.craftsmanship && fin.control === stats.control && fin.cp === stats.cp) return;
-        all.push({ mealId: mid, medId: pid, fin: fin, n: (mid ? 1 : 0) + (pid ? 1 : 0) });
+        // 食藥「力度」：三項各自比沒吃食藥多多少（相對基礎數值）加總，用來排強弱
+        const power = (fin.craftsmanship - stats.base.craftsmanship) / Math.max(1, stats.base.craftsmanship) + (fin.control - stats.base.control) / Math.max(1, stats.base.control) + (fin.cp - stats.base.cp) / Math.max(1, stats.base.cp);
+        all.push({ mealId: mid, medId: pid, fin: fin, n: (mid ? 1 : 0) + (pid ? 1 : 0), power: power });
       });
     });
     const dominates = function (a, b) {
@@ -3774,20 +3822,27 @@ app._craftReady = function () {
       const gt = a.fin.craftsmanship > b.fin.craftsmanship || a.fin.control > b.fin.control || a.fin.cp > b.fin.cp;
       return ge && (gt || a.n < b.n);
     };
-    const front = all.filter(function (c) { return !all.some(function (o) { return o !== c && dominates(o, c); }); });
-    const strength = function (c) { return (c.fin.craftsmanship - stats.craftsmanship) / stats.craftsmanship + (c.fin.control - stats.control) / stats.control + (c.fin.cp - stats.cp) / stats.cp; };
-    front.sort(function (a, b) { return strength(a) - strength(b); });
-    if (front.length <= 6) return front;
-    const picked = [];
-    for (let i = 0; i < 6; i++) picked.push(front[Math.round(i * (front.length - 1) / 5)]);
-    return picked.filter(function (c, i) { return picked.indexOf(c) === i; });
+    const pool = all.filter(function (c) {
+      if (c.fin.craftsmanship === stats.craftsmanship && c.fin.control === stats.control && c.fin.cp === stats.cp) return false; // 跟目前一樣，不用驗
+      return !all.some(function (o) { return o !== c && dominates(o, c); });
+    });
+    const picked = new Set();
+    ['craftsmanship', 'control', 'cp'].forEach(function (k) {
+      const top = pool.reduce(function (b, c) { return (!b || c.fin[k] > b.fin[k]) ? c : b; }, null);
+      if (top) picked.add(top);
+    });
+    const byPower = pool.slice().sort(function (a, b) { return a.power - b.power; });
+    if (byPower.length) picked.add(byPower[byPower.length - 1]);
+    for (let i = 0; i < 10 && picked.size < 10 && byPower.length; i++) picked.add(byPower[Math.round(i * (byPower.length - 1) / 9)]);
+    return { cands: Array.from(picked).sort(function (a, b) { return a.power - b.power; }), all: all };
   }
 
-  /* 背景重新求解驗證。每個「情境」＝換一組條件（HQ 材料／食物藥水／某項數值提升），從目前手法出發重新排手法。
-   * 單次求解同時回報「能否完成」與「品質多少」，所以同一次結果可以同時判斷「可完成」與「滿品質」兩個標準。
-   *   全 HQ 材料、食物＋藥水（階梯）：看哪一個剛好夠
-   *   作業精度／加工精度／CP：各自單獨提升，找出「剛好夠」的最小增量（三項互相牽動，所以是重新求解、不是估算）
-   *   單項都不夠時：三項同時提升多少
+  /* 背景重新求解驗證。每個「情境」＝換一組條件（HQ 材料／食物藥水／數值提升），從目前手法出發重新排手法。
+   * 單次求解同時回報「能否完成」與「品質多少」，所以同一次結果可同時判斷「可完成」與「滿品質」兩個標準。
+   * 三項能力互相牽動（CP 多了能多用技能、作業精度高了能省出步驟給品質…），所以全部都是「換條件後重新求解」，不是推算：
+   *   食物＋藥水：評估代表性組合，列出驗證做得到、力度最小的（以及用最少道具的）
+   *   單項提升（CP／作業精度／加工精度，最多 +25%）：找出剛好夠的最小增量
+   *   三項同時提升（最多 +30%）：一定會做，因為實際換裝備通常同時提升好幾項，需求會比單項小很多
    * 時間控管：多 Worker 平行、單次求解 ≤3 秒、整體 ≤22 秒；找到一個就先回報一個。 */
   async function analyzeByResolve(an, craft, result, stats, hqIngredients, report) {
     const needDone = !result.success;
@@ -3811,13 +3866,15 @@ app._craftReady = function () {
     const NOTE = '重新排手法後實際驗證做得到的結果（不含隨機狀態）';
 
     const cache = new Map();
-    const evalSc = function (hqMode, cs, ct, cp) {
-      const key = hqMode + '|' + cs + '|' + ct + '|' + cp;
+    const evalSc = function (g, cs, ct, cp) {
+      const hqMode = hqModeFor(g);
+      const key = g + '|' + hqMode + '|' + cs + '|' + ct + '|' + cp;
       if (!cache.has(key)) {
         cache.set(key, outOfTime() ? Promise.resolve(null) : pool.solve({
           recipeId: craft.id,
           stats: Object.assign({}, stats, { craftsmanship: cs, control: ct, cp: cp }),
-          options: { lang: 'tw', trials: 1, maxRetryRounds: 0, populationSize: 150, generations: 40, hqIngredients: hqMode === 'all' ? hqAll : hqIngredients, seedActionKeys: seed, timeBudgetMs: 3000 },
+          // goalQuality：驗證「做不做得到」只需要知道達標與否，達標就提早結束，不用把世代跑完
+          options: { lang: 'tw', trials: 1, maxRetryRounds: 0, populationSize: 150, generations: 40, hqIngredients: hqMode === 'all' ? hqAll : hqIngredients, seedActionKeys: seed, goalQuality: g === 'full' ? craft.quality : 0, timeBudgetMs: 3000, polishMs: 800, continueOnFail: false },
         }));
       }
       return cache.get(key);
@@ -3835,27 +3892,23 @@ app._craftReady = function () {
     };
 
     const META = {
-      craftsmanship: { icon: 'ph-hammer', label: '作業精度', order: 2 },
-      control: { icon: 'ph-target', label: '加工精度', order: 3 },
-      cp: { icon: 'ph-sparkle', label: 'CP', order: 4 },
+      craftsmanship: { icon: 'ph-hammer', label: '作業精度', order: 3 },
+      control: { icon: 'ph-target', label: '加工精度', order: 4 },
+      cp: { icon: 'ph-sparkle', label: 'CP', order: 2 },
     };
-    // 食藥最多能補多少（以 HQ、可選的最好組合算），用來標示增量是「食藥可補」還是「需換裝備」
-    const cover = { craftsmanship: 0, control: 0, cp: 0 };
-    const ladder = buildComboLadder(stats);
-    if (stats.base) {
-      const toEntry = function (f) { const pick = function (e) { return e ? { percent: e.percentHQ, cap: e.capHQ } : null; }; return { craftsmanship: pick(f.craftsmanship), control: pick(f.control), cp: pick(f.cp) }; };
-      [null].concat(MEALS).forEach(function (mid) {
-        [null].concat(MEDICINES).forEach(function (pid) {
-          const fin = CraftConsumables.computeFinalStats(stats.base, mid ? toEntry(CRAFT_FOODS[mid]) : null, pid ? toEntry(CRAFT_FOODS[pid]) : null);
-          ['craftsmanship', 'control', 'cp'].forEach(function (k) { cover[k] = Math.max(cover[k], fin[k] - stats[k]); });
-        });
+    const combo = buildComboCandidates(stats);
+    // 這組增量，光靠換食物＋藥水（維持其他項不比現在低）補不補得到？用實際組合逐一檢查，不是各項各取最大值
+    const canCover = function (d) {
+      return combo.all.some(function (c) {
+        return c.fin.craftsmanship >= stats.craftsmanship + (d.craftsmanship || 0) && c.fin.control >= stats.control + (d.control || 0) && c.fin.cp >= stats.cp + (d.cp || 0);
       });
-    }
-    const coverTag = function (key, inc) {
-      return cover[key] >= inc ? '<span class="craft-tip-tag is-food" title="食物＋藥水最多可補到這個量">食藥可補</span>' : '<span class="craft-tip-tag is-gear" title="食物＋藥水補不到，需要提升裝備／魔晶石">需換裝備</span>';
+    };
+    const coverTag = function (d) {
+      return canCover(d) ? '<span class="craft-tip-tag is-food" title="換成某組食物＋藥水就補得到">食藥可補</span>' : '<span class="craft-tip-tag is-gear" title="食物＋藥水補不到，需要提升裝備／魔晶石">需換裝備</span>';
     };
     const incAt = function (key, f) { return Math.max(5, Math.round(stats[key] * (f - 1) / 5) * 5); };
-    const FACTORS = [1.04, 1.08, 1.14, 1.22, 1.32, 1.45]; // 單項／整體提升的候選幅度（+4% 到 +45%；再高的不是玩家能補的）
+    const SINGLE_F = [1.03, 1.06, 1.10, 1.15, 1.25]; // 單項最多 +25%：再高不是單靠一項能補的，也不實際
+    const TRIO_F = [1.02, 1.04, 1.07, 1.10, 1.15, 1.22, 1.30]; // 三項同時最多 +30%
     const combosFor = function (c) { return (c.mealId ? '<span class="craft-tip-item"><i class="ph ph-bowl-food"></i>' + CRAFT_FOODS[c.mealId].name + '<em>HQ</em></span>' : '') + (c.medId ? '<span class="craft-tip-item"><i class="ph ph-flask"></i>' + CRAFT_FOODS[c.medId].name + '<em>HQ</em></span>' : ''); };
     const comboNames = function (c) { return [c.mealId ? CRAFT_FOODS[c.mealId].name : null, c.medId ? CRAFT_FOODS[c.medId].name : null].filter(Boolean).join('＋'); };
 
@@ -3863,58 +3916,63 @@ app._craftReady = function () {
      * 求解有隨機性，如果同樣條件重新求解就做到了，代表目前結果只是沒搜尋到，這時任何「加多少」的建議都會誤導，直接略過；
      * 全 HQ 材料本身就是「目前數值＋全 HQ」的情境，做得到就是第一個建議，不必再往下。 */
     const activeGoals = [];
+    let upgrade = null;
     await Promise.all(wanted.map(async function (g) {
-      const r0 = await evalSc(hqModeFor(g), stats.craftsmanship, stats.control, stats.cp);
+      const r0 = await evalSc(g, stats.craftsmanship, stats.control, stats.cp);
       if (!r0) return;
       if (goals[g](r0)) {
+        // 目前數值（沒有額外條件）就做得到，代表主求解只是沒搜尋到：回傳這個比較好的結果讓畫面升級
+        if (g === 'done' || (g === 'full' && !canHq)) { if (!upgrade || r0.quality > upgrade.quality) upgrade = r0; }
         if (g === 'full' && canHq) report({ grp: 'full', order: 0, icon: 'ph-star', short: '全 HQ 材料', html: '<i class="ph ph-star"></i><span class="craft-tip-k">全 HQ 材料</span>', hint: '材料全用 HQ 提高起始品質，' + NOTE });
         return;
       }
       activeGoals.push(g);
     }));
+
     const tasks = [];
     activeGoals.forEach(function (g) {
-      const hqMode = hqModeFor(g), goalFn = goals[g];
-      // 食物＋藥水
-      if (ladder.length) tasks.push((async function () {
-        const idx = await searchLevels(ladder.length, function (i) { return evalSc(hqMode, ladder[i].fin.craftsmanship, ladder[i].fin.control, ladder[i].fin.cp); }, goalFn);
-        if (idx >= 0) report({ grp: g, order: 1, icon: 'ph-bowl-food', short: leadShort(g) + comboNames(ladder[idx]), html: leadChip(g) + combosFor(ladder[idx]), hint: '照遊戲規則換上食物＋藥水（挑加成最小的一組），' + NOTE });
+      const goalFn = goals[g];
+      // 食物＋藥水：代表性組合全部驗一遍，取力度最小的，再補一個用最少道具的
+      if (combo.cands.length) tasks.push((async function () {
+        const rs = await Promise.all(combo.cands.map(function (c) { return evalSc(g, c.fin.craftsmanship, c.fin.control, c.fin.cp); }));
+        const ok = combo.cands.filter(function (c, i) { return goalFn(rs[i]); }); // cands 已依力度由弱到強排序
+        if (!ok.length) return;
+        const picks = [ok[0]];
+        const fewest = ok.slice().sort(function (a, b) { return a.n - b.n || a.power - b.power; })[0];
+        if (fewest !== ok[0]) picks.push(fewest);
+        picks.forEach(function (c, i) {
+          report({ grp: g, order: 1 + i * 0.1, icon: 'ph-bowl-food', short: leadShort(g) + comboNames(c), html: leadChip(g) + combosFor(c), hint: '照遊戲規則換上食物＋藥水，' + NOTE });
+        });
       })());
-    });
-    // 單項提升
-    const singleFound = {};
-    activeGoals.forEach(function (g) {
+      // 單項提升
       ['cp', 'craftsmanship', 'control'].forEach(function (key) {
         tasks.push((async function () {
-          const hqMode = hqModeFor(g);
           const at = function (i) {
             const v = { craftsmanship: stats.craftsmanship, control: stats.control, cp: stats.cp };
-            v[key] += incAt(key, FACTORS[i]);
-            return evalSc(hqMode, v.craftsmanship, v.control, v.cp);
+            v[key] += incAt(key, SINGLE_F[i]);
+            return evalSc(g, v.craftsmanship, v.control, v.cp);
           };
-          const idx = await searchLevels(FACTORS.length, at, goals[g]);
+          const idx = await searchLevels(SINGLE_F.length, at, goalFn);
           if (idx < 0) return;
-          singleFound[g] = true;
-          const inc = incAt(key, FACTORS[idx]), m = META[key];
+          const inc = incAt(key, SINGLE_F[idx]), m = META[key], d = {}; d[key] = inc;
           report({ grp: g, order: m.order, icon: m.icon, short: leadShort(g) + m.label + ' +' + inc.toLocaleString(),
-            html: leadChip(g) + '<i class="ph ' + m.icon + '"></i><span class="craft-tip-k">' + m.label + '</span><strong class="craft-tip-plus">+' + inc.toLocaleString() + '</strong>' + coverTag(key, inc),
+            html: leadChip(g) + '<i class="ph ' + m.icon + '"></i><span class="craft-tip-k">' + m.label + '</span><strong class="craft-tip-plus">+' + inc.toLocaleString() + '</strong>' + coverTag(d),
             hint: '只提高' + m.label + '約 ' + inc.toLocaleString() + '（其他不變），' + NOTE });
         })());
       });
+      // 三項同時提升（不論單項有沒有找到都做：實際換裝備通常同時提升好幾項，所需的量會比單項小很多）
+      tasks.push((async function () {
+        const at = function (i) { return evalSc(g, stats.craftsmanship + incAt('craftsmanship', TRIO_F[i]), stats.control + incAt('control', TRIO_F[i]), stats.cp + incAt('cp', TRIO_F[i])); };
+        const idx = await searchLevels(TRIO_F.length, at, goalFn);
+        if (idx < 0) return;
+        const d = { craftsmanship: incAt('craftsmanship', TRIO_F[idx]), control: incAt('control', TRIO_F[idx]), cp: incAt('cp', TRIO_F[idx]) };
+        report({ grp: g, order: 5, icon: 'ph-trend-up', short: leadShort(g) + '三項同時提升',
+          html: leadChip(g) + '<span class="craft-tip-trio"><i class="ph ph-hammer"></i>+' + d.craftsmanship.toLocaleString() + '<i class="ph ph-target"></i>+' + d.control.toLocaleString() + '<i class="ph ph-sparkle"></i>+' + d.cp.toLocaleString() + '</span>' + coverTag(d),
+          hint: '作業精度、加工精度、CP 三項同時提高，' + NOTE });
+      })());
     });
     await Promise.all(tasks);
-    // 三項同時：單項都不夠的標準才做
-    await Promise.all(activeGoals.filter(function (g) { return !singleFound[g]; }).map(async function (g) {
-      const hqMode = hqModeFor(g);
-      const at = function (i) { return evalSc(hqMode, stats.craftsmanship + incAt('craftsmanship', FACTORS[i]), stats.control + incAt('control', FACTORS[i]), stats.cp + incAt('cp', FACTORS[i])); };
-      const idx = await searchLevels(FACTORS.length, at, goals[g]);
-      if (idx < 0) return;
-      const a = incAt('craftsmanship', FACTORS[idx]), c = incAt('control', FACTORS[idx]), p = incAt('cp', FACTORS[idx]);
-      const worst = (cover.craftsmanship >= a && cover.control >= c && cover.cp >= p) ? coverTag('cp', 0) : coverTag('cp', Infinity);
-      report({ grp: g, order: 5, icon: 'ph-trend-up', short: leadShort(g) + '三項同時提升',
-        html: leadChip(g) + '<span class="craft-tip-trio"><i class="ph ph-hammer"></i>+' + a.toLocaleString() + '<i class="ph ph-target"></i>+' + c.toLocaleString() + '<i class="ph ph-sparkle"></i>+' + p.toLocaleString() + '</span>' + worst,
-        hint: '作業精度、加工精度、CP 三項同時提高（任何單項都不夠時），' + NOTE });
-    }));
+    return upgrade;
   }
 
   /* ── 結果條狀圖：進度條平滑增長、數字滾動；品質條前段用不同色標出 HQ 材料帶來的起始品質；滿品質時發光 ── */

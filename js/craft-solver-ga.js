@@ -153,7 +153,7 @@
       score = 100 + (result.hqPercent || 0);
       if (score >= 200) score += Math.max(0, 50 - rotation.length); // 步數當極小權重 tie-breaker
     }
-    return { score: score, success: !!result.success, hqPercent: result.hqPercent || 0, collectability: collectability, result: result };
+    return { score: score, success: !!result.success, hqPercent: result.hqPercent || 0, collectability: collectability, quality: sim.quality || 0, result: result };
   };
 
   /* 突變：隨機在序列中刪一步，或插入一個（依當時狀態）合法的新步驟。
@@ -222,6 +222,9 @@
         });
       }
 
+      // 指定了品質目標（驗證「做不做得到」用）：成功且品質達標就立刻收工，不必把剩下的世代跑完
+      if (this.config.goalQuality != null && best.ev.success && best.ev.quality >= this.config.goalQuality) break;
+
       // 已經找到「成功且高品質」的解，且是最後幾代了，可以提早收工，省時間
       if (best.ev.success && best.ev.hqPercent >= this.config.hqTarget && gen > this.config.generations * 0.3) {
         break;
@@ -256,6 +259,61 @@
       best = first[0];
     }
     return best.rotation;
+  };
+
+  /* 局部精修（爬山法）：GA 容易卡在「差一點」的局部最佳（實測最佳手法進度 5864/6600，從它重新搜尋卻能到 6583），
+   * 所以最後對最佳手法嘗試「刪掉一步／換成別的技能／插入一個技能」，隨機順序、遇到變好就立刻採用並從新手法繼續，
+   * 整輪都沒有更好的就收工。固定前綴（接續求解時玩家手動選的）不動。maxMs 是這一步最多花多久。 */
+  CraftSolverGA.prototype.polish = function (rotation, maxMs) {
+    var self = this;
+    var prefixLen = this.fixedPrefix.length;
+    var limit = Date.now() + (maxMs || 2000);
+    if (this.config.deadline) limit = Math.min(limit, this.config.deadline);
+    var cur = rotation, curEv = this.evaluate(cur);
+    var A = this.availableActions;
+    var reached = function (ev) { return self.config.goalQuality != null && ev.success && ev.quality >= self.config.goalQuality; };
+    /* 先沿著目前的手法逐步走一遍，記下「每一步當下哪些技能真的能用」（CP、耐久、前置技能都滿足）。
+     * 之後的替換／插入只嘗試這些技能：不能用的技能放進去只會被跳過，等於白白評分一次（實測約省 2/3 的評分）。 */
+    var usableAt = function (rot) {
+      var sim = new simulator.Simulation(self.recipe, [], self.stats, self.hqIngredients);
+      sim.lastPossibleReclaimStep = -1;
+      var lists = [];
+      for (var i = 0; i <= rot.length; i++) {
+        var usable = [];
+        if (sim.success === undefined) {
+          sim.state = simulator.StepState.NORMAL;
+          for (var a = 0; a < A.length; a++) {
+            try { if (A[a].canBeUsed(sim, false, self.safeMode)) usable.push(a); } catch (e) { /* 這個技能判斷失敗就當作不能用 */ }
+          }
+        }
+        lists.push(usable);
+        if (i < rot.length) self._applyAction(sim, rot[i], i);
+      }
+      return lists;
+    };
+    var improved = true;
+    while (improved && !reached(curEv)) {
+      improved = false;
+      var usable = usableAt(cur);
+      // 這一輪所有可能的改動：[種類, 位置, 技能索引]，打亂順序，這樣不會永遠只改前面那幾步
+      var ops = [];
+      for (var i = prefixLen; i < cur.length; i++) {
+        ops.push([0, i, 0]);
+        for (var u = 0; u < usable[i].length; u++) { if (A[usable[i][u]].constructor !== cur[i].constructor) ops.push([1, i, usable[i][u]]); }
+      }
+      for (var j = prefixLen; j <= cur.length; j++) for (var v = 0; v < usable[j].length; v++) ops.push([2, j, usable[j][v]]);
+      for (var k = ops.length - 1; k > 0; k--) { var r = Math.floor(Math.random() * (k + 1)); var t = ops[k]; ops[k] = ops[r]; ops[r] = t; }
+      for (var n = 0; n < ops.length; n++) {
+        if ((n & 63) === 0 && Date.now() > limit) return cur;
+        var op = ops[n], cand = cur.slice();
+        if (op[0] === 0) cand.splice(op[1], 1);
+        else if (op[0] === 1) cand[op[1]] = new A[op[2]].constructor();
+        else cand.splice(op[1], 0, new A[op[2]].constructor());
+        var ev = this.evaluate(cand);
+        if (ev.score > curEv.score + 1e-9) { cur = cand; curEv = ev; improved = true; break; } // 變好就採用，從新手法重新開始一輪
+      }
+    }
+    return cur;
   };
 
   global.CraftSolverGA = CraftSolverGA;
