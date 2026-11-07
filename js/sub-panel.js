@@ -119,7 +119,96 @@ app.exploreUi = app.exploreUi || (function(){
       hdr.classList.toggle('open',panel.classList.contains('sub-filters-open'));
     }
   };
-  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters};
+
+  /* ─── 物品資料：全部航區的目的地可產出物品清單（表格式／卡片式） ──────────────
+   * data = { title, groups:[{key,label,sectors:[{letter,name,rank,t2,t3,tiers:{1:[ids],2:[ids],3:[ids]}}]}], getName }
+   * 物品顏色沿用 items.js 的 lootCatClass(id,tier)，跟搜尋結果同一套；物品順序也跟搜尋結果一樣
+   * （設計圖材料 > 稀有 > 一般 > 魔晶石，同類依名稱）。 */
+  const openLootData=(data)=>{
+    const KEY='explore-lootdata-view';
+    let mode=window.innerWidth<700?'card':'table';
+    try{const v=localStorage.getItem(KEY);if(v==='card'||v==='table')mode=v;}catch(e){}
+    document.querySelectorAll('.ld-overlay').forEach(n=>n.remove());
+    const ov=document.createElement('div');
+    ov.className='ld-overlay';
+    const multi=data.groups.length>1;
+    ov.innerHTML='<div class="ld-modal" role="dialog" aria-label="物品資料">'
+      +'<div class="ld-head"><span class="ld-title"><i class="ph ph-package"></i>'+data.title+'</span>'
+      +'<div class="sub-seg ld-view"><button type="button" class="sub-seg-btn" data-mode="table"><i class="ph ph-table"></i>表格式</button><button type="button" class="sub-seg-btn" data-mode="card"><i class="ph ph-cards"></i>卡片式</button></div>'
+      +'<button type="button" class="ld-close" aria-label="關閉"><i class="ph ph-x"></i></button></div>'
+      +'<div class="ld-tools"><label class="ld-search"><i class="ph ph-magnifying-glass"></i><input type="text" placeholder="搜尋物品，看哪些目的地會產出…" autocomplete="off"><button type="button" class="ld-clear" aria-label="清除" hidden><i class="ph ph-x-circle"></i></button></label>'
+      +(multi?'<div class="ld-maps"></div>':'')+'</div>'
+      +'<div class="ld-legend"><span class="ld-lg"><b class="loot-tier-badge tier-badge-1">T1</b>一般</span><span class="ld-lg"><b class="loot-tier-badge tier-badge-2">T2</b><i class="ph ph-compass"></i>探索性能達標</span><span class="ld-lg"><b class="loot-tier-badge tier-badge-3">T3</b><i class="ph ph-compass"></i>探索性能最佳</span>'
+      +'<span class="ld-lg ld-lg-sep"><b class="cat-blueprint">設計圖材料</b><b class="cat-rare3">更稀有物品</b><b class="cat-rare2">稀有物品</b><b class="cat-general">一般材料</b><b class="cat-materia">魔晶石</b></span></div>'
+      +'<div class="ld-body"></div></div>';
+    document.body.appendChild(ov);
+    const body=ov.querySelector('.ld-body'),inp=ov.querySelector('.ld-search input'),clr=ov.querySelector('.ld-clear');
+    const mapsEl=ov.querySelector('.ld-maps');
+    let mapKey='all';
+    const CAT_ORDER={blueprint:0,rare:1,general:2,materia:3};
+    const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    /* 預先算好每個目的地每個 tier 的排序後物品（名稱、分類色） */
+    data.groups.forEach(g=>g.sectors.forEach(sec=>{
+      sec._t={};
+      [1,2,3].forEach(t=>{
+        sec._t[t]=(sec.tiers[t]||[]).map(id=>({id,name:data.getName(id),cat:getItemCategory(id),cls:lootCatClass(id,t)}))
+          .sort((a,b)=>(CAT_ORDER[a.cat]-CAT_ORDER[b.cat])||a.name.localeCompare(b.name,'zh-TW'));
+      });
+    }));
+    const itemsHtml=(sec,t,q)=>{
+      const list=sec._t[t];
+      if(!list.length)return '<span class="ld-none">—</span>';
+      return list.map(it=>'<span class="ld-it '+it.cls+(q&&it.name.toLowerCase().includes(q)?' ld-hit':'')+'">'+esc(it.name)+'</span>').join('<i class="ld-sep">、</i>');
+    };
+    const req=(sec,t)=>t===1?'':'<span class="ld-req" title="探索性能需達 '+(t===2?sec.t2:sec.t3)+'"><i class="ph ph-compass"></i>≥'+(t===2?sec.t2:sec.t3)+'</span>';
+    const destHtml=sec=>(sec.letter?'<b class="thr-letter">'+esc(sec.letter)+'</b>':'')+'<span class="ld-dn">'+esc(sec.name)+'</span><span class="ld-rk" title="解鎖等級"><i class="ph ph-medal"></i>Lv'+sec.rank+'</span>';
+    const render=()=>{
+      const q=inp.value.trim().toLowerCase();
+      clr.hidden=!q;
+      let total=0,seq=0,html='';
+      const groups=data.groups.filter(g=>mapKey==='all'||g.key===mapKey).map(g=>({g,secs:g.sectors.filter(sec=>!q||[1,2,3].some(t=>sec._t[t].some(it=>it.name.toLowerCase().includes(q))))})).filter(x=>x.secs.length);
+      if(mode==='table'){
+        html='<div class="ld-table-wrap"><table class="ld-table"><thead><tr><th class="ld-th-dest"><i class="ph ph-map-pin"></i>目的地</th><th><b class="loot-tier-badge tier-badge-1">T1</b>一般</th><th><b class="loot-tier-badge tier-badge-2">T2</b>探索達標</th><th><b class="loot-tier-badge tier-badge-3">T3</b>探索最佳</th></tr></thead><tbody>';
+        groups.forEach(({g,secs})=>{
+          html+='<tr class="ld-grp-row"><td colspan="4"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></td></tr>';
+          secs.forEach(sec=>{total++;
+            html+='<tr class="ld-row" style="--i:'+Math.min(seq++,14)+'"><td class="ld-dest">'+destHtml(sec)+'</td>'
+              +'<td class="ld-c t1">'+itemsHtml(sec,1,q)+'</td>'
+              +'<td class="ld-c t2">'+req(sec,2)+itemsHtml(sec,2,q)+'</td>'
+              +'<td class="ld-c t3">'+req(sec,3)+itemsHtml(sec,3,q)+'</td></tr>';
+          });
+        });
+        html+='</tbody></table></div>';
+      }else{
+        groups.forEach(({g,secs})=>{
+          html+='<div class="ld-grp-h"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></div><div class="ld-cards">';
+          secs.forEach(sec=>{total++;
+            html+='<div class="ld-card" style="--i:'+Math.min(seq++,14)+'"><div class="ld-card-h">'+destHtml(sec)+'</div>'
+              +[1,2,3].map(t=>'<div class="ld-tier"><b class="loot-tier-badge tier-badge-'+t+'">T'+t+'</b><div class="ld-items">'+req(sec,t)+itemsHtml(sec,t,q)+'</div></div>').join('')+'</div>';
+          });
+          html+='</div>';
+        });
+      }
+      body.innerHTML=total?html:'<div class="ld-empty"><i class="ph ph-magnifying-glass"></i>找不到「'+esc(inp.value.trim())+'」會在哪個目的地產出</div>';
+      body.scrollTop=0;
+    };
+    const setMode=m=>{mode=m;try{localStorage.setItem(KEY,m);}catch(e){}ov.querySelectorAll('.ld-view .sub-seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));render();};
+    if(mapsEl){
+      mapsEl.innerHTML='<button type="button" class="ld-chip active" data-k="all">全部</button>'+data.groups.map(g=>'<button type="button" class="ld-chip" data-k="'+g.key+'">'+esc(g.label)+'</button>').join('');
+      mapsEl.addEventListener('click',e=>{const b=e.target.closest('.ld-chip');if(!b)return;mapKey=b.dataset.k;mapsEl.querySelectorAll('.ld-chip').forEach(c=>c.classList.toggle('active',c===b));render();});
+    }
+    ov.querySelectorAll('.ld-view .sub-seg-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+    inp.addEventListener('input',render);
+    clr.addEventListener('click',()=>{inp.value='';render();inp.focus();});
+    const close=()=>{ov.classList.remove('active');document.removeEventListener('keydown',onKey,true);setTimeout(()=>ov.remove(),220);};
+    const onKey=e=>{if(e.key==='Escape'){e.stopPropagation();close();}};
+    document.addEventListener('keydown',onKey,true);
+    ov.addEventListener('click',e=>{if(e.target===ov)close();});
+    ov.querySelector('.ld-close').addEventListener('click',close);
+    setMode(mode);
+    requestAnimationFrame(()=>ov.classList.add('active'));
+  };
+  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData};
 })();
 
 /* ─── SUBMARINE UI ─── */
@@ -190,7 +279,8 @@ app.buildSub = function (){
       const openTip=(trigger)=>{
         closeTip();
         const box=document.createElement('div');
-        box.className='sub-tip-box'+(trigger.hasAttribute('data-tip-wide')?' sub-tip-wide':'');
+        box.className='sub-tip-box'+(trigger.hasAttribute('data-tip-wide')?' sub-tip-wide':'')
+        if(trigger.hasAttribute('data-tip-fit'))box.classList.add('sub-tip-fit');
         box.innerHTML=trigger.getAttribute('data-tip').replace(/\n/g,'<br>');
         document.body.appendChild(box);
         const scrollHost=box.querySelector('.sub-tip-wide-body');
@@ -245,7 +335,7 @@ app.buildSub = function (){
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
 </div>
 <div id="sub-route-panel">
-<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="sub-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="sub-rank-inp" class="sub-inp" value="1" min="1" max="145"><span class="sub-exp-next" id="sub-exp-next"></span><span class="sub-exp-badge" id="sub-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="sub-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="sub-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="sub-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="sub-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="sub-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
+<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="sub-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="sub-rank-inp" class="sub-inp" value="1" min="1" max="145"><span class="sub-exp-next" id="sub-exp-next"></span><span class="sub-exp-badge" id="sub-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="sub-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="sub-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="sub-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="sub-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="sub-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>物品資料</span></button><button id="sub-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
 <div class="sub-parts-row" id="sub-parts-select-row">
   <div class="sub-part-col"><label class="sub-lbl" for="sub-hull"><i class="ph ph-boat"></i>船體</label><select id="sub-hull" class="sub-sel"></select></div>
   <div class="sub-part-col"><label class="sub-lbl" for="sub-stern"><i class="ph ph-fan"></i>船尾</label><select id="sub-stern" class="sub-sel"></select></div>
@@ -971,9 +1061,9 @@ app.buildSub = function (){
           `<span><b class="loot-tier-badge tier-badge-3">T3</b> 需探索性能達最佳</span>`+
           `<span class="sub-legend-sep"><span class="lg-dim">淺色字</span>＝尚未達標</span>`+
           `<span class="sub-legend-sep">物品顏色：<b class="cat-blueprint">設計圖材料</b>　<b class="cat-rare3">更稀有物品</b>　<b class="cat-rare2">稀有物品</b>　<b class="cat-general">一般材料</b>　<b class="cat-materia">魔晶石</b></span>`+
-          `<span class="sub-legend-sep lg-thr-grp"><span class="lg-thr" aria-label="圓點順序：探索、收集、恩惠"><b></b><b class="lg-thr-h">探索</b><b class="lg-thr-h">收集</b><b class="lg-thr-h">恩惠</b><b class="thr-letter lg-thr-letter">A</b><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i></span><span class="lg-states"><span class="lg-st"><i class="thr-dot thr-full"></i>最佳（實心）</span><span class="lg-st"><i class="thr-dot thr-part"></i>達標（半圓）</span><span class="lg-st"><i class="thr-dot thr-none"></i>未達標（空心）</span></span></span>`+
-          `<span class="sub-legend-sep"><span class="sub-exp-badge lg-info" data-tip="點擊物品名稱或圓點可查看完整資訊\n恩惠只分「達標（實心）」與「未達標（空心）」兩種"><i class="ph ph-hand-pointing"></i></span></span>`+
-          (showItemEff?`<span class="sub-legend-sep">物品效率＝${lootSortMode==='coverage'?'覆蓋種類數（不重複）':'命中件數（可重複累計）'}÷耗時<span class="sub-exp-badge lg-info" data-tip="點擊該欄位可查看這條路線的明細"><i class="ph ph-info"></i></span></span>`:'')+
+          `<span class="sub-legend-sep"><span class="sub-exp-badge lg-info" data-tip-fit="1" data-tip="點擊物品名稱或圓點可查看完整資訊\n恩惠只分 <i class='thr-dot thr-full'></i>達標／<i class='thr-dot thr-none'></i>未達標 兩種"><i class="ph ph-hand-pointing"></i></span></span>`+
+`<span class="sub-legend-sep lg-thr-grp"><span class="lg-thr" aria-label="圓點順序：探索、收集、恩惠"><b></b><b class="lg-thr-h">探索</b><b class="lg-thr-h">收集</b><b class="lg-thr-h">恩惠</b><b class="thr-letter lg-thr-letter">A</b><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i></span><span class="lg-states"><span class="lg-st"><i class="thr-dot thr-full"></i>最佳（實心）</span><span class="lg-st"><i class="thr-dot thr-part"></i>達標（半圓）</span><span class="lg-st"><i class="thr-dot thr-none"></i>未達標（空心）</span></span></span>`+
+                    (showItemEff?`<span class="sub-legend-sep">物品效率＝${lootSortMode==='coverage'?'覆蓋種類數（不重複）':'命中件數（可重複累計）'}÷耗時<span class="sub-exp-badge lg-info" data-tip="點擊該欄位可查看這條路線的明細"><i class="ph ph-info"></i></span></span>`:'')+
         `</div>`;
 
         /* 依目前 sortKey / sortDir 排序（複製陣列，不改動原始 routes 順序） */
@@ -999,7 +1089,7 @@ app.buildSub = function (){
             if(hero.label!=='經驗值')secondary.push(`<i class="ph ph-trend-up sc-ic"></i>經驗值 ${r.exp.toLocaleString()}`);
             if(hero.label!=='耗時')secondary.push(`<i class="ph ph-clock sc-ic"></i>${r.timeStr}`);
             if(hero.label!=='EXP/分')secondary.push(`<i class="ph ph-lightning sc-ic"></i>EXP/分 ${r.epm.toLocaleString()}`);
-            secondary.push(`<i class="ph ph-ruler sc-ic"></i>距離${r.range}／燃料${r.tank}`);
+            secondary.push(`<i class="ph ph-ruler sc-ic"></i>距離${r.range}／<i class="ph ph-gas-pump sc-ic"></i>燃料${r.tank}`);
             const buildTag=r.build?(()=>{const b=r.build;const tip=`船體：${b.hull[1]}\n船尾：${b.stern[1]}\n船首：${b.bow[1]}\n艦橋：${b.bridge[1]}\n承載力：${b.cost}/${b.cap??'—'}`;return `<div class="sub-card-tag" data-tip="${tip}"><i class="ph ph-wrench"></i> ${b.hull[0]}／${b.stern[0]}／${b.bow[0]}／${b.bridge[0]}</div>`;})():'';
             const thrHtml=buildThresholdStrip(r.secIds,rowStats);
             const lootHtml=buildLootCell(r.secIds,rowStats,10);
@@ -1406,6 +1496,17 @@ app.buildSub = function (){
     };
     const mapBtn=root.querySelector('#sub-map-btn');
     if(mapBtn)mapBtn.addEventListener('click',()=>openMapModal(SUB_MAPS,'潛水艇 · 探索地圖'));
+    /* 物品資料：依航海圖分組，列出每個目的地 T1／T2／T3 可產出的物品 */
+    const lootBtn=root.querySelector('#sub-loot-btn');
+    if(lootBtn)lootBtn.addEventListener('click',()=>{
+      const groups=SUB_MAPS.map((m,i)=>({key:'m'+(i+1),label:`(${i+1}) ${m.label}`,sectors:[]}));
+      SUB_SECTORS.forEach(sec=>{
+        const g=groups[sec[1]-1];if(!g)return;
+        const lt=SUB_LOOT_TIER[sec[0]]||{};
+        g.sectors.push({letter:sec[2],name:sec[4],rank:sec[5],t2:sec[10],t3:sec[11],tiers:{1:lt[1]||[],2:lt[2]||[],3:lt[3]||[]}});
+      });
+      app.exploreUi.openLootData({title:'潛水艇 · 物品資料',groups:groups.filter(g=>g.sectors.length),getName});
+    });
 
     const setCompact=(compact)=>{
       mogship.classList.toggle('sub-compact',compact);
