@@ -1610,3 +1610,45 @@ html[data-nav-mode="top"] .news-outer,
 .ld-overlay.active .ld-card,.ld-overlay.active .ld-row{animation:ldRise .45s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 45ms)}
 @media (max-width:640px){.ld-overlay{padding:8px}.ld-modal{padding:12px;max-height:96vh}.ld-view{margin-left:0}.ld-search{max-width:none}.ld-lg-sep{padding-left:0;border-left:none}}
 @media (prefers-reduced-motion:reduce){.ld-overlay.active .ld-card,.ld-overlay.active .ld-row{animation:none}.ld-modal,.ld-overlay{transition:none}}
+
+
+/* —— 第六輪：動態更明顯——向上滑入＋淡入，間隔拉長，一眼看得出名次先後 ——
+ * 調整速度只要改這兩個數字（卡片每張間隔、表格每列間隔）；滑入距離改 translateY 的 38px／30px */
+.sub-mogship{--ex-step:140ms;--ex-row-step:90ms}
+@keyframes exRise3{from{opacity:0;transform:translateY(38px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes exRowUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+.sub-mogship .sub-route-card{animation:exRise3 .75s cubic-bezier(.22,1,.36,1) both}
+.sub-mogship .sub-table tbody tr{animation:exRowUp .7s cubic-bezier(.22,1,.36,1) both}
+.sub-mogship .sub-route-card:nth-child(2){animation-delay:calc(var(--ex-step) * 1)}
+.sub-mogship .sub-table tbody tr:nth-child(2){animation-delay:calc(var(--ex-row-step) * 1)}
+.sub-mogship .sub-route-card:nth-child(3){animation-delay:calc(var(--ex-step) * 2)}
+.sub-mogship .sub-table tbody tr:nth-child(3){animation-delay:calc(var(--ex-row-step) * 2)}
+.sub-mogship .sub-route-card:nth-child(4){animation-delay:calc(var(--ex-step) * 3)}
+.sub-mogship .sub-table tbody tr:nth-child(4){animation-delay:calc(var(--ex-row-step) * 3)}
+.sub-mogship .sub-route-card:nth-child(5){animation-delay:calc(var(--ex-step) * 4)}
+.sub-mogship .sub-table tbody tr:nth-child(5){animation-delay:calc(var(--ex-row-step) * 4)}
+.sub-mogship .sub-route-card:nth-child(6){animation-delay:calc(var(--ex-step) * 5)}
+.sub-mogship .sub-table tbody tr:nth-child(6){animation-delay:calc(var(--ex-row-step) * 5)}
+.sub-mogship .sub-route-card:nth-child(7){animation-delay:calc(var(--ex-step) * 6)}
+.sub-mogship .sub-table tbody tr:nth-child(7){animation-delay:calc(var(--ex-row-step) * 6)}
+.sub-mogship .sub-route-card:nth-child(8){animation-delay:calc(var(--ex-step) * 7)}
+.sub-mogship .sub-table tbody tr:nth-child(8){animation-delay:calc(var(--ex-row-step) * 7)}
+.sub-mogship .sub-route-card:nth-child(9){animation-delay:calc(var(--ex-step) * 8)}
+.sub-mogship .sub-table tbody tr:nth-child(9){animation-delay:calc(var(--ex-row-step) * 8)}
+.sub-mogship .sub-route-card:nth-child(10){animation-delay:calc(var(--ex-step) * 9)}
+.sub-mogship .sub-table tbody tr:nth-child(10){animation-delay:calc(var(--ex-row-step) * 9)}
+.sub-mogship .sub-route-card:nth-child(11){animation-delay:calc(var(--ex-step) * 10)}
+.sub-mogship .sub-table tbody tr:nth-child(11){animation-delay:calc(var(--ex-row-step) * 10)}
+.sub-mogship .sub-route-card:nth-child(12){animation-delay:calc(var(--ex-step) * 11)}
+.sub-mogship .sub-table tbody tr:nth-child(12){animation-delay:calc(var(--ex-row-step) * 11)}
+.sub-mogship .sub-route-card:nth-child(13){animation-delay:calc(var(--ex-step) * 12)}
+.sub-mogship .sub-table tbody tr:nth-child(13){animation-delay:calc(var(--ex-row-step) * 12)}
+.sub-mogship .sub-route-card:nth-child(14){animation-delay:calc(var(--ex-step) * 13)}
+.sub-mogship .sub-table tbody tr:nth-child(14){animation-delay:calc(var(--ex-row-step) * 13)}
+
+/* 收獲概覽視窗內也同步放慢、改成向上滑入 */
+@keyframes ldRise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+.ld-overlay.active .ld-card,.ld-overlay.active .ld-row{animation:ldRise .65s cubic-bezier(.22,1,.36,1) both;animation-delay:calc(var(--i,0) * 85ms)}
+@media (prefers-reduced-motion:reduce){
+  .sub-mogship .sub-route-card,.sub-mogship .sub-table tbody tr,.ld-overlay.active .ld-card,.ld-overlay.active .ld-row{animation:none!important}
+}
