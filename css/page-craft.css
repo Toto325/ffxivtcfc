@@ -1294,3 +1294,21 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 /* 瀏覽紀錄：清空鈕 */
 .craft-solve-nav-clear{flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;padding:0;font-size:13px;color:var(--dim);background:transparent;border:1px solid var(--tb);border-radius:6px;cursor:pointer}
 .craft-solve-nav-clear:hover{color:#f87171;border-color:rgba(248,113,113,.55)}
+
+/* 建議：裝備需求（目前→需要），同一列多項＝同時都要；列與列之間是「或」 */
+.craft-tip-stat{display:inline-flex;align-items:center;gap:4px;color:var(--dim);font-variant-numeric:tabular-nums}
+.craft-tip-stat>i:first-child{color:var(--gold)}
+.craft-tip-stat strong{color:var(--gold-bright)}
+.craft-tip-stat .ph-arrow-right{font-size:11px}
+.craft-tip-and{color:var(--gold);font-size:12px}
+.craft-tip-gear{color:var(--gold);flex:none}
+.craft-tip-lead .craft-tip-item{opacity:.9}
+.craft-diag-open{padding:0}
+.craft-diag-open .craft-diagnosis-title{padding:6px 12px 0}
+.craft-diag-open ul{padding:0 12px 8px}
+.craft-diag-open .craft-tip-grp:first-child{padding-top:0}
+
+.craft-tip-sk{color:var(--main)}
+.craft-tip-arrow{color:var(--gold);margin:0 1px}
+/* 依賴「搭配」前提的裝備需求：縮排在前提下面，表示「先用上面這些，再提升這個數值」 */
+.craft-tip-child{margin-left:8px;padding-left:10px;border-left:2px solid rgba(197,160,89,.4)}

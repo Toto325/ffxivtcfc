@@ -150,8 +150,11 @@
       score = 100 + Math.min(100, (collectability / this.collectableGoal) * 100);
       if (reached) score += Math.max(0, 50 - rotation.length);
     } else {
-      score = 100 + (result.hqPercent || 0);
-      if (score >= 200) score += Math.max(0, 50 - rotation.length); // 步數當極小權重 tie-breaker
+      // 優質率在低品質時是一大片平的（都是 1～2%），搜尋沒有方向可爬；加一個「品質佔目標的比例」小項（最多 +10），
+      // 讓品質高一點的手法分數也高一點。優質率仍是主要依據。
+      var qRatio = this.recipe.quality > 0 ? Math.min(sim.quality || 0, this.recipe.quality) / this.recipe.quality : 0;
+      score = 100 + (result.hqPercent || 0) + qRatio * 10;
+      if ((result.hqPercent || 0) >= 100) score += Math.max(0, 50 - rotation.length); // 步數當極小權重 tie-breaker
     }
     return { score: score, success: !!result.success, hqPercent: result.hqPercent || 0, collectability: collectability, quality: sim.quality || 0, result: result };
   };
