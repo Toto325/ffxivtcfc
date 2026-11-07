@@ -120,7 +120,7 @@ app.exploreUi = app.exploreUi || (function(){
     }
   };
 
-  /* ─── 物品資料：全部航區的目的地可產出物品清單（表格式／卡片式） ──────────────
+  /* ─── 收獲概覽：全部航區的目的地可產出物品清單（表格式／卡片式） ──────────────
    * data = { title, groups:[{key,label,sectors:[{letter,name,rank,t2,t3,tiers:{1:[ids],2:[ids],3:[ids]}}]}], getName }
    * 物品顏色沿用 items.js 的 lootCatClass(id,tier)，跟搜尋結果同一套；物品順序也跟搜尋結果一樣
    * （設計圖材料 > 稀有 > 一般 > 魔晶石，同類依名稱）。 */
@@ -132,7 +132,7 @@ app.exploreUi = app.exploreUi || (function(){
     const ov=document.createElement('div');
     ov.className='ld-overlay';
     const multi=data.groups.length>1;
-    ov.innerHTML='<div class="ld-modal" role="dialog" aria-label="物品資料">'
+    ov.innerHTML='<div class="ld-modal" role="dialog" aria-label="收獲概覽">'
       +'<div class="ld-head"><span class="ld-title"><i class="ph ph-package"></i>'+data.title+'</span>'
       +'<div class="sub-seg ld-view"><button type="button" class="sub-seg-btn" data-mode="table"><i class="ph ph-table"></i>表格式</button><button type="button" class="sub-seg-btn" data-mode="card"><i class="ph ph-cards"></i>卡片式</button></div>'
       +'<button type="button" class="ld-close" aria-label="關閉"><i class="ph ph-x"></i></button></div>'
@@ -329,13 +329,13 @@ app.buildSub = function (){
     }
 
     root.innerHTML=`<div class="sub-mogship">
-<div class="explore-header"><h2 class="unified-gold-header small news-title">⚓ 潛水艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">路線規劃・物品篩選・取得搜索</p></div>
+<div class="explore-header"><h2 class="unified-gold-header small news-title">⚓ 潛水艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">查詢最佳經驗路線及收獲物路線規劃</p></div>
 <div class="sub-mode-toggle" role="tablist">
   <button type="button" class="sub-mode-btn active" data-mode="route"><i class="ph ph-path"></i>路線搜尋</button>
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
 </div>
 <div id="sub-route-panel">
-<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="sub-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="sub-rank-inp" class="sub-inp" value="1" min="1" max="145"><span class="sub-exp-next" id="sub-exp-next"></span><span class="sub-exp-badge" id="sub-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="sub-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="sub-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="sub-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="sub-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="sub-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>物品資料</span></button><button id="sub-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
+<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="sub-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="sub-rank-inp" class="sub-inp" value="1" min="1" max="145"><span class="sub-exp-next" id="sub-exp-next"></span><span class="sub-exp-badge" id="sub-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="sub-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="sub-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="sub-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="sub-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="sub-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>收獲概覽</span></button><button id="sub-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
 <div class="sub-parts-row" id="sub-parts-select-row">
   <div class="sub-part-col"><label class="sub-lbl" for="sub-hull"><i class="ph ph-boat"></i>船體</label><select id="sub-hull" class="sub-sel"></select></div>
   <div class="sub-part-col"><label class="sub-lbl" for="sub-stern"><i class="ph ph-fan"></i>船尾</label><select id="sub-stern" class="sub-sel"></select></div>
@@ -1496,7 +1496,7 @@ app.buildSub = function (){
     };
     const mapBtn=root.querySelector('#sub-map-btn');
     if(mapBtn)mapBtn.addEventListener('click',()=>openMapModal(SUB_MAPS,'潛水艇 · 探索地圖'));
-    /* 物品資料：依航海圖分組，列出每個目的地 T1／T2／T3 可產出的物品 */
+    /* 收獲概覽：依航海圖分組，列出每個目的地 T1／T2／T3 可產出的物品 */
     const lootBtn=root.querySelector('#sub-loot-btn');
     if(lootBtn)lootBtn.addEventListener('click',()=>{
       const groups=SUB_MAPS.map((m,i)=>({key:'m'+(i+1),label:`(${i+1}) ${m.label}`,sectors:[]}));
@@ -1505,7 +1505,7 @@ app.buildSub = function (){
         const lt=SUB_LOOT_TIER[sec[0]]||{};
         g.sectors.push({letter:sec[2],name:sec[4],rank:sec[5],t2:sec[10],t3:sec[11],tiers:{1:lt[1]||[],2:lt[2]||[],3:lt[3]||[]}});
       });
-      app.exploreUi.openLootData({title:'潛水艇 · 物品資料',groups:groups.filter(g=>g.sectors.length),getName});
+      app.exploreUi.openLootData({title:'潛水艇 · 收獲概覽',groups:groups.filter(g=>g.sectors.length),getName});
     });
 
     const setCompact=(compact)=>{

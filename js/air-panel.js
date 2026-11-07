@@ -103,13 +103,13 @@ app.buildAir = function () {
   }
 
   root.innerHTML = `<div class="sub-mogship">
-<div class="explore-header"><h2 class="unified-gold-header small news-title">✈ 飛空艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">路線規劃・物品篩選・取得搜索</p></div>
+<div class="explore-header"><h2 class="unified-gold-header small news-title">✈ 飛空艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">查詢最佳經驗路線及收獲物路線規劃</p></div>
 <div class="sub-mode-toggle" role="tablist">
   <button type="button" class="sub-mode-btn active" data-mode="route"><i class="ph ph-path"></i>路線搜尋</button>
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
 </div>
 <div id="air-route-panel">
-<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="air-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="air-rank-inp" class="sub-inp" value="1" min="1" max="50"><span class="sub-exp-next" id="air-exp-next"></span><span class="sub-exp-badge" id="air-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="air-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="air-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="air-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="air-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="air-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>物品資料</span></button><button id="air-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
+<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="air-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="air-rank-inp" class="sub-inp" value="1" min="1" max="50"><span class="sub-exp-next" id="air-exp-next"></span><span class="sub-exp-badge" id="air-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="air-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="air-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="air-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="air-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="air-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>收獲概覽</span></button><button id="air-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
 <div class="sub-parts-row" id="air-parts-select-row">
   <div class="sub-part-col"><label class="sub-lbl" for="air-hull"><i class="ph ph-airplane-tilt"></i>船體</label><select id="air-hull" class="sub-sel"></select></div>
   <div class="sub-part-col"><label class="sub-lbl" for="air-rigging"><i class="ph ph-steering-wheel"></i>舾裝</label><select id="air-rigging" class="sub-sel"></select></div>
@@ -917,14 +917,14 @@ app.exploreUi.enhanceAll(root);
   };
   const mapBtn = root.querySelector('#air-map-btn');
   if (mapBtn) mapBtn.addEventListener('click', () => openMapModal([{ key: 'clouds', label: '雲海', file: 'assets/maps/map-air-clouds.jpg' }], '飛空艇 · 探索地圖'));
-  /* 物品資料：列出每個目的地 T1／T2／T3 可產出的物品 */
+  /* 收獲概覽：列出每個目的地 T1／T2／T3 可產出的物品 */
   const lootBtn = root.querySelector('#air-loot-btn');
   if (lootBtn) lootBtn.addEventListener('click', () => {
     const sectors = AIR_SECTORS.map(sec => {
       const lt = AIR_LOOT_TIER[sec[0]] || {};
       return { letter: '', name: sec[3], rank: sec[4], t2: sec[9], t3: sec[10], tiers: { 1: lt[1] || [], 2: lt[2] || [], 3: lt[3] || [] } };
     });
-    app.exploreUi.openLootData({ title: '飛空艇 · 物品資料', groups: [{ key: 'clouds', label: '雲海', sectors }], getName });
+    app.exploreUi.openLootData({ title: '飛空艇 · 收獲概覽', groups: [{ key: 'clouds', label: '雲海', sectors }], getName });
   });
 
   const setCompact = (compact) => {
