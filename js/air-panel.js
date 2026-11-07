@@ -102,7 +102,7 @@ app.buildAir = function () {
   }
 
   root.innerHTML = `<div class="sub-mogship">
-<div class="market-header explore-header"><h2 class="unified-gold-header small">✈ 飛空艇</h2><p class="elegant-body-text page-note">依等級與配裝，找出經驗效率最高的飛空艇探索路線。</p><div class="explore-credit"><i class="ph ph-heart"></i>感謝MOGSHIP及全球光之戰士的貢獻</div></div>
+<div class="explore-header"><h2 class="unified-gold-header small news-title">✈ 飛空艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">路線規劃・物品篩選・取得搜索</p></div>
 <div class="sub-mode-toggle" role="tablist">
   <button type="button" class="sub-mode-btn active" data-mode="route"><i class="ph ph-path"></i>路線搜尋</button>
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
@@ -121,7 +121,7 @@ app.buildAir = function () {
   <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-gauge"></i>巡航速度</div><div class="sub-stat-val sv-neu" id="as-spd">—</div></div>
   <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-ruler"></i>航行距離</div><div class="sub-stat-val sv-neu" id="as-rng">—</div></div>
   <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-sparkle"></i>恩惠</div><div class="sub-stat-val sv-neu" id="as-fav">—</div></div>
-  <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-package"></i>承載力</div><div class="sub-stat-val sv-neu" id="as-cap">—</div></div>
+  <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-package"></i>承載力</div><div class="sub-stat-val sv-neu" id="as-cap">—</div><div class="sub-cap-bar"><i id="as-cap-fill"></i></div></div>
 </div>
 <div class="sub-owned-route-block" id="air-owned-route-block" style="display:none">
   <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<span class="sub-exp-badge" data-tip="與「配裝反查」共用同一份記錄。
@@ -164,7 +164,7 @@ app.buildAir = function () {
   <div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-plus-circle"></i>必須包含目的地</label><div class="sub-multisel-wrap" id="air-inc-wrap"></div></div>
   <div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-exc"><i class="ph ph-prohibit"></i>排除目的地</label><div class="sub-multisel-wrap" id="air-excl-wrap"></div></div>
 </div>
-<div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-gift"></i>必須獲得物品</label><div class="sub-multisel-wrap" id="air-loot-wrap"></div><label class="sub-chk-lbl sub-chip-lbl sub-loot-strict-lbl"><input type="checkbox" id="air-loot-strict"><i class="ph ph-checks"></i>每個目的地都至少有其中一項物品</label><label class="sub-chk-lbl sub-chip-lbl sub-loot-meet-lbl" title="只計入探索性能已經達到取得門檻的物品；還沒達標、理論上有機率但目前配裝拿不到的不算數"><input type="checkbox" id="air-loot-meet"><i class="ph ph-seal-check"></i>忽略不達標的結果</label><div class="sub-loot-sort-row" id="air-loot-sort-row" style="display:none"><label class="sub-lbl" for="air-loot-sort"><i class="ph ph-arrows-down-up"></i>物品排序依據</label><select id="air-loot-sort" class="sub-sel"><option value="exp">EXP 效率（預設）</option><option value="coverage">物品覆蓋效率（短時間內湊齊優先）</option><option value="count">物品數量效率（拿越多越好）</option></select></div></div>
+<div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-gift"></i>必須獲得物品</label><div class="sub-multisel-wrap" id="air-loot-wrap"></div><div class="sub-chk-row"><label class="sub-chk-lbl sub-chip-lbl sub-loot-strict-lbl"><input type="checkbox" id="air-loot-strict"><i class="ph ph-checks"></i>每個目的地都至少有其中一項物品</label><label class="sub-chk-lbl sub-chip-lbl sub-loot-meet-lbl" title="只計入探索性能已經達到取得門檻的物品；還沒達標、理論上有機率但目前配裝拿不到的不算數"><input type="checkbox" id="air-loot-meet"><i class="ph ph-seal-check"></i>忽略不達標的結果</label></div><div class="sub-loot-sort-row" id="air-loot-sort-row" style="display:none"><label class="sub-lbl" for="air-loot-sort"><i class="ph ph-arrows-down-up"></i>結果排序依據</label><select id="air-loot-sort" class="sub-sel"><option value="exp">EXP 效率（預設）</option><option value="coverage">物品覆蓋效率（短時間內湊齊優先）</option><option value="count">物品數量效率（拿越多越好）</option></select></div></div>
 <div id="air-range-disp" class="sub-range-disp"><i class="ph ph-ruler"></i>目前航行距離 <b>—</b></div>
   </div>
 </div>
@@ -417,8 +417,7 @@ app.exploreUi.enhanceAll(root);
     root.querySelector('#air-range-disp').innerHTML=`<i class="ph ph-ruler"></i>目前航行距離 <b>${st.rng}</b>`;
     [['sur'], ['ret'], ['spd'], ['rng'], ['fav']].forEach(([k]) => {
       const el = root.querySelector(`#as-${k}`); if (!el) return;
-      const v = st[k]; el.textContent = (v >= 0 ? '+' : '') + v;
-      el.className = 'sub-stat-val ' + (v > 0 ? 'sv-pos' : v < 0 ? 'sv-neg' : 'sv-neu');
+      const v = st[k]; app.exploreUi.setStat(el,v);
     });
     /* 容量：四個部件的「造價(components)」總和，不能超過目前等級的容量上限
        （官方機制：パーツコストの合計＝＜キャパシティ，飛空艇／潛水艇皆同）。 */
@@ -428,6 +427,7 @@ app.exploreUi.enhanceAll(root);
       const maxCap = (AIR_RANKS[airRank] || [])[1] ?? '—';
       capEl.textContent = `${curCap}/${maxCap}`;
       capEl.className = 'sub-stat-val ' + (typeof maxCap === 'number' && curCap > maxCap ? 'sv-neg' : 'sv-neu');
+      app.exploreUi.setCapBar(root.querySelector('#as-cap-fill'),curCap,maxCap);
     }
   };
 
@@ -537,7 +537,7 @@ app.exploreUi.enhanceAll(root);
       const dd_ = parseInt(root.querySelector('#air-days')?.value) || 0, hh_ = parseInt(root.querySelector('#air-hrs')?.value) || 0, mm_ = parseInt(root.querySelector('#air-mins')?.value) || 0;
       desiredMins = dd_ * 1440 + hh_ * 60 + mm_;
     }
-    res.innerHTML = '<div class="sub-empty">⋯ 計算中，請稍候</div>';
+    res.innerHTML = '<div class="sub-empty sub-busy"><i class="ph ph-circle-notch ex-spin"></i>計算中，請稍候</div>';
 
     const TIER_LABEL = { 1: 'T1', 2: 'T2', 3: 'T3' };
     const tierMetAt = (sec, tier, curStats) => { if (tier === 1) return true; if (tier === 2) return curStats.sur >= sec[9]; return curStats.sur >= sec[10]; };
@@ -629,16 +629,15 @@ app.exploreUi.enhanceAll(root);
       const sorted = [...routes].sort((a, b) => sortDir * (a[prop] - b[prop]));
 
       /* 備註欄：卡片式／表格式都要用，搬到分流之前先算好。 */
-      const legendHtml = `<div class="sub-legend">`+
-          `<span class="lg-grp"><span class="sub-legend-title"><i class="ph ph-seal-question"></i>備註</span>`+
-          `<span class="lg-it"><b class="loot-tier-badge tier-badge-1">T1</b>一般</span>`+
-          `<span class="lg-it"><b class="loot-tier-badge tier-badge-2">T2</b>探索性能達標</span>`+
-          `<span class="lg-it"><b class="loot-tier-badge tier-badge-3">T3</b>探索性能最佳</span>`+
-          `<span class="lg-it lg-dim"><i class="ph ph-circle-half"></i>淺色字＝尚未達標</span></span>`+
-          `<span class="lg-grp"><span class="lg-lab"><i class="ph ph-package"></i>物品</span><b class="cat-blueprint">設計圖材料</b><b class="cat-rare3">更稀有物品</b><b class="cat-rare2">稀有物品</b><b class="cat-general">一般材料</b><b class="cat-materia">魔晶石</b></span>`+
-          `<span class="lg-grp"><span class="lg-lab"><i class="ph ph-compass"></i>探索<i class="ph ph-hand-grabbing"></i>收集<i class="ph ph-sparkle"></i>恩惠</span><span class="lg-it"><i class="thr-dot thr-full"></i>最佳</span><span class="lg-it"><i class="thr-dot thr-part"></i>達標</span><span class="lg-it"><i class="thr-dot thr-none"></i>未達標</span></span>`+
-          `<span class="lg-grp lg-hint"><i class="ph ph-hand-pointing"></i>點擊物品名稱或圓點可查看完整資訊</span>`+
-          (showItemEff?`<span class="lg-grp lg-hint"><i class="ph ph-lightning"></i>物品效率＝${lootSortMode === 'coverage' ? '覆蓋種類數（不重複）' : '命中件數（可重複累計）'}÷耗時，點欄位可查看該路線的明細</span>`:'')+
+      const legendHtml = `<div class="sub-legend"><span class="sub-legend-title">備註</span>`+
+        `<span><b class="loot-tier-badge tier-badge-1">T1</b> 一般</span>`+
+        `<span><b class="loot-tier-badge tier-badge-2">T2</b> 需探索性能達標</span>`+
+        `<span><b class="loot-tier-badge tier-badge-3">T3</b> 需探索性能達最佳</span>`+
+        `<span class="sub-legend-sep"><span class="lg-dim">淺色字</span>＝尚未達標</span>`+
+        `<span class="sub-legend-sep">物品顏色：<b class="cat-blueprint">設計圖材料</b>　<b class="cat-rare3">更稀有物品</b>　<b class="cat-rare2">稀有物品</b>　<b class="cat-general">一般材料</b>　<b class="cat-materia">魔晶石</b></span>`+
+        `<span class="sub-legend-sep lg-thr-grp"><span class="lg-thr" aria-label="圓點順序：探索、收集、恩惠"><b></b><b class="lg-thr-h">探索</b><b class="lg-thr-h">收集</b><b class="lg-thr-h">恩惠</b><b class="thr-letter lg-thr-letter">A</b><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i></span><span class="lg-states"><span class="lg-st"><i class="thr-dot thr-full"></i>最佳（實心）</span><span class="lg-st"><i class="thr-dot thr-part"></i>達標（半圓）</span><span class="lg-st"><i class="thr-dot thr-none"></i>未達標（空心）</span></span></span>`+
+        `<span class="sub-legend-sep"><span class="sub-exp-badge lg-info" data-tip="點擊物品名稱或圓點可查看完整資訊\n恩惠只分「達標（實心）」與「未達標（空心）」兩種"><i class="ph ph-hand-pointing"></i></span></span>`+
+        (showItemEff ? `<span class="sub-legend-sep">物品效率＝${lootSortMode === 'coverage' ? '覆蓋種類數（不重複）' : '命中件數（可重複累計）'}÷耗時<span class="sub-exp-badge lg-info" data-tip="點擊該欄位可查看這條路線的明細"><i class="ph ph-info"></i></span></span>` : '') +
         `</div>`;
 
       /* ===== 卡片式（票根式）檢視，架構比照 sub-panel.js ===== */
@@ -653,7 +652,11 @@ app.exploreUi.enhanceAll(root);
           const rank = idx + 1;
           const rowStats = r.build ? { sur: r.build.st.sur, ret: r.build.st.ret, fav: r.build.st.fav } : curStats;
           const hero = heroOf(r);
-          const ci = (ic, t) => `<span class="sc-it"><i class="ph ph-${ic}"></i>${t}</span>`; const secondary = [ci('medal', `Lv${r.minRank}`)]; if (hero.label !== '經驗值') secondary.push(ci('trend-up', `經驗值 ${r.exp.toLocaleString()}`)); if (hero.label !== '耗時') secondary.push(ci('clock', r.timeStr)); if (hero.label !== 'EXP/分') secondary.push(ci('lightning', `EXP/分 ${r.epm.toLocaleString()}`)); secondary.push(ci('ruler', `距離 ${r.range}`)); secondary.push(ci('gas-pump', `燃料 ${r.tank}`));
+          const secondary=[`<i class="ph ph-medal sc-ic"></i>Lv${r.minRank}`];
+          if (hero.label !== '經驗值') secondary.push(`<i class="ph ph-trend-up sc-ic"></i>經驗值 ${r.exp.toLocaleString()}`);
+          if (hero.label !== '耗時') secondary.push(`<i class="ph ph-clock sc-ic"></i>${r.timeStr}`);
+          if (hero.label !== 'EXP/分') secondary.push(`<i class="ph ph-lightning sc-ic"></i>EXP/分 ${r.epm.toLocaleString()}`);
+          secondary.push(`<i class="ph ph-ruler sc-ic"></i>距離${r.range}／燃料${r.tank}`);
           const buildTag = r.build ? (() => { const b = r.build; const tip = `船體：${b.hull[2]}\n舾裝：${b.rigging[2]}\n船首：${b.forecastle[2]}\n船尾：${b.aftcastle[2]}\n承載力：${b.cost}/${b.cap ?? '—'}`; const code = p => AIR_RANK_CODE[p[1]] || p[1]; return `<div class="sub-card-tag" data-tip="${tip}"><i class="ph ph-wrench"></i> ${code(b.hull)}／${code(b.rigging)}／${code(b.forecastle)}／${code(b.aftcastle)}</div>`; })() : '';
           const thrHtml = buildThresholdStrip(r.secIds, rowStats);
           const lootHtml = buildLootCell(r.secIds, rowStats, 10);
@@ -665,12 +668,12 @@ app.exploreUi.enhanceAll(root);
                 `<div class="sub-card-hero-val">${hero.val}</div>` +
                 `<div class="sub-card-hero-underline"></div>` +
                 `<div class="sub-card-hero-label">${hero.label}</div>` +
-                `<div class="sub-card-secondary">${secondary.join('')}</div>` +
+                `<div class="sub-card-secondary">${secondary.join('<br>')}</div>` +
                 buildTag +
               `</div>` +
               `<div class="sub-card-tear"><div class="sub-card-tear-line"></div></div>` +
               `<div class="sub-card-dest">` +
-                `<div class="sub-card-dest-label"><i class="ph ph-map-pin"></i><span class="dest-cnt">${r.secCount} 站</span></div>` +
+                `<div class="sub-card-dest-label">目的地 ${r.secCount} 站</div>` +
                 `<div class="sub-card-dest-letters">${r.secLetters || ''}</div>` +
                 `<div class="sub-card-dest-path">${r.secStr}</div>` +
                 `<div class="sub-thr-strip">${thrHtml}</div>` +
@@ -678,7 +681,7 @@ app.exploreUi.enhanceAll(root);
             `</div>` +
             `<div class="sub-card-divider"></div>` +
             `<div class="sub-card-right">` +
-              `<div class="sub-card-items"><div class="sub-card-items-label"><i class="ph ph-gift"></i>獲得物品</div>${lootHtml}</div>` +
+              `<div class="sub-card-items"><div class="sub-card-items-label">獲得物品</div>${lootHtml}</div>` +
             `</div>` +
           `</div>`;
         };
@@ -856,7 +859,7 @@ app.exploreUi.enhanceAll(root);
   };
 
   ['air-hull', 'air-rigging', 'air-forecastle', 'air-aftcastle'].forEach(id => root.querySelector(`#${id}`)?.addEventListener('change', updateStats));
-  root.querySelector('#air-search-btn')?.addEventListener('click', () => { doSearch(); saveFilterState(); });
+  { const _sb=root.querySelector('#air-search-btn'); _sb?.addEventListener('click',()=>{ doSearch(); app.exploreUi.watchBusy(_sb,root.querySelector('#air-results')); saveFilterState(); }); }
   root.querySelector('#air-clear-btn')?.addEventListener('click', () => {
     [mustInc, mustExcl, mustLootIds].forEach(a => a.length = 0);
     root.querySelectorAll('.sub-chips-display').forEach(c => c.innerHTML = '');
@@ -939,7 +942,7 @@ app.exploreUi.enhanceAll(root);
       if (renderRoutes && currentRoutes.length) renderRoutes(currentRoutes);
     });
   });
-  filtersHdr?.addEventListener('click', () => { filtersPanel.classList.toggle('sub-filters-open'); filtersHdr.classList.toggle('open', filtersPanel.classList.contains('sub-filters-open')); });
+  filtersHdr?.addEventListener('click',()=>app.exploreUi.toggleFilters(filtersPanel,filtersHdr));
 
   updateStats();
 

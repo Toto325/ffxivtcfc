@@ -63,7 +63,63 @@ app.exploreUi = app.exploreUi || (function(){
   };
   /* 把容器內所有 select.sub-sel 換成自製下拉（已換過的會自動略過） */
   const enhanceAll=(scope)=>{try{scope.querySelectorAll('select.sub-sel').forEach(enhanceSelect);}catch(e){}};
-  return {enhanceSelect,enhanceAll};
+
+  /* ─── 視覺動態 ────────────────────────────────────────────────────────────
+   * 尊重系統「減少動態效果」設定；有開的話一律直接切換、不做動畫。 */
+  const reduce=()=>{try{return window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}};
+  /* 數值跳動：舊值滾到新值（約 0.4 秒），增加閃綠、減少閃紅，一眼看出這次換裝是變強還是變弱 */
+  const setStat=(el,v)=>{
+    if(!el)return;
+    const fmt=n=>(n>=0?'+':'')+n;
+    const prev=el._v;
+    el.className='sub-stat-val '+(v>0?'sv-pos':v<0?'sv-neg':'sv-neu');
+    el._v=v;
+    if(el._raf)cancelAnimationFrame(el._raf);
+    if(prev===undefined||prev===v||reduce()){el.textContent=fmt(v);return;}
+    const t0=performance.now(),dur=400;
+    const step=t=>{
+      const k=Math.min(1,(t-t0)/dur),e=1-Math.pow(1-k,3);
+      el.textContent=fmt(k<1?Math.round(prev+(v-prev)*e):v);
+      if(k<1)el._raf=requestAnimationFrame(step);
+    };
+    el._raf=requestAnimationFrame(step);
+    el.classList.add(v>prev?'stat-up':'stat-down');
+  };
+  /* 承載力進度條：滿了變亮金色、超載變紅 */
+  const setCapBar=(fill,cur,max)=>{
+    if(!fill)return;
+    const ok=typeof max==='number'&&max>0;
+    fill.style.width=ok?Math.min(100,Math.round(cur/max*100))+'%':'0%';
+    fill.className=ok&&cur>max?'over':(ok&&cur===max?'full':'');
+  };
+  /* 搜尋中：搜尋鈕變成旋轉圖示＋「計算中」，結果區的等待字樣一消失就還原 */
+  const watchBusy=(btn,res)=>{
+    if(!btn||!res||!res.querySelector('.sub-busy'))return;
+    if(btn._busyObs)btn._busyObs.disconnect();
+    const orig=btn._orig||(btn._orig=btn.innerHTML);
+    btn.classList.add('is-busy');
+    btn.innerHTML='<i class="ph ph-circle-notch ex-spin"></i><span>計算中</span>';
+    let obs=null,timer=null;
+    const done=()=>{btn.classList.remove('is-busy');btn.innerHTML=orig;if(obs)obs.disconnect();clearTimeout(timer);};
+    obs=new MutationObserver(()=>{if(!res.querySelector('.sub-busy'))done();});
+    obs.observe(res,{childList:true,subtree:true});
+    btn._busyObs=obs;
+    timer=setTimeout(done,120000);
+  };
+  /* 篩選區：點標題時，收合有短動畫（展開動畫由 CSS 負責） */
+  const toggleFilters=(panel,hdr)=>{
+    if(!panel||panel.classList.contains('sub-filters-closing'))return;
+    const open=panel.classList.contains('sub-filters-open');
+    if(open&&!reduce()){
+      hdr.classList.remove('open');
+      panel.classList.add('sub-filters-closing');
+      setTimeout(()=>{panel.classList.remove('sub-filters-open','sub-filters-closing');},230);
+    }else{
+      panel.classList.toggle('sub-filters-open');
+      hdr.classList.toggle('open',panel.classList.contains('sub-filters-open'));
+    }
+  };
+  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters};
 })();
 
 /* ─── SUBMARINE UI ─── */
@@ -183,7 +239,7 @@ app.buildSub = function (){
     }
 
     root.innerHTML=`<div class="sub-mogship">
-<div class="market-header explore-header"><h2 class="unified-gold-header small">⚓ 潛水艇</h2><p class="elegant-body-text page-note">依等級與配裝，找出經驗效率最高的潛水艇探索路線。</p><div class="explore-credit"><i class="ph ph-heart"></i>感謝MOGSHIP及全球光之戰士的貢獻</div></div>
+<div class="explore-header"><h2 class="unified-gold-header small news-title">⚓ 潛水艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">路線規劃・物品篩選・取得搜索</p></div>
 <div class="sub-mode-toggle" role="tablist">
   <button type="button" class="sub-mode-btn active" data-mode="route"><i class="ph ph-path"></i>路線搜尋</button>
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
@@ -202,7 +258,7 @@ app.buildSub = function (){
   <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-gauge"></i>巡航速度</div><div class="sub-stat-val sv-neu" id="ss-spd">—</div></div>
   <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-ruler"></i>航行距離</div><div class="sub-stat-val sv-neu" id="ss-rng">—</div></div>
   <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-sparkle"></i>恩惠</div><div class="sub-stat-val sv-neu" id="ss-fav">—</div></div>
-  <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-package"></i>承載力</div><div class="sub-stat-val sv-neu" id="ss-cap">—</div></div>
+  <div class="sub-stat-box"><div class="sub-stat-lbl"><i class="ph ph-package"></i>承載力</div><div class="sub-stat-val sv-neu" id="ss-cap">—</div><div class="sub-cap-bar"><i id="ss-cap-fill"></i></div></div>
 </div>
 <div class="sub-owned-route-block" id="sub-owned-route-block" style="display:none">
   <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<span class="sub-exp-badge" data-tip="與「配裝反查」共用同一份記錄。
@@ -249,7 +305,7 @@ app.buildSub = function (){
   <div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-plus-circle"></i>必須包含航海圖</label><div class="sub-multisel-wrap" id="sub-inmap-wrap"></div></div>
   <div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-exc"><i class="ph ph-prohibit"></i>排除航海圖</label><div class="sub-multisel-wrap" id="sub-exmap-wrap"></div></div>
 </div>
-<div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-gift"></i>必須獲得物品</label><div class="sub-multisel-wrap" id="sub-loot-wrap"></div><label class="sub-chk-lbl sub-chip-lbl sub-loot-strict-lbl"><input type="checkbox" id="sub-loot-strict"><i class="ph ph-checks"></i>每個目的地都至少有其中一項物品</label><label class="sub-chk-lbl sub-chip-lbl sub-loot-meet-lbl" title="只計入探索性能已經達到取得門檻的物品；還沒達標、理論上有機率但目前配裝拿不到的不算數"><input type="checkbox" id="sub-loot-meet"><i class="ph ph-seal-check"></i>忽略不達標的結果</label><div class="sub-loot-sort-row" id="sub-loot-sort-row" style="display:none"><label class="sub-lbl" for="sub-loot-sort"><i class="ph ph-arrows-down-up"></i>物品排序依據</label><select id="sub-loot-sort" class="sub-sel"><option value="exp">EXP 效率（預設）</option><option value="coverage">物品覆蓋效率（短時間內湊齊優先）</option><option value="count">物品數量效率（拿越多越好）</option></select></div></div>
+<div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-gift"></i>必須獲得物品</label><div class="sub-multisel-wrap" id="sub-loot-wrap"></div><div class="sub-chk-row"><label class="sub-chk-lbl sub-chip-lbl sub-loot-strict-lbl"><input type="checkbox" id="sub-loot-strict"><i class="ph ph-checks"></i>每個目的地都至少有其中一項物品</label><label class="sub-chk-lbl sub-chip-lbl sub-loot-meet-lbl" title="只計入探索性能已經達到取得門檻的物品；還沒達標、理論上有機率但目前配裝拿不到的不算數"><input type="checkbox" id="sub-loot-meet"><i class="ph ph-seal-check"></i>忽略不達標的結果</label></div><div class="sub-loot-sort-row" id="sub-loot-sort-row" style="display:none"><label class="sub-lbl" for="sub-loot-sort"><i class="ph ph-arrows-down-up"></i>結果排序依據</label><select id="sub-loot-sort" class="sub-sel"><option value="exp">EXP 效率（預設）</option><option value="coverage">物品覆蓋效率（短時間內湊齊優先）</option><option value="count">物品數量效率（拿越多越好）</option></select></div></div>
 <div id="sub-range-disp" class="sub-range-disp"><i class="ph ph-ruler"></i>目前航行距離 <b>—</b></div>
   </div>
 </div>
@@ -563,7 +619,7 @@ app.buildSub = function (){
       selBr=PARTS.bridge.find(p=>p[0]===root.querySelector('#sub-bridge').value);
       const st=getStats();if(!st)return;
       root.querySelector('#sub-range-disp').innerHTML=`<i class="ph ph-ruler"></i>目前航行距離 <b>${st.rng}</b>`;
-      [['sur',2],['ret',3],['spd',4],['rng',5],['fav',6]].forEach(([k])=>{const el=root.querySelector(`#ss-${k}`);if(!el)return;const v=st[k];el.textContent=(v>=0?'+':'')+v;el.className='sub-stat-val '+(v>0?'sv-pos':v<0?'sv-neg':'sv-neu');});
+      [['sur',2],['ret',3],['spd',4],['rng',5],['fav',6]].forEach(([k])=>{const el=root.querySelector(`#ss-${k}`);if(!el)return;const v=st[k];app.exploreUi.setStat(el,v);});
       /* 容量：四個部件的「造價(components)」總和，不能超過目前等級的容量上限
          （官方機制：パーツコストの合計＝＜キャパシティ，潛水艇／飛空艇皆同）。 */
       const capEl=root.querySelector('#ss-cap');
@@ -572,6 +628,7 @@ app.buildSub = function (){
         const maxCap=(SUB_CAP[subRank]??'—');
         capEl.textContent=`${curCap}/${maxCap}`;
         capEl.className='sub-stat-val '+(typeof maxCap==='number'&&curCap>maxCap?'sv-neg':'sv-neu');
+      app.exploreUi.setCapBar(root.querySelector('#ss-cap-fill'),curCap,maxCap);
       }
     };
 
@@ -763,7 +820,7 @@ app.buildSub = function (){
         desiredMins=d*1440+h*60+m;
       }
 
-      res.innerHTML='<div class="sub-empty">⋯ 計算中，請稍候</div>';
+      res.innerHTML='<div class="sub-empty sub-busy"><i class="ph ph-circle-notch ex-spin"></i>計算中，請稍候</div>';
 
       const TIER_LABEL={1:'T1',2:'T2',3:'T3'};
 
@@ -908,15 +965,15 @@ app.buildSub = function (){
 
         /* 備註欄：卡片式／表格式都要用，搬到分流之前先算好。 */
         const legendHtml=`<div class="sub-legend">`+
-          `<span class="lg-grp"><span class="sub-legend-title"><i class="ph ph-seal-question"></i>備註</span>`+
-          `<span class="lg-it"><b class="loot-tier-badge tier-badge-1">T1</b>一般</span>`+
-          `<span class="lg-it"><b class="loot-tier-badge tier-badge-2">T2</b>探索性能達標</span>`+
-          `<span class="lg-it"><b class="loot-tier-badge tier-badge-3">T3</b>探索性能最佳</span>`+
-          `<span class="lg-it lg-dim"><i class="ph ph-circle-half"></i>淺色字＝尚未達標</span></span>`+
-          `<span class="lg-grp"><span class="lg-lab"><i class="ph ph-package"></i>物品</span><b class="cat-blueprint">設計圖材料</b><b class="cat-rare3">更稀有物品</b><b class="cat-rare2">稀有物品</b><b class="cat-general">一般材料</b><b class="cat-materia">魔晶石</b></span>`+
-          `<span class="lg-grp"><span class="lg-lab"><i class="ph ph-compass"></i>探索<i class="ph ph-hand-grabbing"></i>收集<i class="ph ph-sparkle"></i>恩惠</span><span class="lg-it"><i class="thr-dot thr-full"></i>最佳</span><span class="lg-it"><i class="thr-dot thr-part"></i>達標</span><span class="lg-it"><i class="thr-dot thr-none"></i>未達標</span></span>`+
-          `<span class="lg-grp lg-hint"><i class="ph ph-hand-pointing"></i>點擊物品名稱或圓點可查看完整資訊</span>`+
-          (showItemEff?`<span class="lg-grp lg-hint"><i class="ph ph-lightning"></i>物品效率＝${lootSortMode==='coverage'?'覆蓋種類數（不重複）':'命中件數（可重複累計）'}÷耗時，點欄位可查看該路線的明細</span>`:'')+
+          `<span class="sub-legend-title">備註</span>`+
+          `<span><b class="loot-tier-badge tier-badge-1">T1</b> 一般</span>`+
+          `<span><b class="loot-tier-badge tier-badge-2">T2</b> 需探索性能達標</span>`+
+          `<span><b class="loot-tier-badge tier-badge-3">T3</b> 需探索性能達最佳</span>`+
+          `<span class="sub-legend-sep"><span class="lg-dim">淺色字</span>＝尚未達標</span>`+
+          `<span class="sub-legend-sep">物品顏色：<b class="cat-blueprint">設計圖材料</b>　<b class="cat-rare3">更稀有物品</b>　<b class="cat-rare2">稀有物品</b>　<b class="cat-general">一般材料</b>　<b class="cat-materia">魔晶石</b></span>`+
+          `<span class="sub-legend-sep lg-thr-grp"><span class="lg-thr" aria-label="圓點順序：探索、收集、恩惠"><b></b><b class="lg-thr-h">探索</b><b class="lg-thr-h">收集</b><b class="lg-thr-h">恩惠</b><b class="thr-letter lg-thr-letter">A</b><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i><i class="thr-dot lg-dot-n"></i></span><span class="lg-states"><span class="lg-st"><i class="thr-dot thr-full"></i>最佳（實心）</span><span class="lg-st"><i class="thr-dot thr-part"></i>達標（半圓）</span><span class="lg-st"><i class="thr-dot thr-none"></i>未達標（空心）</span></span></span>`+
+          `<span class="sub-legend-sep"><span class="sub-exp-badge lg-info" data-tip="點擊物品名稱或圓點可查看完整資訊\n恩惠只分「達標（實心）」與「未達標（空心）」兩種"><i class="ph ph-hand-pointing"></i></span></span>`+
+          (showItemEff?`<span class="sub-legend-sep">物品效率＝${lootSortMode==='coverage'?'覆蓋種類數（不重複）':'命中件數（可重複累計）'}÷耗時<span class="sub-exp-badge lg-info" data-tip="點擊該欄位可查看這條路線的明細"><i class="ph ph-info"></i></span></span>`:'')+
         `</div>`;
 
         /* 依目前 sortKey / sortDir 排序（複製陣列，不改動原始 routes 順序） */
@@ -938,7 +995,11 @@ app.buildSub = function (){
             const rank=idx+1;
             const rowStats=r.build?{sur:r.build.st.sur,ret:r.build.st.ret,fav:r.build.st.fav}:curStats;
             const hero=heroOf(r);
-            const ci=(ic,t)=>`<span class="sc-it"><i class="ph ph-${ic}"></i>${t}</span>`;const secondary=[ci('medal',`Lv${r.minRank}`)];if(hero.label!=='經驗值')secondary.push(ci('trend-up',`經驗值 ${r.exp.toLocaleString()}`));if(hero.label!=='耗時')secondary.push(ci('clock',r.timeStr));if(hero.label!=='EXP/分')secondary.push(ci('lightning',`EXP/分 ${r.epm.toLocaleString()}`));secondary.push(ci('ruler',`距離 ${r.range}`));secondary.push(ci('gas-pump',`燃料 ${r.tank}`));
+            const secondary=[`<i class="ph ph-medal sc-ic"></i>Lv${r.minRank}`];
+            if(hero.label!=='經驗值')secondary.push(`<i class="ph ph-trend-up sc-ic"></i>經驗值 ${r.exp.toLocaleString()}`);
+            if(hero.label!=='耗時')secondary.push(`<i class="ph ph-clock sc-ic"></i>${r.timeStr}`);
+            if(hero.label!=='EXP/分')secondary.push(`<i class="ph ph-lightning sc-ic"></i>EXP/分 ${r.epm.toLocaleString()}`);
+            secondary.push(`<i class="ph ph-ruler sc-ic"></i>距離${r.range}／燃料${r.tank}`);
             const buildTag=r.build?(()=>{const b=r.build;const tip=`船體：${b.hull[1]}\n船尾：${b.stern[1]}\n船首：${b.bow[1]}\n艦橋：${b.bridge[1]}\n承載力：${b.cost}/${b.cap??'—'}`;return `<div class="sub-card-tag" data-tip="${tip}"><i class="ph ph-wrench"></i> ${b.hull[0]}／${b.stern[0]}／${b.bow[0]}／${b.bridge[0]}</div>`;})():'';
             const thrHtml=buildThresholdStrip(r.secIds,rowStats);
             const lootHtml=buildLootCell(r.secIds,rowStats,10);
@@ -950,12 +1011,12 @@ app.buildSub = function (){
                   `<div class="sub-card-hero-val">${hero.val}</div>`+
                   `<div class="sub-card-hero-underline"></div>`+
                   `<div class="sub-card-hero-label">${hero.label}</div>`+
-                  `<div class="sub-card-secondary">${secondary.join('')}</div>`+
+                  `<div class="sub-card-secondary">${secondary.join('<br>')}</div>`+
                   buildTag+
                 `</div>`+
                 `<div class="sub-card-tear"><div class="sub-card-tear-line"></div></div>`+
                 `<div class="sub-card-dest">`+
-                  `<div class="sub-card-dest-label"><i class="ph ph-map-trifold"></i>${r.mapStr||''}<span class="dest-cnt"><i class="ph ph-map-pin"></i>${r.secCount} 站</span></div>`+
+                  `<div class="sub-card-dest-label">${r.mapStr||''}　目的地 ${r.secCount} 站</div>`+
                   `<div class="sub-card-dest-letters">${r.secLetters||''}</div>`+
                   `<div class="sub-card-dest-path">${r.secStr}</div>`+
                   `<div class="sub-thr-strip">${thrHtml}</div>`+
@@ -963,7 +1024,7 @@ app.buildSub = function (){
               `</div>`+
               `<div class="sub-card-divider"></div>`+
               `<div class="sub-card-right">`+
-                `<div class="sub-card-items"><div class="sub-card-items-label"><i class="ph ph-gift"></i>獲得物品</div>${lootHtml}</div>`+
+                `<div class="sub-card-items"><div class="sub-card-items-label">獲得物品</div>${lootHtml}</div>`+
               `</div>`+
             `</div>`;
           };
@@ -1272,7 +1333,7 @@ app.buildSub = function (){
       }catch(e){}
     };
 
-    root.querySelector('#sub-search-btn')?.addEventListener('click',()=>{doSearch();saveFilterState();});
+    { const _sb=root.querySelector('#sub-search-btn'); _sb?.addEventListener('click',()=>{ doSearch(); app.exploreUi.watchBusy(_sb,root.querySelector('#sub-results')); saveFilterState(); }); }
     root.querySelector('#sub-clear-btn')?.addEventListener('click',()=>{
       [mustInc,mustExcl,mustIncMaps,mustExclMaps,mustLootIds].forEach(a=>a.length=0);
       root.querySelectorAll('.sub-chips-display').forEach(c=>c.innerHTML='');
@@ -1379,10 +1440,7 @@ app.buildSub = function (){
         if(renderRoutes&&currentRoutes.length)renderRoutes(currentRoutes);
       });
     });
-    filtersHdr?.addEventListener('click',()=>{
-      filtersPanel.classList.toggle('sub-filters-open');
-      filtersHdr.classList.toggle('open',filtersPanel.classList.contains('sub-filters-open'));
-    });
+    filtersHdr?.addEventListener('click',()=>app.exploreUi.toggleFilters(filtersPanel,filtersHdr));
     updateStats();
 
     /* ===== 配裝反查（路線搜尋 ⇄ 配裝反查 模式切換）=====
