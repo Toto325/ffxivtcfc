@@ -1223,3 +1223,223 @@ html[data-nav-mode="top"] .news-outer,
 .sub-card-ribbon span { font-size: .6rem; top: 7px; right: -31px; }
 }
 
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * 遠航探索 v2 新風格（潛水艇／飛空艇共用）
+ * 對齊市場／生產頁：圓角容器、圖示標籤、底線分頁、分段切換、自製下拉、
+ * 自動均分換行（auto-fit grid）。放在檔尾，同權重下覆蓋上面的舊規則。
+ * ═══════════════════════════════════════════════════════════════════════ */
+.sub-mogship{display:flex;flex-direction:column;gap:14px;font-family:"Noto Serif TC",serif}
+.sub-mogship i.ph{font-style:normal;line-height:1;flex-shrink:0}
+.sub-mogship .explore-header{margin-bottom:0;text-align:left}
+.sub-mogship .explore-header .page-note{margin-top:4px}
+.explore-credit{display:inline-flex;align-items:center;gap:5px;margin-top:6px;font-size:11px;color:var(--dim);opacity:.85}
+.explore-credit .ph{color:var(--gold);font-size:12px}
+
+/* 標籤：圖示＋短字，取代舊的 Cinzel 細字距 */
+.sub-mogship .sub-lbl{display:inline-flex;align-items:center;gap:5px;font-family:"Noto Serif TC",serif;font-size:12px;letter-spacing:.3px;text-transform:none;color:var(--dim);margin:0;min-height:0}
+.sub-mogship .sub-lbl .ph{font-size:14px;color:var(--gold)}
+.sub-mogship .sub-lbl small,.sub-mogship .sub-seg-lbl small{font-size:10.5px;opacity:.7;margin-left:2px;font-weight:400}
+.sub-lbl-is-inc .ph{color:#4ade80!important}
+.sub-lbl-is-exc .ph{color:#f87171!important}
+
+/* 分頁：底線式 */
+.sub-mogship .sub-mode-toggle{display:flex;gap:4px;border-bottom:1px solid var(--tb);padding:0;background:none}
+.sub-mogship .sub-mode-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;margin-bottom:-1px;border:none;border-bottom:2px solid transparent;border-radius:0;background:none;color:var(--dim);font-family:"Noto Serif TC",serif;font-size:13.5px;letter-spacing:.5px;cursor:pointer;transition:color .2s,border-color .2s}
+.sub-mogship .sub-mode-btn .ph{font-size:16px}
+.sub-mogship .sub-mode-btn:hover{color:var(--main)}
+.sub-mogship .sub-mode-btn.active{color:var(--gold-bright);border-bottom-color:var(--gold);background:none;box-shadow:none}
+
+/* 工具列 */
+.sub-mogship .sub-top-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.sub-mogship .sub-field-grp{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sub-mogship .explore-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+.sub-mogship .sub-exp-next{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--dim);padding:3px 9px;border:1px solid var(--tb);border-radius:999px;background:rgba(197,160,89,.05);white-space:nowrap}
+.sub-mogship .sub-exp-next:empty{display:none}
+.sub-mogship .sub-exp-next .ph{color:var(--gold);font-size:13px}
+.sub-mogship .sub-exp-next b{color:var(--gold-bright);font-weight:600}
+.sub-mogship .sub-exp-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--tb);background:rgba(0,0,0,.4);color:var(--gold);font-size:12px;font-style:normal;cursor:pointer;transition:border-color .2s,background .2s}
+.sub-mogship .sub-exp-badge:hover{border-color:var(--gold);background:rgba(197,160,89,.16)}
+
+/* 主要按鈕（搜尋）：金色實心膠囊 */
+.sub-mogship .sub-search-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin:0!important;padding:7px 20px;min-width:0;border:1px solid var(--gold);border-radius:999px;background:linear-gradient(180deg,rgba(197,160,89,.34),rgba(197,160,89,.16));color:var(--gold-bright);font-family:"Noto Serif TC",serif;font-size:13px;font-weight:600;letter-spacing:2px;cursor:pointer;box-shadow:0 0 14px rgba(197,160,89,.18);transition:transform .15s,box-shadow .2s,background .2s}
+.sub-mogship .sub-search-btn::before,.sub-mogship .sub-search-btn::after{display:none!important}
+.sub-mogship .sub-search-btn .ph{font-size:16px}
+.sub-mogship .sub-search-btn:hover{background:linear-gradient(180deg,rgba(197,160,89,.5),rgba(197,160,89,.26));box-shadow:0 0 20px rgba(197,160,89,.32)}
+.sub-mogship .sub-search-btn:active{transform:scale(.97)}
+
+/* 次要按鈕 */
+.sub-mogship .sub-view-btn,.sub-mogship .sub-clear-btn,.sub-mogship .sub-owned-mini-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid var(--tb);border-radius:999px;background:rgba(0,0,0,.35);color:var(--main);font-family:"Noto Serif TC",serif;font-size:12px;letter-spacing:.3px;cursor:pointer;transition:border-color .2s,color .2s,background .2s}
+.sub-mogship .sub-view-btn .ph,.sub-mogship .sub-owned-mini-btn .ph{color:var(--gold);font-size:14px}
+.sub-mogship .sub-view-btn:hover,.sub-mogship .sub-owned-mini-btn:hover{border-color:var(--gold);color:var(--gold-bright);background:rgba(197,160,89,.1)}
+.sub-mogship .sub-clear-btn{color:#f87171;border-color:rgba(248,113,113,.4)}
+.sub-mogship .sub-clear-btn::after{display:none!important}
+.sub-mogship .sub-clear-btn:hover{background:rgba(248,113,113,.12);border-color:#f87171;color:#fca5a5}
+
+/* 切換鈕：兩個選項同時可見，目前選項亮起 */
+.sub-mogship .sub-switch{display:inline-flex;align-items:stretch;padding:2px;border:1px solid var(--tb);border-radius:999px;background:rgba(0,0,0,.4);cursor:pointer;font-family:"Noto Serif TC",serif}
+.sub-mogship .sub-switch .sw-opt{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;border-radius:999px;font-size:12px;color:var(--dim);white-space:nowrap;transition:background .2s,color .2s}
+.sub-mogship .sub-switch .sw-opt .ph{font-size:14px}
+.sub-mogship .sub-switch:hover{border-color:rgba(197,160,89,.55)}
+.sub-mogship .sub-switch[data-state="select"] .sw-opt[data-v="select"],
+.sub-mogship .sub-switch[data-state="owned"] .sw-opt[data-v="owned"],
+.sub-mogship .sub-switch[data-state="full"] .sw-opt[data-v="full"],
+.sub-mogship .sub-switch[data-state="compact"] .sw-opt[data-v="compact"]{background:var(--gold-deep);color:var(--gold-bright)}
+
+/* 輸入框、步進器 */
+.sub-mogship .sub-inp{background:rgba(0,0,0,.5);border:1px solid var(--tb);border-radius:8px;color:var(--main);font-family:"Noto Serif TC",serif;font-size:13px}
+.sub-mogship .sub-inp:focus{outline:none;border-color:rgba(197,160,89,.7)}
+.sub-mogship .sub-stepper{border:1px solid var(--tb);border-radius:8px;overflow:hidden;background:rgba(0,0,0,.5)}
+.sub-mogship .sub-stepper .sub-inp,.sub-mogship .sub-stepper-inp{border:none;border-radius:0;background:transparent}
+.sub-mogship .sub-step-btn{border:none;border-radius:0;background:rgba(197,160,89,.08);color:var(--gold)}
+.sub-mogship .sub-step-btn:hover{background:rgba(197,160,89,.24)}
+
+/* 自製下拉（沿用 .wl-dd），原生 select 隱藏 */
+.sub-mogship .explore-dd{width:100%}
+.sub-mogship .explore-dd .wl-dd-btn{padding:7px 11px;font-size:12.5px}
+.sub-mogship .explore-dd .wl-dd-list{max-width:min(340px,86vw)}
+.sub-mogship .explore-dd.dd-up .wl-dd-list{top:auto;bottom:calc(100% + 5px)}
+.sub-mogship .sub-sel{background:rgba(0,0,0,.5);border:1px solid var(--tb);border-radius:8px;color:var(--main)}
+
+/* 部件選擇：自動均分換行 */
+.sub-mogship .sub-parts-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.sub-mogship .sub-part-col{display:flex;flex-direction:column;gap:5px;min-width:0}
+
+/* 數值條：六格均分，圖示＋標籤＋大數字 */
+.sub-mogship .sub-stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px;padding:10px;border:1px solid var(--tb);border-radius:10px;background:rgba(255,255,255,.02)}
+.sub-mogship .sub-stat-box{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 6px;border-radius:8px;background:rgba(0,0,0,.3);min-width:0}
+.sub-mogship .sub-stat-lbl{display:inline-flex;align-items:center;gap:4px;font-family:"Noto Serif TC",serif;font-size:11px;letter-spacing:0;color:var(--dim);white-space:nowrap}
+.sub-mogship .sub-stat-lbl .ph{font-size:14px;color:var(--gold)}
+.sub-mogship .sub-stat-val{font-size:1.15rem;font-weight:600}
+
+/* 擁有部件區塊 */
+.sub-mogship .sub-owned-route-block,.sub-mogship #sub-reverse-panel,.sub-mogship #air-reverse-panel{border-radius:10px}
+.sub-mogship .sub-owned-route-block{padding:12px 14px;border:1px solid var(--tb);background:rgba(255,255,255,.02)}
+.sub-mogship .sub-owned-hdr-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.sub-mogship .sub-owned-actions{display:flex;gap:6px}
+.sub-mogship .sub-owned-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.sub-mogship .sub-owned-col{border:1px solid var(--tb);border-radius:10px;padding:8px;background:rgba(0,0,0,.28);display:flex;flex-direction:column;gap:4px}
+.sub-mogship .sub-owned-col-title{display:flex;align-items:center;justify-content:center;gap:5px;font-family:"Noto Serif TC",serif;font-size:12.5px;color:var(--gold-bright);padding-bottom:4px;border-bottom:1px solid rgba(197,160,89,.2);margin-bottom:2px}
+.sub-mogship .sub-owned-item{display:flex;align-items:center;gap:7px;padding:4px 7px;border-radius:6px;font-size:12px;border:1px solid transparent;transition:background .15s,border-color .15s}
+.sub-mogship .sub-owned-item input{accent-color:var(--gold)}
+.sub-mogship .sub-owned-item:hover{background:rgba(197,160,89,.1)}
+.sub-mogship .sub-owned-item:has(input:checked){background:rgba(197,160,89,.14);border-color:rgba(197,160,89,.4);color:var(--gold-bright)}
+.sub-mogship .sub-owned-tier-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.sub-mogship .sub-owned-tier-row .explore-dd{width:auto;min-width:210px}
+
+/* 篩選條件 */
+.sub-mogship .sub-filters-section{border:1px solid var(--tb);border-radius:10px;background:rgba(255,255,255,.02);overflow:visible}
+.sub-mogship .sub-filters-hdr{display:flex;align-items:center;gap:7px;width:100%;padding:9px 14px;border:none;border-radius:10px;background:transparent;color:var(--gold-bright);font-family:"Noto Serif TC",serif;font-size:13px;letter-spacing:.5px;text-align:left;cursor:pointer}
+.sub-mogship .sub-filters-hdr .ph{font-size:15px;color:var(--gold)}
+.sub-mogship .sub-filters-hdr .fh-caret{margin-left:auto;transition:transform .2s}
+.sub-mogship .sub-filters-hdr.open .fh-caret{transform:rotate(180deg)}
+.sub-mogship .sub-filters-hdr:hover{background:rgba(197,160,89,.07)}
+.sub-mogship .sub-filters-panel.sub-filters-open{display:flex;flex-direction:column;gap:12px;padding:4px 14px 14px;border:none;background:transparent}
+.sub-mogship .sub-opts-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:0;border:none;background:none}
+.sub-mogship .sub-lbl-lead{margin-right:-2px}
+.sub-mogship .sub-filter-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.sub-mogship .sub-filter-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sub-mogship .sub-multisel-wrap{min-height:0}
+
+/* 分段單選／晶片勾選：隱藏原生 input，用 :has 標示狀態 */
+.sub-mogship .sub-segrow{display:inline-flex;border:1px solid var(--tb);border-radius:999px;background:rgba(0,0,0,.4);padding:2px;flex-wrap:wrap}
+.sub-mogship .sub-seg-lbl,.sub-mogship .sub-chip-lbl{position:relative;display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none;transition:background .2s,color .2s,border-color .2s}
+.sub-mogship .sub-seg-lbl input,.sub-mogship .sub-chip-lbl input{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.sub-mogship .sub-seg-lbl .ph,.sub-mogship .sub-chip-lbl .ph{font-size:14px}
+.sub-mogship .sub-seg-lbl:hover,.sub-mogship .sub-chip-lbl:hover{color:var(--main)}
+.sub-mogship .sub-seg-lbl:has(input:checked){background:var(--gold-deep);color:var(--gold-bright)}
+.sub-mogship .sub-chip-lbl{border:1px solid var(--tb);background:rgba(0,0,0,.3)}
+.sub-mogship .sub-chip-lbl:has(input:checked){border-color:var(--gold);background:rgba(197,160,89,.18);color:var(--gold-bright)}
+.sub-mogship .sub-seg-lbl:has(input:focus-visible),.sub-mogship .sub-chip-lbl:has(input:focus-visible){outline:2px solid rgba(197,160,89,.6);outline-offset:1px}
+.sub-mogship .sub-rev-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+
+.sub-mogship .sub-time-colon{color:var(--dim)}
+.sub-mogship .sub-hourmode-btn,.sub-mogship .sub-ampm-btn,.sub-mogship .sub-picker-btn{border:1px solid var(--tb);border-radius:999px;background:rgba(0,0,0,.4);color:var(--main);padding:5px 11px;font-size:12px;font-family:"Noto Serif TC",serif;cursor:pointer}
+.sub-mogship .sub-hourmode-btn:hover,.sub-mogship .sub-ampm-btn:hover,.sub-mogship .sub-picker-btn:hover{border-color:var(--gold);color:var(--gold-bright)}
+.sub-mogship .sub-range-disp{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-size:12px;color:var(--dim);padding:3px 10px;border:1px solid var(--tb);border-radius:999px;letter-spacing:0}
+.sub-mogship .sub-range-disp .ph{color:var(--gold)}
+.sub-mogship .sub-range-disp b{color:var(--gold-bright);font-weight:600}
+
+/* 已選項目晶片、組合輸入框、航海圖選單 */
+.sub-mogship .sub-chip-tag{border-radius:999px;border:1px solid rgba(197,160,89,.4);background:rgba(197,160,89,.1)}
+.sub-mogship .sub-combo-inp,.sub-mogship .sub-map-toggle{background:rgba(0,0,0,.5);border:1px solid var(--tb);border-radius:8px;color:var(--main);font-family:"Noto Serif TC",serif;font-size:12.5px;padding:7px 11px}
+.sub-mogship .sub-combo-inp:focus{outline:none;border-color:rgba(197,160,89,.7)}
+.sub-mogship .sub-combo-dd,.sub-mogship .sub-map-dd{border-radius:10px;border:1px solid rgba(197,160,89,.55);background:#0d0a07}
+.sub-mogship .sub-combo-item{border-radius:6px}
+
+/* 顯示方式 */
+.sub-mogship .sub-viewmode-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sub-mogship .sub-seg{display:inline-flex;padding:2px;border:1px solid var(--tb);border-radius:999px;background:rgba(0,0,0,.4)}
+.sub-mogship .sub-seg-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 13px;border:none;border-radius:999px;background:transparent;color:var(--dim);font-family:"Noto Serif TC",serif;font-size:12px;cursor:pointer}
+.sub-mogship .sub-seg-btn .ph{font-size:14px}
+.sub-mogship .sub-seg-btn.active{background:var(--gold-deep);color:var(--gold-bright)}
+
+/* 備註圖例：群組自動換行 */
+.sub-mogship .sub-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:9px 12px;border:1px solid var(--tb);border-left:1px solid var(--tb);border-radius:10px;background:rgba(255,255,255,.02);font-size:11.5px;color:var(--dim)}
+.sub-mogship .sub-legend .lg-grp{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.sub-mogship .sub-legend .lg-grp + .lg-grp{padding-left:16px;border-left:1px solid rgba(197,160,89,.22)}
+.sub-mogship .sub-legend .lg-it{display:inline-flex;align-items:center;gap:5px}
+.sub-mogship .sub-legend .lg-lab,.sub-mogship .sub-legend-title{display:inline-flex;align-items:center;gap:4px;color:var(--gold)}
+.sub-mogship .sub-legend .ph{font-size:13px;color:var(--gold)}
+.sub-mogship .sub-legend .lg-hint{opacity:.85}
+
+/* 搜尋結果：表格與卡片 */
+.sub-mogship .sub-table{border-collapse:separate;border-spacing:0;border:1px solid var(--tb);border-radius:10px;overflow:hidden}
+.sub-mogship .sub-table th{font-family:"Noto Serif TC",serif;font-size:11.5px;letter-spacing:.3px;white-space:nowrap}
+.sub-mogship .sub-table th .ph{font-size:13px;color:var(--gold);margin-right:4px;vertical-align:-2px}
+.sub-mogship .sub-table th.sorted{color:var(--gold-bright)}
+.sub-mogship .sub-scroll-hint .ph{margin-right:4px}
+.sub-mogship .sub-more-btn{border-radius:999px}
+.sub-mogship .sub-empty{padding:26px 10px;text-align:center;color:var(--dim);font-size:13px;border:1px dashed var(--tb);border-radius:10px}
+.sub-mogship .sub-route-card{border-radius:12px}
+.sub-mogship .sub-card-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))}
+.sub-mogship .sub-card-sort-pill{border-radius:999px;font-family:"Noto Serif TC",serif}
+.sub-mogship .sub-card-secondary{display:flex;flex-wrap:wrap;gap:5px}
+.sub-mogship .sub-card-secondary .sc-it{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid var(--tb);border-radius:999px;font-size:11.5px;color:var(--main);background:rgba(0,0,0,.28);white-space:nowrap}
+.sub-mogship .sub-card-secondary .ph{font-size:13px;color:var(--gold)}
+.sub-mogship .sub-card-dest-label{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.sub-mogship .sub-card-dest-label .ph{color:var(--gold);font-size:13px}
+.sub-mogship .sub-card-dest-label .dest-cnt{display:inline-flex;align-items:center;gap:3px}
+.sub-mogship .sub-card-items-label{display:flex;align-items:center;gap:5px}
+.sub-mogship .sub-card-items-label .ph{color:var(--gold)}
+.sub-mogship .sub-card-tag .ph{color:var(--gold)}
+
+/* 配裝反查 */
+.sub-mogship .sub-rev-thr-grp{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sub-mogship .sub-rev-table{border-radius:10px;overflow:hidden}
+
+/* 地圖彈窗 */
+.map-modal-inner{border-radius:12px!important}
+.map-modal-tab{border-radius:999px!important}
+
+/* 手機版 */
+@media (max-width:640px){
+  .sub-mogship{gap:12px}
+  .sub-mogship .sub-top-row{flex-direction:column;align-items:stretch}
+  .sub-mogship .explore-actions{margin-left:0;width:100%}
+  .sub-mogship .sub-search-btn{flex:1 1 100%;order:-1;padding:9px 20px}
+  .sub-mogship .sub-switch{flex:1 1 auto;justify-content:center}
+  .sub-mogship .sub-switch .sw-opt{flex:1;justify-content:center}
+  .sub-mogship .sub-view-btn,.sub-mogship .sub-clear-btn{flex:1 1 auto;justify-content:center}
+  .sub-mogship .sub-mode-btn{flex:1;justify-content:center;padding:9px 8px}
+  .sub-mogship .sub-parts-row{grid-template-columns:1fr 1fr}
+  .sub-mogship .sub-stats-bar{grid-template-columns:repeat(3,1fr)}
+  .sub-mogship .sub-owned-grid{grid-template-columns:1fr 1fr}
+  .sub-mogship .sub-legend .lg-grp + .lg-grp{padding-left:0;border-left:none}
+}
+@media (max-width:380px){
+  .sub-mogship .sub-parts-row,.sub-mogship .sub-owned-grid{grid-template-columns:1fr}
+}
+
+/* —— 修正：下拉撐滿欄寬、空的已選區不留白 —— */
+.sub-mogship .explore-dd{display:block;flex:1 1 auto;width:100%;min-width:0}
+.sub-mogship .explore-dd .wl-dd-btn{width:100%;min-width:0;justify-content:space-between;font-size:12.5px;padding:7px 11px}
+.sub-mogship .explore-dd .wl-dd-list{left:0;right:auto;min-width:100%}
+.sub-mogship .sub-chips-display{min-height:0}
+.sub-mogship .sub-chips-display:empty{display:none}
+.sub-mogship .sub-multisel-wrap{display:flex;flex-direction:column;gap:6px}
+.sub-mogship .sub-owned-tier-row .explore-dd{flex:0 1 260px;width:auto}
+.sub-mogship .sub-filter-col .sub-chip-lbl{align-self:flex-start}
+.sub-mogship .sub-card-secondary{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:5px}
+.sub-mogship .sub-card-secondary .sc-it{justify-content:flex-start}
