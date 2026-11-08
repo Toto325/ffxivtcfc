@@ -1767,3 +1767,56 @@ html[data-nav-mode="top"] .news-outer,
 .ld-row .ld-c.t1{width:29%}
 .ld-row .ld-c.t2{width:31%}
 .ld-row .ld-c.t3{width:23%}
+
+
+/* ═══ 第八輪：標題統一淡金色、表頭不透底、手機只顯示卡片式 ═══ */
+/* 標題（航海圖列／目的地）一律柔和淡金：不再依航海圖換色，避免和 T1/T2/T3、物品顏色搶意義 */
+.ld-modal{--gd:197,160,89}
+.ld-grp-row td,.ld-grp-h{border-left-color:rgba(var(--gd),.75);background:linear-gradient(90deg,color-mix(in srgb,rgb(var(--gd)) 18%,#0b0809),color-mix(in srgb,rgb(var(--gd)) 3%,#0b0809) 92%);text-shadow:0 0 10px rgba(var(--gd),.3);color:#ecd9a8}
+.ld-grp-row .ph,.ld-grp-h .ph{color:rgba(var(--gd),.9)}
+.ld-row .ld-dest{border-left-color:rgba(var(--gd),.7);background:linear-gradient(90deg,rgba(var(--gd),.16),rgba(var(--gd),.02) 95%)}
+.ld-card{border-color:rgba(var(--gd),.26);border-top-color:rgba(var(--gd),.6)}
+.ld-card-h{background:linear-gradient(90deg,rgba(var(--gd),.16),rgba(var(--gd),.02) 95%)}
+.ld-letter{border-color:rgba(var(--gd),.55);background:rgba(var(--gd),.16);color:#f3e3b8}
+.ld-dn{color:#f1e2bd;text-shadow:0 0 10px rgba(var(--gd),.35),0 0 3px rgba(0,0,0,.8)}
+.ld-chip{border-color:rgba(var(--gd),.4)}
+.ld-chip.active{background:rgba(var(--gd),.24);border-color:rgba(var(--gd),.9);color:var(--gold-bright)}
+
+/* 表頭固定時要完全蓋住底下內容：所有底色都改成不透明（疊在實色上），並補滿表頭與下一列之間的縫隙 */
+.ld-table th{background:#120d09;box-shadow:0 7px 0 #0a0708}
+.ld-table th.t1{background:linear-gradient(180deg,rgba(154,154,166,0),rgba(154,154,166,.1)),#120d09}
+.ld-table th.t2{background:linear-gradient(180deg,rgba(77,166,255,0),rgba(77,166,255,.16)),#120d09}
+.ld-table th.t3{background:linear-gradient(180deg,rgba(224,164,40,0),rgba(224,164,40,.16)),#120d09}
+.ld-grp-row td{top:var(--ld-th-h,38px)}
+.ld-grp-row td::before{content:"";position:absolute;left:0;right:0;top:-8px;height:8px;background:#0a0708}
+.ld-modal,.ld-body{--ld-bg:#0a0708}
+
+/* 手機／窄螢幕：只顯示卡片式，不需要切換鈕（搜尋結果與收獲概覽都一樣） */
+@media (max-width:700px){
+  .ld-view{display:none}
+  .sub-mogship .sub-viewmode-row{display:none}
+}
+
+/* ═══ 手機（≤700px）：搜尋結果卡片改直式排列、備註圖例逐行整理 ═══ */
+@media (max-width:700px){
+  .sub-mogship .sub-card-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+  .sub-mogship .sub-route-card{flex-direction:column;min-height:0}
+  .sub-mogship .sub-card-left{width:auto;flex-direction:column}
+  .sub-mogship .sub-card-left-top{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:18px;align-items:start;padding:12px 14px 10px}
+  .sub-mogship .sub-card-rank,.sub-mogship .sub-card-hero-val,.sub-mogship .sub-card-hero-underline,.sub-mogship .sub-card-hero-label{grid-column:1}
+  .sub-mogship .sub-card-secondary{grid-column:2;grid-row:1 / span 4;align-self:center}
+  .sub-mogship .sub-card-tag{grid-column:1 / -1;justify-self:start}
+  .sub-mogship .sub-card-dest{padding:8px 14px 12px}
+  .sub-mogship .sub-card-tear{padding:0 14px}
+  .sub-mogship .sub-card-divider{width:auto;height:1px;background:linear-gradient(to right,transparent,var(--gold),transparent)}
+  .sub-mogship .sub-card-items{padding:12px 14px}
+  /* 備註圖例：每個群組各一行，不再靠左邊細線硬擠成一團 */
+  .sub-mogship .sub-legend{gap:7px 12px}
+  .sub-mogship .sub-legend>.sub-legend-sep{flex:1 1 100%;border-left:none;padding-left:0;margin-left:0}
+  .sub-mogship .sub-legend>.sub-legend-sep:has(.lg-info){flex:0 0 auto}
+  .sub-mogship .sub-legend>.lg-thr-grp{flex:1 1 100%}
+}
+@media (max-width:700px){
+  /* 手指提示圖示：放到第一行（備註＋T1/T2/T3）的最右邊，不獨佔一行 */
+  .sub-mogship .sub-legend>.sub-legend-sep:has(.lg-info){order:-1;margin-left:auto}
+}
