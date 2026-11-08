@@ -1914,11 +1914,12 @@ app._craftReady = function () {
       const sources = [];
       if (food) sources.push('<span class="ccs-source-tag ccs-source-food"><i class="ph ph-bowl-food"></i>' + food.name + (hqFood ? '<em>HQ</em>' : '') + '</span>');
       if (pot) sources.push('<span class="ccs-source-tag ccs-source-pot"><i class="ph ph-flask"></i>' + pot.name + (hqPot ? '<em>HQ</em>' : '') + '</span>');
+      // 左右並排：左＝吃了什麼（食物、藥水），右＝整體加成；中間一條細分隔線
       const chips = [];
-      if (final.breakdown.craftsmanshipBonus) chips.push(consumableChip('ph-hammer', '作業精度', final.breakdown.craftsmanshipBonus, final.craftsmanship));
-      if (final.breakdown.controlBonus) chips.push(consumableChip('ph-sparkle', '加工精度', final.breakdown.controlBonus, final.control));
+      if (final.breakdown.craftsmanshipBonus) chips.push(consumableChip('ph-hammer', '作業', final.breakdown.craftsmanshipBonus, final.craftsmanship));
+      if (final.breakdown.controlBonus) chips.push(consumableChip('ph-sparkle', '加工', final.breakdown.controlBonus, final.control));
       if (final.breakdown.cpBonus) chips.push(consumableChip('ph-lightning', 'CP', final.breakdown.cpBonus, final.cp));
-      summaryEl.innerHTML = '<div class="ccs-sources">' + sources.join('') + '</div>' + '<div class="ccs-chips">' + (chips.join('') || '<span class="craft-muted" style="font-size:11px">目前選擇沒有數值加成</span>') + '</div>';
+      summaryEl.innerHTML = '<div class="ccs-split"><div class="ccs-sources">' + sources.join('') + '</div><div class="ccs-divider"></div><div class="ccs-chips">' + (chips.join('') || '<span class="craft-muted" style="font-size:11px">沒有數值加成</span>') + '</div></div>';
       summaryEl.classList.add('ccs-show');
     }
     return final;
@@ -3689,13 +3690,13 @@ app._craftReady = function () {
     { k: 'full', label: '滿品質', icon: 'ph-medal', tip: '做出滿品質' },
   ];
   function diagGroupTag(g) { return '<span class="craft-grp craft-grp-' + g.k + '" title="' + g.tip + '"><i class="ph ' + g.icon + '"></i>' + g.label + '</span>'; }
-  function renderDiagSlot(slot, rows, loading) {
+  function renderDiagSlot(slot, rows, loading, fullBtn) {
     const wasOpen = !!slot.querySelector('details[open]');
     const ordered = [];
     DIAG_GROUPS.forEach(function (g) {
       rows.filter(function (r) { return r.grp === g.k; }).sort(function (a, b) { return a.order - b.order; }).forEach(function (r) { ordered.push({ g: g, r: r }); });
     });
-    const solutions = ordered.filter(function (o) { return !o.r.lead; }); // 「搭配」列只是前提，不算一個建議
+    const solutions = ordered.filter(function (o) { return !o.r.lead && !o.r.gap; }); // 「搭配」列只是前提、「最高可達」只是距離，都不算一個建議
     let html = '';
     if (ordered.length) {
       let list = '';
@@ -3704,7 +3705,7 @@ app._craftReady = function () {
         if (!mine.length) return;
         list += '<li class="craft-tip-grp">' + diagGroupTag(g) + '</li>' + mine.map(function (o) { return '<li class="craft-tip' + (o.r.lead ? ' craft-tip-lead' : '') + (o.r.gear ? ' craft-tip-child' : '') + '" title="' + o.r.hint + '"><span class="craft-tip-body">' + o.r.html + '</span></li>'; }).join('');
       });
-      if (ordered.length <= 4) {
+      if (ordered.length <= 4 || !solutions.length) {
         // 內容不多就直接全部展開：前提（搭配的食藥）跟需求要一起看到才不會誤會
         html = '<div class="craft-diagnosis craft-diag-open"><div class="craft-diagnosis-title"><i class="ph ph-lightbulb"></i></div><ul>' + list + '</ul></div>';
       } else {
@@ -3713,14 +3714,17 @@ app._craftReady = function () {
       }
     }
     if (loading) html += '<div class="craft-diag-loading"><i class="ph ph-lightbulb"></i><span>分析建議中⋯</span><i class="ph ph-spinner craft-spin"></i></div>';
+    else if (fullBtn) html += '<button type="button" class="craft-diag-more" title="分析要怎樣才能做出滿品質（不用重新求解）"><i class="ph ph-medal"></i>滿品質建議</button>';
     slot.innerHTML = html;
   }
 
-  /* 建議分兩段：
+  /* 建議分三段：
    *  A. 即時檢查：同一套手法換成全 HQ 材料就能滿品質 → 直接顯示，結束。
-   *  B. 其餘情況在背景「重新求解」驗證：每個情境都從目前手法出發重新排手法，只顯示驗證過做得到的，
-   *     找到一個就先顯示一個（分析中陸續出現）；找不到就什麼都不顯示。
-   *     用多個 Worker 平行跑、有時間上限（見 analyzeByResolve），開始新求解／換配方會立即中止。 */
+   *  B. 「可完成」的建議（只有做不出來時才需要）：自動在背景做。
+   *  C. 「滿品質」的建議（品質不滿時）：先不做，等 B 結束（或不需要 B）後才出現一顆「滿品質建議」按鈕，
+   *     想知道的人按一下才分析：只求完成的人不必等這段運算，需要的人也不用勾選後重新求解。
+   *  分析是在背景用求解器「重新排手法」驗證候選情境，只顯示驗證過做得到的，找到一個就先顯示一個；
+   *  多個 Worker 平行，開始新求解／換配方會立即中止。 */
   function startDiagnosis(box, craft, result, stats, hqIngredients, solvingName) {
     const slot = box.querySelector('#cf-diag-slot');
     if (!slot) return;
@@ -3729,31 +3733,45 @@ app._craftReady = function () {
       let quick = [];
       try { quick = diagnoseFailure(craft, result, stats, hqIngredients); }
       catch (e) { console.warn('診斷建議計算失敗（不影響主要結果顯示）:', e); quick = []; }
+      const rows = quick.slice();
       const inconclusive = !result.success && result.timedOut; // 時間到才失敗＝不確定真的做不到，拿它當基準分析會誤導
-      const canAnalyze = !quick.length && !inconclusive && result.collectability == null && result.actionKeys && result.actionKeys.length;
-      renderDiagSlot(slot, quick, !!canAnalyze);
+      const canAnalyze = !inconclusive && result.collectability == null && result.actionKeys && result.actionKeys.length;
+      const needDone = !result.success;
+      const needFull = craft.quality > 0 && !(result.success && result.quality >= craft.quality) && !quick.length;
+      const fullState = { run: false };
+      renderDiagSlot(slot, rows, false, false);
       if (!canAnalyze) return;
-      const an = { cancelled: false, cancel: null, onCancel: function () { if (slot.isConnected) slot.innerHTML = ''; } };
-      activeAnalysis = an;
-      const rows = [];
-      analyzeByResolve(an, craft, result, stats, hqIngredients, function (row) {
-        if (an.cancelled || !slot.isConnected) return;
-        rows.push(row);
-        renderDiagSlot(slot, rows, true);
-      }).then(function (upgrade) {
-        if (activeAnalysis === an) activeAnalysis = null;
-        if (an.cancel) an.cancel(); // 收掉分析專用的 Worker，釋放記憶體
-        if (an.cancelled || !slot.isConnected) return;
-        /* 分析時發現「目前這組數值其實做得到」（主求解沒搜尋到，背景從它的結果繼續搜尋才找到）：
-         * 直接用找到的手法更新結果，不要讓畫面停在「無法完成」或較差的結果。新結果會重新跑一次建議分析。 */
-        if (upgrade) { renderResult(craft, upgrade, solvingName, stats, hqIngredients); return; }
-        renderDiagSlot(slot, rows, false);
-      }).catch(function (e) {
-        console.warn('背景分析失敗（不影響主要結果顯示）:', e);
-        if (activeAnalysis === an) activeAnalysis = null;
-        if (an.cancel) an.cancel();
-        if (!an.cancelled && slot.isConnected) renderDiagSlot(slot, rows, false);
+
+      const run = function (which, after) {
+        const an = { cancelled: false, cancel: null, onCancel: function () { if (slot.isConnected) slot.innerHTML = ''; } };
+        activeAnalysis = an;
+        renderDiagSlot(slot, rows, true, false);
+        analyzeByResolve(an, craft, result, stats, hqIngredients, function (row) {
+          if (an.cancelled || !slot.isConnected) return;
+          rows.push(row);
+          renderDiagSlot(slot, rows, true, false);
+        }, which).then(function (upgrade) {
+          if (activeAnalysis === an) activeAnalysis = null;
+          if (an.cancel) an.cancel(); // 收掉分析專用的 Worker，釋放記憶體
+          if (an.cancelled || !slot.isConnected) return;
+          /* 分析時發現「目前這組數值其實做得到」（主求解沒搜尋到，背景從它的結果繼續搜尋才找到）：
+           * 直接用找到的手法更新結果，不要讓畫面停在「無法完成」或較差的結果。新結果會重新跑一次建議分析。 */
+          if (upgrade) { renderResult(craft, upgrade, solvingName, stats, hqIngredients); return; }
+          after();
+        }).catch(function (e) {
+          console.warn('背景分析失敗（不影響主要結果顯示）:', e);
+          if (activeAnalysis === an) activeAnalysis = null;
+          if (an.cancel) an.cancel();
+          if (!an.cancelled && slot.isConnected) renderDiagSlot(slot, rows, false, needFull && !fullState.run);
+        });
+      };
+      const showFullBtn = function () { renderDiagSlot(slot, rows, false, needFull && !fullState.run); };
+      slot.addEventListener('click', function (e) {
+        if (!e.target.closest('.craft-diag-more') || fullState.run) return;
+        fullState.run = true;
+        run(['full'], function () { renderDiagSlot(slot, rows, false, false); });
       });
+      if (needDone) run(['done'], showFullBtn); else showFullBtn();
     }, 30);
   }
 
@@ -3852,12 +3870,13 @@ app._craftReady = function () {
    * 準確度：同一套手法在更高的數值下只會更好、不會更差，所以
    *  1. 某個情境成功，數值更高的情境一定成功，不必重算（推論）；
    *  2. 往下找最低需求時，用更高數值下成功的手法當起點（暖啟動），比從頭找更容易找到。 */
-  async function analyzeByResolve(an, craft, result, stats, hqIngredients, report) {
+  async function analyzeByResolve(an, craft, result, stats, hqIngredients, report, which) {
     const needDone = !result.success;
     const needFull = craft.quality > 0 && !(result.success && result.quality >= craft.quality);
     if (!needDone && !needFull) return null;
     const goals = { done: function (r) { return !!(r && r.success); }, full: function (r) { return !!(r && r.success && r.quality >= craft.quality); } };
-    const wanted = (needDone ? ['done'] : []).concat(needFull ? ['full'] : []);
+    const wanted = (needDone ? ['done'] : []).concat(needFull ? ['full'] : []).filter(function (g) { return !which || which.indexOf(g) !== -1; });
+    if (!wanted.length) return null;
     const mainKeys = result.actionKeys;
     const giveUpAt = performance.now() + 60000; // 防呆上限：多個 Worker 平行，通常遠低於這個時間
     const outOfTime = function () { return an.cancelled || performance.now() > giveUpAt; };
@@ -3913,13 +3932,13 @@ app._craftReady = function () {
     // 在「由弱到強」的候選裡找剛好夠的：先試最強（不夠就放棄），夠了才二分往下找
     const searchLevels = async function (count, testAt, goalFn) {
       const top = await testAt(count - 1);
-      if (!goalFn(top)) return -1;
+      if (!goalFn(top)) return { idx: -1, top: top };
       let lo = 0, hi = count - 1;
       while (lo < hi && !outOfTime()) {
         const mid = (lo + hi) >> 1;
         if (goalFn(await testAt(mid))) hi = mid; else lo = mid + 1;
       }
-      return hi;
+      return { idx: hi, top: top };
     };
 
     const META = {
@@ -3976,8 +3995,9 @@ app._craftReady = function () {
         const f = finalFor({ craftsmanship: baseB.craftsmanship + (d.craftsmanship || 0), control: baseB.control + (d.control || 0), cp: baseB.cp + (d.cp || 0) }, bestCombo);
         return evalSc(g, f.craftsmanship, f.control, f.cp);
       };
-      let leadReported = false;
+      let leadReported = false, gearFound = false;
       const reportGear = function (row) {
+        gearFound = true;
         if (!leadReported) { // 前提只報一次：搭配哪一組食藥（品質標準再加全 HQ）
           leadReported = true;
           const lead = (hqMode === 'all' ? chip('ph-star', '全 HQ', false) : '') + comboChips(bestCombo);
@@ -3988,7 +4008,7 @@ app._craftReady = function () {
       // 先做單項，再做三項同時：三項同時的數值一定包含單項的，單項已驗證成功的情境能直接推論給三項，兩邊的結果才不會矛盾
       const singles = ['cp', 'craftsmanship', 'control'].map(function (key) {
         return (async function () {
-          const idx = await searchLevels(SINGLE_F.length, function (i) { const d = {}; d[key] = incAt(key, SINGLE_F[i]); return at(d); }, goalFn);
+          const idx = (await searchLevels(SINGLE_F.length, function (i) { const d = {}; d[key] = incAt(key, SINGLE_F[i]); return at(d); }, goalFn)).idx;
           if (idx < 0) return;
           const ch = {}; ch[key] = baseB[key] + incAt(key, SINGLE_F[idx]);
           reportGear(gearRow(g, META[key].order, ch, '只提高' + META[key].label + '（其他不變），' + NOTE));
@@ -3996,8 +4016,21 @@ app._craftReady = function () {
       });
       await Promise.all(singles);
       await (async function () {
-        const idx = await searchLevels(TRIO_F.length, function (i) { return at({ craftsmanship: incAt('craftsmanship', TRIO_F[i]), control: incAt('control', TRIO_F[i]), cp: incAt('cp', TRIO_F[i]) }); }, goalFn);
-        if (idx < 0) return;
+        const sr = await searchLevels(TRIO_F.length, function (i) { return at({ craftsmanship: incAt('craftsmanship', TRIO_F[i]), control: incAt('control', TRIO_F[i]), cp: incAt('cp', TRIO_F[i]) }); }, goalFn);
+        const idx = sr.idx;
+        if (idx < 0) {
+          /* 連「食藥最強＋三項各 +30%」都做不到：不要什麼都不顯示，改告訴使用者「最高能到哪」，讓人知道差多遠。
+           * 三項同時提升包含了所有單項，所以這就是這個範圍內的上限。 */
+          if (!gearFound && sr.top && !an.cancelled) {
+            const have = g === 'full' ? Math.max(sr.top.quality || 0, result.quality) : Math.max(sr.top.progression || 0, result.progression);
+            const need = g === 'full' ? craft.quality : craft.progress;
+            const pct = Math.min(99, Math.floor(Math.min(have, need) / need * 100));
+            report({ grp: g, order: 6, gap: true, short: '最高 ' + pct + '%', icon: 'ph-gauge',
+              html: '<span class="craft-tip-k">最高可達</span><span class="craft-gapbar"><span style="width:' + pct + '%"></span></span><strong class="craft-gap-pct">' + pct + '%</strong>',
+              hint: '搭配最強的食物＋藥水' + (g === 'full' && canHq ? '、全 HQ 材料' : '') + '，再把三項數值各提高 30%，' + (g === 'full' ? '品質' : '進度') + '最高也只能做到這個程度' });
+          }
+          return;
+        }
         reportGear(gearRow(g, 5, { craftsmanship: baseB.craftsmanship + incAt('craftsmanship', TRIO_F[idx]), control: baseB.control + incAt('control', TRIO_F[idx]), cp: baseB.cp + incAt('cp', TRIO_F[idx]) }, '三項同時都要提高，' + NOTE));
       })();
     };
@@ -4278,7 +4311,14 @@ app._craftReady = function () {
     if (window.ResizeObserver) new ResizeObserver(reserve).observe($('cf-actor'));
     bar.addEventListener('click', function () { setOpen(!wrap.classList.contains('open')); });
     $('cf-dock-close').addEventListener('click', function () { setOpen(false); });
-    document.addEventListener('click', function (e) { if (isOverlay() && wrap.classList.contains('open') && !wrap.contains(e.target)) setOpen(false); });
+    document.addEventListener('click', function (e) {
+      if (!isOverlay() || !wrap.classList.contains('open')) return;
+      /* 選了下拉選項後清單會立刻被重畫，被點的那個元素已經從頁面上被換掉，wrap.contains(e.target) 會誤判成「點到外面」而把面板收起來。
+       * composedPath 是點擊當下就記下的路徑，不受事後重畫影響。 */
+      const path = e.composedPath ? e.composedPath() : [];
+      if (path.indexOf(wrap) !== -1 || wrap.contains(e.target)) return;
+      setOpen(false);
+    });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && wrap.classList.contains('open') && !document.querySelector('.craft-dd.open')) setOpen(false); });
     ['input', 'change'].forEach(function (ev) { $('cf-actor').addEventListener(ev, function () { setTimeout(renderDockSummary, 0); }); });
     $('cf-actor').addEventListener('click', function () { setTimeout(renderDockSummary, 0); });

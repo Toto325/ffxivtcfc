@@ -215,14 +215,20 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
     const nearGoal = options.goalQuality == null || !best || (best.eval.success ? best.eval.quality >= options.goalQuality * 0.6 : best.eval.progression >= craft.progress * 0.85);
     if (CONTINUE_SEARCH && best && !goalMetNow() && nearGoal) {
       continued = true;
-      const cap = best.eval.success ? (options.improveBudgetMs || 12000) : (options.failBudgetMs || 25000);
-      const needStall = best.eval.success ? 2 : 3;
+      /* 時間上限：還沒成功時最多搜尋到 FAIL_CAP；一旦成功，改成「成功後最多再改善 IMPROVE 這麼久」、而且連續 2 輪沒進步就停
+       * （原本沒有這個切換，成功之後還繼續沿用「做不出來」的長上限，把時間白白用光）。 */
+      const FAIL_CAP = options.failBudgetMs || 25000, IMPROVE = options.improveBudgetMs || 12000;
+      let successAt = best.eval.success ? startedAt : 0;
+      const capNow = function () { return best.eval.success ? Math.min(startedAt + FAIL_CAP, successAt + IMPROVE) : startedAt + FAIL_CAP; };
+      const needStall = function () { return best.eval.success ? 2 : 4; }; // 連續幾輪（每輪都是不同隨機種子、從清理後的最佳重新搜尋）都沒進步，就視為收斂
+      const cap = FAIL_CAP; // 給下面多起點精修的時間計算用
       /* 多起點精修：不同次嘗試會落在不同的局部最佳，只精修分數最高的那個，會漏掉「現在分數較低、但精修後能成功」的起點
        * （實測 1500／1500／300：精修最好的那個停在進度 6361/6600，另一個起點精修後完成）。
        * 挑最多 3 個不重複的起點，各自精修到收斂（或各自的時間上限）。 */
       const phaseStart = Date.now();
-      const phaseCap = Math.min(best.eval.success ? 6000 : 18000, startedAt + cap - phaseStart);
-      const perStart = best.eval.success ? 3000 : 8000;
+      // 這一段只是快速補一下不同起點；真正有效的是下面「以清理後的最佳為種子、反覆跑 GA」，所以給的時間要少
+      const phaseCap = Math.min(best.eval.success ? 1500 : 3500, startedAt + cap - phaseStart);
+      const perStart = best.eval.success ? 500 : 1200;
       const seen = {};
       const starts = trialResults.slice().sort(function (a, b) { return b.score - a.score; }).filter(function (c) {
         const k = c.rotation.map(function (a) { return a.constructor.name; }).join(',');
@@ -232,17 +238,17 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
         const c = starts[si], left = phaseCap - (Date.now() - phaseStart);
         if (goalMetNow() || left <= 300) break;
         c.solver.config.deadline = Date.now() + Math.min(perStart, left);
-        const rot0 = c.solver.polish(c.rotation, perStart);
+        const rot0 = c.solver.ils(c.rotation, perStart); // 迭代局部搜尋（擾動＋精修），比單純精修更容易跳出局部最佳
         const ev0 = evaluateRotation(craft, rot0, crafterStats, options.hqIngredients, options.safeMode, options.collectableGoal);
         const sc0 = scoreOf(ev0);
         if (sc0 > best.score + 0.05) best = { score: sc0, eval: ev0, seed: c.seed, rotation: rot0, solver: c.solver };
       }
       let iter = 0, stall = 0;
-      while (!goalMetNow() && stall < needStall && Date.now() < startedAt + cap) {
+      while (!goalMetNow() && stall < needStall() && Date.now() < capNow()) {
         iter++; attempts++;
         const seed = (baseSeed + 5000 + iter) >>> 0;
         Math.random = mulberry32(seed);
-        const remaining = startedAt + cap - Date.now();
+        const remaining = capNow() - Date.now();
         const solver = new CraftSolverGA(craft, crafterStats, {
           populationSize: options.populationSize || 150,
           generations: options.generations || 40,
@@ -251,22 +257,27 @@ function solveWithMitigations(craft, crafterStats, options, onProgress) {
           safeMode: options.safeMode,
           collectableGoal: options.collectableGoal,
           fixedPrefix: actionsFromKeys(options.fixedPrefix),
-          seeds: [best.rotation.map(function (a) { return new a.constructor(); })], // 以目前最佳為種子
+          // 以目前最佳為種子——用「實際會執行的動作」（跟輸出的巨集一致），不是含失敗尾巴／被跳過動作的原始序列：
+          // 後者的突變、交配大多打在沒用的位置上。實測同一個種子，清理後 1.9 秒就成功，原始序列 25 秒都沒成功。
+          seeds: [(best.eval.actions && best.eval.actions.length ? best.eval.actions : best.rotation).map(function (a) { return new a.constructor(); })],
           goalQuality: options.goalQuality,
-          deadline: Date.now() + Math.min(remaining, 3000),
+          deadline: Date.now() + Math.min(remaining, options.iterGaMs || 3000),
         });
         let rot = solver.run(function (p) {
           if (typeof onProgress !== 'function') return;
           onProgress({ trial: Math.min(attempts, totalTrials), totalTrials: totalTrials, generation: p.generation, totalGenerations: p.totalGenerations, bestSuccess: p.bestSuccess, bestHqPercent: p.bestHqPercent, bestCollectability: p.bestCollectability, bestSteps: p.bestSteps });
         });
-        solver.config.deadline = Date.now() + Math.max(300, Math.min(1500, startedAt + cap - Date.now()));
-        rot = solver.polish(rot, 1500);
+        const polishCap = Math.max(0, Math.min(options.iterIlsMs != null ? options.iterIlsMs : (best.eval.success ? 1500 : 1200), remaining)); // 每一輪「從最佳出發」之後的迭代局部搜尋時間；短而多輪，比長而少輪更能靠 GA 的多樣性跳出局部最佳
+        solver.config.deadline = Date.now() + Math.max(300, polishCap);
+        if (polishCap > 0) rot = solver.ils(rot, polishCap);
         const ev = evaluateRotation(craft, rot, crafterStats, options.hqIngredients, options.safeMode, options.collectableGoal);
         const sc = scoreOf(ev);
-        if (sc > best.score + 0.05) { best = { score: sc, eval: ev, seed: seed, rotation: rot, solver: solver }; stall = 0; } else stall++;
+        if (sc > best.score + 0.05) { const was = best.eval.success; best = { score: sc, eval: ev, seed: seed, rotation: rot, solver: solver }; stall = 0; if (!was && best.eval.success) successAt = Date.now(); }
+        else stall++; // 這一輪沒有刷新最佳 // 迭代局部搜尋真的收斂（連續很多次擾動都沒有刷新最佳）：才算沒進步
+        // 精修被時間截斷（還沒爬完）不算沒進步：下一輪從這個結果繼續，直到收斂或時間上限
       }
       // 沒成功：連續幾輪都沒有進步＝收斂了，才算「這組數值做不出來」；是被時間上限截斷的就不確定
-      if (!best.eval.success) timedOut = stall < needStall;
+      if (!best.eval.success) timedOut = stall < 4;
     }
   } finally {
     Math.random = originalRandom; // 一定要還原，避免影響 Worker 內其他邏輯

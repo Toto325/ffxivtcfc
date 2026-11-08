@@ -1312,3 +1312,30 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-tip-arrow{color:var(--gold);margin:0 1px}
 /* 依賴「搭配」前提的裝備需求：縮排在前提下面，表示「先用上面這些，再提升這個數值」 */
 .craft-tip-child{margin-left:8px;padding-left:10px;border-left:2px solid rgba(197,160,89,.4)}
+
+/* 食物／藥水：加成數值接在名稱後面（同一行；放不下時數值自然換到下一行，名稱不會被截斷） */
+.craft-dd .wl-dd-opt.cw-food-opt{flex-direction:row;flex-wrap:wrap;align-items:center;gap:3px 8px}
+.craft-dd .wl-dd-opt.cw-food-opt .cw-fx{flex:0 1 auto}
+.craft-dd .wl-dd-btn.is-rich>span:first-child{flex-direction:row;flex-wrap:wrap;align-items:center;gap:3px 8px}
+/* 食藥整體預覽：左＝吃了什麼，右＝整體加成，中間細分隔線 */
+.ccs-split{display:grid;grid-template-columns:minmax(0,5fr) 1px minmax(0,6fr);gap:12px;align-items:stretch}
+.ccs-split .ccs-sources{flex-direction:column;align-items:flex-start;gap:6px;margin:0}
+.ccs-split .ccs-chips{flex-direction:column;align-items:flex-start;gap:6px}
+.ccs-split .ccs-chip{white-space:normal}
+.ccs-divider{background:rgba(125,196,138,.3)}
+/* 「滿品質建議」按鈕：建議出現後才出現，按了才分析 */
+.craft-diag-more{display:inline-flex;align-items:center;gap:5px;margin:6px 12px 8px;height:26px;padding:0 12px;font-size:12px;color:var(--gold-bright);background:transparent;border:1px dashed rgba(197,160,89,.6);border-radius:13px;cursor:pointer}
+.craft-diag-more:hover{background:rgba(197,160,89,.14);border-style:solid}
+/* 「最高可達」：做不到時告訴使用者最高能到哪 */
+.craft-gapbar{flex:1;min-width:90px;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+.craft-gapbar>span{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#a9741f,#e0a83a)}
+.craft-gap-pct{color:var(--gold-bright);font-variant-numeric:tabular-nums}
+
+/* 清單選項：數值緊接在名稱後面，不要被推到最右邊 */
+.craft-dd .wl-dd-opt.cw-food-opt{justify-content:flex-start}
+/* 預覽左欄：名稱長時讓文字自然換行（HQ 標記跟著文字走），不要把標記單獨擠到下一行 */
+.ccs-split{grid-template-columns:minmax(0,1.15fr) 1px minmax(0,1fr)}
+.ccs-split .ccs-source-tag{display:block;border-radius:10px;padding:3px 10px;line-height:1.55}
+.ccs-split .ccs-source-tag>i{margin-right:4px}
+
+.ccs-split .ccs-chip{white-space:nowrap}

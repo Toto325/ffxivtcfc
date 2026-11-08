@@ -294,6 +294,7 @@
       }
       return lists;
     };
+    this.polishConverged = false; // 精修是「爬到局部最佳」才結束，還是被時間截斷？呼叫端要用它判斷「沒進步」是真的收斂還是只是沒時間
     var improved = true;
     while (improved && !reached(curEv)) {
       improved = false;
@@ -307,7 +308,7 @@
       for (var j = prefixLen; j <= cur.length; j++) for (var v = 0; v < usable[j].length; v++) ops.push([2, j, usable[j][v]]);
       for (var k = ops.length - 1; k > 0; k--) { var r = Math.floor(Math.random() * (k + 1)); var t = ops[k]; ops[k] = ops[r]; ops[r] = t; }
       for (var n = 0; n < ops.length; n++) {
-        if ((n & 63) === 0 && Date.now() > limit) return cur;
+        if ((n & 63) === 0 && Date.now() > limit) return cur; // 時間到：polishConverged 維持 false
         var op = ops[n], cand = cur.slice();
         if (op[0] === 0) cand.splice(op[1], 1);
         else if (op[0] === 1) cand[op[1]] = new A[op[2]].constructor();
@@ -316,7 +317,63 @@
         if (ev.score > curEv.score + 1e-9) { cur = cand; curEv = ev; improved = true; break; } // 變好就採用，從新手法重新開始一輪
       }
     }
+    this.polishConverged = true;
     return cur;
+  };
+
+  /* 迭代局部搜尋（ILS）：精修（polish）只做「單一步驟的改動」，一旦每個單步改動都沒有更好，就卡在局部最佳。
+   * 所以重複：隨機擾動 1～3 步（刪／換／插／對調）→ 精修 → 沒變差就接受、變好就記下最佳。
+   * 每次嘗試很便宜（先把失敗後根本沒執行的尾巴修剪掉，手法從 150～200 個動作縮到實際會執行的幾十個），
+   * 可以在同樣時間內嘗試很多次，比只精修一次更容易跳出局部最佳。
+   * 連續 maxStall 次嘗試都沒有刷新最佳＝收斂（ilsConverged）；被時間截斷則不算收斂。 */
+  CraftSolverGA.prototype.ils = function (rotation, maxMs) {
+    var self = this, A = this.availableActions, prefixLen = this.fixedPrefix.length;
+    var limit = Date.now() + (maxMs || 3000);
+    if (this.config.deadline) limit = Math.min(limit, this.config.deadline);
+    var reached = function (ev) { return self.config.goalQuality != null && ev.success && ev.quality >= self.config.goalQuality; };
+    var trim = function (rot, ev) { // 修掉最後一個「真的有執行」的動作之後的所有尾巴（之後都是失敗／完成後被跳過的）
+      var steps = ev.result && ev.result.steps, last = -1;
+      if (!steps) return rot;
+      for (var i = 0; i < steps.length && i < rot.length; i++) if (!steps[i].skipped) last = i;
+      return rot.slice(0, Math.max(last + 1, prefixLen));
+    };
+    var rnd = function (n) { return Math.floor(Math.random() * n); };
+    // 清理：只留「真的有執行且成功」的動作（跟輸出給玩家的巨集一致）。被跳過的動作（CP 不夠、前置條件不符）留在序列裡只會讓後續的
+    // 擾動、精修大多打在沒用的位置上；清理後結果沒變差才採用（跳過的動作在模擬器裡仍會推進 Buff 計時，少數情況清理會改變結果）。
+    var clean = function (rot, ev) {
+      var steps = ev.result && ev.result.steps;
+      if (!steps) return { rot: rot, ev: ev };
+      var c = rot.filter(function (a, i) { return i < prefixLen || (steps[i] && !steps[i].skipped && steps[i].success); });
+      if (c.length === rot.length) return { rot: rot, ev: ev };
+      var ce = self.evaluate(c);
+      return ce.score >= ev.score - 1e-9 ? { rot: c, ev: ce } : { rot: rot, ev: ev };
+    };
+    var cur = rotation, curEv = this.evaluate(cur);
+    cur = trim(cur, curEv); curEv = this.evaluate(cur);
+    var c0 = clean(cur, curEv); cur = c0.rot; curEv = c0.ev;
+    var polishMs = 700;
+    var p0 = this.polish(cur, polishMs); var e0 = this.evaluate(p0);
+    if (e0.score >= curEv.score) { cur = trim(p0, e0); curEv = this.evaluate(cur); }
+    var best = cur, bestEv = curEv, stall = 0, MAX_STALL = 40;
+    while (!reached(bestEv) && Date.now() < limit && stall < MAX_STALL) {
+      var cand = cur.slice(), kicks = 1 + rnd(3);
+      for (var k = 0; k < kicks; k++) {
+        var span = cand.length - prefixLen, kind = rnd(4);
+        if (span <= 0) kind = 2;
+        if (kind === 0) cand.splice(prefixLen + rnd(span), 1); // 刪一步
+        else if (kind === 1) cand[prefixLen + rnd(span)] = new A[rnd(A.length)].constructor(); // 換成別的技能
+        else if (kind === 2) cand.splice(prefixLen + rnd(span + 1), 0, new A[rnd(A.length)].constructor()); // 插一個技能
+        else if (span >= 2) { var i = prefixLen + rnd(span - 1), t = cand[i]; cand[i] = cand[i + 1]; cand[i + 1] = t; } // 對調相鄰兩步
+      }
+      cand = this.polish(cand, polishMs);
+      var ev = this.evaluate(cand);
+      cand = trim(cand, ev); ev = this.evaluate(cand);
+      var cc = clean(cand, ev); cand = cc.rot; ev = cc.ev;
+      if (ev.score >= curEv.score - 1e-9) { cur = cand; curEv = ev; } // 沒變差就接受（持平也接受，讓搜尋能在平地上移動）
+      if (ev.score > bestEv.score + 1e-9) { best = cand; bestEv = ev; stall = 0; } else stall++;
+    }
+    this.ilsConverged = reached(bestEv) || stall >= MAX_STALL;
+    return best;
   };
 
   global.CraftSolverGA = CraftSolverGA;
