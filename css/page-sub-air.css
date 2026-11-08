@@ -1652,3 +1652,118 @@ html[data-nav-mode="top"] .news-outer,
 @media (prefers-reduced-motion:reduce){
   .sub-mogship .sub-route-card,.sub-mogship .sub-table tbody tr,.ld-overlay.active .ld-card,.ld-overlay.active .ld-row{animation:none!important}
 }
+
+
+/* ═══ 第七輪：動態微調、彈窗層級修正（手機被頂部選單蓋住）、收獲概覽視覺引導重做 ═══ */
+/* 動態：比上一版略快一點（想再調，改這兩個數字） */
+.sub-mogship{--ex-step:110ms;--ex-row-step:70ms}
+.sub-mogship .sub-route-card{animation-duration:.62s}
+.sub-mogship .sub-table tbody tr{animation-duration:.58s}
+.ld-overlay.active .ld-card,.ld-overlay.active .ld-row{animation-duration:.55s;animation-delay:calc(var(--i,0) * 70ms)}
+
+/* 彈窗層級：頂部選單是 9999，彈窗要比它高（跟市場頁彈窗同一區間） */
+.ld-overlay,.map-modal-overlay{z-index:10040}
+.sub-tip-box{z-index:10100}
+
+/* —— 收獲概覽：顏色引導 —— */
+.ld-modal{--t1c:#9a9aa6;--t2c:#4da6ff;--t3c:#e0a428}
+.ld-overlay{align-items:center}
+/* 圖例＝篩選鈕 */
+.ld-legend{gap:8px 14px}
+.ld-lg-sep{gap:7px;align-items:center}
+.ld-lg-sep>.ph{color:var(--gold)}
+.ld-fcat{padding:3px 10px;border:1px solid color-mix(in srgb,currentColor 40%,transparent);border-radius:5px;background:rgba(0,0,0,.35);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;transition:background .2s,box-shadow .2s,opacity .2s}
+.ld-fcat:hover{background:color-mix(in srgb,currentColor 14%,transparent)}
+.ld-fcat.active{background:color-mix(in srgb,currentColor 24%,transparent);border-color:currentColor;box-shadow:0 0 10px color-mix(in srgb,currentColor 45%,transparent)}
+.ld-legend:has(.ld-fcat.active) .ld-fcat:not(.active){opacity:.42}
+.ld-fclear{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border:1px solid var(--tb);border-radius:5px;background:rgba(0,0,0,.35);color:var(--main);font:inherit;font-size:11.5px;cursor:pointer}
+.ld-fclear[hidden]{display:none}
+.ld-chip{border-color:color-mix(in srgb,var(--mc,#c5a059) 50%,transparent)}
+.ld-chip.active{background:color-mix(in srgb,var(--mc,#c5a059) 28%,transparent);border-color:var(--mc,#c5a059);color:#fff}
+/* 物品：重點物品＝有色小標籤，一般材料／魔晶石＝淡色文字 */
+.ld-vip{display:inline-flex;flex-wrap:wrap;gap:4px 5px;margin-right:6px;vertical-align:middle}
+.ld-vip .ld-it{padding:0 8px;border:1px solid color-mix(in srgb,currentColor 55%,transparent);border-radius:5px;background:color-mix(in srgb,currentColor 13%,transparent);font-weight:600;line-height:1.7}
+.ld-rest{opacity:.82}
+.ld-rest .ld-it{font-weight:400}
+.ld-it{transition:opacity .2s,filter .2s}
+.ld-it.ld-dim{opacity:.2;filter:saturate(.3)}
+.ld-vip .ld-it.ld-on{box-shadow:0 0 9px color-mix(in srgb,currentColor 45%,transparent)}
+.ld-rest.ld-rest{opacity:.85}
+.ld-hit{text-decoration:underline;text-underline-offset:3px;background:rgba(197,160,89,.28)}
+/* 目的地：航海圖色調的漸層光暈＋色條＋發光標題 */
+.ld-letter{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;margin:0;padding:0 5px;border:1px solid var(--mc,var(--gold));border-radius:6px;background:color-mix(in srgb,var(--mc,#c5a059) 26%,transparent);color:#fff;font-size:13px;font-weight:700}
+.ld-dn{margin:0 8px 0 8px;font-size:14px;font-weight:600;color:#f6ead0;letter-spacing:.5px;text-shadow:0 0 12px color-mix(in srgb,var(--mc,#c5a059) 80%,transparent),0 0 3px rgba(0,0,0,.8)}
+.ld-rk{padding:0 6px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(0,0,0,.35)}
+.ld-destbox{display:flex;align-items:center;flex-wrap:wrap;gap:2px 0}
+/* 表格式：每個目的地是一條獨立色帶，T1／T2／T3 各自底色＋左側色條 */
+.ld-table-wrap{overflow:visible}
+.ld-table{border-spacing:0 7px;min-width:780px}
+.ld-table th{border-bottom:2px solid rgba(197,160,89,.45);top:0}
+.ld-table th.t1{border-bottom-color:var(--t1c)}
+.ld-table th.t2{border-bottom-color:var(--t2c);background:linear-gradient(180deg,#120d09,rgba(77,166,255,.12))}
+.ld-table th.t3{border-bottom-color:var(--t3c);background:linear-gradient(180deg,#120d09,rgba(224,164,40,.14))}
+.ld-grp-row td{padding:10px 14px;border:none;border-left:4px solid var(--mc);border-radius:8px;background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 36%,#0b0809),color-mix(in srgb,var(--mc) 5%,#0b0809) 92%);font-size:14px;font-weight:700;text-shadow:0 0 12px color-mix(in srgb,var(--mc) 85%,transparent);position:sticky;top:34px;z-index:1}
+.ld-grp-row .ph{color:var(--mc)}
+.ld-row td{padding:8px 12px;border-bottom:none;background:rgba(255,255,255,.02)}
+.ld-row:hover td{background:rgba(255,255,255,.04)}
+.ld-row .ld-dest{width:19%;border-left:4px solid var(--mc);border-radius:8px 0 0 8px;background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 30%,transparent),color-mix(in srgb,var(--mc) 3%,transparent) 95%)}
+.ld-row .ld-c{border-left:3px solid transparent}
+.ld-row .ld-c.t1{background:rgba(255,255,255,.045);border-left-color:var(--t1c);width:25%}
+.ld-row .ld-c.t2{background:rgba(77,166,255,.1);border-left-color:var(--t2c);width:31%}
+.ld-row .ld-c.t3{background:rgba(224,164,40,.11);border-left-color:var(--t3c);border-radius:0 8px 8px 0;width:25%}
+.ld-row:hover .ld-c.t2{background:rgba(77,166,255,.14)}
+.ld-row:hover .ld-c.t3{background:rgba(224,164,40,.15)}
+.ld-mb{display:none}
+.ld-cell{min-width:0}
+/* 卡片式：每張卡有航海圖色頂邊、目的地漸層標題、三個階層色帶 */
+.ld-grp{margin-bottom:14px}
+.ld-grp-h{position:sticky;top:0;z-index:3;padding:9px 14px;border:none;border-left:4px solid var(--mc);border-radius:8px;background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 36%,#0b0809),color-mix(in srgb,var(--mc) 5%,#0b0809) 92%);font-size:14px;font-weight:700;text-shadow:0 0 12px color-mix(in srgb,var(--mc) 85%,transparent);margin:0 0 9px}
+.ld-grp-h .ph{color:var(--mc)}
+.ld-card{gap:0;padding:0;overflow:hidden;border:1px solid color-mix(in srgb,var(--mc) 32%,transparent);border-top:3px solid var(--mc);background:rgba(255,255,255,.015)}
+.ld-card-h{padding:9px 12px;border-bottom:none;background:linear-gradient(90deg,color-mix(in srgb,var(--mc) 30%,transparent),color-mix(in srgb,var(--mc) 3%,transparent) 95%)}
+.ld-card .ld-tier{padding:7px 12px;border-left:3px solid transparent;align-items:flex-start}
+.ld-card .ld-tier.t1{background:rgba(255,255,255,.045);border-left-color:var(--t1c)}
+.ld-card .ld-tier.t2{background:rgba(77,166,255,.1);border-left-color:var(--t2c)}
+.ld-card .ld-tier.t3{background:rgba(224,164,40,.11);border-left-color:var(--t3c)}
+
+/* —— 手機版：全螢幕、可橫向捲動的篩選列、表格改成直式區塊 —— */
+@media (max-width:700px){
+  .ld-overlay{padding:0;align-items:stretch}
+  .ld-modal{width:100%;max-height:none;height:100%;border:none;border-radius:0;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px));gap:8px}
+  .ld-head{flex-wrap:nowrap;gap:8px}
+  .ld-title{font-size:.95rem;letter-spacing:1px;margin-right:auto}
+  .ld-view{margin-left:0}
+  .ld-view .sub-seg-btn{padding:5px 9px}
+  .ld-maps,.ld-legend{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .ld-maps::-webkit-scrollbar,.ld-legend::-webkit-scrollbar{display:none}
+  .ld-chip,.ld-lg,.ld-fcat,.ld-fclear{flex:0 0 auto;white-space:nowrap}
+  .ld-legend{padding:6px 10px}
+  .ld-lg-sep{padding-left:12px;border-left:1px solid rgba(197,160,89,.25)}
+  .ld-body{padding-right:0}
+  .ld-cards{grid-template-columns:1fr}
+  /* 表格式：每個目的地變成一條緊湊的直式列（不用橫向捲動） */
+  .ld-table{display:block;min-width:0;width:100%}
+  .ld-table thead{display:none}
+  .ld-table tbody{display:block;margin-bottom:10px}
+  .ld-grp-row,.ld-grp-row td{display:block}
+  .ld-grp-row{position:sticky;top:0;z-index:3;margin-bottom:7px}
+  .ld-grp-row td{position:static;border-radius:8px}
+  .ld-row{display:block;margin:0 0 8px;overflow:hidden;border:1px solid color-mix(in srgb,var(--mc) 35%,transparent);border-radius:8px}
+  .ld-row td{display:flex;align-items:flex-start;gap:8px;width:auto!important;padding:6px 10px;border-radius:0!important}
+  .ld-row .ld-dest{padding:8px 10px}
+  .ld-mb{display:inline-flex;flex-shrink:0;margin-top:3px}
+  .ld-vip .ld-it{line-height:1.6}
+}
+/* 探索地圖彈窗（手機）：保持在頂部選單之上，內容貼合螢幕 */
+@media (max-width:700px){
+  .map-modal-overlay{padding:max(10px,env(safe-area-inset-top,0px)) 8px 10px}
+  .map-modal{width:100%;max-height:calc(100dvh - 24px)}
+  .map-modal-inner{max-height:calc(100dvh - 56px);padding:14px 14px}
+}
+
+/* 微調：flex 欄位不被壓扁、表格欄寬分配 */
+.ld-head,.ld-tools,.ld-legend,.ld-maps{flex-shrink:0}
+.ld-row .ld-dest{width:17%}
+.ld-row .ld-c.t1{width:29%}
+.ld-row .ld-c.t2{width:31%}
+.ld-row .ld-c.t3{width:23%}
