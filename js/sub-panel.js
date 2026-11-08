@@ -121,9 +121,13 @@ app.exploreUi = app.exploreUi || (function(){
   };
 
   /* ─── 收獲概覽：全部航區的目的地可產出物品清單（表格式／卡片式） ──────────────
-   * data = { title, groups:[{key,label,sectors:[{letter,name,rank,t2,t3,tiers:{1:[ids],2:[ids],3:[ids]}}]}], getName }
-   * 物品顏色沿用 items.js 的 lootCatClass(id,tier)，跟搜尋結果同一套；物品順序也跟搜尋結果一樣
-   * （設計圖材料 > 稀有 > 一般 > 魔晶石，同類依名稱）。 */
+   * data = { title, groups:[{key,label,color,sectors:[{letter,name,rank,t2,t3,tiers:{1:[ids],2:[ids],3:[ids]}}]}], getName }
+   * 視覺引導重點：
+   *  1. 每張航海圖有自己的色調（標題色帶、目的地左側色條、漸層光暈），一眼知道現在在哪一區
+   *  2. T1／T2／T3 各自有底色＋左側色條（沿用搜尋結果的灰／藍／金），不用讀字就分得出階層
+   *  3. 設計圖材料與稀有物品做成有色小標籤，一般材料與魔晶石維持淡色文字 → 先看到重點
+   *  4. 圖例同時是篩選鈕：點某個顏色，只留下含該類物品的目的地，其餘物品淡掉
+   * 物品顏色沿用 items.js 的 lootCatClass(id,tier)，順序與搜尋結果一致。 */
   const openLootData=(data)=>{
     const KEY='explore-lootdata-view';
     let mode=window.innerWidth<700?'card':'table';
@@ -132,22 +136,23 @@ app.exploreUi = app.exploreUi || (function(){
     const ov=document.createElement('div');
     ov.className='ld-overlay';
     const multi=data.groups.length>1;
+    const CATS=[['cat-blueprint','設計圖材料'],['cat-rare3','更稀有物品'],['cat-rare2','稀有物品'],['cat-general','一般材料'],['cat-materia','魔晶石']];
     ov.innerHTML='<div class="ld-modal" role="dialog" aria-label="收獲概覽">'
       +'<div class="ld-head"><span class="ld-title"><i class="ph ph-package"></i>'+data.title+'</span>'
       +'<div class="sub-seg ld-view"><button type="button" class="sub-seg-btn" data-mode="table"><i class="ph ph-table"></i>表格式</button><button type="button" class="sub-seg-btn" data-mode="card"><i class="ph ph-cards"></i>卡片式</button></div>'
       +'<button type="button" class="ld-close" aria-label="關閉"><i class="ph ph-x"></i></button></div>'
       +'<div class="ld-tools"><label class="ld-search"><i class="ph ph-magnifying-glass"></i><input type="text" placeholder="搜尋物品，看哪些目的地會產出…" autocomplete="off"><button type="button" class="ld-clear" aria-label="清除" hidden><i class="ph ph-x-circle"></i></button></label>'
       +(multi?'<div class="ld-maps"></div>':'')+'</div>'
-      +'<div class="ld-legend"><span class="ld-lg"><b class="loot-tier-badge tier-badge-1">T1</b>一般</span><span class="ld-lg"><b class="loot-tier-badge tier-badge-2">T2</b><i class="ph ph-compass"></i>探索性能達標</span><span class="ld-lg"><b class="loot-tier-badge tier-badge-3">T3</b><i class="ph ph-compass"></i>探索性能最佳</span>'
-      +'<span class="ld-lg ld-lg-sep"><b class="cat-blueprint">設計圖材料</b><b class="cat-rare3">更稀有物品</b><b class="cat-rare2">稀有物品</b><b class="cat-general">一般材料</b><b class="cat-materia">魔晶石</b></span></div>'
+      +'<div class="ld-legend"><span class="ld-lg"><b class="loot-tier-badge tier-badge-1">T1</b>一般</span><span class="ld-lg"><b class="loot-tier-badge tier-badge-2">T2</b><i class="ph ph-compass"></i>探索達標</span><span class="ld-lg"><b class="loot-tier-badge tier-badge-3">T3</b><i class="ph ph-compass"></i>探索最佳</span>'
+      +'<span class="ld-lg ld-lg-sep"><i class="ph ph-funnel"></i>'+CATS.map(c=>'<button type="button" class="ld-fcat '+c[0]+'" data-c="'+c[0]+'" aria-pressed="false">'+c[1]+'</button>').join('')+'<button type="button" class="ld-fclear" hidden><i class="ph ph-x"></i>全部</button></span></div>'
       +'<div class="ld-body"></div></div>';
     document.body.appendChild(ov);
     const body=ov.querySelector('.ld-body'),inp=ov.querySelector('.ld-search input'),clr=ov.querySelector('.ld-clear');
-    const mapsEl=ov.querySelector('.ld-maps');
+    const mapsEl=ov.querySelector('.ld-maps'),fclear=ov.querySelector('.ld-fclear');
     let mapKey='all';
+    const fcat=new Set();
     const CAT_ORDER={blueprint:0,rare:1,general:2,materia:3};
     const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    /* 預先算好每個目的地每個 tier 的排序後物品（名稱、分類色） */
     data.groups.forEach(g=>g.sectors.forEach(sec=>{
       sec._t={};
       [1,2,3].forEach(t=>{
@@ -155,48 +160,62 @@ app.exploreUi = app.exploreUi || (function(){
           .sort((a,b)=>(CAT_ORDER[a.cat]-CAT_ORDER[b.cat])||a.name.localeCompare(b.name,'zh-TW'));
       });
     }));
-    const itemsHtml=(sec,t,q)=>{
+    let Q='';
+    const hasFilter=()=>!!Q||fcat.size>0;
+    const isOn=it=>(!Q||it.name.toLowerCase().includes(Q))&&(!fcat.size||fcat.has(it.cls));
+    const secOk=sec=>!hasFilter()||[1,2,3].some(t=>sec._t[t].some(isOn));
+    const itemsHtml=(sec,t)=>{
       const list=sec._t[t];
       if(!list.length)return '<span class="ld-none">—</span>';
-      return list.map(it=>'<span class="ld-it '+it.cls+(q&&it.name.toLowerCase().includes(q)?' ld-hit':'')+'">'+esc(it.name)+'</span>').join('<i class="ld-sep">、</i>');
+      const f=hasFilter();
+      const mk=it=>'<span class="ld-it '+it.cls+(f?(isOn(it)?' ld-on':' ld-dim'):'')+(Q&&it.name.toLowerCase().includes(Q)?' ld-hit':'')+'">'+esc(it.name)+'</span>';
+      const vip=list.filter(it=>it.cat==='blueprint'||it.cat==='rare'),rest=list.filter(it=>!(it.cat==='blueprint'||it.cat==='rare'));
+      return (vip.length?'<span class="ld-vip">'+vip.map(mk).join('')+'</span>':'')
+        +(rest.length?'<span class="ld-rest">'+rest.map(mk).join('<i class="ld-sep">、</i>')+'</span>':'');
     };
     const req=(sec,t)=>t===1?'':'<span class="ld-req" title="探索性能需達 '+(t===2?sec.t2:sec.t3)+'"><i class="ph ph-compass"></i>≥'+(t===2?sec.t2:sec.t3)+'</span>';
-    const destHtml=sec=>(sec.letter?'<b class="thr-letter">'+esc(sec.letter)+'</b>':'')+'<span class="ld-dn">'+esc(sec.name)+'</span><span class="ld-rk" title="解鎖等級"><i class="ph ph-medal"></i>Lv'+sec.rank+'</span>';
+    const destHtml=sec=>(sec.letter?'<b class="thr-letter ld-letter">'+esc(sec.letter)+'</b>':'')+'<span class="ld-dn">'+esc(sec.name)+'</span><span class="ld-rk" title="解鎖等級"><i class="ph ph-medal"></i>Lv'+sec.rank+'</span>';
+    const tierCell=(sec,t)=>'<td class="ld-c t'+t+'"><b class="loot-tier-badge tier-badge-'+t+' ld-mb">T'+t+'</b><div class="ld-cell">'+req(sec,t)+itemsHtml(sec,t)+'</div></td>';
     const render=()=>{
-      const q=inp.value.trim().toLowerCase();
-      clr.hidden=!q;
+      Q=inp.value.trim().toLowerCase();
+      clr.hidden=!Q;
+      fclear.hidden=!fcat.size;
+      ov.querySelectorAll('.ld-fcat').forEach(b=>{const on=fcat.has(b.dataset.c);b.classList.toggle('active',on);b.setAttribute('aria-pressed',on);});
       let total=0,seq=0,html='';
-      const groups=data.groups.filter(g=>mapKey==='all'||g.key===mapKey).map(g=>({g,secs:g.sectors.filter(sec=>!q||[1,2,3].some(t=>sec._t[t].some(it=>it.name.toLowerCase().includes(q))))})).filter(x=>x.secs.length);
+      const groups=data.groups.filter(g=>mapKey==='all'||g.key===mapKey).map(g=>({g,secs:g.sectors.filter(secOk)})).filter(x=>x.secs.length);
       if(mode==='table'){
-        html='<div class="ld-table-wrap"><table class="ld-table"><thead><tr><th class="ld-th-dest"><i class="ph ph-map-pin"></i>目的地</th><th><b class="loot-tier-badge tier-badge-1">T1</b>一般</th><th><b class="loot-tier-badge tier-badge-2">T2</b>探索達標</th><th><b class="loot-tier-badge tier-badge-3">T3</b>探索最佳</th></tr></thead><tbody>';
+        html='<div class="ld-table-wrap"><table class="ld-table"><thead><tr><th class="ld-th-dest"><i class="ph ph-map-pin"></i>目的地</th><th class="t1"><b class="loot-tier-badge tier-badge-1">T1</b>一般</th><th class="t2"><b class="loot-tier-badge tier-badge-2">T2</b>探索達標</th><th class="t3"><b class="loot-tier-badge tier-badge-3">T3</b>探索最佳</th></tr></thead>';
         groups.forEach(({g,secs})=>{
-          html+='<tr class="ld-grp-row"><td colspan="4"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></td></tr>';
+          html+='<tbody style="--mc:'+g.color+'"><tr class="ld-grp-row"><td colspan="4"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></td></tr>';
           secs.forEach(sec=>{total++;
-            html+='<tr class="ld-row" style="--i:'+Math.min(seq++,14)+'"><td class="ld-dest">'+destHtml(sec)+'</td>'
-              +'<td class="ld-c t1">'+itemsHtml(sec,1,q)+'</td>'
-              +'<td class="ld-c t2">'+req(sec,2)+itemsHtml(sec,2,q)+'</td>'
-              +'<td class="ld-c t3">'+req(sec,3)+itemsHtml(sec,3,q)+'</td></tr>';
+            html+='<tr class="ld-row" style="--i:'+Math.min(seq++,14)+'"><td class="ld-dest"><div class="ld-destbox">'+destHtml(sec)+'</div></td>'+tierCell(sec,1)+tierCell(sec,2)+tierCell(sec,3)+'</tr>';
           });
+          html+='</tbody>';
         });
-        html+='</tbody></table></div>';
+        html+='</table></div>';
       }else{
         groups.forEach(({g,secs})=>{
-          html+='<div class="ld-grp-h"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></div><div class="ld-cards">';
+          html+='<section class="ld-grp" style="--mc:'+g.color+'"><div class="ld-grp-h"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></div><div class="ld-cards">';
           secs.forEach(sec=>{total++;
             html+='<div class="ld-card" style="--i:'+Math.min(seq++,14)+'"><div class="ld-card-h">'+destHtml(sec)+'</div>'
-              +[1,2,3].map(t=>'<div class="ld-tier"><b class="loot-tier-badge tier-badge-'+t+'">T'+t+'</b><div class="ld-items">'+req(sec,t)+itemsHtml(sec,t,q)+'</div></div>').join('')+'</div>';
+              +[1,2,3].map(t=>'<div class="ld-tier t'+t+'"><b class="loot-tier-badge tier-badge-'+t+'">T'+t+'</b><div class="ld-items">'+req(sec,t)+itemsHtml(sec,t)+'</div></div>').join('')+'</div>';
           });
-          html+='</div>';
+          html+='</div></section>';
         });
       }
-      body.innerHTML=total?html:'<div class="ld-empty"><i class="ph ph-magnifying-glass"></i>找不到「'+esc(inp.value.trim())+'」會在哪個目的地產出</div>';
+      body.innerHTML=total?html:'<div class="ld-empty"><i class="ph ph-magnifying-glass"></i>沒有符合條件的目的地</div>';
       body.scrollTop=0;
     };
     const setMode=m=>{mode=m;try{localStorage.setItem(KEY,m);}catch(e){}ov.querySelectorAll('.ld-view .sub-seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));render();};
     if(mapsEl){
-      mapsEl.innerHTML='<button type="button" class="ld-chip active" data-k="all">全部</button>'+data.groups.map(g=>'<button type="button" class="ld-chip" data-k="'+g.key+'">'+esc(g.label)+'</button>').join('');
+      mapsEl.innerHTML='<button type="button" class="ld-chip active" data-k="all">全部</button>'+data.groups.map(g=>'<button type="button" class="ld-chip" data-k="'+g.key+'" style="--mc:'+g.color+'">'+esc(g.label)+'</button>').join('');
       mapsEl.addEventListener('click',e=>{const b=e.target.closest('.ld-chip');if(!b)return;mapKey=b.dataset.k;mapsEl.querySelectorAll('.ld-chip').forEach(c=>c.classList.toggle('active',c===b));render();});
     }
+    ov.querySelector('.ld-legend').addEventListener('click',e=>{
+      const f=e.target.closest('.ld-fcat');
+      if(f){const c=f.dataset.c;if(fcat.has(c))fcat.delete(c);else fcat.add(c);render();return;}
+      if(e.target.closest('.ld-fclear')){fcat.clear();render();}
+    });
     ov.querySelectorAll('.ld-view .sub-seg-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
     inp.addEventListener('input',render);
     clr.addEventListener('click',()=>{inp.value='';render();inp.focus();});
@@ -1499,7 +1518,8 @@ app.buildSub = function (){
     /* 收獲概覽：依航海圖分組，列出每個目的地 T1／T2／T3 可產出的物品 */
     const lootBtn=root.querySelector('#sub-loot-btn');
     if(lootBtn)lootBtn.addEventListener('click',()=>{
-      const groups=SUB_MAPS.map((m,i)=>({key:'m'+(i+1),label:`(${i+1}) ${m.label}`,sectors:[]}));
+      const MAP_COLORS=['#4da6ff','#9b8cf5','#3fcf9f','#e8677f','#c77dff','#38bdf8','#f0a030'];
+      const groups=SUB_MAPS.map((m,i)=>({key:'m'+(i+1),label:`(${i+1}) ${m.label}`,color:MAP_COLORS[i%MAP_COLORS.length],sectors:[]}));
       SUB_SECTORS.forEach(sec=>{
         const g=groups[sec[1]-1];if(!g)return;
         const lt=SUB_LOOT_TIER[sec[0]]||{};

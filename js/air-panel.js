@@ -924,7 +924,7 @@ app.exploreUi.enhanceAll(root);
       const lt = AIR_LOOT_TIER[sec[0]] || {};
       return { letter: '', name: sec[3], rank: sec[4], t2: sec[9], t3: sec[10], tiers: { 1: lt[1] || [], 2: lt[2] || [], 3: lt[3] || [] } };
     });
-    app.exploreUi.openLootData({ title: '飛空艇 · 收獲概覽', groups: [{ key: 'clouds', label: '雲海', sectors }], getName });
+    app.exploreUi.openLootData({ title: '飛空艇 · 收獲概覽', groups: [{ key: 'clouds', label: '雲海', color: '#c5a059', sectors }], getName });
   });
 
   const setCompact = (compact) => {
