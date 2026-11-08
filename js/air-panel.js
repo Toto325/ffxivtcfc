@@ -642,7 +642,7 @@ app.exploreUi.enhanceAll(root);
         `</div>`;
 
       /* ===== 卡片式（票根式）檢視，架構比照 sub-panel.js ===== */
-      if (viewMode === 'card') {
+      if (app.exploreUi.isNarrow() || viewMode === 'card') {
         const heroOf = r => {
           if (sortKey === 'exp') return { val: r.exp.toLocaleString(), label: '經驗值' };
           if (sortKey === 'time') return { val: r.timeStr, label: '耗時' };
@@ -951,6 +951,7 @@ app.exploreUi.enhanceAll(root);
       applyViewModeSeg();
       if (renderRoutes && currentRoutes.length) renderRoutes(currentRoutes);
     });
+    try { const _mq = window.matchMedia('(max-width:700px)'); const _re = () => { if (renderRoutes && currentRoutes.length) renderRoutes(currentRoutes); }; if (_mq.addEventListener) _mq.addEventListener('change', _re); } catch (e) {}
   });
   filtersHdr?.addEventListener('click',()=>app.exploreUi.toggleFilters(filtersPanel,filtersHdr));
 

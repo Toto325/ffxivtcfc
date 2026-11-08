@@ -160,6 +160,7 @@ app.exploreUi = app.exploreUi || (function(){
           .sort((a,b)=>(CAT_ORDER[a.cat]-CAT_ORDER[b.cat])||a.name.localeCompare(b.name,'zh-TW'));
       });
     }));
+    const effMode=()=>isNarrow()?'card':mode;
     let Q='';
     const hasFilter=()=>!!Q||fcat.size>0;
     const isOn=it=>(!Q||it.name.toLowerCase().includes(Q))&&(!fcat.size||fcat.has(it.cls));
@@ -183,7 +184,7 @@ app.exploreUi = app.exploreUi || (function(){
       ov.querySelectorAll('.ld-fcat').forEach(b=>{const on=fcat.has(b.dataset.c);b.classList.toggle('active',on);b.setAttribute('aria-pressed',on);});
       let total=0,seq=0,html='';
       const groups=data.groups.filter(g=>mapKey==='all'||g.key===mapKey).map(g=>({g,secs:g.sectors.filter(secOk)})).filter(x=>x.secs.length);
-      if(mode==='table'){
+      if(effMode()==='table'){
         html='<div class="ld-table-wrap"><table class="ld-table"><thead><tr><th class="ld-th-dest"><i class="ph ph-map-pin"></i>目的地</th><th class="t1"><b class="loot-tier-badge tier-badge-1">T1</b>一般</th><th class="t2"><b class="loot-tier-badge tier-badge-2">T2</b>探索達標</th><th class="t3"><b class="loot-tier-badge tier-badge-3">T3</b>探索最佳</th></tr></thead>';
         groups.forEach(({g,secs})=>{
           html+='<tbody style="--mc:'+g.color+'"><tr class="ld-grp-row"><td colspan="4"><i class="ph ph-map-trifold"></i>'+esc(g.label)+'<small>'+secs.length+' 個目的地</small></td></tr>';
@@ -204,6 +205,8 @@ app.exploreUi = app.exploreUi || (function(){
         });
       }
       body.innerHTML=total?html:'<div class="ld-empty"><i class="ph ph-magnifying-glass"></i>沒有符合條件的目的地</div>';
+      const thead=body.querySelector('.ld-table thead');
+      body.style.setProperty('--ld-th-h',(thead?thead.offsetHeight:0)+'px');
       body.scrollTop=0;
     };
     const setMode=m=>{mode=m;try{localStorage.setItem(KEY,m);}catch(e){}ov.querySelectorAll('.ld-view .sub-seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));render();};
@@ -219,7 +222,10 @@ app.exploreUi = app.exploreUi || (function(){
     ov.querySelectorAll('.ld-view .sub-seg-btn').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
     inp.addEventListener('input',render);
     clr.addEventListener('click',()=>{inp.value='';render();inp.focus();});
-    const close=()=>{ov.classList.remove('active');document.removeEventListener('keydown',onKey,true);setTimeout(()=>ov.remove(),220);};
+    const mq=window.matchMedia('(max-width:700px)');
+    const onMq=()=>render();
+    if(mq.addEventListener)mq.addEventListener('change',onMq);
+    const close=()=>{ov.classList.remove('active');document.removeEventListener('keydown',onKey,true);if(mq.removeEventListener)mq.removeEventListener('change',onMq);setTimeout(()=>ov.remove(),220);};
     const onKey=e=>{if(e.key==='Escape'){e.stopPropagation();close();}};
     document.addEventListener('keydown',onKey,true);
     ov.addEventListener('click',e=>{if(e.target===ov)close();});
@@ -227,7 +233,9 @@ app.exploreUi = app.exploreUi || (function(){
     setMode(mode);
     requestAnimationFrame(()=>ov.classList.add('active'));
   };
-  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData};
+  /* 手機／窄螢幕：只顯示卡片式（表格式在窄螢幕上幾乎等於卡片，沒有存在必要） */
+  const isNarrow=()=>{try{return window.matchMedia('(max-width:700px)').matches;}catch(e){return false;}};
+  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData,isNarrow};
 })();
 
 /* ─── SUBMARINE UI ─── */
@@ -1093,7 +1101,7 @@ app.buildSub = function (){
          * 目的地的「站名＋3燈」跟獲得物品清單直接沿用 buildThresholdStrip／
          * buildLootCell 這兩個表格模式本來就在用的函式，保證顏色、燈號形狀、
          * 提示文字兩種檢視完全一致，不會有兩套邏輯各自維護、結果不同步的風險。 */
-        if(viewMode==='card'){
+        if(app.exploreUi.isNarrow()||viewMode==='card'){
           const heroOf=r=>{
             if(sortKey==='exp')return{val:r.exp.toLocaleString(),label:'經驗值'};
             if(sortKey==='time')return{val:r.timeStr,label:'耗時'};
@@ -1518,8 +1526,8 @@ app.buildSub = function (){
     /* 收獲概覽：依航海圖分組，列出每個目的地 T1／T2／T3 可產出的物品 */
     const lootBtn=root.querySelector('#sub-loot-btn');
     if(lootBtn)lootBtn.addEventListener('click',()=>{
-      const MAP_COLORS=['#4da6ff','#9b8cf5','#3fcf9f','#e8677f','#c77dff','#38bdf8','#f0a030'];
-      const groups=SUB_MAPS.map((m,i)=>({key:'m'+(i+1),label:`(${i+1}) ${m.label}`,color:MAP_COLORS[i%MAP_COLORS.length],sectors:[]}));
+      const MAP_COLOR='#c5a059';
+      const groups=SUB_MAPS.map((m,i)=>({key:'m'+(i+1),label:`(${i+1}) ${m.label}`,color:MAP_COLOR,sectors:[]}));
       SUB_SECTORS.forEach(sec=>{
         const g=groups[sec[1]-1];if(!g)return;
         const lt=SUB_LOOT_TIER[sec[0]]||{};
@@ -1561,6 +1569,7 @@ app.buildSub = function (){
         if(renderRoutes&&currentRoutes.length)renderRoutes(currentRoutes);
       });
     });
+    try{const _mq=window.matchMedia('(max-width:700px)');const _re=()=>{if(renderRoutes&&currentRoutes.length)renderRoutes(currentRoutes);};if(_mq.addEventListener)_mq.addEventListener('change',_re);}catch(e){}
     filtersHdr?.addEventListener('click',()=>app.exploreUi.toggleFilters(filtersPanel,filtersHdr));
     updateStats();
 
