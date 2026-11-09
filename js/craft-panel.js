@@ -3799,9 +3799,11 @@ app._craftReady = function () {
         const an = { cancelled: false, cancel: null, onCancel: function () { if (slot.isConnected) slot.innerHTML = ''; } };
         activeAnalysis = an;
         renderDiagSlot(slot, rows, true, false);
-        analyzeByResolve(an, craft, result, stats, hqIngredients, function (row) {
+        analyzeByResolve(an, craft, result, stats, hqIngredients, function (g, newRows) {
           if (an.cancelled || !slot.isConnected) return;
-          rows.push(row);
+          // 同一群組的分析結果整批更新（第一階段先顯示，第二階段精修後在原位換成更好的）
+          for (let i = rows.length - 1; i >= 0; i--) if (rows[i].src === 'an' && rows[i].grp === g) rows.splice(i, 1);
+          newRows.forEach(function (r) { r.src = 'an'; rows.push(r); });
           renderDiagSlot(slot, rows, true, false);
         }, which).then(function (upgrade) {
           if (activeAnalysis === an) activeAnalysis = null;
@@ -3969,7 +3971,9 @@ app._craftReady = function () {
     combos.forEach(function (c) { const f = finalFor(baseB, c); STAT_KEYS.forEach(function (k) { if (f[k] > ref[k]) ref[k] = f[k]; }); });
 
     /* 由「所需最終數值」反推「基礎數值至少要多少、搭配哪組食藥」：
-     * 食藥是百分比加成但有封頂，每一項的最終值只跟那一項的基礎值有關，所以每組食藥、每一項各自二分，挑提升最少的那組。 */
+     * 食藥是百分比加成但有封頂，每一項的最終值只跟那一項的基礎值有關，所以每組食藥、每一項各自二分，挑成本最小的那組。 */
+    /* 成本＝各項「基礎數值需要提升的比例」的平方和開根號：偏向各項一起提升，避免把某一項拉到誇張的高度。 */
+    const costOf = function (B, keys) { return Math.sqrt(keys.reduce(function (s, k) { const r = (B[k] - baseB[k]) / Math.max(1, baseB[k]); return s + r * r; }, 0)); };
     const baseTargetFor = function (need, keys) {
       let best = null;
       combos.forEach(function (c) {
@@ -3984,8 +3988,7 @@ app._craftReady = function () {
           B[k] = roundUp(hi);
         });
         if (!ok) return;
-        const cost = keys.reduce(function (s, k) { return s + (B[k] - baseB[k]) / Math.max(1, baseB[k]); }, 0);
-        const n = c ? c.n : 0;
+        const cost = costOf(B, keys), n = c ? c.n : 0;
         if (!best || cost < best.cost - 1e-9 || (Math.abs(cost - best.cost) <= 1e-9 && n < best.n)) best = { B: B, c: c, cost: cost, n: n };
       });
       return best;
@@ -3996,78 +3999,97 @@ app._craftReady = function () {
       const full = g === 'full', hqTrial = hqModeFor(g) === 'all';
       const goalKeys = full ? STAT_KEYS : ['craftsmanship', 'cp'];
       const seeds = full ? [1, 2, 3] : [1];
-      /* 直接找「所需數值最低的手法」：模擬器是固定公式，一套手法最少需要多少作業／加工／CP 可以精確反推（二分法），
-       * 不用一次次猜數值再隨機求解。找到的每一個結果都是「這套手法＋這組數值」確定做得到。 */
-      const outs = await Promise.all(seeds.map(function (seed) {
-        return pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality,
-          hq: hqFor(g), budgetMs: full ? 4500 : 2500, seedKeys: mainKeys, seed: seed });
-      }));
-      if (an.cancelled) return;
-      const raw = [];
-      outs.forEach(function (o) { if (o && o.cands) o.cands.forEach(function (c) { raw.push(c); }); });
-      const fail = function () { if (!an.cancelled) report({ grp: g, order: 9, note: true, key: 'note-' + g, html: '分析未完成，請再按一次求解' }); };
-      if (!raw.length) { fail(); return; }
-
-      const cur = { craftsmanship: stats.craftsmanship, control: stats.control, cp: stats.cp };
-      const items = [];
-      raw.forEach(function (c) {
-        const asIs = goalKeys.every(function (k) { return c.need[k] <= cur[k]; });
-        const t = baseTargetFor(c.need, goalKeys);
-        if (t) items.push({ c: c, t: t, asIs: asIs });
-      });
-      // 用「確定性模擬」在最終數值上再驗證一次；同時拿到完整結果（巨集）給「試算」直接顯示，不再有隨機搜尋的落差
+      const cache = new Map();
+      /* 用「確定性模擬」在最終數值上驗證；同時拿到完整結果（巨集）給「試算」直接顯示，不再有隨機搜尋的落差 */
       const verify = async function (it, F) {
+        const ck = it.c.keys.join(',') + '|' + F.craftsmanship + '|' + F.control + '|' + F.cp;
+        if (cache.has(ck)) return cache.get(ck);
         const o = await pool.call({ type: 'simulate', recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), keys: it.c.keys, hq: hqFor(g) });
-        return o && goalOk(g, o.result) ? o : null;
+        const res = o && goalOk(g, o.result) ? o : null;
+        cache.set(ck, res);
+        return res;
+      };
+      /* 搜尋「所需數值最低的手法」。分兩階段：第一階段短時間，讓第一個方案盡快出現；
+       * 第二階段每個 Worker 都從「目前所有人找到最好的幾個」接力精修（隨機搜尋的運氣有好有壞，接力能把好結果分享給大家）。 */
+      const search = function (budget, seedList, mulHint, seedBase) {
+        return Promise.all(seeds.map(function (seed) {
+          return pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality,
+            hq: hqFor(g), budgetMs: budget, seedKeys: mainKeys, seedKeysList: seedList || [], mulHint: mulHint || null, seed: seedBase + seed });
+        }));
+      };
+      const gather = function (outs, raw) { outs.forEach(function (o) { if (o && o.cands) o.cands.forEach(function (c) { raw.push(c); }); }); };
+      const hintOf = function (outs) { return outs.reduce(function (m, o) { return o && o.found && o.genMul ? Math.max(m, o.genMul) : m; }, 0) || null; };
+      const cur = { craftsmanship: stats.craftsmanship, control: stats.control, cp: stats.cp };
+      const noteRow = function () { return { grp: g, order: 9, note: true, key: 'note-' + g, html: '分析未完成，請再按一次求解' }; };
+
+      const present = async function (raw, final) {
+        const seen = {}, items = [];
+        raw.forEach(function (c) {
+          const sig = c.keys.join(',');
+          if (seen[sig]) return; seen[sig] = true;
+          const t = baseTargetFor(c.need, goalKeys);
+          if (t) items.push({ c: c, t: t, asIs: goalKeys.every(function (k) { return c.need[k] <= cur[k]; }) });
+        });
+        // 1. 目前的數值（含目前食藥）就夠：主求解只是沒搜尋到
+        const asIsList = items.filter(function (x) { return x.asIs; }).sort(function (a, b) { return a.c.steps - b.c.steps; });
+        for (let i = 0; i < asIsList.length; i++) {
+          const o = await verify(asIsList[i], cur);
+          if (!o) continue;
+          if (full && canHq) report(g, [{ grp: 'full', order: 0, kind: 'hq', key: 'hq-all', icon: 'ph-star', html: chip('ph-star', '全 HQ 材料', false), trial: { result: o.result, craft: o.craft } }]);
+          else if (!upgrade || (o.result.quality || 0) > (upgrade.quality || 0)) upgrade = o.result;
+          return { done: true, items: items };
+        }
+        items.sort(function (a, b) { return a.t.cost - b.t.cost || a.t.n - b.t.n || a.c.steps - b.c.steps; });
+        // 2. 只要換食物＋藥水（基礎數值不用動）
+        const foodItems = items.filter(function (x) { return x.t.cost < 1e-9; });
+        if (foodItems.length) {
+          const frows = [], seenCombo = {};
+          for (let i = 0; i < foodItems.length && frows.length < 2; i++) {
+            const x = foodItems[i], c = x.t.c, k = c ? safeId(c.mealId) + '-' + safeId(c.medId) : 'none';
+            if (seenCombo[k]) continue; seenCombo[k] = true;
+            const o = await verify(x, finalFor(x.t.B, c));
+            if (!o) continue;
+            frows.push({ grp: g, order: 1 + frows.length * 0.1, kind: 'food', key: 'f-' + k, icon: 'ph-bowl-food', html: (hqTrial ? chip('ph-star', '全 HQ', false) : '') + comboChips(c), trial: { result: o.result, craft: o.craft } });
+          }
+          if (frows.length) { report(g, frows); return { done: true, items: items }; }
+        }
+        // 3. 需要提升裝備數值：依成本由小到大；各項比重差太多（成本比最佳方案高出一大截）的不列
+        const gear = items.filter(function (x) { return x.t.cost >= 1e-9; });
+        const bestCost = gear.length ? gear[0].t.cost : 0, routes = [];
+        gear.forEach(function (x) {
+          if (x.t.cost > bestCost * 1.5) return;
+          const dominated = gear.some(function (y) { return y !== x && goalKeys.every(function (k) { return y.t.B[k] <= x.t.B[k]; }) && goalKeys.some(function (k) { return y.t.B[k] < x.t.B[k]; }); });
+          const dup = routes.some(function (y) { return goalKeys.every(function (k) { return Math.abs(y.t.B[k] - x.t.B[k]) <= STEP; }); });
+          if (!dominated && !dup) routes.push(x);
+        });
+        const rrows = [];
+        for (let i = 0; i < routes.length && rrows.length < 3; i++) {
+          const x = routes[i], B = x.t.B, c = x.t.c;
+          const o = await verify(x, finalFor(B, c));
+          if (!o) continue;
+          rrows.push({ grp: g, order: 5 + rrows.length, kind: 'route', route: true, tight: final && rrows.length === 0, key: 't-' + g + '-' + STAT_KEYS.map(function (k) { return B[k]; }).join('-'), icon: 'ph-shield',
+            prep: (hqTrial ? chip('ph-star', '全 HQ 材料', false) : '') + comboChips(c),
+            stats: STAT_KEYS.map(function (k) { return { key: k, from: baseB[k], to: B[k], delta: B[k] - baseB[k] }; }), trial: { result: o.result, craft: o.craft } });
+        }
+        if (rrows.length) report(g, rrows);
+        return { done: false, items: items, shown: rrows.length };
       };
 
-      // 1. 目前的數值（含目前食藥）就夠：主求解只是沒搜尋到
-      const asIsList = items.filter(function (x) { return x.asIs; }).sort(function (a, b) { return a.c.steps - b.c.steps; });
-      for (let i = 0; i < asIsList.length; i++) {
-        const o = await verify(asIsList[i], cur);
-        if (!o) continue;
-        if (full && canHq) report({ grp: 'full', order: 0, kind: 'hq', key: 'hq-all', icon: 'ph-star', short: '全 HQ 材料', html: chip('ph-star', '全 HQ 材料', false), trial: { result: o.result, craft: o.craft } });
-        else if (!upgrade || (o.result.quality || 0) > (upgrade.quality || 0)) upgrade = o.result;
-        return;
-      }
+      // 第一階段：快速找出第一批方案，先讓玩家看到
+      const raw = [];
+      const outs1 = await search(full ? 1800 : 1500, [], null, 0);
       if (an.cancelled) return;
-
-      items.sort(function (a, b) { return a.t.cost - b.t.cost || a.t.n - b.t.n || a.c.steps - b.c.steps; });
-      // 2. 只要換食物＋藥水（基礎數值不用動）
-      const foodItems = items.filter(function (x) { return x.t.cost < 1e-9; });
-      if (foodItems.length) {
-        const picks = []; const seenCombo = {};
-        foodItems.forEach(function (x) { const k = x.t.c ? safeId(x.t.c.mealId) + '-' + safeId(x.t.c.medId) : 'none'; if (!seenCombo[k]) { seenCombo[k] = true; picks.push(x); } });
-        let shown = 0;
-        for (let i = 0; i < picks.length && shown < 2; i++) {
-          const x = picks[i], c = x.t.c, F = finalFor(x.t.B, c);
-          const o = await verify(x, F);
-          if (!o) continue;
-          report({ grp: g, order: 1 + shown * 0.1, kind: 'food', key: 'f-' + (c ? safeId(c.mealId) + '-' + safeId(c.medId) : 'none'), icon: 'ph-bowl-food',
-            html: (hqTrial ? chip('ph-star', '全 HQ', false) : '') + comboChips(c), trial: { result: o.result, craft: o.craft } });
-          shown++;
-        }
-        if (shown) return;
-      }
-      // 3. 需要提升裝備數值：依提升幅度由小到大，最多列 3 個沒被壓過的方案
-      const routes = [];
-      items.forEach(function (x) {
-        if (x.t.cost < 1e-9) return;
-        const dominated = items.some(function (y) { return y !== x && y.t.cost >= 1e-9 && goalKeys.every(function (k) { return y.t.B[k] <= x.t.B[k]; }) && goalKeys.some(function (k) { return y.t.B[k] < x.t.B[k]; }); });
-        const dup = routes.some(function (y) { return goalKeys.every(function (k) { return Math.abs(y.t.B[k] - x.t.B[k]) <= STEP; }); });
-        if (!dominated && !dup) routes.push(x);
-      });
-      let shownRoutes = 0;
-      for (let i = 0; i < routes.length && shownRoutes < 3; i++) {
-        const x = routes[i], B = x.t.B, c = x.t.c, F = finalFor(B, c);
-        const o = await verify(x, F);
-        if (!o) continue;
-        const rowsStat = STAT_KEYS.map(function (k) { return { key: k, from: baseB[k], to: B[k], delta: B[k] - baseB[k] }; });
-        report({ grp: g, order: 5 + shownRoutes, kind: 'route', route: true, tight: shownRoutes === 0, key: 't-' + g + '-' + STAT_KEYS.map(function (k) { return B[k]; }).join('-'), icon: 'ph-shield',
-          prep: (hqTrial ? chip('ph-star', '全 HQ 材料', false) : '') + comboChips(c), stats: rowsStat, trial: { result: o.result, craft: o.craft } });
-        shownRoutes++;
-      }
-      if (!shownRoutes) fail();
+      gather(outs1, raw);
+      let r1 = raw.length ? await present(raw, false) : { done: false, items: [] };
+      if (r1.done || an.cancelled) return;
+      // 第二階段：接力精修，有更好的就在原位更新
+      const topKeys = r1.items.slice(0, 6).map(function (x) { return x.c.keys; });
+      const outs2 = await search(raw.length ? (full ? 3000 : 2500) : 4500, topKeys, hintOf(outs1), 10);
+      if (an.cancelled) return;
+      gather(outs2, raw);
+      if (!raw.length) { report(g, [noteRow()]); return; }
+      const r2 = await present(raw, true);
+      if (!r2.done && !r2.shown) report(g, [noteRow()]);
     };
     await Promise.all(wanted.map(runGoal));
     return upgrade;

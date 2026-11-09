@@ -57,12 +57,16 @@
     return { cs: cs, ct: ct, cp: cp, steps: clean.length, keys: clean.map(function (a) { return a.constructor.name; }) };
   };
 
+  /* 成本：各項「需要提升的比例」的平方和開根號（而不是直接相加）。
+   * 直接相加時，把某一項拉到誇張的高度、換另兩項低一點，總和常常剛好比較小，結果就會集中在單一項目（角落解）；
+   * 平方和對「集中在某一項」會明顯加重，會偏向各項一起提升，也比較貼近玩家實際換裝備、鑲嵌魔晶石的情況。 */
   FrontierGA.prototype._costOf = function (n) {
     var r = this.F.ref;
-    var c = Math.max(0, n.cs - r.cs) / r.cs + Math.max(0, n.cp - r.cp) / r.cp;
+    var a = Math.max(0, n.cs - r.cs) / r.cs, b = Math.max(0, n.cp - r.cp) / r.cp;
+    var sq = a * a + b * b;
     var rel = n.cs / r.cs + n.cp / r.cp;
-    if (this.F.full) { c += Math.max(0, n.ct - r.ct) / r.ct; rel += n.ct / r.ct; }
-    return { cost: c, rel: rel };
+    if (this.F.full) { var c = Math.max(0, n.ct - r.ct) / r.ct; sq += c * c; rel += n.ct / r.ct; }
+    return { cost: Math.sqrt(sq), rel: rel };
   };
 
   FrontierGA.prototype._archiveAdd = function (n) {
@@ -97,7 +101,7 @@
         score = 1000 - 100 * c.cost - 2 * c.rel - 0.02 * n.steps;
       }
     }
-    return { score: score, success: !!r.res.success, hqPercent: 0, quality: q };
+    return { score: score, success: !!r.res.success, hqPercent: 0, quality: q, result: r.res };
   };
 
   /* 對外入口。msg: { goal:'done'|'full', ref:{craftsmanship,control,cp}, qGoal, hq, budgetMs, seedKeys }
@@ -111,7 +115,8 @@
     var ref = { cs: Math.max(1, msg.ref.craftsmanship), ct: Math.max(1, msg.ref.control), cp: Math.max(1, msg.ref.cp) };
     var MULTS = [1, 1.12, 1.3, 1.55, 1.9, 2.5, 3.5, 5, 8];
     var t0 = Date.now(), budget = msg.budgetMs, hardEnd = t0 + budget * 2;
-    var seedKeys = msg.seedKeys ? [msg.seedKeys] : [];
+    var seedKeys = (msg.seedKeysList || []).slice();
+    if (msg.seedKeys) seedKeys.push(msg.seedKeys);
     var merged = [], found = false, usedMul = null, lastGa = null;
     var mkF = function (mul) {
       var gen = { cs: Math.ceil(ref.cs * mul), ct: Math.ceil(ref.ct * mul), cp: Math.ceil(ref.cp * mul + (mul > 1 ? 40 : 0)) };
@@ -129,6 +134,8 @@
       lastGa = ga;
       return ga;
     };
+    // 第二階段（接力精修）會帶著第一階段找到的寬裕程度，不必從頭掃描
+    if (msg.mulHint) MULTS = [msg.mulHint].concat(MULTS.filter(function (m) { return m > msg.mulHint; }));
     for (var i = 0; i < MULTS.length && Date.now() < hardEnd; i++) {
       var ga = runStage(MULTS[i], Math.min(budget * 0.22, Math.max(300, hardEnd - Date.now())), seedKeys);
       seedKeys = [ga.bestKeys].concat(seedKeys).slice(0, 3);
@@ -136,10 +143,22 @@
         usedMul = MULTS[i]; found = true;
         merged = ga.archive.slice();
         // 在這個範圍裡把需求壓到最低：以目前找到的結果當種子，用剩下的時間繼續搜尋
-        var remain = Math.max(budget * 0.4, t0 + budget - Date.now());
-        var seedList = merged.slice().sort(function (a, b) { return a.cost - b.cost; }).slice(0, 8).map(function (c) { return c.keys; });
-        var ga2 = runStage(MULTS[i], remain, seedList);
+        var seedList = merged.slice().sort(function (a, b) { return a.cost - b.cost; }).slice(0, 8).map(function (c) { return c.keys; }).concat((msg.seedKeysList || []).slice(0, 4));
+        var ga2 = runStage(MULTS[i], Math.max(budget * 0.25, 600), seedList);
         ga2.archive.forEach(function (c) { merged.push(c); });
+        /* 精修：遺傳演算法容易卡在「差一點」的局部最佳（實測同一配方、不同隨機種子，找到的最低需求可以差到 60%）。
+         * 對目前最好的幾個結果各做一輪迭代局部搜尋（ILS：刪／換／插／對調技能再精修），需求算得很快，所以能試很多次。 */
+        var le0 = function (a, b) { return a.cs <= b.cs && a.cp <= b.cp && (!full || a.ct <= b.ct); };
+        var tops = ga2.archive.concat(merged).sort(function (a, b) { return a.cost - b.cost; }).filter(function (c, idx, arr) { return arr.findIndex(function (d) { return d.keys.join() === c.keys.join(); }) === idx; }).slice(0, 4);
+        var ilsMs = Math.max(400, (t0 + budget * 1.1 - Date.now()) / Math.max(1, tops.length));
+        ga2.config.deadline = 0;
+        tops.forEach(function (c) {
+          try {
+            var better = ga2.ils(actionsFromKeys(c.keys), ilsMs);
+            var n = ga2.needsOf(better, 10);
+            if (n) { n.cost = ga2._costOf(n).cost; merged.push(n); }
+          } catch (e) { /* 精修失敗不影響已找到的結果 */ }
+        });
         break;
       }
     }
