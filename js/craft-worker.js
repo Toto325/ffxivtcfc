@@ -15,6 +15,7 @@
  */
 importScripts('vendor/ffxiv-simulator.umd.js');
 importScripts('craft-solver-ga.js');
+importScripts('craft-frontier.js'); // 反推「最低所需數值」
 importScripts('craft-data.js'); // 提供 CRAFT_RECIPES / CRAFT_ITEM_NAMES_TW
 importScripts('craft-action-names.js'); // 提供 CRAFT_ACTION_NAMES_BY_GAME_ID（game id -> 多語言名稱）
 
@@ -341,9 +342,51 @@ function splitMacroSegments(lines) {
   return segments;
 }
 
+/* ---------- 共用：手法鍵名 → 技能實例；固定手法在指定數值下的完整結果（含巨集） ---------- */
+function actionsFromKeysGlobal(keys) {
+  return (keys || []).map(function (key) {
+    const entry = simulator.CraftingActionsRegistry.ALL_ACTIONS.find(function (e) { return e.name === key; });
+    return entry ? new entry.action.constructor() : null;
+  }).filter(Boolean);
+}
+function attachMacro(result, lang) {
+  result.macroSegments = splitMacroSegments(buildMacroLines(result.actions, lang));
+  result.actionNames = result.actions.map(function (a) { return actionDisplayName(a, lang); });
+  result.actionKeys = result.actions.map(function (a) { return a.constructor.name; });
+  delete result.actions;
+  return result;
+}
+
 /* ---------- Worker 訊息入口 ---------- */
 self.onmessage = function (e) {
   const msg = e.data || {};
+  if (msg.type === 'frontier' || msg.type === 'simulate') {
+    try {
+      const recipe = CRAFT_RECIPES[msg.recipeId];
+      if (!recipe) throw new Error('找不到配方 id=' + msg.recipeId);
+      const craft = buildCraftObject(Object.assign({ id: msg.recipeId }, recipe), {});
+      if (msg.type === 'simulate') {
+        // 固定手法、固定數值，完全確定的重算（不含任何隨機搜尋）：驗證「這組數值＋這套手法」到底做不做得到
+        const crafterStats = buildCrafterStats(msg.stats);
+        const r = evaluateRotation(craft, actionsFromKeysGlobal(msg.keys), crafterStats, msg.hq || [], msg.safeMode, null);
+        self.postMessage({ type: 'solve-result', requestId: msg.requestId, ok: true, craft: craft, result: attachMacro(r, msg.lang || 'tw') });
+        return;
+      }
+      const originalRandom = Math.random;
+      Math.random = mulberry32((hashSeed(String(msg.recipeId) + '|' + (msg.seed || 0))) >>> 0);
+      try {
+        const out = CraftFrontier.frontierSearch(
+          craft,
+          function (cs, ct, cp) { return buildCrafterStats(Object.assign({}, msg.stats, { craftsmanship: cs, control: ct, cp: cp })); },
+          function (gen) { return buildCrafterStats(Object.assign({}, msg.stats, { craftsmanship: gen.cs, control: gen.ct, cp: gen.cp })); },
+          msg, actionsFromKeysGlobal);
+        self.postMessage({ type: 'solve-result', requestId: msg.requestId, ok: true, result: out });
+      } finally { Math.random = originalRandom; }
+    } catch (err) {
+      self.postMessage({ type: 'solve-result', requestId: msg.requestId, ok: false, error: String(err && err.message || err) });
+    }
+    return;
+  }
   if (msg.type !== 'solve') return;
 
   const { requestId, recipeId, stats, options } = msg;
