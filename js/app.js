@@ -145,27 +145,31 @@ initStars(){
       /* 面板內金色粒子：沿用全站 _navFF 動畫迴圈（_startFFLoop 會自動推進並回收） */
       var spawnSpark = function (nearEl) {
         if (!subMenuEl || reduceMotion || !topModeNow() || document.hidden) return;
-        if (app._navFF.length > 70) return; // 上限，避免長時間展開累積過多
-        var w = subMenuEl.offsetWidth, h = subMenuEl.offsetHeight;
-        var cx, cy;
-        if (nearEl) { var r = nearEl.getBoundingClientRect(), m = subMenuEl.getBoundingClientRect();
-          cx = r.left - m.left + r.width * (.2 + Math.random() * .6); cy = r.top - m.top + r.height * (.55 + Math.random() * .4); }
-        else { cx = w * (.06 + Math.random() * .88); cy = h * (.55 + Math.random() * .42); }
-        var el = document.createElement('span'), sz = 2 + Math.random() * 3.6;
+        if (app._navFF.length > 60) return; // 上限，避免長時間展開累積過多
+        var w = subMenuEl.offsetWidth, h = subMenuEl.offsetHeight, cx, cy, r = Math.random();
+        if (nearEl) {
+          /* 懸停選項：從該列的左右外緣迸出（不蓋住文字） */
+          var rc = nearEl.getBoundingClientRect(), mc = subMenuEl.getBoundingClientRect();
+          cx = (r < .5 ? rc.left - mc.left + 2 : rc.right - mc.left - 2) + (Math.random() - .5) * 10;
+          cy = rc.top - mc.top + rc.height * (.25 + Math.random() * .6);
+        } else if (r < .38) { cx = -4 + Math.random() * 8;     cy = h * (.25 + Math.random() * .7); }   /* 左緣 */
+        else if (r < .76)   { cx = w - 4 + Math.random() * 8;  cy = h * (.25 + Math.random() * .7); }   /* 右緣 */
+        else                { cx = w * (.05 + Math.random() * .9); cy = h - 2 + Math.random() * 6; }     /* 下緣 */
+        var el = document.createElement('span'), sz = 1.8 + Math.random() * 3;
         el.className = 'nav-sub-spark';
-        el.style.cssText = 'position:absolute;width:' + sz + 'px;height:' + sz + 'px;left:' + cx.toFixed(1) + 'px;top:' + cy.toFixed(1) + 'px;border-radius:50%;pointer-events:none;opacity:0;' +
+        el.style.cssText = 'position:absolute;width:' + sz + 'px;height:' + sz + 'px;left:' + cx.toFixed(1) + 'px;top:' + cy.toFixed(1) + 'px;border-radius:50%;pointer-events:none;opacity:0;filter:opacity(.8);' +
           'background:radial-gradient(circle at 38% 35%,#fff 0%,#fcf6ba 42%,#c5a059 100%);' +
-          'box-shadow:0 0 ' + (sz * 1.6).toFixed(1) + 'px ' + (sz * .5).toFixed(1) + 'px rgba(197,160,89,.75);will-change:transform,opacity;';
+          'box-shadow:0 0 ' + (sz * 1.6).toFixed(1) + 'px ' + (sz * .5).toFixed(1) + 'px rgba(197,160,89,.7);will-change:transform,opacity;';
         subMenuEl.appendChild(el);
-        app._navFF.push({ el: el, age: 0, maxAge: 110 + Math.random() * 100, dAmp: (Math.random() - .5) * 34,
+        app._navFF.push({ el: el, age: 0, maxAge: 100 + Math.random() * 90, dAmp: (Math.random() - .5) * 26,
           dFreq: .014 + Math.random() * .02, dPhase: Math.random() * Math.PI * 2,
-          rise: .20 + Math.random() * .24, riseA: .0003 + Math.random() * .0006 });
+          rise: .16 + Math.random() * .2, riseA: .0003 + Math.random() * .0005 });
       };
       var startSparks = function () {
         if (sparkTimer || reduceMotion) return;
         var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-        var tick = function () { spawnSpark(); sparkTimer = setTimeout(tick, (coarse ? 260 : 130) + Math.random() * 170); };
-        for (var k = 0; k < 6; k++) spawnSpark();   // 展開瞬間先灑一小把
+        var tick = function () { spawnSpark(); sparkTimer = setTimeout(tick, (coarse ? 300 : 170) + Math.random() * 200); };
+        for (var k = 0; k < 5; k++) spawnSpark();   // 展開瞬間先灑一小把
         sparkTimer = setTimeout(tick, 150);
       };
       var stopSparks = function () { clearTimeout(sparkTimer); sparkTimer = null; };
