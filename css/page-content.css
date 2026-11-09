@@ -1019,38 +1019,39 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 
 /* ══════════════════════════════════════════════════════════════════
-   遠航探索 下拉 v3「星門・精簡版」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
+   遠航探索 下拉 v4「垂簾」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
    ──────────────────────────────────────────────────────────────────
-   v2 → v3 調整：
-   · 尺寸：從「橫向大面板」改成「貼在父項目正下方的小型直式選單」（約 176×110px），
-          寬度只比父項目略寬，一眼就看得出是「遠航探索」底下長出來的
-   · 連接：面板頂邊直接貼在父項目底線上；v3.1 起底線正下方加一道等寬「光幕」往面板內淡出
-   · 展開：不再用兩段式 clip-path 關鍵影格，改單一 transition（clip-path＋位移＋透明度）
-          同一條緩動曲線，展開約 .5s、收合約 .25s，不會有停頓感
-   · 波紋：縮成面板最底部 12px 的細帶，只出現在內距區，不會壓到圖示與英文名
-   · 粒子：移到選項「後面」（z-index:0）、改沿面板邊緣與下緣飄出，整體再調暗一點，不擋文字
-   · 選項：直式兩列，中間以細線＋小寶石分隔；平時沒有框，hover 才升起光柱
+   設計重點＝「隸屬感」：子選單不是另一個跳出的框，而是父項目底線往下延伸出的光簾
+   · 接縫：面板頂邊與父項目底線（.nav-ribbon，距項目底部 9px）同高；接縫線沿用 .nav-ribbon 的樣式與亮度
+   · 無頂邊框、無外框、無角標：頂部由透明漸入，兩側細線越靠近父項目越淡
+   · 光暈同源：接縫下方的柔光與父項目底部的光暈同色同向，視覺上連成一體
+   · 兩側各有一道細光緩緩往下流（延伸方向）
+   · 寬度固定 176px、接縫固定 118px，桌面與手機一致（不隨父項目寬度變動）
+   · 展開：單一緩動曲線（clip-path＋位移＋透明度），由接縫往下長出
+   · 金色粒子（app.js 生成，位於選項後方、沿邊緣飄浮）、底部細波紋、選項樣式
+   · 尊重 prefers-reduced-motion；左側模式完全不受影響
    ══════════════════════════════════════════════════════════════════ */
-@property --nav-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 
+/* 裝飾元件由 app.js 動態塞進 .nav-submenu；左側模式不需要 */
 .nav-sub-fx, .nav-sub-thread, .nav-sub-sep { display: none; }
 
 html[data-nav-mode="top"] .nav-group .nav-submenu {
   display: flex; flex-direction: column; gap: 0;
-  top: calc(100% - 3px);                             /* 面板頂邊 = 父項目底線所在位置，沒有留白 */
-  width: max-content; min-width: 176px;
-  padding: 8px 8px 16px;
-  border-radius: 6px;
-  border: 1px solid rgba(197,160,89,.5);
-  outline: 1px solid rgba(197,160,89,.14);
-  outline-offset: -5px;
+  /* 面板頂邊 = 父項目底線（.nav-ribbon，距項目底部 9px、厚 1px）所在的高度，
+     底線正好成為「接縫」：父項目與子選單之間沒有任何留白 */
+  top: calc(100% - 10px);
+  width: 176px; min-width: 0;
+  padding: 12px 8px 16px;
+  border: none; outline: none;
+  border-radius: 0 0 8px 8px;
+  /* 沒有頂邊框、沒有外框：頂部從透明漸入，像底線的光「垂簾」般延伸下來 */
   background:
-    radial-gradient(90% 60% at 50% 0%, rgba(252,246,186,.12), transparent 70%),
-    linear-gradient(180deg, rgba(24,19,12,.97), rgba(7,6,11,.985));
-  box-shadow: 0 16px 34px rgba(0,0,0,.65), 0 0 24px rgba(197,160,89,.12), inset 0 1px 0 rgba(255,228,170,.18);
-  /* 收合狀態：從父項目底線「長出來」 */
+    radial-gradient(70% 70px at 50% 0%, rgba(197,160,89,.20), transparent 100%),
+    linear-gradient(180deg, rgba(14,11,8,0) 0, rgba(14,11,8,.90) 16px, rgba(8,7,11,.97) 100%);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 18px 28px -10px rgba(0,0,0,.6);
   transform-origin: 50% 0;
-  transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-6px) scaleY(.92);
+  transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-4px) scaleY(.94);
   clip-path: inset(0 0 100% 0);
   opacity: 0;
   transition:
@@ -1061,84 +1062,52 @@ html[data-nav-mode="top"] .nav-group .nav-submenu {
 }
 html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu {
   transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(0) scaleY(1);
-  clip-path: inset(-40px -40px -60px -40px);        /* 展開後不裁切，外發光與粒子才看得到 */
-  opacity: 1;
-  animation: none;
+  clip-path: inset(-40px -40px -60px -40px);        /* 展開後不裁切，粒子與外發光才看得到 */
+  opacity: 1; animation: none;
   transition:
     opacity .3s ease,
-    transform .5s cubic-bezier(.22,1,.36,1),
-    clip-path .5s cubic-bezier(.22,1,.36,1),
+    transform .55s cubic-bezier(.22,1,.36,1),
+    clip-path .55s cubic-bezier(.22,1,.36,1),
     visibility 0s linear 0s;
 }
 
-/* 邊緣流光軌跡（只露出邊框那一圈） */
+/* 側邊細線：只有左右與下緣，越靠近父項目越淡（由接縫處「長」出來），沒有頂邊 */
 html[data-nav-mode="top"] .nav-group .nav-submenu::before {
-  content: "";
-  position: absolute; inset: -1px; top: -1px; left: -1px; width: auto; height: auto;
-  border-radius: 6px; padding: 1.5px;
-  background: conic-gradient(from var(--nav-ang),
-      transparent 0 62%, rgba(197,160,89,0) 64%, rgba(255,228,170,.95) 80%, #fff 84%, rgba(255,228,170,0) 92%, transparent 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  border: none; box-shadow: none; transform: none;
-  filter: drop-shadow(0 0 3px rgba(255,228,170,.8));
-  pointer-events: none; opacity: 0; z-index: 3;
+  content: ""; position: absolute; inset: 0; top: 0; left: 0; width: auto; height: auto;
+  border: 1px solid rgba(197,160,89,.5); border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: none; box-shadow: none; transform: none; animation: none; filter: none;
+  -webkit-mask: linear-gradient(180deg, transparent 0, rgba(0,0,0,.55) 34px, #000 70px);
+          mask: linear-gradient(180deg, transparent 0, rgba(0,0,0,.55) 34px, #000 70px);
+  pointer-events: none; opacity: 1; z-index: 3;
 }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
-  opacity: 1; transition: opacity .5s ease .2s;
-  animation: nav-ang-spin 5.5s linear infinite;
-}
-@keyframes nav-ang-spin { to { --nav-ang: 360deg; } }
-
-/* 隱形橋接（面板已緊貼父項目，只需小量重疊） */
+html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before { animation: none; transition: none; }
+/* 隱形橋接（面板已與父項目重疊，只需小量） */
 html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -10px; height: 10px; }
 
-/* ── 延伸光幕：父項目的底線「流」進面板 ──
-   1) 面板頂邊直接貼在底線上，底線 = 面板頂邊的一部分
-   2) 底線正下方一道與底線等寬的光幕往下淡出（含緩慢流動的細光芒），像底線的光傾瀉進面板
-   3) 接點處一顆小寶石，取代原本的小箭頭 */
+/* ── 接縫：沿用主選單 .nav-ribbon 的樣式（同為 1px、金色漸層、同樣的柔光），
+      所以亮度與其他項目一致，不會突兀；下方有一團柔和的光暈（與父項目底部的光暈同色）── */
 html[data-nav-mode="top"] .nav-sub-thread {
   display: block; position: absolute; z-index: 2; pointer-events: none;
-  top: -1px; height: 34px;
-  width: var(--sub-anchor-w, 120px);
+  top: 0; height: 56px; width: 170px;
   left: calc(50% - var(--sub-shift, 0px));
   transform: translateX(-50%);
-  background:
-    repeating-linear-gradient(90deg, transparent 0 7px, rgba(255,240,205,.10) 7px 8px),
-    linear-gradient(180deg, rgba(255,232,176,.26), rgba(255,232,176,.07) 60%, transparent);
-  background-size: 15px 100%, 100% 100%;
-  -webkit-mask: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent), linear-gradient(180deg, #000, transparent);
-  -webkit-mask-composite: source-in;
-          mask: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent), linear-gradient(180deg, #000, transparent);
-          mask-composite: intersect;
-  opacity: 0; transition: opacity .35s ease;
+  background: radial-gradient(ellipse 62% 100% at 50% 0%, rgba(197,160,89,.34) 0%, rgba(197,160,89,.10) 48%, transparent 72%);
+  opacity: 0; transition: opacity .4s ease;
 }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread { opacity: 1; transition-delay: .1s; animation: nav-shaft-flow 7s linear infinite; }
-@keyframes nav-shaft-flow { to { background-position: 15px 0, 0 0; } }
-/* 接點亮線（與底線同寬，蓋在面板頂邊上） */
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread { opacity: 1; transition-delay: .12s; animation: none; }
 html[data-nav-mode="top"] .nav-sub-thread::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,236,190,.95) 25%, #fff 50%, rgba(255,236,190,.95) 75%, transparent);
-  box-shadow: 0 0 8px 1px rgba(255,228,170,.7);
+  content: ""; position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  width: 118px; height: 1px; border-radius: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-bright), var(--gold), transparent);
+  box-shadow: 0 0 8px rgba(197,160,89,.6);
 }
-/* 接點小寶石 */
-html[data-nav-mode="top"] .nav-sub-thread::after {
-  content: ""; position: absolute; left: 50%; top: 0; width: 6px; height: 6px;
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: var(--gold-bright);
-  box-shadow: 0 0 8px 2px rgba(255,228,170,.85), 0 0 16px 3px rgba(197,160,89,.45);
-  animation: nav-junction-pulse 2.6s ease-in-out infinite;
-}
-@keyframes nav-junction-pulse { 0%,100% { box-shadow: 0 0 6px 1px rgba(255,228,170,.7), 0 0 12px 2px rgba(197,160,89,.35); } 50% { box-shadow: 0 0 11px 3px rgba(255,240,200,.95), 0 0 22px 5px rgba(197,160,89,.55); } }
-/* 面板已接上，原本的小箭頭收起（避免和接點重疊） */
-html[data-nav-mode="top"] .nav-group-arrow { transition: opacity .25s ease, transform .3s ease; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-group-arrow { opacity: 0; }
+html[data-nav-mode="top"] .nav-sub-thread::after { content: none; }
 
 /* ── 裝飾層（不擋點擊） ── */
 html[data-nav-mode="top"] .nav-sub-fx {
   display: block; position: absolute; inset: 0; z-index: 0;
-  border-radius: 6px; overflow: hidden; pointer-events: none;
+  border-radius: 0 0 8px 8px; overflow: hidden; pointer-events: none;
 }
 /* 流動波紋：只佔最底部 12px 的細帶（面板底部內距區），不會壓到選項 */
 html[data-nav-mode="top"] .nav-sub-fx i {
@@ -1160,24 +1129,24 @@ html[data-nav-mode="top"] .nav-sub-fx i:nth-child(2) {
 /* 斜向光帶（輕柔，週期性掃過） */
 html[data-nav-mode="top"] .nav-sub-fx::before {
   content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -50%;
-  background: linear-gradient(105deg, transparent, rgba(255,236,190,.10) 45%, rgba(255,255,255,.15) 50%, rgba(255,236,190,.10) 55%, transparent);
+  background: linear-gradient(105deg, transparent, rgba(255,236,190,.06) 45%, rgba(255,255,255,.10) 50%, rgba(255,236,190,.06) 55%, transparent);
   transform: skewX(-12deg);
 }
 html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-fx::before { animation: nav-sheen 6s ease-in-out infinite .8s; }
 @keyframes nav-sheen { 0% { left: -50%; } 40%, 100% { left: 130%; } }
-/* 四角金色角標（縮小） */
+/* 側邊流光：兩側各一道細光緩緩往下流（從父項目的方向延伸下來） */
 html[data-nav-mode="top"] .nav-sub-fx::after {
-  content: ""; position: absolute; inset: 3px; --c: var(--gold-bright);
+  content: ""; position: absolute; inset: 0; --c: rgba(255,236,190,.85);
   background:
-    linear-gradient(var(--c), var(--c)) 0 0 / 8px 1px no-repeat,
-    linear-gradient(var(--c), var(--c)) 0 0 / 1px 8px no-repeat,
-    linear-gradient(var(--c), var(--c)) 100% 0 / 8px 1px no-repeat,
-    linear-gradient(var(--c), var(--c)) 100% 0 / 1px 8px no-repeat,
-    linear-gradient(var(--c), var(--c)) 0 100% / 8px 1px no-repeat,
-    linear-gradient(var(--c), var(--c)) 0 100% / 1px 8px no-repeat,
-    linear-gradient(var(--c), var(--c)) 100% 100% / 8px 1px no-repeat,
-    linear-gradient(var(--c), var(--c)) 100% 100% / 1px 8px no-repeat;
-  opacity: .7;
+    linear-gradient(180deg, transparent, var(--c), transparent) 0 -60px / 1px 56px no-repeat,
+    linear-gradient(180deg, transparent, var(--c), transparent) 100% -60px / 1px 56px no-repeat;
+  filter: drop-shadow(0 0 3px rgba(255,228,170,.7));
+  opacity: 0;
+}
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-fx::after { opacity: 1; animation: nav-side-flow 3.6s ease-in-out infinite .5s; }
+@keyframes nav-side-flow {
+  0%   { background-position: 0 -60px, 100% -60px; }
+  70%, 100% { background-position: 0 160px, 100% 160px; }
 }
 
 /* 兩列之間的分隔：細線＋小寶石（橫向） */
@@ -1288,8 +1257,7 @@ html[data-nav-mode="left"] .nav-sub-sep { display: none !important; }
   html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before,
   html[data-nav-mode="top"] .nav-sub-fx i,
   html[data-nav-mode="top"] .nav-sub-fx::before,
-  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread,
-  html[data-nav-mode="top"] .nav-sub-thread::after,
+  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-fx::after,
   html[data-nav-mode="top"] .nav-sub-sep::after,
   html[data-nav-mode="top"] .nav-subitem .nav-emoji { animation: none !important; }
 }
