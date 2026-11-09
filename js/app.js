@@ -199,8 +199,6 @@ initStars(){
         if (left < margin) shift = margin - left;
         else if (left + w > window.innerWidth - margin) shift = window.innerWidth - margin - (left + w);
         expGroup.style.setProperty('--sub-shift', Math.round(shift) + 'px');
-        /* 父項目底線寬度（CSS: left/right 12% → 76%），讓面板頂端的「光幕」與底線等寬、無縫接上 */
-        expGroup.style.setProperty('--sub-anchor-w', Math.round(g.width * .76) + 'px');
       };
       window.addEventListener('resize', function () { if (expGroup.classList.contains('nav-open')) clampSubmenu(); }, { passive: true });
       expGroup.addEventListener('mousedown', function (e) { e.preventDefault(); });
