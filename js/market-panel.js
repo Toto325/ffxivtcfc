@@ -85,7 +85,8 @@
     root.innerHTML =
       '<div class="market-top-fixed">' +
         '<div class="market-header">' +
-          '<h2 class="unified-gold-header small">⚖ 市場</h2>' +
+          '<h2 class="unified-gold-header small news-title">⚖ 市場</h2>' +
+          '<div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>' +
           '<p class="elegant-body-text page-note">查詢單一物品的即時價格、跨服比價與供應鏈，或看看最近交易熱度排行。</p>' +
         '</div>' +
         '<div class="market-recent-row" id="mk-recent-row"></div>' +

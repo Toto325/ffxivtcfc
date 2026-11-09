@@ -325,7 +325,7 @@ app._craftReady = function () {
 
   root.innerHTML =
     '<div class="craft-layout">' +
-      '<div class="market-header cw-header"><h2 class="unified-gold-header small">⚒ 生產</h2><p class="elegant-body-text page-note">選好配方、確認數值，一鍵求解最佳手法。</p></div>' +
+      '<div class="market-header cw-header"><h2 class="unified-gold-header small news-title">⚒ 生產</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">選好配方、確認數值，一鍵求解最佳手法。</p></div>' +
       '<div class="cw-dockwrap" id="cf-dockwrap">' +
         '<button type="button" id="cf-dock-bar" class="market-settings-btn cw-dock-bar" aria-expanded="false" aria-controls="cf-actor"><span id="cf-dock-summary" class="cw-dock-summary"></span><span class="cw-dock-toggle"><i class="ph ph-sliders-horizontal"></i><span id="cf-dock-toggle-text">調整數值</span><i class="ph ph-caret-down cw-caret"></i></span></button>' +
         '<section class="cw-dock-panel" id="cf-actor">' +
@@ -3557,7 +3557,7 @@ app._craftReady = function () {
     if (!hqCapable.some(function (ing) { return (chosenHq[ing.id] || 0) < ing.amount; })) return tips;
     const r = simulateOnce(craft, actions, stats, hqCapable.map(function (ing) { return { id: ing.id, amount: ing.amount }; }));
     if (r.progression >= craft.progress && r.quality >= craft.quality) {
-      tips.push({ goal: true, grp: 'full', order: 0, icon: 'ph-star', short: '全 HQ 材料', html: '<i class="ph ph-star"></i><span class="craft-tip-k">全 HQ 材料</span>', hint: '材料全用 HQ 提高起始品質，同一套手法實際模擬就能滿品質' });
+      tips.push({ goal: true, grp: 'full', order: 0, kind: 'hq', key: 'hq-all', icon: 'ph-star', short: '全 HQ 材料', html: '<span class="craft-tip-item"><i class="ph ph-star"></i>全 HQ 材料</span>', hint: '材料全用 HQ 提高起始品質，同一套手法實際模擬就能滿品質' });
     }
     return tips;
   }
@@ -3690,32 +3690,96 @@ app._craftReady = function () {
     { k: 'full', label: '滿品質', icon: 'ph-medal', tip: '做出滿品質' },
   ];
   function diagGroupTag(g) { return '<span class="craft-grp craft-grp-' + g.k + '" title="' + g.tip + '"><i class="ph ' + g.icon + '"></i>' + g.label + '</span>'; }
+  /* ── 建議卡片 ──
+   * 一個群組（可完成／滿品質）= 一個標題列（燈泡＋標籤同一行）＋ 一張主要建議卡 ＋ 其餘方案（收合）。
+   * 卡片之間是「擇一」；同一張卡片裡的多個項目是「全部都要」。
+   * 路線卡片直接顯示「現在 → 目標」與「還差多少」，玩家只需要看最右邊那欄。 */
+  function diagStatRowsHtml(r) {
+    return '<div class="cdg-stats">' + r.stats.map(function (s) {
+      const m = { craftsmanship: ['ph-hammer', '作業精度'], control: ['ph-target', '加工精度'], cp: ['ph-sparkle', 'CP'] }[s.key];
+      const up = s.delta > 0;
+      return '<div class="cdg-stat ' + (up ? 'is-up' : 'is-ok') + '"><span class="cdg-sn"><i class="ph ' + m[0] + '"></i>' + m[1] + '</span>' +
+        (up ? '<span class="cdg-sv">' + s.from.toLocaleString() + '<span class="craft-tip-arrow">→</span><strong>' + s.to.toLocaleString() + '</strong></span><span class="cdg-sd">+' + s.delta.toLocaleString() + '</span>'
+            : '<span class="cdg-sv">' + s.from.toLocaleString() + '</span><span class="cdg-sd cdg-sd-ok"><i class="ph ph-check"></i>不用改</span>') + '</div>';
+    }).join('') + '</div>';
+  }
+  function diagTrialHtml(t) {
+    if (!t) return '';
+    if (t.state === 'loading') return '<div class="cdg-trial"><div class="cdg-trial-wait"><i class="ph ph-spinner craft-spin"></i>試算中⋯</div></div>';
+    if (t.state === 'error') return '<div class="cdg-trial"><div class="cdg-trial-wait"><i class="ph ph-warning"></i>試算失敗，請再試一次</div></div>';
+    const res = t.result, craft = t.craft;
+    const metric = res.collectability != null ? '收藏度 ' + res.collectability : '優質率約 ' + Math.round(res.hqPercent) + '%';
+    return '<div class="cdg-trial"><div class="cdg-trial-h"><i class="ph ph-flask"></i>試算結果（臨時，不影響你設定的數值）</div>' +
+      bar('進度', Math.min(res.progression, craft.progress), craft.progress, 'craft-fill-progress') +
+      (craft.quality > 0 ? bar('品質', Math.min(res.quality, craft.quality), craft.quality, 'craft-fill-quality') : '') +
+      '<div class="craft-hq-line ' + (res.success ? 'craft-status-ok' : 'craft-status-fail') + '">' + (res.success ? '✓ 成功・' + metric + '・' + res.steps + ' 步' : '✕ 這組數值仍無法完成') + '</div>' +
+      (res.success ? macroSegmentsHtml(res.macroSegments) : '') + '</div>';
+  }
+  function diagCardHtml(slot, r, isMain) {
+    if (r.note) return '<div class="cdg-note"><i class="ph ph-timer"></i>' + r.html + '</div>';
+    const label = r.kind === 'food' ? '換成' : (r.kind === 'hq' ? '改用' : '先備好');
+    let h = '<div class="cdg-card' + (isMain ? ' cdg-main' : '') + '"' + (r.key ? ' data-key="' + r.key + '"' : '') + '>';
+    if (r.route && r.tight) h += '<span class="cdg-best"><i class="ph ph-seal-check"></i>最少提升</span>';
+    if (r.route ? r.prep : r.html) h += '<div class="cdg-prep"><span class="cdg-prep-k">' + label + '</span>' + (r.route ? r.prep : r.html) + '</div>';
+    if (r.route) h += diagStatRowsHtml(r);
+    if (r.trial && r.key) h += '<div class="cdg-act"><button type="button" class="cdg-try" data-key="' + r.key + '"><i class="ph ph-flask"></i>套用此目標試算</button></div>';
+    h += diagTrialHtml((slot._trials || {})[r.key]);
+    return h + '</div>';
+  }
   function renderDiagSlot(slot, rows, loading, fullBtn) {
+    slot._last = [rows, loading, fullBtn];
     const wasOpen = !!slot.querySelector('details[open]');
-    const ordered = [];
-    DIAG_GROUPS.forEach(function (g) {
-      rows.filter(function (r) { return r.grp === g.k; }).sort(function (a, b) { return a.order - b.order; }).forEach(function (r) { ordered.push({ g: g, r: r }); });
-    });
-    const solutions = ordered.filter(function (o) { return !o.r.lead && !o.r.gap; }); // 「搭配」列只是前提、「最高可達」只是距離，都不算一個建議
     let html = '';
-    if (ordered.length) {
-      let list = '';
-      DIAG_GROUPS.forEach(function (g) {
-        const mine = ordered.filter(function (o) { return o.g === g; });
-        if (!mine.length) return;
-        list += '<li class="craft-tip-grp">' + diagGroupTag(g) + '</li>' + mine.map(function (o) { return '<li class="craft-tip' + (o.r.lead ? ' craft-tip-lead' : '') + (o.r.gear ? ' craft-tip-child' : '') + '" title="' + o.r.hint + '"><span class="craft-tip-body">' + o.r.html + '</span></li>'; }).join('');
-      });
-      if (ordered.length <= 4 || !solutions.length) {
-        // 內容不多就直接全部展開：前提（搭配的食藥）跟需求要一起看到才不會誤會
-        html = '<div class="craft-diagnosis craft-diag-open"><div class="craft-diagnosis-title"><i class="ph ph-lightbulb"></i></div><ul>' + list + '</ul></div>';
-      } else {
-        html = '<details class="craft-diagnosis"' + (wasOpen ? ' open' : '') + '><summary class="craft-diagnosis-title"><i class="ph ph-lightbulb"></i>' + diagGroupTag(solutions[0].g) + '<span class="craft-tip-top">' + solutions[0].r.short + '</span>' +
-          (solutions.length > 1 ? '<span class="craft-tip-count">+' + (solutions.length - 1) + '</span>' : '') + '<i class="ph ph-caret-down craft-tip-caret"></i></summary><ul>' + list + '</ul></details>';
+    DIAG_GROUPS.forEach(function (g) {
+      const mine = rows.filter(function (r) { return r.grp === g.k; }).sort(function (a, b) { return a.order - b.order; });
+      if (!mine.length) return;
+      const cards = mine.filter(function (r) { return !r.note; });
+      const notes = mine.filter(function (r) { return r.note; });
+      let body = '';
+      if (cards.length) body += diagCardHtml(slot, cards[0], true);
+      if (cards.length > 1) {
+        body += '<details class="cdg-more"' + (wasOpen ? ' open' : '') + '><summary><span>其他方案</span><span class="craft-tip-count">+' + (cards.length - 1) + '</span><i class="ph ph-caret-down craft-tip-caret"></i></summary>' +
+          cards.slice(1).map(function (r, i) { return (i ? '<div class="cdg-or">或</div>' : '') + diagCardHtml(slot, r, false); }).join('') + '</details>';
       }
-    }
+      body += notes.map(function (r) { return diagCardHtml(slot, r, false); }).join('');
+      html += '<div class="craft-diagnosis cdg"><div class="cdg-head"><i class="ph ph-lightbulb"></i>' + diagGroupTag(g) + '</div>' + body + '</div>';
+    });
     if (loading) html += '<div class="craft-diag-loading"><i class="ph ph-lightbulb"></i><span>分析建議中⋯</span><i class="ph ph-spinner craft-spin"></i></div>';
     else if (fullBtn) html += '<button type="button" class="craft-diag-more" title="分析要怎樣才能做出滿品質（不用重新求解）"><i class="ph ph-medal"></i>滿品質建議</button>';
     slot.innerHTML = html;
+    // 試算結果裡的巨集複製鈕：每次重畫後重新綁定
+    Object.keys(slot._trials || {}).forEach(function (k) {
+      const t = slot._trials[k];
+      if (!t || t.state !== 'done' || !t.result || !t.result.success) return;
+      const el = slot.querySelector('.cdg-card[data-key="' + k + '"] .cdg-trial');
+      if (el) bindMacroCopy(el, t.result.macroSegments || []);
+    });
+  }
+  /* 臨時試算：用建議的目標數值另外跑一次求解，結果只顯示在這張卡片裡。
+   * 不會改動使用者設定的角色數值，也不會取代上方原本的求解結果。 */
+  function runDiagTrial(slot, craft, stats, hqIngredients, row) {
+    slot._trials = slot._trials || {};
+    const t = slot._trials[row.key] = { state: 'loading' };
+    renderDiagSlot.apply(null, [slot].concat(slot._last || [[], false, false]));
+    const w = new Worker('js/craft-worker.js');
+    const id = ++solveSeq;
+    const hqAllArr = (craft.ingredients || []).filter(function (i) { return i.quality > 0; }).map(function (i) { return { id: i.id, amount: i.amount }; });
+    const collectableGoal = $('cf-collectable').checked ? (parseInt($('cf-collectable-goal').value, 10) || 100) : null;
+    const finish = function (state, payload) {
+      try { w.terminate(); } catch (e) { /* 已結束 */ }
+      if (!slot.isConnected) return; // 已經換成別的結果
+      Object.assign(t, { state: state }, payload || {});
+      renderDiagSlot.apply(null, [slot].concat(slot._last || [[], false, false]));
+    };
+    w.addEventListener('error', function () { finish('error'); });
+    w.addEventListener('message', function (e) {
+      if (e.data.requestId !== id || e.data.type === 'solve-progress') return;
+      if (!e.data.ok) { finish('error'); return; }
+      finish('done', { result: e.data.result, craft: e.data.craft || craft });
+    });
+    const st = Object.assign({}, stats, { craftsmanship: row.trial.fin.craftsmanship, control: row.trial.fin.control, cp: row.trial.fin.cp, base: Object.assign({}, stats.base || {}, row.trial.base) });
+    w.postMessage({ type: 'solve', requestId: id, recipeId: craft.id, stats: st,
+      options: { lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: row.trial.hqAll ? hqAllArr : hqIngredients, collectableGoal: collectableGoal } });
   }
 
   /* 建議分三段：
@@ -3740,6 +3804,14 @@ app._craftReady = function () {
       const needFull = craft.quality > 0 && !(result.success && result.quality >= craft.quality) && !quick.length;
       const fullState = { run: false };
       renderDiagSlot(slot, rows, false, false);
+      slot.addEventListener('click', function (e) {
+        const btn = e.target.closest('.cdg-try');
+        if (!btn) return;
+        const row = rows.find(function (r) { return r.key === btn.dataset.key; });
+        const cur = slot._trials && slot._trials[btn.dataset.key];
+        if (!row || !row.trial || (cur && cur.state === 'loading')) return;
+        runDiagTrial(slot, craft, stats, hqIngredients, row);
+      });
       if (!canAnalyze) return;
 
       const run = function (which, after) {
@@ -3878,7 +3950,7 @@ app._craftReady = function () {
     const wanted = (needDone ? ['done'] : []).concat(needFull ? ['full'] : []).filter(function (g) { return !which || which.indexOf(g) !== -1; });
     if (!wanted.length) return null;
     const mainKeys = result.actionKeys;
-    const giveUpAt = performance.now() + 60000; // 防呆上限：多個 Worker 平行，通常遠低於這個時間
+    const giveUpAt = performance.now() + 90000; // 防呆上限：多個 Worker 平行，通常遠低於這個時間
     const outOfTime = function () { return an.cancelled || performance.now() > giveUpAt; };
     const pool = createAnalysisPool(an);
 
@@ -3942,36 +4014,43 @@ app._craftReady = function () {
     };
 
     const META = {
-      craftsmanship: { icon: 'ph-hammer', label: '作業精度', short: '作業', order: 3 },
-      control: { icon: 'ph-target', label: '加工精度', short: '加工', order: 4 },
-      cp: { icon: 'ph-sparkle', label: 'CP', short: 'CP', order: 2 },
+      craftsmanship: { icon: 'ph-hammer', label: '作業精度' },
+      control: { icon: 'ph-target', label: '加工精度' },
+      cp: { icon: 'ph-sparkle', label: 'CP' },
     };
-    const incAt = function (key, f) { return Math.max(5, Math.round(baseB[key] * (f - 1) / 5) * 5); };
-    const SINGLE_F = [1.03, 1.06, 1.10, 1.15, 1.25]; // 單項最多 +25%
-    const TRIO_F = [1.02, 1.04, 1.07, 1.10, 1.15, 1.22, 1.30]; // 三項同時最多 +30%
+    const STAT_KEYS = ['craftsmanship', 'control', 'cp'];
+    const STEP = 5; // 目標數值取到 5 的倍數（裝備數值本來就不會需要更細的精度）
+    const roundUp = function (v) { return Math.ceil(v / STEP) * STEP; };
     const chip = function (icon, name, hqTag) { return '<span class="craft-tip-item"><i class="ph ' + icon + '"></i>' + name + (hqTag ? '<em>HQ</em>' : '') + '</span>'; };
     const comboChips = function (c) { return c ? (c.mealId ? chip('ph-bowl-food', CRAFT_FOODS[c.mealId].name, true) : '') + (c.medId ? chip('ph-flask', CRAFT_FOODS[c.medId].name, true) : '') : ''; };
     const comboNames = function (c) { return [c.mealId ? CRAFT_FOODS[c.mealId].name : null, c.medId ? CRAFT_FOODS[c.medId].name : null].filter(Boolean).join('＋'); };
-    const statChip = function (key, to) {
-      // 標籤用跟頂部數值列一樣的簡稱（作業／加工／CP），箭頭用文字符號，不依賴圖示字型也一眼看得懂
-      return '<span class="craft-tip-stat"><i class="ph ' + META[key].icon + '"></i><span class="craft-tip-sk">' + META[key].short + '</span>' + baseB[key].toLocaleString() + '<span class="craft-tip-arrow">→</span><strong>' + to.toLocaleString() + '</strong></span>';
+    const safeId = function (v) { return String(v == null ? '' : v).replace(/[^A-Za-z0-9]/g, ''); };
+    /* 在指定的基礎數值 B 下，挑「對需要的那幾項加成最大」的食物＋藥水。
+     * 食物藥水是百分比加成但有上限，基礎數值變了，最適合的組合也會變，所以每個目標各自挑，不共用同一組。
+     * 權重 w＝三項各自「需要提升的比例」：需要多補 CP 的路線就挑加 CP 多的食藥。 */
+    const comboFor = function (B, w) {
+      let best = null, bestScore = -1;
+      combo.all.forEach(function (c) {
+        const f = finalFor(B, c);
+        const sc = w[0] * f.craftsmanship / Math.max(1, B.craftsmanship) + w[1] * f.control / Math.max(1, B.control) + w[2] * f.cp / Math.max(1, B.cp);
+        if (sc > bestScore + 1e-9 || (Math.abs(sc - bestScore) <= 1e-9 && best && c.n < best.n)) { best = c; bestScore = sc; }
+      });
+      return best;
     };
-    const gearRow = function (g, order, changes, hint) { // changes: {key: 新的基礎數值}；同一列的多項＝同時都要
-      const keys = Object.keys(changes);
-      const short = keys.length === 1 ? META[keys[0]].label + ' ' + baseB[keys[0]].toLocaleString() + '→' + changes[keys[0]].toLocaleString() : '三項同時提升';
-      return { grp: g, order: order, gear: true, icon: 'ph-shield', short: short,
-        html: '<i class="ph ph-shield craft-tip-gear"></i>' + keys.map(function (k) { return statChip(k, changes[k]); }).join('<span class="craft-tip-and">＋</span>'), hint: hint };
-    };
+    const baseWithD = function (d) { return { craftsmanship: baseB.craftsmanship + (d.craftsmanship || 0), control: baseB.control + (d.control || 0), cp: baseB.cp + (d.cp || 0) }; };
+    const weightsOf = function (d) { return STAT_KEYS.map(function (k) { return (d[k] || 0) / Math.max(1, baseB[k]) + 0.02; }); };
+    const dKey = function (d) { return STAT_KEYS.map(function (k) { return d[k] || 0; }).join('-'); };
 
     let upgrade = null;
     const runGoal = async function (g) {
       const goalFn = goals[g], hqMode = hqModeFor(g);
+      const hqTrial = hqMode === 'all';
       // 0. 先確認：目前的最終數值（＋該標準搭配的 HQ 材料）重新求解還是做不到，才往下找建議。
       //    求解有隨機性，同樣條件重新求解就做到了，代表目前的結果只是沒搜尋到，這時任何「加多少」的建議都會誤導。
       const r0 = await evalSc(g, stats.craftsmanship, stats.control, stats.cp);
       if (!r0) return;
       if (goalFn(r0)) {
-        if (g === 'full' && canHq) report({ grp: 'full', order: 0, icon: 'ph-star', short: '全 HQ 材料', html: '<i class="ph ph-star"></i><span class="craft-tip-k">全 HQ 材料</span>', hint: '材料全用 HQ 提高起始品質，' + NOTE });
+        if (g === 'full' && canHq) report({ grp: 'full', order: 0, kind: 'hq', key: 'hq-all', icon: 'ph-star', short: '全 HQ 材料', html: chip('ph-star', '全 HQ 材料', false), hint: '材料全用 HQ 提高起始品質，' + NOTE });
         else if (!upgrade || r0.quality > upgrade.quality) upgrade = r0; // 目前數值本來就做得到：主求解只是沒搜尋到，回傳讓畫面升級
         return;
       }
@@ -3984,55 +4063,78 @@ app._craftReady = function () {
           const fewest = ok.slice().sort(function (a, b) { return a.n - b.n || a.power - b.power; })[0];
           if (fewest !== ok[0]) picks.push(fewest);
           picks.forEach(function (c, i) {
-            report({ grp: g, order: 1 + i * 0.1, icon: 'ph-bowl-food', short: (hqMode === 'all' ? '全 HQ＋' : '') + comboNames(c),
-              html: (hqMode === 'all' ? chip('ph-star', '全 HQ', false) : '') + comboChips(c), hint: '換成這組食物＋藥水，' + NOTE });
+            report({ grp: g, order: 1 + i * 0.1, kind: 'food', key: 'f-' + safeId(c.mealId) + '-' + safeId(c.medId), icon: 'ph-bowl-food', short: (hqTrial ? '全 HQ＋' : '') + comboNames(c),
+              html: (hqTrial ? chip('ph-star', '全 HQ', false) : '') + comboChips(c), hint: '換成這組食物＋藥水，' + NOTE,
+              trial: { base: { craftsmanship: baseB.craftsmanship, control: baseB.control, cp: baseB.cp }, fin: { craftsmanship: c.fin.craftsmanship, control: c.fin.control, cp: c.fin.cp }, hqAll: hqTrial } });
           });
           return;
         }
       }
-      // 2. 食藥用到最強還不夠：需要提升裝備。以「最強食藥（品質標準再加全 HQ）」為前提，找基礎數值要到多少
-      const at = function (d) { // d: 各項基礎數值的增量
-        const f = finalFor({ craftsmanship: baseB.craftsmanship + (d.craftsmanship || 0), control: baseB.control + (d.control || 0), cp: baseB.cp + (d.cp || 0) }, bestCombo);
-        return evalSc(g, f.craftsmanship, f.control, f.cp);
+      /* 2. 食藥救不了：一定要提升裝備。目標是找出「驗證做得到、而且提升最少」的基礎數值。
+       *    數值夠高就一定做得到，所以沒有固定的數值上限：先用「三項同比例」往上加倍找到一個做得到的點，
+       *    再從那個點逐項往下收（每降一步都重新求解驗證，手法會跟著數值重排），收到再降就做不到為止。
+       *    從不同的項目先收，會得到不同取捨的結果，最後只留下沒被別人壓過的。 */
+      const atD = async function (d) {
+        const B = baseWithD(d);
+        const c = comboFor(B, weightsOf(d));
+        const f = finalFor(B, c);
+        const r = await evalSc(g, f.craftsmanship, f.control, f.cp);
+        return { r: r, combo: c, fin: f, base: B };
       };
-      let leadReported = false, gearFound = false;
-      const reportGear = function (row) {
-        gearFound = true;
-        if (!leadReported) { // 前提只報一次：搭配哪一組食藥（品質標準再加全 HQ）
-          leadReported = true;
-          const lead = (hqMode === 'all' ? chip('ph-star', '全 HQ', false) : '') + comboChips(bestCombo);
-          if (lead) report({ grp: g, order: 1.5, lead: true, short: '', html: lead, hint: '以下數值都已假設搭配這些（食物藥水用最強的那組）' });
-        }
-        report(row);
-      };
-      // 先做單項，再做三項同時：三項同時的數值一定包含單項的，單項已驗證成功的情境能直接推論給三項，兩邊的結果才不會矛盾
-      const singles = ['cp', 'craftsmanship', 'control'].map(function (key) {
-        return (async function () {
-          const idx = (await searchLevels(SINGLE_F.length, function (i) { const d = {}; d[key] = incAt(key, SINGLE_F[i]); return at(d); }, goalFn)).idx;
-          if (idx < 0) return;
-          const ch = {}; ch[key] = baseB[key] + incAt(key, SINGLE_F[idx]);
-          reportGear(gearRow(g, META[key].order, ch, '只提高' + META[key].label + '（其他不變），' + NOTE));
-        })();
-      });
-      await Promise.all(singles);
-      await (async function () {
-        const sr = await searchLevels(TRIO_F.length, function (i) { return at({ craftsmanship: incAt('craftsmanship', TRIO_F[i]), control: incAt('control', TRIO_F[i]), cp: incAt('cp', TRIO_F[i]) }); }, goalFn);
-        const idx = sr.idx;
-        if (idx < 0) {
-          /* 連「食藥最強＋三項各 +30%」都做不到：不要什麼都不顯示，改告訴使用者「最高能到哪」，讓人知道差多遠。
-           * 三項同時提升包含了所有單項，所以這就是這個範圍內的上限。 */
-          if (!gearFound && sr.top && !an.cancelled) {
-            const have = g === 'full' ? Math.max(sr.top.quality || 0, result.quality) : Math.max(sr.top.progression || 0, result.progression);
-            const need = g === 'full' ? craft.quality : craft.progress;
-            const pct = Math.min(99, Math.floor(Math.min(have, need) / need * 100));
-            report({ grp: g, order: 6, gap: true, short: '最高 ' + pct + '%', icon: 'ph-gauge',
-              html: '<span class="craft-tip-k">最高可達</span><span class="craft-gapbar"><span style="width:' + pct + '%"></span></span><strong class="craft-gap-pct">' + pct + '%</strong>',
-              hint: '搭配最強的食物＋藥水' + (g === 'full' && canHq ? '、全 HQ 材料' : '') + '，再把三項數值各提高 30%，' + (g === 'full' ? '品質' : '進度') + '最高也只能做到這個程度' });
+      const trioD = function (f) { const o = {}; STAT_KEYS.forEach(function (k) { o[k] = roundUp(baseB[k] * f); }); return o; };
+      const LADDER = [0.02, 0.04, 0.07, 0.10, 0.15, 0.22, 0.30, 0.45, 0.65, 1, 1.5, 2.3, 3.5, 6];
+      const sr = await searchLevels(LADDER.length, function (i) { return atD(trioD(LADDER[i])).then(function (x) { return x.r; }); }, goalFn);
+      if (sr.idx < 0) {
+        // 連極端的數值都沒驗證成功：只可能是搜尋逾時或被中止，不能下「做不到」的結論
+        if (!an.cancelled) report({ grp: g, order: 9, note: true, key: 'note-' + g, html: '分析未完成，請再按一次求解' });
+        return;
+      }
+      let hiF = LADDER[sr.idx], loF = sr.idx > 0 ? LADDER[sr.idx - 1] : 0;
+      for (let it = 0; it < 2 && !outOfTime(); it++) {
+        const mid = (loF + hiF) / 2;
+        const x = await atD(trioD(mid));
+        if (goalFn(x.r)) hiF = mid; else loF = mid;
+      }
+      const P0 = trioD(hiF);
+      const shrinkFrom = async function (d0, order) {
+        const d = Object.assign({}, d0);
+        for (let oi = 0; oi < order.length; oi++) {
+          const k = order[oi];
+          if (outOfTime()) break;
+          if (d[k] <= 0) continue;
+          const zero = Object.assign({}, d); zero[k] = 0;
+          if (goalFn((await atD(zero)).r)) { d[k] = 0; continue; }
+          let lo = 0, hi = d[k];
+          for (let it = 0; it < 3 && hi - lo > STEP && !outOfTime(); it++) {
+            const mid = roundUp((lo + hi) / 2);
+            if (mid >= hi) break;
+            const t = Object.assign({}, d); t[k] = mid;
+            if (goalFn((await atD(t)).r)) hi = mid; else lo = mid;
           }
-          return;
+          d[k] = hi;
         }
-        reportGear(gearRow(g, 5, { craftsmanship: baseB.craftsmanship + incAt('craftsmanship', TRIO_F[idx]), control: baseB.control + incAt('control', TRIO_F[idx]), cp: baseB.cp + incAt('cp', TRIO_F[idx]) }, '三項同時都要提高，' + NOTE));
-      })();
+        return d;
+      };
+      const orders = [['cp', 'craftsmanship', 'control'], ['craftsmanship', 'control', 'cp'], ['control', 'cp', 'craftsmanship']];
+      const ds = await Promise.all(orders.map(function (o) { return shrinkFrom(P0, o); }));
+      const tight = !outOfTime();
+      const cost = function (d) { return STAT_KEYS.reduce(function (s, k) { return s + d[k] / Math.max(1, baseB[k]); }, 0); };
+      let cands = [];
+      ds.forEach(function (d) { if (!cands.some(function (e) { return STAT_KEYS.every(function (k) { return Math.abs(e[k] - d[k]) <= STEP; }); })) cands.push(d); });
+      cands = cands.filter(function (d) { return !cands.some(function (e) { return e !== d && STAT_KEYS.every(function (k) { return e[k] <= d[k]; }) && STAT_KEYS.some(function (k) { return e[k] < d[k]; }); }); });
+      cands.sort(function (a, b) { return cost(a) - cost(b); });
+      cands.slice(0, 3).forEach(function (d, i) {
+        const B = baseWithD(d);
+        const c = comboFor(B, weightsOf(d));
+        const f = finalFor(B, c);
+        const rowsStat = STAT_KEYS.map(function (k) { return { key: k, from: baseB[k], to: B[k], delta: B[k] - baseB[k] }; });
+        const changed = rowsStat.filter(function (s) { return s.delta > 0; });
+        report({ grp: g, order: 5 + i, kind: 'route', route: true, tight: tight && i === 0, key: 't-' + g + '-' + dKey(d), icon: 'ph-shield',
+          short: changed.map(function (s) { return META[s.key].label + ' +' + s.delta; }).join('、'),
+          prep: (hqTrial ? chip('ph-star', '全 HQ 材料', false) : '') + comboChips(c),
+          stats: rowsStat,
+          trial: { base: B, fin: { craftsmanship: f.craftsmanship, control: f.control, cp: f.cp }, hqAll: hqTrial } });
+      });
     };
     await Promise.all(wanted.map(runGoal));
     return upgrade;
