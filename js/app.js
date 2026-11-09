@@ -249,12 +249,47 @@ initStars(){
 
   app._retryFashion = function () { this._fDone = false; this.nav('fashion'); };
 
+  /* ══ _loadJSON ═══════════════════════════════════════════════════════
+   * 讀取 GitHub Action 產生的同源靜態檔（data/news.json、data/fashion.json）。
+   * 失敗（檔案不存在 / 格式錯誤 / 本機 file:// 開啟）時回傳 null，由呼叫端 fallback。
+   * cache:'no-cache' 讓瀏覽器每次向伺服器驗證，避免 Action 更新後仍看到舊資料。
+   * ════════════════════════════════════════════════════════════════ */
+  app._loadJSON = async function (path) {
+    try {
+      var r = await fetch(path + '?_=' + Math.floor(Date.now() / 600000), { cache: 'no-cache' });
+      if (!r.ok) { console.warn('[XIV] ' + path + ' status', r.status); return null; }
+      return await r.json();
+    } catch (e) {
+      console.warn('[XIV] ' + path + ' load failed:', e.message);
+      return null;
+    }
+  };
+
+  /* 以 items 陣列（{title,date,href,pinned}）渲染公告列表；JSON 與 HTML 解析兩條路共用 */
+  app._renderNewsItems = function (ctn, items) {
+    ctn.innerHTML = '';
+    items.forEach(function (it) {
+      if (!it || !it.title) return;
+      var a = document.createElement('a');
+      a.className = 'news-item'; a.href = it.href || '#'; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      if (it.pinned) { var p = document.createElement('span'); p.className = 'news-pin'; p.textContent = '置頂'; a.appendChild(p); }
+      if (it.date)   { var d = document.createElement('span'); d.className = 'news-date'; d.textContent = it.date; a.appendChild(d); }
+      var h = document.createElement('span'); h.className = 'news-headline'; h.textContent = it.title; a.appendChild(h);
+      ctn.appendChild(a);
+    });
+    return ctn.childElementCount;
+  };
+
   /* ══ fetchNews ══════════════════════════════════════════════════════ */
   app.fetchNews = async function () {
     var ctn     = document.getElementById('news-list');
     if (!ctn) return;
     var NEWS_URL = 'https://www.ffxiv.com.tw/web/news/news_list.aspx';
     var self     = this;
+    /* ① 優先讀 Action 抓好的 data/news.json（同源、無 CORS、速度快） */
+    var nj = await this._loadJSON('data/news.json');
+    if (nj && Array.isArray(nj.items) && nj.items.length && this._renderNewsItems(ctn, nj.items)) return;
+    /* ② 後備：即時透過 CORS 代理抓官網 */
     var html = await this._fetch(NEWS_URL);
     if (html) {
       self._renderNews(ctn, html);
@@ -302,6 +337,13 @@ initStars(){
     if (!ctn) return;
     var BASE = 'https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177';
     var self = this;
+    /* ① 優先讀 Action 抓好的 data/fashion.json（同源、無 CORS、速度快） */
+    var fj = await this._loadJSON('data/fashion.json');
+    if (fj && Array.isArray(fj.posts) && fj.posts.length) {
+      self._renderFashionPosts(ctn, fj.posts);
+      return;
+    }
+    /* ② 後備：即時透過 CORS 代理抓巴哈 */
     /* 抓第 1 頁只取頁碼資訊 */
     var html1    = await this._fetch(BASE);
     var lastPage = 1;
