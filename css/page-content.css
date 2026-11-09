@@ -1024,7 +1024,7 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
    v2 → v3 調整：
    · 尺寸：從「橫向大面板」改成「貼在父項目正下方的小型直式選單」（約 176×110px），
           寬度只比父項目略寬，一眼就看得出是「遠航探索」底下長出來的
-   · 連接：光絲縮短為 8px 的小接點，直接把面板「掛」在父項目底線上
+   · 連接：面板頂邊直接貼在父項目底線上；v3.1 起底線正下方加一道等寬「光幕」往面板內淡出
    · 展開：不再用兩段式 clip-path 關鍵影格，改單一 transition（clip-path＋位移＋透明度）
           同一條緩動曲線，展開約 .5s、收合約 .25s，不會有停頓感
    · 波紋：縮成面板最底部 12px 的細帶，只出現在內距區，不會壓到圖示與英文名
@@ -1037,7 +1037,7 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 html[data-nav-mode="top"] .nav-group .nav-submenu {
   display: flex; flex-direction: column; gap: 0;
-  top: calc(100% + 8px);
+  top: calc(100% - 3px);                             /* 面板頂邊 = 父項目底線所在位置，沒有留白 */
   width: max-content; min-width: 176px;
   padding: 8px 8px 16px;
   border-radius: 6px;
@@ -1091,32 +1091,49 @@ html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
 }
 @keyframes nav-ang-spin { to { --nav-ang: 360deg; } }
 
-/* 隱形橋接（配合 8px 間距） */
-html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -12px; height: 12px; }
+/* 隱形橋接（面板已緊貼父項目，只需小量重疊） */
+html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -10px; height: 10px; }
 
-/* ── 小接點：把面板掛在父項目底線上 ── */
+/* ── 延伸光幕：父項目的底線「流」進面板 ──
+   1) 面板頂邊直接貼在底線上，底線 = 面板頂邊的一部分
+   2) 底線正下方一道與底線等寬的光幕往下淡出（含緩慢流動的細光芒），像底線的光傾瀉進面板
+   3) 接點處一顆小寶石，取代原本的小箭頭 */
 html[data-nav-mode="top"] .nav-sub-thread {
-  display: block; position: absolute; z-index: 4;
-  top: -8px; height: 8px; width: 1px;
+  display: block; position: absolute; z-index: 2; pointer-events: none;
+  top: -1px; height: 34px;
+  width: var(--sub-anchor-w, 120px);
   left: calc(50% - var(--sub-shift, 0px));
-  background: linear-gradient(180deg, rgba(252,246,186,0), rgba(252,246,186,.9));
-  box-shadow: 0 0 5px rgba(255,228,170,.7);
-  pointer-events: none;
-  opacity: 0; transition: opacity .3s ease;
+  transform: translateX(-50%);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 7px, rgba(255,240,205,.10) 7px 8px),
+    linear-gradient(180deg, rgba(255,232,176,.26), rgba(255,232,176,.07) 60%, transparent);
+  background-size: 15px 100%, 100% 100%;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent), linear-gradient(180deg, #000, transparent);
+  -webkit-mask-composite: source-in;
+          mask: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent), linear-gradient(180deg, #000, transparent);
+          mask-composite: intersect;
+  opacity: 0; transition: opacity .35s ease;
 }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread { opacity: 1; transition-delay: .1s; animation: nav-shaft-flow 7s linear infinite; }
+@keyframes nav-shaft-flow { to { background-position: 15px 0, 0 0; } }
+/* 接點亮線（與底線同寬，蓋在面板頂邊上） */
 html[data-nav-mode="top"] .nav-sub-thread::before {
-  content: ""; position: absolute; left: 50%; bottom: -3px;
-  width: 6px; height: 6px; transform: translateX(-50%) rotate(45deg);
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,236,190,.95) 25%, #fff 50%, rgba(255,236,190,.95) 75%, transparent);
+  box-shadow: 0 0 8px 1px rgba(255,228,170,.7);
+}
+/* 接點小寶石 */
+html[data-nav-mode="top"] .nav-sub-thread::after {
+  content: ""; position: absolute; left: 50%; top: 0; width: 6px; height: 6px;
+  transform: translate(-50%, -50%) rotate(45deg);
   background: var(--gold-bright);
   box-shadow: 0 0 8px 2px rgba(255,228,170,.85), 0 0 16px 3px rgba(197,160,89,.45);
+  animation: nav-junction-pulse 2.6s ease-in-out infinite;
 }
-html[data-nav-mode="top"] .nav-sub-thread::after {
-  content: ""; position: absolute; left: 50%; top: 0; width: 3px; height: 3px; margin-left: -1px;
-  border-radius: 50%; background: #fff; box-shadow: 0 0 6px 2px rgba(255,228,170,.95); opacity: 0;
-}
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread { opacity: 1; transition-delay: .12s; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::after { animation: nav-thread-drop 1.9s ease-in infinite .5s; }
-@keyframes nav-thread-drop { 0% { top: 0; opacity: 0; } 20% { opacity: 1; } 75% { opacity: 1; } 100% { top: 6px; opacity: 0; } }
+@keyframes nav-junction-pulse { 0%,100% { box-shadow: 0 0 6px 1px rgba(255,228,170,.7), 0 0 12px 2px rgba(197,160,89,.35); } 50% { box-shadow: 0 0 11px 3px rgba(255,240,200,.95), 0 0 22px 5px rgba(197,160,89,.55); } }
+/* 面板已接上，原本的小箭頭收起（避免和接點重疊） */
+html[data-nav-mode="top"] .nav-group-arrow { transition: opacity .25s ease, transform .3s ease; }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-group-arrow { opacity: 0; }
 
 /* ── 裝飾層（不擋點擊） ── */
 html[data-nav-mode="top"] .nav-sub-fx {
@@ -1271,6 +1288,7 @@ html[data-nav-mode="left"] .nav-sub-sep { display: none !important; }
   html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before,
   html[data-nav-mode="top"] .nav-sub-fx i,
   html[data-nav-mode="top"] .nav-sub-fx::before,
+  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread,
   html[data-nav-mode="top"] .nav-sub-thread::after,
   html[data-nav-mode="top"] .nav-sub-sep::after,
   html[data-nav-mode="top"] .nav-subitem .nav-emoji { animation: none !important; }
