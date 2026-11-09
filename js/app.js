@@ -129,11 +129,59 @@ initStars(){
        避免選了子項目後子選單又被這裡的 toggle 邏輯關掉/開起來造成閃爍。 */
     var expGroup = document.getElementById('nav-group-exploration');
     if (expGroup) {
+      /* ── 下拉面板裝飾（v2「星門」）：光絲、波紋層、分隔寶石；
+         一律放在子項目「之後」，不影響 nth-child 的依序浮現動畫（皆為 position:absolute）。
+         樣式只在頂部模式顯示，見 page-content.css 末段。 ── */
+      var subMenuEl = expGroup.querySelector('.nav-submenu');
+      if (subMenuEl && !subMenuEl.querySelector('.nav-sub-fx')) {
+        var mk = function (cls, html) { var d = document.createElement('div'); d.className = cls; d.setAttribute('aria-hidden', 'true'); if (html) d.innerHTML = html; return d; };
+        subMenuEl.appendChild(mk('nav-sub-fx', '<i></i><i></i>'));
+        subMenuEl.appendChild(mk('nav-sub-sep'));
+        subMenuEl.appendChild(mk('nav-sub-thread'));
+      }
+      var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      var sparkTimer = null;
+      var topModeNow = function () { return document.documentElement.getAttribute('data-nav-mode') === 'top'; };
+      /* 面板內金色粒子：沿用全站 _navFF 動畫迴圈（_startFFLoop 會自動推進並回收） */
+      var spawnSpark = function (nearEl) {
+        if (!subMenuEl || reduceMotion || !topModeNow() || document.hidden) return;
+        if (app._navFF.length > 70) return; // 上限，避免長時間展開累積過多
+        var w = subMenuEl.offsetWidth, h = subMenuEl.offsetHeight;
+        var cx, cy;
+        if (nearEl) { var r = nearEl.getBoundingClientRect(), m = subMenuEl.getBoundingClientRect();
+          cx = r.left - m.left + r.width * (.2 + Math.random() * .6); cy = r.top - m.top + r.height * (.55 + Math.random() * .4); }
+        else { cx = w * (.06 + Math.random() * .88); cy = h * (.55 + Math.random() * .42); }
+        var el = document.createElement('span'), sz = 2 + Math.random() * 3.6;
+        el.className = 'nav-sub-spark';
+        el.style.cssText = 'position:absolute;width:' + sz + 'px;height:' + sz + 'px;left:' + cx.toFixed(1) + 'px;top:' + cy.toFixed(1) + 'px;border-radius:50%;pointer-events:none;opacity:0;' +
+          'background:radial-gradient(circle at 38% 35%,#fff 0%,#fcf6ba 42%,#c5a059 100%);' +
+          'box-shadow:0 0 ' + (sz * 1.6).toFixed(1) + 'px ' + (sz * .5).toFixed(1) + 'px rgba(197,160,89,.75);will-change:transform,opacity;';
+        subMenuEl.appendChild(el);
+        app._navFF.push({ el: el, age: 0, maxAge: 110 + Math.random() * 100, dAmp: (Math.random() - .5) * 34,
+          dFreq: .014 + Math.random() * .02, dPhase: Math.random() * Math.PI * 2,
+          rise: .20 + Math.random() * .24, riseA: .0003 + Math.random() * .0006 });
+      };
+      var startSparks = function () {
+        if (sparkTimer || reduceMotion) return;
+        var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+        var tick = function () { spawnSpark(); sparkTimer = setTimeout(tick, (coarse ? 260 : 130) + Math.random() * 170); };
+        for (var k = 0; k < 6; k++) spawnSpark();   // 展開瞬間先灑一小把
+        sparkTimer = setTimeout(tick, 150);
+      };
+      var stopSparks = function () { clearTimeout(sparkTimer); sparkTimer = null; };
+      /* 懸停選項時，在該選項周圍迸出一小撮粒子 */
+      expGroup.querySelectorAll('.nav-subitem').forEach(function (it) {
+        it.addEventListener('mouseenter', function () { for (var k = 0; k < 7; k++) setTimeout(function () { spawnSpark(it); }, k * 45); });
+      });
+
       var toggleExpGroup = function (force) {
         var open = typeof force === 'boolean' ? force : !expGroup.classList.contains('nav-open');
+        var wasOpen = expGroup.classList.contains('nav-open');
         expGroup.classList.toggle('nav-open', open);
         expGroup.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) clampSubmenu();
+        if (open && !wasOpen && topModeNow()) startSparks();
+        if (!open) stopSparks();
       };
       /* 頂部模式的下拉框以「遠航探索」為中心對齊；若會超出螢幕左右邊緣，
          就算出需要平移的像素寫進 --sub-shift（箭頭缺口會反向補償，仍然指著「遠航探索」） */
