@@ -16,8 +16,11 @@
     m = localStorage.getItem('ff14fc-nav-mode');
   }catch(e){}
   if(m!=='left'&&m!=='top'){
-    m = window.innerWidth<=900 ? 'top' : 'left';
+    m = 'left';
   }
+  // 手機／窄螢幕一律使用頂部選單（左側選單會佔掉大半個畫面，沒有意義）。
+  // 這裡只是「顯示用」，不會改寫 localStorage 存的偏好，所以回到大螢幕時仍是原本選的模式。
+  if(window.innerWidth<=900){ m='top'; }
   // 被嵌在市場頁「製作求解」彈窗裡的實例（網址帶 embed=1）不需要任何選單，
   // 用專屬的 'embed' 模式，讓全站那一大堆 html[data-nav-mode="left"/"top"] 的版面規則
   // （幫選單預留 315px、固定頂欄高度、限制寬度…）通通不會套用到這個彈窗內容上。
@@ -30,21 +33,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- CSS 依「元件/頁面」拆分，載入順序必須維持 base → content → sub-air → macro，
      以保留原本 style.css → style_patch.css → layout_fix.css 疊層覆蓋的結果 -->
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/page-content.css">
-<link rel="stylesheet" href="css/page-sub-air.css">
-<link rel="stylesheet" href="css/page-macro.css">
-<link rel="stylesheet" href="css/page-craft.css">
-<link rel="stylesheet" href="css/page-market.css">
-<link rel="stylesheet" href="css/page-market-watchlist.css">
+<link rel="stylesheet" href="css/base.css?v=12">
+<link rel="stylesheet" href="css/page-content.css?v=12">
+<link rel="stylesheet" href="css/page-sub-air.css?v=12">
+<link rel="stylesheet" href="css/page-macro.css?v=12">
+<link rel="stylesheet" href="css/page-craft.css?v=12">
+<link rel="stylesheet" href="css/page-market.css?v=12">
+<link rel="stylesheet" href="css/page-market-watchlist.css?v=12">
+<link rel="stylesheet" href="css/touch-fixes.css?v=12">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
 </head>
 <body>
 <canvas id="starfield"></canvas>
 <div class="luxury-overlay"></div>
-<nav class="royal-nav">
+<nav class="royal-nav nav-has-burger">
   <button id="nav-mode-toggle" class="nav-mode-toggle" type="button" aria-label="切換選單顯示位置"><span class="nmt-icon" aria-hidden="true">⇄</span><span class="nmt-label" aria-hidden="true">頂部選單</span></button>
+  <button id="nav-burger" class="nav-burger" type="button" aria-expanded="false" aria-label="展開選單"><span class="nb-icon" aria-hidden="true">☰</span><span class="nb-label" id="nav-burger-label">✧ 序語</span><span class="nb-caret" aria-hidden="true">▾</span></button>
   <div class="nav-item" data-nav="home"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✧ 序語</span><span class="en">PROLOGUE</span></div></div>
   <div class="nav-item" data-nav="about"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">❂ 簡介</span><span class="en">INTRO</span></div></div>
   <div class="nav-item" data-nav="links"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✦ 指南</span><span class="en">DIRECTORY</span></div></div>
@@ -177,7 +182,7 @@
 <script src="js/air-calc.js"></script>
 <script src="js/craft-foods.js"></script>
 <script src="js/craft-consumables.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=12"></script>
 <script src="js/sub-panel.js"></script>
 <script src="js/air-panel.js"></script>
 <script src="js/craft-panel.js"></script>
@@ -186,6 +191,6 @@
 <script src="js/market-watchlist.js"></script>
 <script src="js/market-panel.js"></script>
 <script src="js/macro-tool.js"></script>
-<script src="js/nav.js"></script>
+<script src="js/nav.js?v=12"></script>
 </body>
 </html>
