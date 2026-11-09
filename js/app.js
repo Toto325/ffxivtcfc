@@ -165,11 +165,28 @@ initStars(){
           dFreq: .014 + Math.random() * .02, dPhase: Math.random() * Math.PI * 2,
           rise: .16 + Math.random() * .2, riseA: .0003 + Math.random() * .0005 });
       };
+      /* 展開瞬間：從父項目底線（接縫）往下灑出一小把粒子，像是從父項目傾瀉進面板。
+         rise 取負值 → 共用的動畫迴圈會讓它「往下」走；位置固定在底線中心（與連接莖同一點）。 */
+      var spawnPour = function () {
+        if (!subMenuEl || reduceMotion || !topModeNow() || document.hidden) return;
+        var shift = parseFloat(expGroup.style.getPropertyValue('--sub-shift')) || 0;
+        var cx = subMenuEl.offsetWidth / 2 - shift + (Math.random() - .5) * 10, cy = -16;
+        var el = document.createElement('span'), sz = 1.8 + Math.random() * 2.6;
+        el.className = 'nav-sub-spark';
+        el.style.cssText = 'position:absolute;width:' + sz + 'px;height:' + sz + 'px;left:' + cx.toFixed(1) + 'px;top:' + cy.toFixed(1) + 'px;border-radius:50%;pointer-events:none;opacity:0;filter:opacity(.9);' +
+          'background:radial-gradient(circle at 38% 35%,#fff 0%,#fcf6ba 42%,#c5a059 100%);' +
+          'box-shadow:0 0 ' + (sz * 1.8).toFixed(1) + 'px ' + (sz * .5).toFixed(1) + 'px rgba(197,160,89,.75);will-change:transform,opacity;';
+        subMenuEl.appendChild(el);
+        app._navFF.push({ el: el, age: 0, maxAge: 70 + Math.random() * 50, dAmp: (Math.random() - .5) * 70,
+          dFreq: .02 + Math.random() * .02, dPhase: Math.random() * Math.PI * 2,
+          rise: -(.30 + Math.random() * .30), riseA: -(.0008 + Math.random() * .0012) });
+      };
       var startSparks = function () {
         if (sparkTimer || reduceMotion) return;
         var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
         var tick = function () { spawnSpark(); sparkTimer = setTimeout(tick, (coarse ? 300 : 170) + Math.random() * 200); };
         for (var k = 0; k < 5; k++) spawnSpark();   // 展開瞬間先灑一小把
+        for (var q = 0; q < 9; q++) setTimeout(spawnPour, 90 + q * 55);   // 由接縫往下傾瀉
         sparkTimer = setTimeout(tick, 150);
       };
       var stopSparks = function () { clearTimeout(sparkTimer); sparkTimer = null; };
