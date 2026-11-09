@@ -757,65 +757,149 @@ html[data-nav-mode="top"] .noble-outer-frame {
 }
 
 
+/* ══════════════════════════════════════════════════════════════════
+   遠航探索下拉框（僅頂部模式）— 重新設計
+   · 以「遠航探索」為中心，下方 10px 浮出，頂端有小箭頭缺口指向它
+   · 深色玻璃質感＋細金邊，每個項目一行：圖示＋中文名稱（左）／英文小字（右）
+   · 取消原本粗大的光暈條紋，hover＝淡金底色，目前所在頁＝左側金條＋淡金漸層
+   · 超出螢幕邊緣時由 app.js 寫入 --sub-shift 自動平移（箭頭會補償，仍指著遠航探索）
+   ══════════════════════════════════════════════════════════════════ */
+html[data-nav-mode="top"] .nav-group .nav-submenu {
+  top: calc(100% + 10px);
+  left: 50%;
+  width: max-content;
+  min-width: 248px;
+  padding: 8px;
+  overflow: visible;
+  background: linear-gradient(180deg, rgba(26,21,14,.97), rgba(11,10,15,.97));
+  border: 1px solid rgba(197,160,89,.5);
+  border-radius: 12px;
+  box-shadow: 0 18px 38px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,225,160,.1);
+  transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-6px) scale(.96);
+}
+html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu {
+  transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(0) scale(1);
+}
+
+/* 頂端小箭頭缺口（用旋轉的小方塊畫，邊框與面板一致） */
+html[data-nav-mode="top"] .nav-group .nav-submenu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: calc(50% - var(--sub-shift, 0px));
+  width: 10px; height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgb(26,21,14);
+  border-top: 1px solid rgba(197,160,89,.5);
+  border-left: 1px solid rgba(197,160,89,.5);
+}
+/* 隱形橋接：滑鼠從「遠航探索」移向下拉框途中不會因為那 10px 空隙而中斷 hover */
+html[data-nav-mode="top"] .nav-group .nav-submenu::after {
+  content: ""; position: absolute; left: 0; right: 0; top: -14px; height: 14px;
+}
+
+html[data-nav-mode="top"] .nav-subitem {
+  position: relative;
+  width: 100%;
+  height: 46px;
+  margin: 0;
+  border-radius: 8px;
+  transition: background .2s ease;
+}
+html[data-nav-mode="top"] .nav-subitem + .nav-subitem { margin-top: 4px; }
+
+html[data-nav-mode="top"] .nav-subitem > .nav-glow,
+html[data-nav-mode="top"] .nav-subitem > .nav-ribbon { display: none !important; }
+
+html[data-nav-mode="top"] .nav-subitem .nav-content {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  width: 100%;
+  height: 100%;
+  padding: 0 14px;
+}
+html[data-nav-mode="top"] .nav-subitem .nav-content .cn {
+  font-size: .98rem;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+html[data-nav-mode="top"] .nav-subitem .nav-content .en {
+  display: block !important;   /* 頂部模式一般會藏英文，但下拉框要顯示 */
+  margin: 0;
+  font-size: .62rem;
+  letter-spacing: 2.5px;
+  opacity: .8;
+  white-space: nowrap;
+}
+
+html[data-nav-mode="top"] .nav-subitem:hover { background: rgba(197,160,89,.14); }
+html[data-nav-mode="top"] .nav-subitem:hover .en { opacity: 1; }
+html[data-nav-mode="top"] .nav-subitem:active { background: rgba(197,160,89,.24); }
+html[data-nav-mode="top"] .nav-subitem.active {
+  background: linear-gradient(90deg, rgba(197,160,89,.26), rgba(197,160,89,.06));
+  box-shadow: inset 3px 0 0 var(--gold-bright);
+}
+html[data-nav-mode="top"] .nav-subitem.active .en { opacity: .9; }
+
 
 /* ══════════════════════════════════════════════════════════════════
    手機（窄螢幕）頂部選單：漢堡收合
-   平常只留一條 46px 細列（切換鍵＋目前頁面＋漢堡），點開才展開全部項目，
+   平常只留一條 46px 細列（目前頁面＋☰），點開才展開全部項目，
    展開時浮在內容上方（不推動內容），選完頁面／點外面／按 Esc 會自動收合。
-   斷點 900 必須與 nav.js 的 BREAKPOINT 一致。
+   手機固定使用頂部選單，所以模式切換鈕在手機上隱藏。
+   斷點 900 必須與 nav.js 的 BREAKPOINT、index.html 的內聯 script 一致。
+   以 .nav-has-burger 為前提：萬一 index.html 沒一起更新（沒有漢堡按鈕），
+   就不會把項目藏起來，退回原本的版面，不會變成一條空白列。
    ══════════════════════════════════════════════════════════════════ */
 .nav-burger { display: none; }
 
 @media (max-width: 900px) {
   html[data-nav-mode="top"] { --nav-top-h: 46px; }
 
-  html[data-nav-mode="top"] .royal-nav {
-    /* 6 欄：切換鍵佔 1 欄、漢堡佔 5 欄；展開後每個項目佔 2 欄＝每排 3 個 */
+  html[data-nav-mode="top"] .royal-nav.nav-has-burger {
+    /* 6 欄：漢堡列橫跨整排；展開後每個項目佔 2 欄＝每排 3 個 */
     grid-template-columns: repeat(6, 1fr) !important;
     grid-template-rows: var(--nav-top-h) !important;
     grid-auto-rows: var(--nav-top-h);
     gap: 0 3px;
   }
-
-  html[data-nav-mode="top"] .royal-nav.nav-menu-open {
+  html[data-nav-mode="top"] .royal-nav.nav-has-burger.nav-menu-open {
     box-shadow: 0 14px 28px rgba(0,0,0,.55);
     border-bottom-color: rgba(197,160,89,.5) !important;
   }
 
-  html[data-nav-mode="top"] .nav-mode-toggle { grid-column: 1; grid-row: 1; }
+  html[data-nav-mode="top"] .royal-nav.nav-has-burger > .nav-mode-toggle { display: none !important; }
 
-  html[data-nav-mode="top"] .nav-burger {
-    grid-column: 2 / -1;
+  html[data-nav-mode="top"] .royal-nav.nav-has-burger > .nav-burger {
+    grid-column: 1 / -1;
     grid-row: 1;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     height: 100%;
     min-width: 0;
-    padding: 0 16px 0 12px;
+    padding: 0 18px;
     background: none;
     border: none;
     color: var(--gold-bright);
     font-family: "Noto Serif TC", serif;
     font-weight: 900;
-    font-size: .9rem;
+    font-size: .95rem;
     letter-spacing: 2px;
     text-align: left;
     cursor: pointer;
     -webkit-tap-highlight-color: rgba(197,160,89,.15);
   }
-  html[data-nav-mode="top"] .nav-burger .nb-icon  { font-size: 20px; line-height: 1; flex-shrink: 0; }
-  html[data-nav-mode="top"] .nav-burger .nb-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  html[data-nav-mode="top"] .nav-burger .nb-caret { color: var(--gold); flex-shrink: 0; transition: transform .3s cubic-bezier(.19,1,.22,1); }
-  html[data-nav-mode="top"] .royal-nav.nav-menu-open .nav-burger .nb-caret { transform: rotate(180deg); }
-  html[data-nav-mode="top"] .nav-burger:focus-visible { outline: 1px solid var(--gold); outline-offset: -3px; }
+  .nav-burger .nb-icon  { font-size: 22px; line-height: 1; flex-shrink: 0; }
+  .nav-burger .nb-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-burger .nb-caret { color: var(--gold); flex-shrink: 0; transition: transform .3s cubic-bezier(.19,1,.22,1); }
+  .royal-nav.nav-menu-open .nav-burger .nb-caret { transform: rotate(180deg); }
+  .nav-burger:focus-visible { outline: 1px solid var(--gold); outline-offset: -3px; }
 
-  /* 收合時：只留切換鍵與漢堡列 */
-  html[data-nav-mode="top"] .royal-nav:not(.nav-menu-open) > .nav-item { display: none !important; }
-
-  /* 展開時：每個項目佔 2 欄（每排 3 個） */
-  html[data-nav-mode="top"] .royal-nav > .nav-item { grid-column: span 2; }
-
-  /* 子選單（潛水艇／飛空艇）在手機上至少要夠寬，指尖好點 */
-  html[data-nav-mode="top"] .nav-group .nav-submenu { min-width: 200px; }
+  /* 收合時：只留漢堡列；展開時：每個項目佔 2 欄（每排 3 個） */
+  html[data-nav-mode="top"] .royal-nav.nav-has-burger:not(.nav-menu-open) > .nav-item { display: none !important; }
+  html[data-nav-mode="top"] .royal-nav.nav-has-burger > .nav-item { grid-column: span 2; }
 }
