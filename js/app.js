@@ -133,7 +133,22 @@ initStars(){
         var open = typeof force === 'boolean' ? force : !expGroup.classList.contains('nav-open');
         expGroup.classList.toggle('nav-open', open);
         expGroup.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) clampSubmenu();
       };
+      /* 頂部模式的下拉框以「遠航探索」為中心對齊；若會超出螢幕左右邊緣，
+         就算出需要平移的像素寫進 --sub-shift（箭頭缺口會反向補償，仍然指著「遠航探索」） */
+      var clampSubmenu = function () {
+        var sm = expGroup.querySelector('.nav-submenu');
+        if (!sm || document.documentElement.getAttribute('data-nav-mode') !== 'top') {
+          expGroup.style.removeProperty('--sub-shift'); return;
+        }
+        var g = expGroup.getBoundingClientRect(), w = sm.offsetWidth, margin = 8;
+        var left = g.left + g.width / 2 - w / 2, shift = 0;
+        if (left < margin) shift = margin - left;
+        else if (left + w > window.innerWidth - margin) shift = window.innerWidth - margin - (left + w);
+        expGroup.style.setProperty('--sub-shift', Math.round(shift) + 'px');
+      };
+      window.addEventListener('resize', function () { if (expGroup.classList.contains('nav-open')) clampSubmenu(); }, { passive: true });
       expGroup.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
       var isTop = function () { return document.documentElement.getAttribute('data-nav-mode') === 'top'; };

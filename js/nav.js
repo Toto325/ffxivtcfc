@@ -11,33 +11,12 @@
  *      不會被多出來的第二行蓋住。
  *   3. 視窗寬度自動切換（本次新增）
  *
- * ── 自動切換規則 ──────────────────────────────────────────────────────
- * 區分兩個概念：
- *   userPref         僅用於「同一次瀏覽期間、視窗被拉寬時要復原成什麼」的
- *                     依據（純記憶體變數，不等於 localStorage 存的值）。
- *   autoOverrideActive  目前是否處於「因視窗太窄而被自動覆寫」的狀態。
- *
- * 持久化規則（本次修正重點）：
- *   畫面顯示模式只要改變（不管是手動點擊，還是視窗寬度跨越門檻的自動切換），
- *   一律立刻寫回 localStorage，讓「重新整理／F5」永遠维持重新整理前畫面
- *   當下顯示的模式，不會因為當時的視窗寬度而被悄悄改掉。
- *   → 因此 index.html <head> 那段內聯 script 只要單純讀 localStorage
- *     直接套用即可，不需要另外判斷視窗寬度做覆寫。
- *
- * 規則：
- *   - 視窗從寬變窄（跨過門檻的那一刻，同一次瀏覽期間拉動視窗才會觸發）：
- *       若 userPref === 'left' → 自動切到 top，並標記 autoOverrideActive = true
- *       若 userPref === 'top'  → 本來就是 top，不做任何事
- *   - 視窗從窄變寬（跨過門檻的那一刻）：
- *       若 autoOverrideActive  → 復原成 userPref（也就是 left），
- *                                並清除 autoOverrideActive
- *       否則（userPref 本來就是 top）→ 不做任何事，維持 top
- *   - 只在「跨越門檻」的那一刻判斷，視窗在同一寬度區間內持續拉動
- *     不會重複觸發。這一段是「同一次瀏覽期間拉動視窗」的即時體驗優化，
- *     跟上面「F5 維持原樣」的持久化規則是兩件事，不衝突。
- *   - 手動切換按鈕：畫面一律立即切換並寫入 localStorage（見上）；
- *       只有在「不是自動覆寫中」時，才會同時更新 userPref，
- *       讓視窗變寬時的「復原」判斷依然依照進入自動覆寫前的原始模式。
+ * ── 選單模式規則（簡化版）────────────────────────────────────────────
+ *   - 窄螢幕（<= 900px，手機）：一律使用頂部選單（含手機漢堡收合），不提供切換——
+ *     左側選單會佔掉大半個畫面，在手機上沒有意義，切換按鈕也一併隱藏。
+ *   - 寬螢幕：使用者可用切換按鈕在左側／頂部之間切換，選擇存在 localStorage。
+ *   - 視窗寬度跨越門檻時：變窄 → 暫時顯示頂部；變寬 → 回到使用者原本選的模式。
+ *     自動切換「不會」改寫 localStorage，所以偏好不會被窄螢幕弄丟。
  */
 (function () {
   // embed 彈窗實例：沒有選單，也絕不能改寫跟外層共用的 localStorage 選單偏好
@@ -57,7 +36,6 @@
   })();
 
   var lastNarrow = window.innerWidth <= BREAKPOINT;
-  var autoOverrideActive = (userPref === 'left' && lastNarrow);
 
   function currentMode() {
     return root.getAttribute('data-nav-mode') === 'top' ? 'top' : 'left';
@@ -66,7 +44,7 @@
   // 手機窄螢幕的頂部模式：選單平常只剩一條細列（漢堡按鈕），展開時是「浮在內容上方」，
   // 所以內容區的 top 固定對齊那條細列，不能再用展開後的高度來量。
   function isMobileTop() {
-    return currentMode() === 'top' && window.innerWidth <= BREAKPOINT;
+    return !!document.getElementById('nav-burger') && currentMode() === 'top' && window.innerWidth <= BREAKPOINT;
   }
 
   function syncTopNavHeight() {
@@ -165,9 +143,9 @@
     });
   }
 
-  function applyMode(mode) {
+  function applyMode(mode, persist) {
     root.setAttribute('data-nav-mode', mode);
-    try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {}
+    if (persist) { try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {} }
     // 換模式：漢堡選單先收起來；遠航探索子選單——左側模式在該分頁時保持展開，頂部模式一律收起
     setMenuOpen(false);
     var g = document.getElementById('nav-group-exploration');
@@ -178,44 +156,20 @@
     requestAnimationFrame(syncTopNavHeight);
   }
 
-  // 更新「同一次瀏覽期間、視窗被拉寬時要復原成什麼」的依據，
-  // 純記憶體變數，不直接碰 localStorage（畫面本身的持久化交給 applyMode）
-  function persistPref(mode) {
-    userPref = mode;
-  }
-
-  // 視窗寬度跨越門檻時的自動切換判斷
+  // 視窗寬度跨越門檻時的自動切換：窄 → 頂部；寬 → 回到使用者的偏好（皆不寫入 localStorage）
   function checkAutoSwitch() {
     var narrowNow = window.innerWidth <= BREAKPOINT;
     if (narrowNow === lastNarrow) return; // 沒有跨越門檻，不處理
     lastNarrow = narrowNow;
-
-    if (narrowNow) {
-      // 寬 → 窄
-      if (userPref === 'left') {
-        autoOverrideActive = true;
-        applyMode('top');
-      }
-      // userPref 本來就是 'top' 的話什麼都不用做
-    } else {
-      // 窄 → 寬
-      if (autoOverrideActive) {
-        autoOverrideActive = false;
-        applyMode(userPref); // 復原成原本的偏好（也就是 'left'）
-      }
-      // 若不是自動覆寫中（代表 userPref 本來就是 'top'），維持原樣
-    }
+    applyMode(narrowNow ? 'top' : userPref, false);
   }
 
   if (btn) {
     btn.addEventListener('click', function () {
+      if (window.innerWidth <= BREAKPOINT) return; // 手機固定頂部選單（按鈕本來也已隱藏）
       var next = currentMode() === 'top' ? 'left' : 'top';
-      applyMode(next); // 一律切換畫面並寫回 localStorage
-      if (!autoOverrideActive) {
-        // 不在自動覆寫狀態下的手動切換，才會同時更新 userPref，
-        // 讓「視窗變寬時要復原成什麼」的判斷依然依照進入覆寫前的原始模式
-        persistPref(next);
-      }
+      userPref = next;
+      applyMode(next, true); // 手動切換才記住偏好
     });
   }
 
