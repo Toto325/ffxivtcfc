@@ -1,0 +1,38 @@
+/* touch-fixes.css — 手機／觸控裝置操作體驗修正（必須放在所有 CSS 最後載入）
+ *
+ * 1) iOS Safari 在輸入框字體 < 16px 時，點進去會自動放大整個頁面，離開後還要手動縮回來。
+ *    只對「觸控裝置（pointer: coarse）」把輸入框字體提到 16px，桌面版外觀完全不變。
+ * 2) 手機上的點擊目標至少約 36～40px 高（Apple/Google 建議 44/48px），
+ *    原本 24～28px 的 −／＋ 按鈕、職業篩選鈕很容易點錯。
+ * 3) 手機瀏覽器網址列會伸縮，100vh 比實際可視高度大，造成多餘的捲動；
+ *    支援的瀏覽器改用 100dvh。
+ */
+
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea,
+  .sub-inp, .sub-combo-inp, .sub-stepper-inp,
+  .craft-search, .craft-filter-lvl-input {
+    font-size: 16px !important;
+  }
+
+  /* 潛水艇／飛空艇 數量加減鈕 */
+  .sub-step-btn { min-width: 30px; min-height: 40px; } /* 高度加大即可明顯改善點擊；寬度只小幅加，避免同一列被擠到換行 */
+
+  /* 生產頁：職業篩選 */
+  .craft-job-filter-btn { min-height: 36px; }
+
+  /* 巨集頁、時尚品鑑：小按鈕 */
+  .mt-clearall, .fashion-retry-btn { min-height: 40px; padding-top: 8px; padding-bottom: 8px; }
+
+  /* 公告讀取失敗時的「請點此前往官網」連結 */
+  .news-error a { display: inline-block; padding: 10px 4px; }
+}
+
+@supports (height: 100dvh) {
+  body { height: 100dvh; }
+  html[data-nav-mode="top"] .scene {
+    min-height: calc(100dvh - var(--nav-top-h-actual)) !important;
+  }
+}
