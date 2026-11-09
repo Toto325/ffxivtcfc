@@ -758,91 +758,204 @@ html[data-nav-mode="top"] .noble-outer-frame {
 
 
 /* ══════════════════════════════════════════════════════════════════
-   遠航探索下拉框（僅頂部模式）— 重新設計
-   · 以「遠航探索」為中心，下方 10px 浮出，頂端有小箭頭缺口指向它
-   · 深色玻璃質感＋細金邊，每個項目一行：圖示＋中文名稱（左）／英文小字（右）
-   · 取消原本粗大的光暈條紋，hover＝淡金底色，目前所在頁＝左側金條＋淡金漸層
-   · 超出螢幕邊緣時由 app.js 寫入 --sub-shift 自動平移（箭頭會補償，仍指著遠航探索）
+   遠航探索（僅頂部模式）— 對齊修正＋下拉框美術設計
+   ──────────────────────────────────────────────────────────────────
+   【對齊修正】原本 .nav-group > .nav-content 有 padding-right:26px（替左側模式的箭頭留位置），
+   頂部模式也吃到，文字被擠偏 13px；箭頭的位置也是照左側模式 62px 高度寫死的。
+   → 頂部模式取消那個右側留白，箭頭改成「坐在底部金線正中央的小寶石」，文字回到正中央。
+   【下拉框】兩張並排的卡片（比直式清單省高度）：
+   · 雙層金框（外框＋內縮細框，呼應全站 noble frame），頂端小箭頭缺口指向「遠航探索」
+   · 每張卡片：圓形徽章（金色光環）＋中文名／英文小字
+   · 展開時兩張卡片依序浮現；hover 時徽章光環旋轉、卡片上浮、一道金光掃過
+   · 目前所在頁面：金邊＋呼吸光暈；尊重 prefers-reduced-motion
+   · 超出螢幕邊緣時由 app.js 寫入 --sub-shift 自動平移（缺口會補償，仍指著遠航探索）
    ══════════════════════════════════════════════════════════════════ */
+html[data-nav-mode="top"] .nav-group > .nav-content { padding-right: 0; }
+
+html[data-nav-mode="top"] .nav-group-arrow {
+  left: 50%; right: auto; top: auto; bottom: 2px;
+  transform: translateX(-50%);
+  font-size: .6rem; line-height: 1;
+  color: var(--gold-bright);
+  text-shadow: 0 0 6px rgba(197,160,89,.9);
+}
+html[data-nav-mode="top"] .nav-group.nav-open .nav-group-arrow { transform: translateX(-50%) rotate(180deg); }
+html[data-nav-mode="top"] .nav-group.nav-open > .nav-glow { opacity: 1; }
+
 html[data-nav-mode="top"] .nav-group .nav-submenu {
-  top: calc(100% + 10px);
+  display: flex;
+  gap: 8px;
+  top: calc(100% + 12px);
   left: 50%;
   width: max-content;
-  min-width: 248px;
-  padding: 8px;
+  min-width: 0;
+  padding: 10px;
   overflow: visible;
-  background: linear-gradient(180deg, rgba(26,21,14,.97), rgba(11,10,15,.97));
-  border: 1px solid rgba(197,160,89,.5);
-  border-radius: 12px;
-  box-shadow: 0 18px 38px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,225,160,.1);
-  transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-6px) scale(.96);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(197,160,89,.20), transparent 62%),
+    linear-gradient(180deg, rgba(27,22,14,.97), rgba(10,9,14,.98));
+  border: 1px solid rgba(197,160,89,.6);
+  border-radius: 14px;
+  outline: 1px solid rgba(197,160,89,.2);   /* 內縮細框：雙層金框 */
+  outline-offset: -5px;
+  box-shadow: 0 22px 44px rgba(0,0,0,.7), 0 0 28px rgba(197,160,89,.12), inset 0 1px 0 rgba(255,228,170,.14);
+  transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-8px) scale(.94);
 }
 html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu {
   transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(0) scale(1);
 }
 
-/* 頂端小箭頭缺口（用旋轉的小方塊畫，邊框與面板一致） */
+/* 頂端小箭頭缺口 */
 html[data-nav-mode="top"] .nav-group .nav-submenu::before {
   content: "";
   position: absolute;
-  top: -6px;
+  top: -7px;
   left: calc(50% - var(--sub-shift, 0px));
-  width: 10px; height: 10px;
+  width: 12px; height: 12px;
   transform: translateX(-50%) rotate(45deg);
-  background: rgb(26,21,14);
-  border-top: 1px solid rgba(197,160,89,.5);
-  border-left: 1px solid rgba(197,160,89,.5);
+  background: rgb(52,41,22);
+  border-top: 1px solid rgba(197,160,89,.6);
+  border-left: 1px solid rgba(197,160,89,.6);
+  box-shadow: -2px -2px 8px rgba(197,160,89,.25);
 }
-/* 隱形橋接：滑鼠從「遠航探索」移向下拉框途中不會因為那 10px 空隙而中斷 hover */
+/* 隱形橋接：滑鼠從「遠航探索」移向下拉框途中不會因空隙而中斷 hover */
 html[data-nav-mode="top"] .nav-group .nav-submenu::after {
-  content: ""; position: absolute; left: 0; right: 0; top: -14px; height: 14px;
+  content: ""; position: absolute; left: 0; right: 0; top: -16px; height: 16px;
 }
 
+/* ── 卡片 ── */
 html[data-nav-mode="top"] .nav-subitem {
   position: relative;
-  width: 100%;
-  height: 46px;
+  flex: 1 1 0;
+  min-width: 142px;
+  width: auto;
+  height: auto;
   margin: 0;
-  border-radius: 8px;
-  transition: background .2s ease;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(197,160,89,.26);
+  background: linear-gradient(160deg, rgba(197,160,89,.12), rgba(197,160,89,.02) 70%);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .35s ease, transform .45s cubic-bezier(.19,1,.22,1),
+              border-color .25s ease, box-shadow .3s ease, background .3s ease;
 }
-html[data-nav-mode="top"] .nav-subitem + .nav-subitem { margin-top: 4px; }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-subitem { opacity: 1; transform: translateY(0); }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-subitem:nth-child(1) { transition-delay: .07s, .07s, 0s, 0s, 0s; }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-subitem:nth-child(2) { transition-delay: .15s, .15s, 0s, 0s, 0s; }
 
 html[data-nav-mode="top"] .nav-subitem > .nav-glow,
 html[data-nav-mode="top"] .nav-subitem > .nav-ribbon { display: none !important; }
 
+/* 金光掃過 */
+html[data-nav-mode="top"] .nav-subitem::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 38%, rgba(255,228,170,.30) 50%, transparent 62%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+/* 版面：徽章｜中文名／英文 */
 html[data-nav-mode="top"] .nav-subitem .nav-content {
-  display: flex !important;
-  flex-direction: row !important;
+  display: grid !important;
+  grid-template-columns: 38px 1fr;
+  grid-template-rows: auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 22px;
-  width: 100%;
-  height: 100%;
-  padding: 0 14px;
+  column-gap: 11px;
+  row-gap: 1px;
+  width: 100%; height: auto;
+  padding: 9px 14px 9px 10px;
 }
 html[data-nav-mode="top"] .nav-subitem .nav-content .cn {
-  font-size: .98rem;
+  display: contents;               /* 讓徽章與文字直接參與 .nav-content 的格線 */
+  font-size: 1rem;
   letter-spacing: 2px;
   white-space: nowrap;
 }
 html[data-nav-mode="top"] .nav-subitem .nav-content .en {
-  display: block !important;   /* 頂部模式一般會藏英文，但下拉框要顯示 */
+  display: block !important;
+  grid-column: 2; grid-row: 2;
   margin: 0;
-  font-size: .62rem;
+  font-size: .58rem;
   letter-spacing: 2.5px;
-  opacity: .8;
+  opacity: .75;
   white-space: nowrap;
 }
 
-html[data-nav-mode="top"] .nav-subitem:hover { background: rgba(197,160,89,.14); }
-html[data-nav-mode="top"] .nav-subitem:hover .en { opacity: 1; }
-html[data-nav-mode="top"] .nav-subitem:active { background: rgba(197,160,89,.24); }
-html[data-nav-mode="top"] .nav-subitem.active {
-  background: linear-gradient(90deg, rgba(197,160,89,.26), rgba(197,160,89,.06));
-  box-shadow: inset 3px 0 0 var(--gold-bright);
+/* 圓形徽章＋旋轉光環 */
+html[data-nav-mode="top"] .nav-subitem .nav-emoji {
+  grid-column: 1; grid-row: 1 / 3;
+  position: relative;
+  display: grid; place-items: center;
+  width: 38px; height: 38px;
+  font-size: 1.05rem;
+  border-radius: 50%;
+  border: 1px solid rgba(197,160,89,.55);
+  background: radial-gradient(circle at 32% 28%, rgba(255,228,170,.28), rgba(197,160,89,.06) 62%);
+  box-shadow: inset 0 0 8px rgba(197,160,89,.18);
+  transition: box-shadow .3s ease, border-color .3s ease;
 }
-html[data-nav-mode="top"] .nav-subitem.active .en { opacity: .9; }
+html[data-nav-mode="top"] .nav-subitem .nav-emoji::before {
+  content: "";
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(255,228,170,.95) 80%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  opacity: 0;
+  transition: opacity .3s ease;
+}
+
+/* hover / 鍵盤聚焦 */
+html[data-nav-mode="top"] .nav-subitem:hover,
+html[data-nav-mode="top"] .nav-subitem:focus-visible {
+  border-color: rgba(255,228,170,.8);
+  background: linear-gradient(160deg, rgba(197,160,89,.26), rgba(197,160,89,.06) 75%);
+  box-shadow: 0 8px 18px rgba(0,0,0,.45), 0 0 16px rgba(197,160,89,.28);
+  transform: translateY(-2px);
+  outline: none;
+}
+html[data-nav-mode="top"] .nav-subitem:hover::before,
+html[data-nav-mode="top"] .nav-subitem:focus-visible::before { transform: translateX(130%); transition: transform .8s ease; }
+html[data-nav-mode="top"] .nav-subitem:hover .nav-emoji,
+html[data-nav-mode="top"] .nav-subitem:focus-visible .nav-emoji { border-color: rgba(255,228,170,.9); box-shadow: 0 0 12px rgba(197,160,89,.55), inset 0 0 8px rgba(197,160,89,.3); }
+html[data-nav-mode="top"] .nav-subitem:hover .nav-emoji::before,
+html[data-nav-mode="top"] .nav-subitem:focus-visible .nav-emoji::before,
+html[data-nav-mode="top"] .nav-subitem.active .nav-emoji::before { opacity: 1; animation: nav-ring-spin 2.4s linear infinite; }
+html[data-nav-mode="top"] .nav-subitem:hover .en { opacity: 1; }
+html[data-nav-mode="top"] .nav-subitem:active { transform: translateY(0) scale(.98); }
+
+/* 目前所在頁面 */
+html[data-nav-mode="top"] .nav-subitem.active {
+  border-color: var(--gold-bright);
+  background: linear-gradient(160deg, rgba(197,160,89,.34), rgba(197,160,89,.08) 75%);
+  animation: nav-sub-breathe 2.8s ease-in-out infinite;
+}
+html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
+
+@keyframes nav-ring-spin { to { transform: rotate(360deg); } }
+@keyframes nav-sub-breathe {
+  0%, 100% { box-shadow: 0 0 8px rgba(197,160,89,.25); }
+  50%      { box-shadow: 0 0 20px rgba(197,160,89,.55); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-nav-mode="top"] .nav-group .nav-submenu,
+  html[data-nav-mode="top"] .nav-subitem,
+  html[data-nav-mode="top"] .nav-subitem::before { transition: none; }
+  html[data-nav-mode="top"] .nav-subitem.active,
+  html[data-nav-mode="top"] .nav-subitem .nav-emoji::before { animation: none !important; }
+}
+
+/* 很窄的手機：卡片縮小一點，確保兩張並排放得下 */
+@media (max-width: 380px) {
+  html[data-nav-mode="top"] .nav-subitem { min-width: 128px; }
+  html[data-nav-mode="top"] .nav-subitem .nav-content { padding: 8px 10px 8px 8px; column-gap: 9px; grid-template-columns: 34px 1fr; }
+  html[data-nav-mode="top"] .nav-subitem .nav-emoji { width: 34px; height: 34px; }
+  html[data-nav-mode="top"] .nav-subitem .nav-content .cn { letter-spacing: 1px; }
+}
 
 
 /* ══════════════════════════════════════════════════════════════════
