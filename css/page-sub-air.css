@@ -1112,7 +1112,7 @@ html[data-nav-mode="top"] .news-outer,
 /* ===== 表格式／卡片式 分段切換（放在結果區正上方，不跟頂部工具列擠在一起）===== */
 .sub-viewmode-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
 .sub-viewmode-row .sub-lbl { margin-bottom: 0; }
-.sub-seg { display: inline-flex; border: 1px solid var(--tb); border-radius: 14px; overflow: hidden; }
+.sub-seg { display: inline-flex; border: 1px solid var(--tb); border-radius:6px; overflow: hidden; }
 .sub-seg-btn {
   background: transparent; border: none; color: var(--dim); font-family: inherit;
   font-size: .78rem; padding: 4px 14px; cursor: pointer; transition: background .18s, color .18s;
@@ -1126,7 +1126,7 @@ html[data-nav-mode="top"] .news-outer,
 .sub-card-sort-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 0; padding-bottom: 30px; }
 .sub-card-sort-pill {
   background: transparent; border: 1px solid var(--tb); color: var(--dim);
-  font-family: inherit; font-size: .78rem; padding: 3px 12px; border-radius: 12px;
+  font-family: inherit; font-size: .78rem; padding: 3px 12px; border-radius:6px;
   cursor: pointer; transition: background .18s, color .18s, border-color .18s;
 }
 .sub-card-sort-pill:hover { color: var(--gold); }
@@ -1160,7 +1160,7 @@ html[data-nav-mode="top"] .news-outer,
 .sub-card-tag {
   margin-top: 10px; margin-bottom: 2px; display: inline-block; font-size: .68rem;
   background: rgba(197,160,89,.14); color: var(--gold-bright);
-  padding: 3px 9px; border-radius: 10px; cursor: pointer; width: fit-content;
+  padding: 3px 9px; border-radius:6px; cursor: pointer; width: fit-content;
 }
 
 /* 分隔線改用網站本身慣用的絲線漸層（兩端淡出、中間金色），不用虛線或鋸齒。 */

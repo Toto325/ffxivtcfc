@@ -41,7 +41,7 @@
 .wl-fab-gem.w { left: -2px; top: calc(50% - 3px); }
 .wl-fab-gem.e { right: -2px; top: calc(50% - 3px); }
 .wl-fab-plate {
-  position: relative; margin-top: -8px; padding: 1px 8px 2px 10px; border-radius: 9px; white-space: nowrap;
+  position: relative; margin-top: -8px; padding: 1px 8px 2px 10px; border-radius:4px; white-space: nowrap;
   font: 600 10.5px/1.35 "Noto Serif TC", serif; letter-spacing: 2px; color: var(--gold-bright);
   background: linear-gradient(180deg, #2a1d0e, #0d0905); border: 1px solid rgba(197,160,89,.75);
   box-shadow: 0 3px 8px rgba(0,0,0,.6), inset 0 1px 0 rgba(252,246,186,.18);
@@ -105,7 +105,7 @@
 
 /* ── 工具列 ── */
 .wl-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 14px 4px; flex-wrap: wrap; flex-shrink: 0; }
-.wl-seg { display: inline-flex; border: 1px solid var(--tb); border-radius: 20px; overflow: hidden; }
+.wl-seg { display: inline-flex; border: 1px solid var(--tb); border-radius:6px; overflow: hidden; }
 .wl-seg button {
   padding: 5px 12px; font-size: 12px; border: none; background: transparent; color: var(--dim); cursor: pointer;
   font-family: "Noto Serif TC", serif; white-space: nowrap;
@@ -147,7 +147,7 @@
 .wl-tagbar { display: flex; gap: 6px; padding: 0 14px 8px; flex-wrap: wrap; flex-shrink: 0; }
 .wl-chip {
   padding: 3px 11px; font-size: 12px; border: 1px solid var(--tb); background: transparent; color: var(--dim);
-  border-radius: 14px; cursor: pointer; font-family: "Noto Serif TC", serif;
+  border-radius:6px; cursor: pointer; font-family: "Noto Serif TC", serif;
 }
 .wl-chip.on { background: var(--gold-deep); color: var(--gold-bright); border-color: var(--gold-deep); }
 .wl-chip:hover:not(.on) { color: var(--main); border-color: var(--gold); }
@@ -202,7 +202,7 @@
 .wl-name-link:hover { color: var(--gold-bright); text-decoration: underline; }
 .wl-sub { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
 .wl-pill {
-  display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; font-size: 10.5px; line-height: 16px; border-radius: 8px;
+  display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; font-size: 10.5px; line-height: 16px; border-radius:4px;
   border: 1px solid var(--tb); color: var(--dim); background: transparent; white-space: nowrap;
 }
 .wl-pill.ok { color: #4ade80; border-color: rgba(74,222,128,.45); background: rgba(74,222,128,.08); }
@@ -257,7 +257,7 @@
 .wl-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wl-tile-v small { font-size: 10.5px; font-weight: 400; color: var(--dim); margin-left: 3px; }
 .wl-worlds { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 8px; }
-.wl-wpill { font-size: 11px; padding: 1px 8px; border: 1px solid var(--tb); border-radius: 10px; color: var(--dim); }
+.wl-wpill { font-size: 11px; padding: 1px 8px; border: 1px solid var(--tb); border-radius:4px; color: var(--dim); }
 .wl-wpill b { color: var(--main); font-weight: 600; }
 .wl-wpill.warn { border-color: rgba(251,146,60,.6); }
 .wl-wpill.bad { border-color: rgba(248,113,113,.6); }
@@ -312,7 +312,7 @@
 .wl-toast {
   position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); z-index: 10055; opacity: 0; pointer-events: none;
   display: flex; align-items: center; gap: 12px; padding: 9px 16px; font-size: 13px; color: var(--main);
-  background: #15110b; border: 1px solid var(--gold); border-radius: 22px; box-shadow: 0 6px 24px rgba(0,0,0,.6);
+  background: #15110b; border: 1px solid var(--gold); border-radius:10px; box-shadow: 0 6px 24px rgba(0,0,0,.6);
   transition: opacity .25s, transform .25s; max-width: calc(100vw - 32px);
 }
 .wl-toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }

@@ -3,8 +3,9 @@
  * craft-mat-worlds-popover / craft-settings-field / craft-loading 等），這裡只補市場頁
  * 自己獨有的排版，避免兩份CSS互相打架、風格不一致。 */
 
-.market-header{margin-bottom:14px}
-.market-header .page-note{margin-top:4px}
+.market-header{margin-bottom:14px;text-align:center}
+.market-header .news-div{margin:18px 0 10px}
+.market-header .page-note{margin:0}
 
 .market-searchbar{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px}
 /* 搜尋框跟右邊的設定按鈕固定同高（以前設定按鈕比搜尋框矮一截、貼在最上面，兩個對不齊） */
@@ -58,7 +59,7 @@
 .market-recent-clear{flex:none;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--dim);cursor:pointer;font-size:12px;opacity:.55}
 .market-recent-clear:hover{opacity:1;background:rgba(255,255,255,.08)}
 .market-recent-chip{flex:none;font-size:12px;padding:3px 11px 3px 6px;border:1px solid var(--tb);background:rgba(255,255,255,.02);
-  color:var(--main);border-radius:999px;cursor:pointer;white-space:nowrap;font-family:inherit}
+  color:var(--main);border-radius:6px;cursor:pointer;white-space:nowrap;font-family:inherit}
 .market-recent-chip:hover{border-color:var(--gold);background:rgba(197,160,89,.1)}
 /* 目前正在看的物品：金色框，一眼知道「我現在在哪一個」 */
 .market-recent-chip.is-current{border-color:var(--gold);background:rgba(197,160,89,.16);color:var(--gold-bright);font-weight:600}
@@ -284,7 +285,7 @@
 .mav-listing{margin-top:5px;padding-top:6px;border-top:1px dashed var(--tb)}
 .mav-listing .mav-bar{background:none}
 /* 舊的膠囊樣式：材料明細面板（市場頁的子面板）還在用，保留 */
-.market-stat-badge{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--tb);
+.market-stat-badge{font-size:12px;padding:3px 9px;border-radius:6px;border:1px solid var(--tb);
   background:rgba(255,255,255,.03);color:var(--main);white-space:nowrap}
 .market-stat-badge-strong{border-color:rgba(74,222,128,.5);color:#4ade80}
 .market-stat-badge-muted{color:var(--dim)}
@@ -370,8 +371,8 @@
 .market-token-head:hover{color:var(--gold)}
 .market-token-name{flex:0 1 auto;min-width:0;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* 「可換N種」緊貼在名稱旁邊（以前被推到整列最右邊，跟名稱隔很遠，視線要拉很長才對得上），做成低調的小標籤 */
-.market-token-count{font-size:11px;white-space:nowrap;color:var(--dim);padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.06)}
-.market-token-gtag{font-size:10px;white-space:nowrap;color:#d6bd86;padding:0 8px;border-radius:999px;border:1px solid rgba(197,160,89,.34);background:rgba(197,160,89,.10);line-height:1.7}
+.market-token-count{font-size:11px;white-space:nowrap;color:var(--dim);padding:1px 9px;border-radius:4px;background:rgba(255,255,255,.06)}
+.market-token-gtag{font-size:10px;white-space:nowrap;color:#d6bd86;padding:0 8px;border-radius:4px;border:1px solid rgba(197,160,89,.34);background:rgba(197,160,89,.10);line-height:1.7}
 /* 代幣分類：按鈕列在搜尋框上方；選到的分類下方一行小字說明這一類是什麼 */
 .market-token-cats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .market-token-cats .craft-job-filter-btn{font-size:12px;padding:4px 11px}
@@ -383,11 +384,11 @@
 .market-token-fold-links{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
 .market-token-hidebar{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:11px;color:var(--dim)}
 .market-token-hidebar:empty{display:none}
-.market-token-hidebtn{padding:0 9px;border:1px solid var(--tb);border-radius:999px;background:none;color:var(--gold);font-family:inherit;font-size:11px;line-height:18px;cursor:pointer}
+.market-token-hidebtn{padding:0 9px;border:1px solid var(--tb);border-radius:4px;background:none;color:var(--gold);font-family:inherit;font-size:11px;line-height:18px;cursor:pointer}
 .market-token-hidebtn:hover{border-color:var(--gold)}
 /* 顯示隱藏的代幣時：淡色＋小標籤，跟一般代幣區分 */
 .market-token-row.is-nocmp .market-token-head{opacity:.55}
-.market-token-nocmp{font-size:10px;white-space:nowrap;color:var(--dim);padding:0 8px;border:1px dashed var(--tb);border-radius:999px;line-height:17px}
+.market-token-nocmp{font-size:10px;white-space:nowrap;color:var(--dim);padding:0 8px;border:1px dashed var(--tb);border-radius:4px;line-height:17px}
 .market-token-more{display:block;margin:4px 0 0 24px;padding:3px 0;border:0;background:none;color:var(--gold);font-family:inherit;font-size:12px;cursor:pointer}
 .market-token-more:hover{color:var(--gold-bright);text-decoration:underline}
 .market-token-body{padding:2px 0 8px 24px}
@@ -445,7 +446,7 @@
 .market-qty-num{fill:var(--gold-bright);font-size:14px;font-weight:700;text-anchor:middle}
 
 /* 結論徽章旁的水晶圖示鈕：亮/暗兩態，不用文字說明現在算不算水晶成本。 */
-.market-supply-crystal-tag{background:rgba(255,255,255,.05);border:1px solid var(--tb);border-radius:999px;
+.market-supply-crystal-tag{background:rgba(255,255,255,.05);border:1px solid var(--tb);border-radius:6px;
   font-size:13px;cursor:pointer;padding:3px 9px;line-height:1;display:inline-flex;align-items:center;gap:4px}
 .market-supply-crystal-tag:hover{border-color:var(--gold)}
 .market-supply-crystal-tag.is-off{filter:grayscale(1);opacity:.55}
@@ -720,7 +721,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .ob-title small { color: var(--dim); font-size: .8rem; margin-left: 4px; }
 .ob-title i { color: var(--gold); }
 .ob-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-bottom: 1px solid var(--tb); }
-.ob-tab { background: transparent; border: 1px solid var(--tb); color: var(--dim); border-radius: 999px; padding: 4px 12px; font-size: .85rem; cursor: pointer; }
+.ob-tab { background: transparent; border: 1px solid var(--tb); color: var(--dim); border-radius:6px; padding: 4px 12px; font-size: .85rem; cursor: pointer; }
 .ob-tab span { color: var(--gold-deep); margin-left: 2px; }
 .ob-tab:hover { color: var(--main); border-color: var(--gold); }
 .ob-tab.on { background: rgba(197,160,89,.16); border-color: var(--gold); color: var(--gold-bright); }
@@ -756,7 +757,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .ob-line b { color: var(--main); font-weight: 500; }
 .ob-line b i { color: var(--gold); }
 .ob-dim { color: var(--dim); font-size: .8rem; }
-.ob-badge { background: rgba(197,160,89,.14); color: var(--gold); border-radius: 999px; padding: 0 8px; font-size: .72rem; line-height: 1.5; }
+.ob-badge { background: rgba(197,160,89,.14); color: var(--gold); border-radius:4px; padding: 0 8px; font-size: .72rem; line-height: 1.5; }
 .ob-badge-hot { background: rgba(214,110,90,.2); color: #e8a090; }
 .ob-craft-head { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: .85rem; flex-wrap: wrap; }
 .ob-craft-head b { color: var(--main); }
@@ -800,7 +801,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 
 .market-detail-meta { display: inline-flex; gap: 5px; margin-left: 10px; vertical-align: middle; font-size: .72rem; font-weight: 400; letter-spacing: .02em; }
 /* 版本／分類小標籤：低調的膠囊，版本偏藍綠、分類偏金色，色調淡、字小，一眼認得出是屬性資訊，不搶名稱跟價格的風頭 */
-.market-meta-chip { padding: 1px 9px; border-radius: 999px; border: 1px solid; line-height: 1.6; white-space: nowrap; }
+.market-meta-chip { padding: 1px 9px; border-radius:6px; border: 1px solid; line-height: 1.6; white-space: nowrap; }
 .market-meta-ver { color: #8fc4d4; background: rgba(110,170,190,.12); border-color: rgba(110,170,190,.38); }
 .market-meta-cat { color: #d6bd86; background: rgba(197,160,89,.10); border-color: rgba(197,160,89,.34); }
 
@@ -888,7 +889,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 /* 價格訊號：顏色跟全站漲跌一致——紅＝比成交均價高（▲）、綠＝比成交均價低（▼）、灰＝差在 3% 以內 */
 .market-sig { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
 .market-sig-lead { color: var(--dim); font-size: 12px; }
-.market-sig-chip { display: inline-block; padding: 0 6px; border-radius: 9px; font-size: 11.5px; font-weight: 700; line-height: 18px; background: rgba(255,255,255,.07); color: var(--dim); }
+.market-sig-chip { display: inline-block; padding: 0 6px; border-radius:4px; font-size: 11.5px; font-weight: 700; line-height: 18px; background: rgba(255,255,255,.07); color: var(--dim); }
 .market-sig-chip.up { background: rgba(248,113,113,.15); color: #f87171; }
 .market-sig-chip.down { background: rgba(74,222,128,.15); color: #4ade80; }
 
