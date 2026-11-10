@@ -170,7 +170,7 @@ initStars(){
       var spawnPour = function () {
         if (!subMenuEl || reduceMotion || !topModeNow() || document.hidden) return;
         var shift = parseFloat(expGroup.style.getPropertyValue('--sub-shift')) || 0;
-        var cx = subMenuEl.offsetWidth / 2 - shift + (Math.random() - .5) * 10, cy = -16;
+        var cx = subMenuEl.offsetWidth / 2 - shift + (Math.random() - .5) * 10, cy = -28;
         var el = document.createElement('span'), sz = 1.8 + Math.random() * 2.6;
         el.className = 'nav-sub-spark';
         el.style.cssText = 'position:absolute;width:' + sz + 'px;height:' + sz + 'px;left:' + cx.toFixed(1) + 'px;top:' + cy.toFixed(1) + 'px;border-radius:50%;pointer-events:none;opacity:0;filter:opacity(.9);' +
