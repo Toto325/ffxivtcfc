@@ -139,6 +139,39 @@ initStars(){
         subMenuEl.appendChild(mk('nav-sub-sep'));
         subMenuEl.appendChild(mk('nav-sub-thread'));
       }
+      /* ── 一筆畫外框（含頂端冠部）：底線 → S 形曲線 → 外框；流光沿同一條輪廓流動 ──
+         座標：原點為冠部頂端，面板上緣在 y=CREST。冠部平台寬 108（對齊父項目底線 100~118px）。
+         每次展開前重畫一次（寬高以實際版面為準）。 */
+      var CREST = 16;
+      var buildFrame = function () {
+        if (!subMenuEl) return;
+        var old = subMenuEl.querySelector('.nav-sub-frame'); if (old) old.remove();
+        var W = subMenuEl.offsetWidth, H = subMenuEl.offsetHeight; if (!W || !H) return;
+        var cx = W / 2, pl = cx - 54, pr = cx + 54, sl = cx - 74, sr = cx + 74, y0 = .5, y1 = CREST + .5, b = CREST + H - .5, r = 6;
+        var outline = 'M' + cx + ',' + y0 + ' H' + pr + ' C' + (pr + 10) + ',' + y0 + ' ' + (pr + 10) + ',' + y1 + ' ' + sr + ',' + y1 +
+          ' H' + (W - r - .5) + ' A' + r + ' ' + r + ' 0 0 1 ' + (W - .5) + ',' + (y1 + r) +
+          ' V' + (b - r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (W - .5 - r) + ',' + b +
+          ' H' + (r + .5) + ' A' + r + ' ' + r + ' 0 0 1 .5,' + (b - r) +
+          ' V' + (y1 + r) + ' A' + r + ' ' + r + ' 0 0 1 ' + (r + .5) + ',' + y1 +
+          ' H' + sl + ' C' + (sl + 10) + ',' + y1 + ' ' + (sl + 10) + ',' + y0 + ' ' + pl + ',' + y0 + ' Z';
+        var crest = 'M' + sl + ',' + (y1 + 1.5) + ' L' + sl + ',' + y1 + ' C' + (sl + 10) + ',' + y1 + ' ' + (sl + 10) + ',' + y0 + ' ' + pl + ',' + y0 +
+          ' H' + pr + ' C' + (pr + 10) + ',' + y0 + ' ' + (pr + 10) + ',' + y1 + ' ' + sr + ',' + y1 + ' L' + sr + ',' + (y1 + 1.5) + ' Z';
+        subMenuEl.insertAdjacentHTML('beforeend',
+          '<svg class="nav-sub-frame" aria-hidden="true" width="' + W + '" height="' + (H + CREST) + '" viewBox="0 0 ' + W + ' ' + (H + CREST) + '">' +
+          '<defs>' +
+            '<radialGradient id="nsf-glow" gradientUnits="userSpaceOnUse" cx="' + cx + '" cy="' + (CREST + 1) + '" r="' + 90 + '" gradientTransform="translate(' + cx + ' ' + (CREST + 1) + ') scale(1 .35) translate(' + (-cx) + ' ' + (-(CREST + 1)) + ')">' +
+              '<stop offset="0" stop-color="#fcf6ba" stop-opacity=".16"/><stop offset="1" stop-color="#fcf6ba" stop-opacity="0"/></radialGradient>' +
+            '<linearGradient id="nsf-rib" gradientUnits="userSpaceOnUse" x1="' + (pl - 10) + '" y1="0" x2="' + (pr + 10) + '" y2="0">' +
+              '<stop offset="0" stop-color="#fce4aa" stop-opacity="0"/><stop offset=".18" stop-color="#fce4aa" stop-opacity=".85"/>' +
+              '<stop offset=".5" stop-color="#fcf6ba"/><stop offset=".82" stop-color="#fce4aa" stop-opacity=".85"/><stop offset="1" stop-color="#fce4aa" stop-opacity="0"/></linearGradient>' +
+          '</defs>' +
+          '<path class="f-crest" d="' + crest + '"/><path d="' + crest + '" fill="url(#nsf-glow)"/>' +
+          '<path class="f-base" d="' + outline + '"/>' +
+          '<path class="f-rib" d="M' + pl + ',' + y0 + ' H' + pr + '" stroke="url(#nsf-rib)"/>' +
+          '<g class="f-comet"><path class="c1" pathLength="100" d="' + outline + '"/><path class="c2" pathLength="100" d="' + outline + '"/><path class="c3" pathLength="100" d="' + outline + '"/></g>' +
+          '</svg>');
+      };
+      buildFrame();
       var reduceMotion = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
       var sparkTimer = null;
       var topModeNow = function () { return document.documentElement.getAttribute('data-nav-mode') === 'top'; };
@@ -201,6 +234,7 @@ initStars(){
         expGroup.classList.toggle('nav-open', open);
         expGroup.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) clampSubmenu();
+        if (open && !wasOpen) buildFrame();   // 以實際版面重畫外框，流光從冠部中央重新出發
         if (open && !wasOpen && topModeNow()) startSparks();
         if (!open) stopSparks();
       };
