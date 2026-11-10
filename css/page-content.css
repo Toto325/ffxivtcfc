@@ -1023,6 +1023,7 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 
 
+
 /* ══════════════════════════════════════════════════════════════════
    遠航探索 下拉 v10「飾桿」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
    ──────────────────────────────────────────────────────────────────
@@ -1031,6 +1032,7 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
    2) 過渡改為「裝飾性橫桿」：一條細而半透明的金色飾桿（高 7px），兩端漸隱，不是硬邦邦的實心桿；
       桿上只有低調的細節——微弱的珠點、兩端小珠、中央一枚小菱形扣飾——焦點仍在子選單本身
    3) 移除展開時由接縫「噴出」的那一把光點（其餘金色粒子照舊）
+   4) 邊緣流光改用 canvas：一段「漸細的柔和彗尾」沿邊框等速流動（光頭從上緣中央的扣飾出發），始終可見、不會忽明忽滅
    ══════════════════════════════════════════════════════════════════
 @property --nav-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 
@@ -1071,41 +1073,16 @@ html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu {
     visibility 0s linear 0s;
 }
 
-/* 邊緣流光：整圈連續的柔和漸變（餘弦曲線取樣，無斷開的光頭或色段），緩慢繞行 */
-html[data-nav-mode="top"] .nav-group .nav-submenu::before {
-  content: "";
-  position: absolute; inset: -1px; top: -1px; left: -1px; width: auto; height: auto;
-  border-radius: 6px; padding: 1.5px;
-  background: conic-gradient(from var(--nav-ang),
-      rgba(252,230,172,0.780) 0.00%,
-      rgba(249,227,168,0.760) 6.25%,
-      rgba(241,217,157,0.704) 12.50%,
-      rgba(229,202,141,0.619) 18.75%,
-      rgba(214,185,122,0.520) 25.00%,
-      rgba(199,168,103,0.421) 31.25%,
-      rgba(187,153,87,0.336) 37.50%,
-      rgba(179,143,76,0.280) 43.75%,
-      rgba(176,140,72,0.260) 50.00%,
-      rgba(179,143,76,0.280) 56.25%,
-      rgba(187,153,87,0.336) 62.50%,
-      rgba(199,168,103,0.421) 68.75%,
-      rgba(214,185,122,0.520) 75.00%,
-      rgba(229,202,141,0.619) 81.25%,
-      rgba(241,217,157,0.704) 87.50%,
-      rgba(249,227,168,0.760) 93.75%,
-      rgba(252,230,172,0.780) 100.00%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-          mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  border: none; box-shadow: none; transform: none;
-  filter: drop-shadow(0 0 2.5px rgba(255,228,170,.45));
-  pointer-events: none; opacity: 0; z-index: 3;
+/* 邊緣流光：改由 app.js 以 <canvas> 繪製（見 .nav-sub-comet）。
+   原本的 conic-gradient 旋轉環在長方形邊框上速度不均（角落加速、邊中段變慢），
+   且整圈低對比漸變看起來像「忽明忽暗」而不是「一段光在流動」，故停用。 */
+html[data-nav-mode="top"] .nav-group .nav-submenu::before { content: none; }
+html[data-nav-mode="top"] .nav-sub-comet {
+  position: absolute; left: -6px; top: -6px; z-index: 3; pointer-events: none;
+  opacity: 0; transition: opacity .5s ease;
 }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
-  opacity: 1; transition: opacity .5s ease .1s;
-  animation: nav-ang-spin 8s linear infinite;
-}
-@keyframes nav-ang-spin { to { --nav-ang: 360deg; } }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-comet { opacity: 1; transition-delay: .1s; }
+html[data-nav-mode="left"] .nav-sub-comet { display: none; }
 
 /* 隱形橋接：涵蓋飾桿與底線之間的高度，滑鼠從父項目移向面板不會中斷 */
 html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -14px; height: 14px; }
