@@ -1020,16 +1020,16 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 
 
+
 /* ══════════════════════════════════════════════════════════════════
-   遠航探索 下拉 v7「冠緣」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
+   遠航探索 下拉 v8「掛牌・飾帶」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
    ──────────────────────────────────────────────────────────────────
-   面板內容、粒子、波紋、角標、選項樣式與動態沿用 v5/v6；改變的是「主選單 → 子選單的過渡」：
-   不再用任何連接物（莖、吊鏈），而是讓兩者共用「同一條輪廓線」——
-   1) 父項目底線（.nav-ribbon）延伸成面板外框頂端的「冠部」：底線 → 平滑 S 形曲線 → 展開成整個外框
-      （外框由 app.js 注入的 SVG 一筆畫出，頂端冠部與底線同高、同寬、同色）
-   2) 邊緣流光改沿這條完整輪廓流動，光頭從冠部（底線正中央）出發 → 光是從主選單流進子選單
-   3) 展開時整塊面板以冠部為原點向下長出（無擺動、無搖晃，維持華麗沉穩）
-   4) 冠部位置固定在父項目底線高度（項目底部上方 9px），寬度固定，桌面與手機一致
+   面板內容、粒子、波紋、角標、選項樣式與動態沿用 v5/v6。本版改動：
+   1) 結構：吊軌＋雙吊鏈（沿用 v6），但「不擺動」——展開後靜止，維持華麗沉穩
+   2) 飾帶：兩條吊鏈之間原本空白的 16px，加入一條低調的裝飾帶（簾邊扇形＋中央菱飾＋兩側細紋），
+      讓主選單 → 子選單的過渡像一件有設計的選單頭飾，而不只是「吊下來的牌」
+   3) 邊緣流光：改為「整圈連續的柔和漸變」——沒有斷開的光頭／色段，顏色由香檳金平滑過渡到深金；
+      亮度比先前降低（最亮約 60% 不透明、無純白）
    ══════════════════════════════════════════════════════════════════ */
 @property --nav-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 
@@ -1042,14 +1042,14 @@ html[data-nav-mode="top"] .nav-group .nav-submenu {
   width: 176px; min-width: 0;
   padding: 8px 8px 16px;
   border-radius: 6px;
-  border: 1px solid transparent;                      /* 外框改由 .nav-sub-frame（SVG）繪製，含頂端冠部 */
+  border: 1px solid rgba(197,160,89,.5);
   outline: 1px solid rgba(197,160,89,.14);
   outline-offset: -5px;
   background:
     radial-gradient(90% 60% at 50% 0%, rgba(252,246,186,.12), transparent 70%),
     linear-gradient(180deg, rgba(24,19,12,.97), rgba(7,6,11,.985));
-  box-shadow: 0 16px 34px rgba(0,0,0,.65), 0 0 24px rgba(197,160,89,.12);
-  transform-origin: 50% -16px;                        /* 以冠部（底線）為原點向下長出 */
+  box-shadow: 0 16px 34px rgba(0,0,0,.65), 0 0 24px rgba(197,160,89,.12), inset 0 1px 0 rgba(255,228,170,.18);
+  transform-origin: 50% -16px;                        /* 以吊軌（底線高度）為原點向下長出 */
   transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-6px) scaleY(.92);
   clip-path: inset(0 0 100% 0);
   opacity: 0;
@@ -1070,42 +1070,91 @@ html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu {
     visibility 0s linear 0s;
 }
 
-/* 舊的 conic 邊緣流光已改由 SVG 輪廓流光取代（見下方 .nav-sub-frame） */
-html[data-nav-mode="top"] .nav-group .nav-submenu::before { content: none; }
+/* 邊緣流光：整圈連續的柔和漸變（餘弦曲線取樣，無斷開的光頭或色段），緩慢繞行 */
+html[data-nav-mode="top"] .nav-group .nav-submenu::before {
+  content: "";
+  position: absolute; inset: -1px; top: -1px; left: -1px; width: auto; height: auto;
+  border-radius: 6px; padding: 1.5px;
+  background: conic-gradient(from var(--nav-ang),
+      rgba(250,226,168,0.600) 0.00%,
+      rgba(247,223,164,0.583) 6.25%,
+      rgba(239,213,154,0.536) 12.50%,
+      rgba(226,198,138,0.464) 18.75%,
+      rgba(211,181,119,0.380) 25.00%,
+      rgba(196,164,100,0.296) 31.25%,
+      rgba(183,149,84,0.224) 37.50%,
+      rgba(175,139,74,0.177) 43.75%,
+      rgba(172,136,70,0.160) 50.00%,
+      rgba(175,139,74,0.177) 56.25%,
+      rgba(183,149,84,0.224) 62.50%,
+      rgba(196,164,100,0.296) 68.75%,
+      rgba(211,181,119,0.380) 75.00%,
+      rgba(226,198,138,0.464) 81.25%,
+      rgba(239,213,154,0.536) 87.50%,
+      rgba(247,223,164,0.583) 93.75%,
+      rgba(250,226,168,0.600) 100.00%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  border: none; box-shadow: none; transform: none;
+  filter: drop-shadow(0 0 2px rgba(255,228,170,.35));
+  pointer-events: none; opacity: 0; z-index: 3;
+}
+html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
+  opacity: 1; transition: opacity .5s ease .1s;
+  animation: nav-ang-spin 8s linear infinite;
+}
 @keyframes nav-ang-spin { to { --nav-ang: 360deg; } }
 
 /* 隱形橋接：涵蓋 16px 的冠部高度，滑鼠從父項目移向面板不會中斷 */
 html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -22px; height: 22px; }
 
-/* 吊軌/吊鏈（v6）已移除 */
-html[data-nav-mode="top"] .nav-sub-thread { display: none !important; }
-
-/* ── 一筆畫的外框（含頂端冠部）──
-   SVG 由 app.js 注入：座標原點在「冠部頂端」，面板上緣在 y=16（冠部高度）。
-   · .f-crest   冠部內部的填色（與面板頂端的底色、光暈一致，使冠部與面板融為一體）
-   · .f-base    整條輪廓（底線 → S 形曲線 → 外框）
-   · .f-rib     冠部頂端平台，與父項目底線重疊，樣式同 .nav-ribbon
-   · .f-comet   沿輪廓流動的流光（三層疊出漸細的拖尾，光頭對齊） */
-html[data-nav-mode="top"] .nav-sub-frame {
-  display: block; position: absolute; left: -1px; top: -17px; z-index: 3;
-  overflow: visible; pointer-events: none;
-  filter: drop-shadow(0 0 3px rgba(255,228,170,.45));
+/* ── 吊軌＋雙吊鏈＋飾帶 ──
+   .nav-sub-thread 寬度＝面板＋左右各 18px、高 16px（底線到面板上緣）；全部以背景繪製：
+   · 吊軌：頂端 1px 金線，兩端漸隱；吊鏈：距兩端 32px 的兩條鏈節線，上下端各一顆珍珠扣環
+   · 飾帶：兩條吊鏈之間（146×16）— 淡淡的金色襯底、一排簾邊小扇形、中央菱飾與兩側細紋
+   ::before / ::after 是吊軌上由底線中心分向左右流動的光脈衝（沿用 v6）。 */
+html[data-nav-mode="top"] .nav-sub-thread {
+  display: block !important; position: absolute; z-index: 4; pointer-events: none;
+  top: -16px; height: 16px; width: calc(100% + 36px);
+  left: 50%; transform: translateX(-50%);
+  --pearl: radial-gradient(circle, #fff6d6 0 1.2px, var(--gold-bright) 1.8px, rgba(197,160,89,0) 3.4px);
+  --chain: repeating-linear-gradient(180deg, rgba(252,228,170,.85) 0 2px, rgba(197,160,89,.22) 2px 4px);
+  background:
+    var(--pearl) calc(32px - 3.5px) 0 / 7px 7px no-repeat,
+    var(--pearl) calc(100% - 32px - 3.5px) 0 / 7px 7px no-repeat,
+    var(--pearl) calc(32px - 3.5px) 100% / 7px 7px no-repeat,
+    var(--pearl) calc(100% - 32px - 3.5px) 100% / 7px 7px no-repeat,
+    var(--chain) calc(32px - .75px) 50% / 1.5px calc(100% - 6px) no-repeat,
+    var(--chain) calc(100% - 32px - .75px) 50% / 1.5px calc(100% - 6px) no-repeat,
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='146' height='16' viewBox='0 0 146 16'><defs><linearGradient id='f' x1='0' x2='1'><stop offset='0' stop-color='%23c5a059' stop-opacity='0'/><stop offset='.22' stop-color='%23c5a059' stop-opacity='.55'/><stop offset='.5' stop-color='%23fce4aa' stop-opacity='.85'/><stop offset='.78' stop-color='%23c5a059' stop-opacity='.55'/><stop offset='1' stop-color='%23c5a059' stop-opacity='0'/></linearGradient></defs><path d='M3 .5 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0' fill='none' stroke='url(%23f)' stroke-width='.8' opacity='.7'/><path d='M73 2.5 L79.5 9 L73 15.5 L66.5 9 Z' fill='none' stroke='url(%23f)' stroke-width='.8'/><path d='M73 5.5 L76.8 9 L73 12.5 L69.2 9 Z' fill='%23fce4aa' fill-opacity='.9'/><path d='M64 9 H46 M82 9 H100' stroke='url(%23f)' stroke-width='.8' fill='none'/><circle cx='42' cy='9' r='1' fill='%23c5a059' fill-opacity='.7'/><circle cx='36' cy='9' r='.7' fill='%23c5a059' fill-opacity='.45'/><circle cx='104' cy='9' r='1' fill='%23c5a059' fill-opacity='.7'/><circle cx='110' cy='9' r='.7' fill='%23c5a059' fill-opacity='.45'/></svg>") 50% 0 / 146px 16px no-repeat,
+    linear-gradient(180deg, rgba(197,160,89,.12), rgba(197,160,89,0)) 50% 0 / calc(100% - 64px) 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(252,228,170,.85) 14%, var(--gold-bright) 50%, rgba(252,228,170,.85) 86%, transparent) 0 0 / 100% 1px no-repeat;
+  filter: drop-shadow(0 0 3px rgba(197,160,89,.5));
+  opacity: 0; transition: opacity .3s ease;
 }
-html[data-nav-mode="top"] .nav-sub-frame .f-crest { fill: rgb(24,19,12); }
-html[data-nav-mode="top"] .nav-sub-frame .f-base  { fill: none; stroke: rgba(197,160,89,.5); stroke-width: 1; stroke-linejoin: round; }
-html[data-nav-mode="top"] .nav-sub-frame .f-rib   { fill: none; stroke-width: 1.2; stroke-linecap: round; }
-html[data-nav-mode="top"] .nav-sub-frame .f-comet path { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
-/* pathLength=100：dasharray 的數字就是「輪廓全長的百分比」；offset 由 len → len-100 走完一圈，三層光頭對齊 */
-html[data-nav-mode="top"] .nav-sub-frame .f-comet .c1 { stroke: rgba(255,228,170,.30); stroke-width: 3;   stroke-dasharray: 22 78; stroke-dashoffset: 22; }
-html[data-nav-mode="top"] .nav-sub-frame .f-comet .c2 { stroke: rgba(255,238,195,.65); stroke-width: 2;   stroke-dasharray: 12 88; stroke-dashoffset: 12; }
-html[data-nav-mode="top"] .nav-sub-frame .f-comet .c3 { stroke: #fff;                  stroke-width: 1.6; stroke-dasharray: 5 95;  stroke-dashoffset: 5; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-frame .f-comet path { opacity: 1; transition: opacity .4s ease .1s; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-frame .f-comet .c1 { animation: nav-frame-comet1 5.5s linear infinite; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-frame .f-comet .c2 { animation: nav-frame-comet2 5.5s linear infinite; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-frame .f-comet .c3 { animation: nav-frame-comet3 5.5s linear infinite; }
-@keyframes nav-frame-comet1 { from { stroke-dashoffset: 22; } to { stroke-dashoffset: -78; } }
-@keyframes nav-frame-comet2 { from { stroke-dashoffset: 12; } to { stroke-dashoffset: -88; } }
-@keyframes nav-frame-comet3 { from { stroke-dashoffset: 5;  } to { stroke-dashoffset: -95; } }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread {
+  opacity: 1; transition-delay: .05s;
+  animation: nav-rail-draw .5s cubic-bezier(.22,1,.36,1) both;   /* 吊軌由中心向兩側拉開 */
+}
+@keyframes nav-rail-draw { from { clip-path: inset(0 45% 0 45%); } to { clip-path: inset(-6px -6px -6px -6px); } }
+/* 吊軌上的光脈衝：由底線中心分向左右，流到吊鏈處淡出 */
+html[data-nav-mode="top"] .nav-sub-thread::before,
+html[data-nav-mode="top"] .nav-sub-thread::after {
+  content: ""; position: absolute; top: -.5px; height: 2px; width: 34px;
+  left: calc(50% - var(--sub-shift, 0px)); border-radius: 1px; opacity: 0;
+  box-shadow: 0 0 5px 1px rgba(255,228,170,.4);
+}
+html[data-nav-mode="top"] .nav-sub-thread::before { margin-left: 0;     background: linear-gradient(90deg, transparent, rgba(255,240,200,.85)); }
+html[data-nav-mode="top"] .nav-sub-thread::after  { margin-left: -34px; background: linear-gradient(270deg, transparent, rgba(255,240,200,.85)); }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::before { animation: nav-rail-pulse-r 2.4s cubic-bezier(.4,0,.2,1) infinite .5s; }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::after  { animation: nav-rail-pulse-l 2.4s cubic-bezier(.4,0,.2,1) infinite .5s; }
+@keyframes nav-rail-pulse-r { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(72px);  opacity: 0; } }
+@keyframes nav-rail-pulse-l { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(-72px); opacity: 0; } }
+
+/* 展開時，父項目的小箭頭收起，避免與飾帶中央的菱飾重疊 */
+html[data-nav-mode="top"] .nav-group-arrow { transition: opacity .25s ease; }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-group-arrow { opacity: 0; }
 
 /* ── 裝飾層（不擋點擊） ── */
 html[data-nav-mode="top"] .nav-sub-fx {
@@ -1262,7 +1311,10 @@ html[data-nav-mode="left"] .nav-sub-sep { display: none !important; }
   html[data-nav-mode="top"] .nav-sub-fx::before,
   html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before,
   html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu,
-  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-frame .f-comet path,
+  html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before,
+  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread,
+  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::before,
+  html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::after,
   html[data-nav-mode="top"] .nav-sub-sep::after,
   html[data-nav-mode="top"] .nav-subitem .nav-emoji { animation: none !important; }
 }
