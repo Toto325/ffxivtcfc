@@ -1021,16 +1021,17 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 
 
+
 /* ══════════════════════════════════════════════════════════════════
-   遠航探索 下拉 v8「掛牌・飾帶」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
+   遠航探索 下拉 v9「掛牌・餐牌頂飾」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
    ──────────────────────────────────────────────────────────────────
-   面板內容、粒子、波紋、角標、選項樣式與動態沿用 v5/v6。本版改動：
-   1) 結構：吊軌＋雙吊鏈（沿用 v6），但「不擺動」——展開後靜止，維持華麗沉穩
-   2) 飾帶：兩條吊鏈之間原本空白的 16px，加入一條低調的裝飾帶（簾邊扇形＋中央菱飾＋兩側細紋），
-      讓主選單 → 子選單的過渡像一件有設計的選單頭飾，而不只是「吊下來的牌」
-   3) 邊緣流光：改為「整圈連續的柔和漸變」——沒有斷開的光頭／色段，顏色由香檳金平滑過渡到深金；
-      亮度比先前降低（最亮約 60% 不透明、無純白）
-   ══════════════════════════════════════════════════════════════════ */
+   面板內容、粒子、波紋、角標、選項樣式與動態沿用 v5/v6/v8。本版改動：
+   1) 吊軌與光脈衝全面柔化：吊軌改為更淡、兩端長漸隱的細線；展開改為「由中心淡入並拉寬」（不再硬切）；
+      吊軌上的光脈衝由 2px 硬光條改成寬 90px 的柔光（兩端漸隱），緩慢左右散開
+   2) 兩條吊鏈之間的飾帶放大為 146×28，設計成像「餐牌頂部」的藝術裝飾風頂飾：
+      簾邊小扇形＋垂珠、中央放射日冕＋三層菱形徽章、兩側 S 形藤蔓緞帶與端點、貼近面板上緣的雙線與小菱飾
+   3) 邊緣流光：整圈連續漸變，亮度較 v8 略微提高（最亮約 78%、最暗約 26%）
+   ══════════════════════════════════════════════════════════════════
 @property --nav-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 
 /* 裝飾元件由 app.js 動態塞進 .nav-submenu；左側模式不需要 */
@@ -1038,7 +1039,7 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 html[data-nav-mode="top"] .nav-group .nav-submenu {
   display: flex; flex-direction: column; gap: 0;
-  top: calc(100% + 6px);                              /* 底線在項目底部上方 9px → 莖長 16px */
+  top: calc(100% + 18px);                             /* 底線在項目底部上方 9px → 吊鏈（飾帶）高 28px */
   width: 176px; min-width: 0;
   padding: 8px 8px 16px;
   border-radius: 6px;
@@ -1049,7 +1050,7 @@ html[data-nav-mode="top"] .nav-group .nav-submenu {
     radial-gradient(90% 60% at 50% 0%, rgba(252,246,186,.12), transparent 70%),
     linear-gradient(180deg, rgba(24,19,12,.97), rgba(7,6,11,.985));
   box-shadow: 0 16px 34px rgba(0,0,0,.65), 0 0 24px rgba(197,160,89,.12), inset 0 1px 0 rgba(255,228,170,.18);
-  transform-origin: 50% -16px;                        /* 以吊軌（底線高度）為原點向下長出 */
+  transform-origin: 50% -28px;                        /* 以吊軌（底線高度）為原點向下長出 */
   transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-6px) scaleY(.92);
   clip-path: inset(0 0 100% 0);
   opacity: 0;
@@ -1076,28 +1077,28 @@ html[data-nav-mode="top"] .nav-group .nav-submenu::before {
   position: absolute; inset: -1px; top: -1px; left: -1px; width: auto; height: auto;
   border-radius: 6px; padding: 1.5px;
   background: conic-gradient(from var(--nav-ang),
-      rgba(250,226,168,0.600) 0.00%,
-      rgba(247,223,164,0.583) 6.25%,
-      rgba(239,213,154,0.536) 12.50%,
-      rgba(226,198,138,0.464) 18.75%,
-      rgba(211,181,119,0.380) 25.00%,
-      rgba(196,164,100,0.296) 31.25%,
-      rgba(183,149,84,0.224) 37.50%,
-      rgba(175,139,74,0.177) 43.75%,
-      rgba(172,136,70,0.160) 50.00%,
-      rgba(175,139,74,0.177) 56.25%,
-      rgba(183,149,84,0.224) 62.50%,
-      rgba(196,164,100,0.296) 68.75%,
-      rgba(211,181,119,0.380) 75.00%,
-      rgba(226,198,138,0.464) 81.25%,
-      rgba(239,213,154,0.536) 87.50%,
-      rgba(247,223,164,0.583) 93.75%,
-      rgba(250,226,168,0.600) 100.00%);
+      rgba(252,230,172,0.780) 0.00%,
+      rgba(249,227,168,0.760) 6.25%,
+      rgba(241,217,157,0.704) 12.50%,
+      rgba(229,202,141,0.619) 18.75%,
+      rgba(214,185,122,0.520) 25.00%,
+      rgba(199,168,103,0.421) 31.25%,
+      rgba(187,153,87,0.336) 37.50%,
+      rgba(179,143,76,0.280) 43.75%,
+      rgba(176,140,72,0.260) 50.00%,
+      rgba(179,143,76,0.280) 56.25%,
+      rgba(187,153,87,0.336) 62.50%,
+      rgba(199,168,103,0.421) 68.75%,
+      rgba(214,185,122,0.520) 75.00%,
+      rgba(229,202,141,0.619) 81.25%,
+      rgba(241,217,157,0.704) 87.50%,
+      rgba(249,227,168,0.760) 93.75%,
+      rgba(252,230,172,0.780) 100.00%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
           mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   border: none; box-shadow: none; transform: none;
-  filter: drop-shadow(0 0 2px rgba(255,228,170,.35));
+  filter: drop-shadow(0 0 2.5px rgba(255,228,170,.45));
   pointer-events: none; opacity: 0; z-index: 3;
 }
 html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
@@ -1106,20 +1107,19 @@ html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
 }
 @keyframes nav-ang-spin { to { --nav-ang: 360deg; } }
 
-/* 隱形橋接：涵蓋 16px 的冠部高度，滑鼠從父項目移向面板不會中斷 */
-html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -22px; height: 22px; }
+/* 隱形橋接：涵蓋 28px 的飾帶高度，滑鼠從父項目移向面板不會中斷 */
+html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -34px; height: 34px; }
 
 /* ── 吊軌＋雙吊鏈＋飾帶 ──
-   .nav-sub-thread 寬度＝面板＋左右各 18px、高 16px（底線到面板上緣）；全部以背景繪製：
-   · 吊軌：頂端 1px 金線，兩端漸隱；吊鏈：距兩端 32px 的兩條鏈節線，上下端各一顆珍珠扣環
-   · 飾帶：兩條吊鏈之間（146×16）— 淡淡的金色襯底、一排簾邊小扇形、中央菱飾與兩側細紋
-   ::before / ::after 是吊軌上由底線中心分向左右流動的光脈衝（沿用 v6）。 */
+   .nav-sub-thread 寬度＝面板＋左右各 18px、高 28px（底線到面板上緣）；全部以背景繪製：
+   · 吊軌：頂端細金線，兩端長漸隱；吊鏈：距兩端 32px 的兩條鏈節線，上下端各一顆珍珠扣環
+   · 飾帶（146×28，位於兩條吊鏈之間）：淡淡的金色襯底＋藝術裝飾風頂飾（見檔頭說明）
+   ::before / ::after 是吊軌上由底線中心向左右散開的柔光。 */
 html[data-nav-mode="top"] .nav-sub-thread {
   display: block !important; position: absolute; z-index: 4; pointer-events: none;
-  top: -16px; height: 16px; width: calc(100% + 36px);
-  left: 50%; transform: translateX(-50%);
+  top: -28px; height: 28px; left: -18px; right: -18px; width: auto; transform: none;
   --pearl: radial-gradient(circle, #fff6d6 0 1.2px, var(--gold-bright) 1.8px, rgba(197,160,89,0) 3.4px);
-  --chain: repeating-linear-gradient(180deg, rgba(252,228,170,.85) 0 2px, rgba(197,160,89,.22) 2px 4px);
+  --chain: repeating-linear-gradient(180deg, rgba(252,228,170,.8) 0 2px, rgba(197,160,89,.2) 2px 4px);
   background:
     var(--pearl) calc(32px - 3.5px) 0 / 7px 7px no-repeat,
     var(--pearl) calc(100% - 32px - 3.5px) 0 / 7px 7px no-repeat,
@@ -1127,30 +1127,29 @@ html[data-nav-mode="top"] .nav-sub-thread {
     var(--pearl) calc(100% - 32px - 3.5px) 100% / 7px 7px no-repeat,
     var(--chain) calc(32px - .75px) 50% / 1.5px calc(100% - 6px) no-repeat,
     var(--chain) calc(100% - 32px - .75px) 50% / 1.5px calc(100% - 6px) no-repeat,
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='146' height='16' viewBox='0 0 146 16'><defs><linearGradient id='f' x1='0' x2='1'><stop offset='0' stop-color='%23c5a059' stop-opacity='0'/><stop offset='.22' stop-color='%23c5a059' stop-opacity='.55'/><stop offset='.5' stop-color='%23fce4aa' stop-opacity='.85'/><stop offset='.78' stop-color='%23c5a059' stop-opacity='.55'/><stop offset='1' stop-color='%23c5a059' stop-opacity='0'/></linearGradient></defs><path d='M3 .5 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0' fill='none' stroke='url(%23f)' stroke-width='.8' opacity='.7'/><path d='M73 2.5 L79.5 9 L73 15.5 L66.5 9 Z' fill='none' stroke='url(%23f)' stroke-width='.8'/><path d='M73 5.5 L76.8 9 L73 12.5 L69.2 9 Z' fill='%23fce4aa' fill-opacity='.9'/><path d='M64 9 H46 M82 9 H100' stroke='url(%23f)' stroke-width='.8' fill='none'/><circle cx='42' cy='9' r='1' fill='%23c5a059' fill-opacity='.7'/><circle cx='36' cy='9' r='.7' fill='%23c5a059' fill-opacity='.45'/><circle cx='104' cy='9' r='1' fill='%23c5a059' fill-opacity='.7'/><circle cx='110' cy='9' r='.7' fill='%23c5a059' fill-opacity='.45'/></svg>") 50% 0 / 146px 16px no-repeat,
-    linear-gradient(180deg, rgba(197,160,89,.12), rgba(197,160,89,0)) 50% 0 / calc(100% - 64px) 100% no-repeat,
-    linear-gradient(90deg, transparent, rgba(252,228,170,.85) 14%, var(--gold-bright) 50%, rgba(252,228,170,.85) 86%, transparent) 0 0 / 100% 1px no-repeat;
-  filter: drop-shadow(0 0 3px rgba(197,160,89,.5));
-  opacity: 0; transition: opacity .3s ease;
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='146' height='28' viewBox='0 0 146 28'><defs><linearGradient id='fade' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='146' y2='0'><stop offset='0' stop-color='%23c5a059' stop-opacity='0'/><stop offset='.16' stop-color='%23c5a059' stop-opacity='.6'/><stop offset='.5' stop-color='%23fce4aa' stop-opacity='.9'/><stop offset='.84' stop-color='%23c5a059' stop-opacity='.6'/><stop offset='1' stop-color='%23c5a059' stop-opacity='0'/></linearGradient></defs><path d='M3 .5 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0' fill='none' stroke='url(%23fade)' stroke-width='.8' opacity='.75'/><circle cx='8' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='18' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='28' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='38' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='48' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><path d='M13 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M23 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M33 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M43 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M53 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M64 15 C59 15 58 11.2 53 11.2 C48.5 11.2 47.5 16.6 42.5 16.6 C38 16.6 37 12.6 32 12.6' fill='none' stroke='url(%23fade)' stroke-width='.9'/><path d='M64 17.2 C60 17.2 58.6 14 54.2 14 C50.5 14 49.6 18.4 45.5 18.4' fill='none' stroke='%23c5a059' stroke-opacity='.35' stroke-width='.6'/><circle cx='29.5' cy='12.6' r='1.1' fill='%23fce4aa' fill-opacity='.8'/><circle cx='24.5' cy='12.6' r='.7' fill='%23c5a059' fill-opacity='.55'/><path d='M61 15 l2.2 2.2 l-2.2 2.2 l-2.2 -2.2 Z' fill='%23fce4aa' fill-opacity='.8'/><path d='M30 25.5 l1.8 1.8 l-1.8 1.8 l-1.8 -1.8 Z' transform='translate(0 -2.7)' fill='%23fce4aa' fill-opacity='.7'/><circle cx='19' cy='25.5' r='.8' fill='%23c5a059' fill-opacity='.6'/><g transform='translate(146 0) scale(-1 1)'><path d='M3 .5 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0' fill='none' stroke='url(%23fade)' stroke-width='.8' opacity='.75'/><circle cx='8' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='18' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='28' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='38' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='48' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><path d='M13 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M23 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M33 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M43 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M53 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M64 15 C59 15 58 11.2 53 11.2 C48.5 11.2 47.5 16.6 42.5 16.6 C38 16.6 37 12.6 32 12.6' fill='none' stroke='url(%23fade)' stroke-width='.9'/><path d='M64 17.2 C60 17.2 58.6 14 54.2 14 C50.5 14 49.6 18.4 45.5 18.4' fill='none' stroke='%23c5a059' stroke-opacity='.35' stroke-width='.6'/><circle cx='29.5' cy='12.6' r='1.1' fill='%23fce4aa' fill-opacity='.8'/><circle cx='24.5' cy='12.6' r='.7' fill='%23c5a059' fill-opacity='.55'/><path d='M61 15 l2.2 2.2 l-2.2 2.2 l-2.2 -2.2 Z' fill='%23fce4aa' fill-opacity='.8'/><path d='M30 25.5 l1.8 1.8 l-1.8 1.8 l-1.8 -1.8 Z' transform='translate(0 -2.7)' fill='%23fce4aa' fill-opacity='.7'/><circle cx='19' cy='25.5' r='.8' fill='%23c5a059' fill-opacity='.6'/></g><line x1='76.46' y1='2.50' x2='83.83' y2='6.75' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='75.83' y1='3.33' x2='81.84' y2='9.34' stroke='%23fce4aa' stroke-opacity='0.5' stroke-width='.6'/><line x1='75.00' y1='3.96' x2='79.25' y2='11.33' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='74.04' y1='4.36' x2='76.24' y2='12.57' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='73.00' y1='4.50' x2='73.00' y2='13.00' stroke='%23fce4aa' stroke-opacity='0.5' stroke-width='.6'/><line x1='71.96' y1='4.36' x2='69.76' y2='12.57' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='71.00' y1='3.96' x2='66.75' y2='11.33' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='70.17' y1='3.33' x2='64.16' y2='9.34' stroke='%23fce4aa' stroke-opacity='0.5' stroke-width='.6'/><line x1='69.54' y1='2.50' x2='62.17' y2='6.75' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><path d='M59 .5 A14 12 0 0 0 87 .5' fill='none' stroke='%23c5a059' stroke-opacity='.28' stroke-width='.6'/><path d='M73 8 L81 15 L73 22 L65 15 Z' fill='%23120e08' fill-opacity='.9' stroke='url(%23fade)' stroke-width='.9'/><path d='M73 10.6 L78.4 15 L73 19.4 L67.6 15 Z' fill='none' stroke='%23fce4aa' stroke-opacity='.7' stroke-width='.7'/><path d='M73 12.7 L75.6 15 L73 17.3 L70.4 15 Z' fill='%23fce4aa' fill-opacity='.95'/><path d='M73 5.2 L74.3 7.6 L71.7 7.6 Z' fill='%23fce4aa' fill-opacity='.65'/><path d='M73 24.8 L74.3 22.4 L71.7 22.4 Z' fill='%23fce4aa' fill-opacity='.65'/><path d='M8 25.5 H61 M85 25.5 H138' stroke='url(%23fade)' stroke-width='.8' fill='none'/></svg>") 50% 0 / 146px 28px no-repeat,
+    linear-gradient(180deg, rgba(197,160,89,.13), rgba(197,160,89,0)) 50% 0 / calc(100% - 64px) 100% no-repeat,
+    linear-gradient(90deg, transparent, rgba(252,228,170,.5) 22%, rgba(252,236,185,.72) 50%, rgba(252,228,170,.5) 78%, transparent) 0 0 / 100% 1px no-repeat;
+  filter: drop-shadow(0 0 3px rgba(197,160,89,.4));
+  opacity: 0; transition: opacity .45s ease;
 }
 html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread {
-  opacity: 1; transition-delay: .05s;
-  animation: nav-rail-draw .5s cubic-bezier(.22,1,.36,1) both;   /* 吊軌由中心向兩側拉開 */
+  opacity: 1; transition-delay: .06s;
+  animation: nav-rail-draw .7s cubic-bezier(.22,1,.36,1) both;   /* 由中心淡入並拉寬（無硬邊裁切） */
 }
-@keyframes nav-rail-draw { from { clip-path: inset(0 45% 0 45%); } to { clip-path: inset(-6px -6px -6px -6px); } }
-/* 吊軌上的光脈衝：由底線中心分向左右，流到吊鏈處淡出 */
+@keyframes nav-rail-draw { from { scale: .55 1; } to { scale: 1 1; } }
+/* 吊軌上的柔光：寬 90px、兩端漸隱，由底線中心緩緩向左右散開（取代原本的硬光條） */
 html[data-nav-mode="top"] .nav-sub-thread::before,
 html[data-nav-mode="top"] .nav-sub-thread::after {
-  content: ""; position: absolute; top: -.5px; height: 2px; width: 34px;
-  left: calc(50% - var(--sub-shift, 0px)); border-radius: 1px; opacity: 0;
-  box-shadow: 0 0 5px 1px rgba(255,228,170,.4);
+  content: ""; position: absolute; top: -1px; height: 3px; width: 90px;
+  left: calc(50% - var(--sub-shift, 0px) - 45px); border-radius: 2px; opacity: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,240,200,.5) 50%, transparent);
+  filter: blur(.6px);
 }
-html[data-nav-mode="top"] .nav-sub-thread::before { margin-left: 0;     background: linear-gradient(90deg, transparent, rgba(255,240,200,.85)); }
-html[data-nav-mode="top"] .nav-sub-thread::after  { margin-left: -34px; background: linear-gradient(270deg, transparent, rgba(255,240,200,.85)); }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::before { animation: nav-rail-pulse-r 2.4s cubic-bezier(.4,0,.2,1) infinite .5s; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::after  { animation: nav-rail-pulse-l 2.4s cubic-bezier(.4,0,.2,1) infinite .5s; }
-@keyframes nav-rail-pulse-r { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(72px);  opacity: 0; } }
-@keyframes nav-rail-pulse-l { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { transform: translateX(-72px); opacity: 0; } }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::before { animation: nav-rail-glow-r 3.8s ease-in-out infinite .6s; }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::after  { animation: nav-rail-glow-l 3.8s ease-in-out infinite .6s; }
+@keyframes nav-rail-glow-r { 0% { transform: translateX(0);    opacity: 0; } 30% { opacity: .9; } 70% { opacity: .5; } 100% { transform: translateX(62px);  opacity: 0; } }
+@keyframes nav-rail-glow-l { 0% { transform: translateX(0);    opacity: 0; } 30% { opacity: .9; } 70% { opacity: .5; } 100% { transform: translateX(-62px); opacity: 0; } }
 
 /* 展開時，父項目的小箭頭收起，避免與飾帶中央的菱飾重疊 */
 html[data-nav-mode="top"] .nav-group-arrow { transition: opacity .25s ease; }
