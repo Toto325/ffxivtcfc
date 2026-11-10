@@ -1022,15 +1022,15 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 
 
+
 /* ══════════════════════════════════════════════════════════════════
-   遠航探索 下拉 v9「掛牌・餐牌頂飾」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
+   遠航探索 下拉 v10「飾桿」（僅頂部模式；放在檔案最末，覆蓋上面舊版）
    ──────────────────────────────────────────────────────────────────
-   面板內容、粒子、波紋、角標、選項樣式與動態沿用 v5/v6/v8。本版改動：
-   1) 吊軌與光脈衝全面柔化：吊軌改為更淡、兩端長漸隱的細線；展開改為「由中心淡入並拉寬」（不再硬切）；
-      吊軌上的光脈衝由 2px 硬光條改成寬 90px 的柔光（兩端漸隱），緩慢左右散開
-   2) 兩條吊鏈之間的飾帶放大為 146×28，設計成像「餐牌頂部」的藝術裝飾風頂飾：
-      簾邊小扇形＋垂珠、中央放射日冕＋三層菱形徽章、兩側 S 形藤蔓緞帶與端點、貼近面板上緣的雙線與小菱飾
-   3) 邊緣流光：整圈連續漸變，亮度較 v8 略微提高（最亮約 78%、最暗約 26%）
+   面板內容、粒子、波紋、角標、選項樣式、邊緣流光沿用 v5~v9。本版改動：
+   1) 過渡空間縮到最薄：不再有吊鏈／28px 飾帶。面板上緣只比主選單底線低約 7px，使用者視線幾乎不用移動
+   2) 過渡改為「裝飾性橫桿」：一條細而半透明的金色飾桿（高 7px），兩端漸隱，不是硬邦邦的實心桿；
+      桿上只有低調的細節——微弱的珠點、兩端小珠、中央一枚小菱形扣飾——焦點仍在子選單本身
+   3) 移除展開時由接縫「噴出」的那一把光點（其餘金色粒子照舊）
    ══════════════════════════════════════════════════════════════════
 @property --nav-ang { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
 
@@ -1039,7 +1039,7 @@ html[data-nav-mode="top"] .nav-subitem.active .en { opacity: 1; }
 
 html[data-nav-mode="top"] .nav-group .nav-submenu {
   display: flex; flex-direction: column; gap: 0;
-  top: calc(100% + 18px);                             /* 底線在項目底部上方 9px → 吊鏈（飾帶）高 28px */
+  top: calc(100% - 3px);                              /* 面板上緣與飾桿下緣相接；底線在項目底部上方 9px，桿厚 7px */
   width: 176px; min-width: 0;
   padding: 8px 8px 16px;
   border-radius: 6px;
@@ -1050,7 +1050,7 @@ html[data-nav-mode="top"] .nav-group .nav-submenu {
     radial-gradient(90% 60% at 50% 0%, rgba(252,246,186,.12), transparent 70%),
     linear-gradient(180deg, rgba(24,19,12,.97), rgba(7,6,11,.985));
   box-shadow: 0 16px 34px rgba(0,0,0,.65), 0 0 24px rgba(197,160,89,.12), inset 0 1px 0 rgba(255,228,170,.18);
-  transform-origin: 50% -28px;                        /* 以吊軌（底線高度）為原點向下長出 */
+  transform-origin: 50% -8px;                        /* 以吊軌（底線高度）為原點向下長出 */
   transform: translateX(calc(-50% + var(--sub-shift, 0px))) translateY(-6px) scaleY(.92);
   clip-path: inset(0 0 100% 0);
   opacity: 0;
@@ -1107,49 +1107,33 @@ html[data-nav-mode="top"] .nav-group.nav-open .nav-submenu::before {
 }
 @keyframes nav-ang-spin { to { --nav-ang: 360deg; } }
 
-/* 隱形橋接：涵蓋 28px 的飾帶高度，滑鼠從父項目移向面板不會中斷 */
-html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -34px; height: 34px; }
+/* 隱形橋接：涵蓋飾桿與底線之間的高度，滑鼠從父項目移向面板不會中斷 */
+html[data-nav-mode="top"] .nav-group .nav-submenu::after { top: -14px; height: 14px; }
 
-/* ── 吊軌＋雙吊鏈＋飾帶 ──
-   .nav-sub-thread 寬度＝面板＋左右各 18px、高 28px（底線到面板上緣）；全部以背景繪製：
-   · 吊軌：頂端細金線，兩端長漸隱；吊鏈：距兩端 32px 的兩條鏈節線，上下端各一顆珍珠扣環
-   · 飾帶（146×28，位於兩條吊鏈之間）：淡淡的金色襯底＋藝術裝飾風頂飾（見檔頭說明）
-   ::before / ::after 是吊軌上由底線中心向左右散開的柔光。 */
+/* ── 飾桿：細、淡、兩端漸隱的裝飾性橫桿 ──
+   .nav-sub-thread 寬＝面板＋左右各 18px、高 12px，單一 SVG 背景：
+   桿身（上緣高光、下緣微亮邊、上下漸層，左右兩端漸隱）＋微弱珠點＋兩端小珠＋中央小菱形扣飾。
+   桿在底線高度（項目底部上方 9~10px 起、厚 7px），下緣與面板上緣相接。 */
 html[data-nav-mode="top"] .nav-sub-thread {
   display: block !important; position: absolute; z-index: 4; pointer-events: none;
-  top: -28px; height: 28px; left: -18px; right: -18px; width: auto; transform: none;
-  --pearl: radial-gradient(circle, #fff6d6 0 1.2px, var(--gold-bright) 1.8px, rgba(197,160,89,0) 3.4px);
-  --chain: repeating-linear-gradient(180deg, rgba(252,228,170,.8) 0 2px, rgba(197,160,89,.2) 2px 4px);
-  background:
-    var(--pearl) calc(32px - 3.5px) 0 / 7px 7px no-repeat,
-    var(--pearl) calc(100% - 32px - 3.5px) 0 / 7px 7px no-repeat,
-    var(--pearl) calc(32px - 3.5px) 100% / 7px 7px no-repeat,
-    var(--pearl) calc(100% - 32px - 3.5px) 100% / 7px 7px no-repeat,
-    var(--chain) calc(32px - .75px) 50% / 1.5px calc(100% - 6px) no-repeat,
-    var(--chain) calc(100% - 32px - .75px) 50% / 1.5px calc(100% - 6px) no-repeat,
-    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='146' height='28' viewBox='0 0 146 28'><defs><linearGradient id='fade' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='146' y2='0'><stop offset='0' stop-color='%23c5a059' stop-opacity='0'/><stop offset='.16' stop-color='%23c5a059' stop-opacity='.6'/><stop offset='.5' stop-color='%23fce4aa' stop-opacity='.9'/><stop offset='.84' stop-color='%23c5a059' stop-opacity='.6'/><stop offset='1' stop-color='%23c5a059' stop-opacity='0'/></linearGradient></defs><path d='M3 .5 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0' fill='none' stroke='url(%23fade)' stroke-width='.8' opacity='.75'/><circle cx='8' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='18' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='28' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='38' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='48' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><path d='M13 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M23 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M33 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M43 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M53 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M64 15 C59 15 58 11.2 53 11.2 C48.5 11.2 47.5 16.6 42.5 16.6 C38 16.6 37 12.6 32 12.6' fill='none' stroke='url(%23fade)' stroke-width='.9'/><path d='M64 17.2 C60 17.2 58.6 14 54.2 14 C50.5 14 49.6 18.4 45.5 18.4' fill='none' stroke='%23c5a059' stroke-opacity='.35' stroke-width='.6'/><circle cx='29.5' cy='12.6' r='1.1' fill='%23fce4aa' fill-opacity='.8'/><circle cx='24.5' cy='12.6' r='.7' fill='%23c5a059' fill-opacity='.55'/><path d='M61 15 l2.2 2.2 l-2.2 2.2 l-2.2 -2.2 Z' fill='%23fce4aa' fill-opacity='.8'/><path d='M30 25.5 l1.8 1.8 l-1.8 1.8 l-1.8 -1.8 Z' transform='translate(0 -2.7)' fill='%23fce4aa' fill-opacity='.7'/><circle cx='19' cy='25.5' r='.8' fill='%23c5a059' fill-opacity='.6'/><g transform='translate(146 0) scale(-1 1)'><path d='M3 .5 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0 a5 4 0 0 0 10 0' fill='none' stroke='url(%23fade)' stroke-width='.8' opacity='.75'/><circle cx='8' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='18' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='28' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='38' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><circle cx='48' cy='5.6' r='.85' fill='%23fce4aa' fill-opacity='.75'/><path d='M13 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M23 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M33 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M43 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M53 .5 v1.6' stroke='%23c5a059' stroke-opacity='.5' stroke-width='.6'/><path d='M64 15 C59 15 58 11.2 53 11.2 C48.5 11.2 47.5 16.6 42.5 16.6 C38 16.6 37 12.6 32 12.6' fill='none' stroke='url(%23fade)' stroke-width='.9'/><path d='M64 17.2 C60 17.2 58.6 14 54.2 14 C50.5 14 49.6 18.4 45.5 18.4' fill='none' stroke='%23c5a059' stroke-opacity='.35' stroke-width='.6'/><circle cx='29.5' cy='12.6' r='1.1' fill='%23fce4aa' fill-opacity='.8'/><circle cx='24.5' cy='12.6' r='.7' fill='%23c5a059' fill-opacity='.55'/><path d='M61 15 l2.2 2.2 l-2.2 2.2 l-2.2 -2.2 Z' fill='%23fce4aa' fill-opacity='.8'/><path d='M30 25.5 l1.8 1.8 l-1.8 1.8 l-1.8 -1.8 Z' transform='translate(0 -2.7)' fill='%23fce4aa' fill-opacity='.7'/><circle cx='19' cy='25.5' r='.8' fill='%23c5a059' fill-opacity='.6'/></g><line x1='76.46' y1='2.50' x2='83.83' y2='6.75' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='75.83' y1='3.33' x2='81.84' y2='9.34' stroke='%23fce4aa' stroke-opacity='0.5' stroke-width='.6'/><line x1='75.00' y1='3.96' x2='79.25' y2='11.33' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='74.04' y1='4.36' x2='76.24' y2='12.57' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='73.00' y1='4.50' x2='73.00' y2='13.00' stroke='%23fce4aa' stroke-opacity='0.5' stroke-width='.6'/><line x1='71.96' y1='4.36' x2='69.76' y2='12.57' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='71.00' y1='3.96' x2='66.75' y2='11.33' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><line x1='70.17' y1='3.33' x2='64.16' y2='9.34' stroke='%23fce4aa' stroke-opacity='0.5' stroke-width='.6'/><line x1='69.54' y1='2.50' x2='62.17' y2='6.75' stroke='%23fce4aa' stroke-opacity='0.32' stroke-width='.6'/><path d='M59 .5 A14 12 0 0 0 87 .5' fill='none' stroke='%23c5a059' stroke-opacity='.28' stroke-width='.6'/><path d='M73 8 L81 15 L73 22 L65 15 Z' fill='%23120e08' fill-opacity='.9' stroke='url(%23fade)' stroke-width='.9'/><path d='M73 10.6 L78.4 15 L73 19.4 L67.6 15 Z' fill='none' stroke='%23fce4aa' stroke-opacity='.7' stroke-width='.7'/><path d='M73 12.7 L75.6 15 L73 17.3 L70.4 15 Z' fill='%23fce4aa' fill-opacity='.95'/><path d='M73 5.2 L74.3 7.6 L71.7 7.6 Z' fill='%23fce4aa' fill-opacity='.65'/><path d='M73 24.8 L74.3 22.4 L71.7 22.4 Z' fill='%23fce4aa' fill-opacity='.65'/><path d='M8 25.5 H61 M85 25.5 H138' stroke='url(%23fade)' stroke-width='.8' fill='none'/></svg>") 50% 0 / 146px 28px no-repeat,
-    linear-gradient(180deg, rgba(197,160,89,.13), rgba(197,160,89,0)) 50% 0 / calc(100% - 64px) 100% no-repeat,
-    linear-gradient(90deg, transparent, rgba(252,228,170,.5) 22%, rgba(252,236,185,.72) 50%, rgba(252,228,170,.5) 78%, transparent) 0 0 / 100% 1px no-repeat;
-  filter: drop-shadow(0 0 3px rgba(197,160,89,.4));
+  top: -10px; height: 12px; left: -18px; right: -18px; width: auto; transform: none;
+  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='212' height='12' viewBox='0 0 212 12'><defs><linearGradient id='hf' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='212' y2='0'><stop offset='0' stop-color='white' stop-opacity='0'/><stop offset='.12' stop-color='white' stop-opacity='1'/><stop offset='.88' stop-color='white' stop-opacity='1'/><stop offset='1' stop-color='white' stop-opacity='0'/></linearGradient><mask id='m'><rect width='212' height='12' fill='url(%23hf)'/></mask><linearGradient id='vg' gradientUnits='userSpaceOnUse' x1='0' y1='2' x2='0' y2='9'><stop offset='0' stop-color='%23fce4aa' stop-opacity='.55'/><stop offset='.3' stop-color='%23c5a059' stop-opacity='.34'/><stop offset='.7' stop-color='%238a6a32' stop-opacity='.26'/><stop offset='1' stop-color='%23c5a059' stop-opacity='.42'/></linearGradient><linearGradient id='cg' gradientUnits='userSpaceOnUse' x1='99' y1='0' x2='113' y2='0'><stop offset='0' stop-color='%23c5a059'/><stop offset='.5' stop-color='%23fce4aa'/><stop offset='1' stop-color='%23c5a059'/></linearGradient></defs><g mask='url(%23m)'><rect x='0' y='2' width='212' height='7' fill='url(%23vg)'/><rect x='0' y='2' width='212' height='.8' fill='%23fff6d6' fill-opacity='.5'/><circle cx='24' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='30' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='36' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='42' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='48' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='54' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='60' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='66' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='72' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='78' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='84' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='124' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='130' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='136' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='142' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='148' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='154' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='160' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='166' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='172' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='178' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/><circle cx='184' cy='5.5' r='.7' fill='%23fff0c8' fill-opacity='.34'/></g><circle cx='9' cy='5.5' r='2.9' fill='none' stroke='%23fce4aa' stroke-opacity='.4' stroke-width='.7'/><circle cx='9' cy='5.5' r='1.5' fill='%23fff0c8' fill-opacity='.75'/><circle cx='203' cy='5.5' r='2.9' fill='none' stroke='%23fce4aa' stroke-opacity='.4' stroke-width='.7'/><circle cx='203' cy='5.5' r='1.5' fill='%23fff0c8' fill-opacity='.75'/><path d='M89 5.5 H97 M115 5.5 H123' stroke='%23fce4aa' stroke-opacity='.55' stroke-width='.7'/><path d='M85 4.2 l1.3 1.3 l-1.3 1.3 l-1.3 -1.3Z M127 4.2 l1.3 1.3 l-1.3 1.3 l-1.3 -1.3Z' fill='%23fce4aa' fill-opacity='.6'/><path d='M106 .4 L112.4 5.5 L106 10.6 L99.6 5.5Z' fill='%23120e08' fill-opacity='.92' stroke='url(%23cg)' stroke-width='.8'/><path d='M106 2.8 L109.6 5.5 L106 8.2 L102.4 5.5Z' fill='%23fce4aa' fill-opacity='.9'/></svg>") 50% 0 / 100% 100% no-repeat;
+  filter: drop-shadow(0 0 3px rgba(197,160,89,.28));
   opacity: 0; transition: opacity .45s ease;
 }
 html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread {
-  opacity: 1; transition-delay: .06s;
-  animation: nav-rail-draw .7s cubic-bezier(.22,1,.36,1) both;   /* 由中心淡入並拉寬（無硬邊裁切） */
+  opacity: 1; transition-delay: .05s;
+  animation: nav-rod-in .7s cubic-bezier(.22,1,.36,1) both;     /* 由中心淡入並拉寬（柔和，無硬邊） */
 }
-@keyframes nav-rail-draw { from { scale: .55 1; } to { scale: 1 1; } }
-/* 吊軌上的柔光：寬 90px、兩端漸隱，由底線中心緩緩向左右散開（取代原本的硬光條） */
-html[data-nav-mode="top"] .nav-sub-thread::before,
-html[data-nav-mode="top"] .nav-sub-thread::after {
-  content: ""; position: absolute; top: -1px; height: 3px; width: 90px;
-  left: calc(50% - var(--sub-shift, 0px) - 45px); border-radius: 2px; opacity: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,240,200,.5) 50%, transparent);
-  filter: blur(.6px);
+@keyframes nav-rod-in { from { scale: .6 1; } to { scale: 1 1; } }
+/* 扣飾後方一圈極淡的呼吸光（不移動，只有明暗） */
+html[data-nav-mode="top"] .nav-sub-thread::before {
+  content: ""; position: absolute; left: calc(50% - var(--sub-shift, 0px) - 22px); top: -1px; width: 44px; height: 14px;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,232,176,.28), transparent 70%); opacity: 0;
 }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::before { animation: nav-rail-glow-r 3.8s ease-in-out infinite .6s; }
-html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::after  { animation: nav-rail-glow-l 3.8s ease-in-out infinite .6s; }
-@keyframes nav-rail-glow-r { 0% { transform: translateX(0);    opacity: 0; } 30% { opacity: .9; } 70% { opacity: .5; } 100% { transform: translateX(62px);  opacity: 0; } }
-@keyframes nav-rail-glow-l { 0% { transform: translateX(0);    opacity: 0; } 30% { opacity: .9; } 70% { opacity: .5; } 100% { transform: translateX(-62px); opacity: 0; } }
+html[data-nav-mode="top"] .nav-group.nav-open .nav-sub-thread::before { animation: nav-rod-breath 3.6s ease-in-out infinite .6s; }
+html[data-nav-mode="top"] .nav-sub-thread::after { content: none; }
+@keyframes nav-rod-breath { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
 
 /* 展開時，父項目的小箭頭收起，避免與飾帶中央的菱飾重疊 */
 html[data-nav-mode="top"] .nav-group-arrow { transition: opacity .25s ease; }
