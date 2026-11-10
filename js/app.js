@@ -178,14 +178,81 @@ initStars(){
         it.addEventListener('mouseenter', function () { for (var k = 0; k < 7; k++) setTimeout(function () { spawnSpark(it); }, k * 45); });
       });
 
+      /* ── 邊緣流光（canvas）──
+         一段柔和的彗尾沿面板邊框「等速」繞行：尾端完全透明 → 以平滑曲線漸亮 → 光頭，
+         顏色由深金漸變到香檳金；光頭前方有極短的柔和收尾。沒有分段、沒有硬邊，且不會整圈消失。
+         光頭每次展開都從上緣中央（飾桿扣飾正下方）出發，順時針流動。 */
+      var comet = { cv: null, ctx: null, raf: 0, t0: 0, W: 0, H: 0, P: 0, dpr: 1 };
+      var CM = 6, CR = 5.5, C_LEN = 165, C_SPEED = 85, C_PEAK = .8;      // 邊距、轉角半徑、彗尾長度(px)、速度(px/s)、最高不透明度
+      var cometPoint = function (s) {                                    // 路徑座標（以邊框中線，自上緣中央起順時針），回傳 [x,y]
+        var W = comet.W, H = comet.H, r = CR, x0 = CM + .5, y0 = CM + .5, x1 = CM + W - .5, y1 = CM + H - .5, cx = CM + W / 2;
+        var a = (W - 1) / 2 - r, hh = H - 1 - 2 * r, wb = W - 1 - 2 * r, q = Math.PI * r / 2;
+        s = ((s % comet.P) + comet.P) % comet.P;
+        if (s < a)  return [cx + s, y0];                s -= a;
+        if (s < q)  { var t = s / r - Math.PI / 2;      return [x1 - r + r * Math.cos(t), y0 + r + r * Math.sin(t)]; } s -= q;
+        if (s < hh) return [x1, y0 + r + s];            s -= hh;
+        if (s < q)  { t = s / r;                        return [x1 - r + r * Math.cos(t), y1 - r + r * Math.sin(t)]; } s -= q;
+        if (s < wb) return [x1 - r - s, y1];            s -= wb;
+        if (s < q)  { t = s / r + Math.PI / 2;          return [x0 + r + r * Math.cos(t), y1 - r + r * Math.sin(t)]; } s -= q;
+        if (s < hh) return [x0, y1 - r - s];            s -= hh;
+        if (s < q)  { t = s / r + Math.PI;              return [x0 + r + r * Math.cos(t), y0 + r + r * Math.sin(t)]; } s -= q;
+        return [x0 + r + s, y0];
+      };
+      var cometFrame = function (now) {
+        var ctx = comet.ctx; if (!ctx) return;
+        ctx.clearRect(0, 0, comet.W + CM * 2, comet.H + CM * 2);
+        var head = ((now - comet.t0) / 1000) * C_SPEED, N = 72, step = C_LEN / N, k, u, al, s0, s1, p0, p1, cr, cg, cb;
+        var segs = [];
+        for (k = 0; k < N; k++) {                                         // 彗尾：u 0→1（尾→頭），亮度 u^2.4 平滑上升
+          u = (k + .5) / N; s0 = head - C_LEN + k * step; s1 = s0 + step;
+          segs.push([s0, s1, Math.pow(u, 2.4), u]);
+        }
+        for (k = 0; k < 6; k++) {                                         // 光頭前方 ~12px 的柔和收尾
+          u = 1 - (k + .5) / 6; s0 = head + k * 2; s1 = s0 + 2;
+          segs.push([s0, s1, Math.pow(u, 1.6) * .9, 1]);
+        }
+        ctx.lineCap = 'butt';
+        for (var pass = 0; pass < 2; pass++) {                            // 先畫寬而淡的光暈，再畫細亮的核心
+          ctx.lineWidth = pass ? 1.5 : 4.4;
+          for (k = 0; k < segs.length; k++) {
+            u = segs[k][3]; al = segs[k][2] * C_PEAK * (pass ? 1 : .22);
+            cr = Math.round(176 + (255 - 176) * u); cg = Math.round(140 + (238 - 140) * u); cb = Math.round(72 + (196 - 72) * u);
+            p0 = cometPoint(segs[k][0]); p1 = cometPoint(segs[k][1]);
+            ctx.strokeStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + al.toFixed(3) + ')';
+            ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+          }
+        }
+        comet.raf = requestAnimationFrame(cometFrame);
+      };
+      var startComet = function () {
+        if (!subMenuEl || reduceMotion || !topModeNow()) return;
+        stopComet();
+        var W = subMenuEl.offsetWidth, H = subMenuEl.offsetHeight; if (!W || !H) return;
+        if (!comet.cv) {
+          comet.cv = document.createElement('canvas'); comet.cv.className = 'nav-sub-comet'; comet.cv.setAttribute('aria-hidden', 'true');
+          subMenuEl.appendChild(comet.cv); comet.ctx = comet.cv.getContext('2d');
+        }
+        comet.W = W; comet.H = H; comet.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        comet.P = 2 * (W - 1 - 2 * CR) + 2 * (H - 1 - 2 * CR) + 2 * Math.PI * CR;
+        comet.cv.width = (W + CM * 2) * comet.dpr; comet.cv.height = (H + CM * 2) * comet.dpr;
+        comet.cv.style.width = (W + CM * 2) + 'px'; comet.cv.style.height = (H + CM * 2) + 'px';
+        comet.ctx.setTransform(comet.dpr, 0, 0, comet.dpr, 0, 0);
+        comet.t0 = performance.now();
+        comet.raf = requestAnimationFrame(cometFrame);
+      };
+      var stopComet = function () {
+        if (comet.raf) cancelAnimationFrame(comet.raf); comet.raf = 0;
+        if (comet.ctx) comet.ctx.clearRect(0, 0, comet.cv.width, comet.cv.height);
+      };
+
       var toggleExpGroup = function (force) {
         var open = typeof force === 'boolean' ? force : !expGroup.classList.contains('nav-open');
         var wasOpen = expGroup.classList.contains('nav-open');
         expGroup.classList.toggle('nav-open', open);
         expGroup.setAttribute('aria-expanded', open ? 'true' : 'false');
         if (open) clampSubmenu();
-        if (open && !wasOpen && topModeNow()) startSparks();
-        if (!open) stopSparks();
+        if (open && !wasOpen && topModeNow()) { startSparks(); startComet(); }
+        if (!open) { stopSparks(); stopComet(); }
       };
       /* 頂部模式的下拉框以「遠航探索」為中心對齊；若會超出螢幕左右邊緣，
          就算出需要平移的像素寫進 --sub-shift（箭頭缺口會反向補償，仍然指著「遠航探索」） */
