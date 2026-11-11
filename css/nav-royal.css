@@ -119,7 +119,7 @@ html[data-nav-royal][data-nav-mode="left"] .nav-group > .nav-content:active { tr
 
 /* 欄位縮進面板內；視窗較矮需捲動時，項目在面板內被裁切、頂尾漸隱，不會壓到框線 */
 html[data-nav-royal][data-nav-mode="left"] .royal-nav {
-  top: 16px !important; bottom: 22px !important;
+  top: 22px !important; bottom: 28px !important;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
           mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
 }
@@ -195,8 +195,8 @@ html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
   position: absolute; inset: 0; overflow: hidden;
   /* 輪廓（缺角＋右緣外鼓）由 JS 以 clip-path 裁出 */
   background:
-    radial-gradient(80px 80px at calc(100% - 38px) 0, rgba(252,228,170,.12), transparent 100%),
-    radial-gradient(80px 80px at calc(100% - 38px) 100%, rgba(252,228,170,.10), transparent 100%),
+    radial-gradient(90px 90px at calc(100% - 20px) 0, rgba(252,228,170,.12), transparent 100%),
+    radial-gradient(90px 90px at calc(100% - 20px) 100%, rgba(252,228,170,.10), transparent 100%),
     radial-gradient(130% 16% at 40% 0%, rgba(252,246,186,.09), transparent 72%),
     radial-gradient(130% 14% at 40% 100%, rgba(var(--nr-gold),.10), transparent 72%),
     linear-gradient(90deg, rgba(12,10,12,.34), rgba(20,15,10,.62));
@@ -252,39 +252,33 @@ html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
 
 
 /* ══════════════════════════════════════════════════════════════
-   三、群組展開提示：環形寶章（取代舊的小三角，緊貼文字右側）
+   三、群組展開提示：華麗 V 形（雙層 V＋兩端小珠＋尖端垂掛寶石）
+   平常是整片一致的金色；hover 微微彈動並提亮；展開時翻轉成 ∧ 並發光。
    ══════════════════════════════════════════════════════════════ */
 html[data-nav-royal] .nav-group-arrow { display: none !important; }
 html[data-nav-royal] .nr-chev {
-  position: relative; display: inline-block;
-  width: 1.05em; height: 1.05em; margin-left: .65em; vertical-align: -.14em;
-  border-radius: 50%;
-  border: 1px solid rgba(var(--acc),.5);
-  background: radial-gradient(circle, rgba(var(--acc),.22) 0%, rgba(var(--acc),.05) 70%, transparent 100%);
-  transition: box-shadow .4s ease, border-color .4s ease, background .4s ease;
+  display: inline-block; margin-left: .6em; vertical-align: -.02em;
+  width: 1.2em; height: .84em; line-height: 0;
 }
-html[data-nav-royal] .nr-chev::before {              /* 細 V 形 */
-  content: ""; position: absolute; left: 50%; top: 50%;
-  width: .3em; height: .3em;
-  border-right: 1.4px solid rgb(var(--acc)); border-bottom: 1.4px solid rgb(var(--acc));
-  transform: translate(-50%,-68%) rotate(45deg);
-  transition: transform .55s cubic-bezier(.34,1.56,.64,1);
+html[data-nav-royal] .nr-chev svg {
+  width: 100%; height: 100%; overflow: visible;
+  transform-origin: 50% 52%;
+  transition: transform .6s cubic-bezier(.34,1.56,.64,1), filter .4s ease;
+  filter: drop-shadow(0 0 2px rgba(var(--nr-gold),.35));
 }
-html[data-nav-royal] .nav-group.nav-open .nr-chev::before { transform: translate(-50%,-32%) rotate(225deg); }
-html[data-nav-royal] .nr-chev::after {                /* hover 時繞行的亮弧 */
-  content: ""; position: absolute; inset: -1px; border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(var(--acc),.95), rgba(var(--acc),.08) 40%, rgba(var(--acc),0) 60%, rgba(var(--acc),.95));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
-          mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
-  opacity: 0; transition: opacity .35s ease;
+html[data-nav-royal] .nr-chev .cv1 { fill: none; stroke: #d9b66a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: stroke .3s ease; }
+html[data-nav-royal] .nr-chev .cv2 { fill: none; stroke: #c5a059; stroke-opacity: .65; stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; }
+html[data-nav-royal] .nr-chev .cvb { fill: #e9cf8a; fill-opacity: .85; }
+html[data-nav-royal] .nr-chev .cvg { fill: #fce4aa; fill-opacity: .9; stroke: #c5a059; stroke-width: .5; transition: fill-opacity .3s ease; }
+html[data-nav-royal] .nav-group:hover .nr-chev .cv1 { stroke: #fce4aa; }
+html[data-nav-royal] .nav-group:hover .nr-chev { animation: nr-bob 1.5s ease-in-out infinite; }
+@keyframes nr-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+html[data-nav-royal] .nav-group.nav-open .nr-chev { animation: none; }
+html[data-nav-royal] .nav-group.nav-open .nr-chev svg {
+  transform: scaleY(-1);
+  filter: drop-shadow(0 0 4px rgba(252,228,170,.7));
 }
-html[data-nav-royal] .nav-group:hover .nr-chev::after { opacity: .95; animation: nr-spin 3.4s linear infinite; }
-html[data-nav-royal] .nav-group:hover .nr-chev { background: radial-gradient(circle, rgba(var(--acc),.34) 0%, rgba(var(--acc),.08) 70%, transparent 100%); }
-html[data-nav-royal] .nav-group.nav-open .nr-chev {
-  border-color: rgba(var(--acc),.85);
-  box-shadow: 0 0 9px rgba(var(--acc),.5), inset 0 0 6px rgba(var(--acc),.25);
-}
-
+html[data-nav-royal] .nav-group.nav-open .nr-chev .cv1 { stroke: #fce4aa; }
 
 /* ══════════════════════════════════════════════════════════════
    四、「切換頂部／左側選單」按鈕：凹角雕版
@@ -315,8 +309,6 @@ html[data-nav-royal] .nav-mode-toggle:hover .nmt-icon::before { opacity: .9; ani
 .nrb-fill { fill: rgba(16,12,9,.66); transition: fill .3s ease; }
 .nrb-in   { fill: none; stroke: rgba(197,160,89,.3); stroke-width: 1; transition: stroke .3s ease; }
 .nrb-out  { fill: none; stroke: url(#nrb-g); stroke-opacity: .68; stroke-width: 1.5; transition: stroke-opacity .3s ease; }
-.nrb-pearl { fill: #0c0a0e; stroke: #f3dfa0; stroke-opacity: .78; stroke-width: .9; }
-.nrb-dot  { fill: #fff4cf; fill-opacity: .9; }
 .nrb-sh   { transform: translateX(0); }
 html[data-nav-royal] .nav-mode-toggle:hover .nrb-fill { fill: rgba(60,44,20,.78); }
 html[data-nav-royal] .nav-mode-toggle:hover .nrb-in { stroke: rgba(252,228,170,.62); }
@@ -328,6 +320,7 @@ html[data-nav-royal] .nav-mode-toggle:active { transform: scale(.96); }
    五、減少動態：環境動態全部停掉（保留靜態外觀）
    ══════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
+  html[data-nav-royal] .nav-group:hover .nr-chev { animation: none !important; }
   .nrp-w1, .nrp-w2, .nrp-body::before, .nrp-ind::after, .nrp-ind.flare,
   html[data-nav-royal] .nav-item:not(.nav-subitem) > .nav-content,
   html[data-nav-royal] .nav-item.active::after,
