@@ -1,248 +1,340 @@
 /* ============================================================
- * nav-royal.css — 主選單「沉穩華麗」裝飾層
+ * nav-royal.css  v3 — 主選單「面板＋飾桿」整合系統
  *
- * 這是一個獨立的「加法」檔案：不改動 page-content.css 內任何既有規則，
- * 只在最後面疊上去。想完全還原，只要把 index.html 裡引用本檔的那一行
- * <link> 刪掉即可。
+ * 搭配 js/nav-royal.js 使用（JS 會在 <html> 加上 data-nav-royal，
+ * 本檔所有規則都綁在這個屬性底下；沒有 JS ＝ 完全是原版）。
+ * 獨立的「加法」檔案，不改動 page-content.css 內任何既有規則。
+ * 想還原：移除 index.html 裡本檔的 <link> 與 nav-royal.js 的 <script>。
  *
- * 設計原則（為什麼這樣做，改的時候請維持）：
- *
- *  1. 靜止安靜、互動華麗
- *     常駐的主選單「不放任何無限循環動畫」（沒有呼吸、旋轉、流光）。
- *     動態只出現在 hover / 點擊 / 展開的那一下，而且都是一次性的。
- *     下拉子選單是臨時浮層，所以它原本的持續動態維持不變。
- *
- *  2. 亮度分四層，避免搶走內容焦點
- *     裝飾框線 α .13–.38  <  文字  <  hover 光暈  <  目前頁面（寶石＋實線）
- *     只有「目前頁面」是最亮、最固定的一點。
- *
- *  3. 大面板沒有「孤立的方角」
- *     框線貼齊螢幕邊緣出血（左側欄的左緣／頂部列的上緣與兩側都在螢幕外），
- *     畫面上只會看到「真正的」轉角——這些轉角一律：圓角＋寶石＋漸隱尾線，
- *     與下拉子選單的飾桿菱扣同一套語彙。
- *
- *  4. 寶石＝目前所在頁面
- *     主選單項目的「目前頁面」以緞帶／底線中央的小寶石標示，
- *     與 hover（只有光暈與底線伸展、沒有寶石）一眼可分。
+ * 設計邏輯：
+ *   ‧ 面板與飾桿是同一個結構：左側面板左緣出血、只有右側兩個圓角，
+ *     右緣就是飾桿（外亮內暗的雙線＋夾在中間的珠點）；頂部則是主列下緣垂掛的飾桿。
+ *   ‧ 光有出處：邊緣流光沿框走、指示光在飾桿上跟著目前頁面滑動、
+ *     項目 hover 才有光柱／光環／金粉。
+ *   ‧ 常駐元素亮度刻意壓低（框線 α .3–.8、珠點 .5、流光 .58）；
+ *     「想吸引目光」的都是互動才出現的東西，或是目前頁面那一點。
  * ============================================================ */
 
-:root {
-  --nr-gold: 197,160,89;
-  --nr-champ: 255,232,176;
-  /* 左側欄裝飾框的右緣位置：項目寬 280px、內容區從 315px 開始，取中間 */
-  --nr-rail-edge: 298px;
+:root { --nr-gold: 197,160,89; }
 
-  /* 寶石（菱形）：深色底＋金邊＋香檳色內核，13×13 */
-  --nr-gem: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 13 13'><path d='M6.5 .5 L12.5 6.5 L6.5 12.5 L.5 6.5Z' fill='%23120e08' stroke='%23d9b66a' stroke-width='.9'/><path d='M6.5 3.3 L9.7 6.5 L6.5 9.7 L3.3 6.5Z' fill='%23fce4aa' fill-opacity='.9'/></svg>");
-
-  /* 頂部列下緣的中央垂飾：細高光線＋兩側小菱＋垂掛的寶石（132×14） */
-  --nr-pendant: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='132' height='14' viewBox='0 0 132 14'><defs><linearGradient id='f' x1='0' x2='1'><stop offset='0' stop-color='%23fce4aa' stop-opacity='0'/><stop offset='.5' stop-color='%23fff0c8' stop-opacity='.95'/><stop offset='1' stop-color='%23fce4aa' stop-opacity='0'/></linearGradient><linearGradient id='c' x1='0' x2='1'><stop offset='0' stop-color='%23c5a059'/><stop offset='.5' stop-color='%23fce4aa'/><stop offset='1' stop-color='%23c5a059'/></linearGradient></defs><rect x='6' y='.5' width='120' height='1' fill='url(%23f)'/><path d='M40 1 l2 2 l-2 2 l-2 -2Z M92 1 l2 2 l-2 2 l-2 -2Z' fill='%23fce4aa' fill-opacity='.7'/><path d='M66 1.5 L72 7.5 L66 13.5 L60 7.5Z' fill='%23120e08' fill-opacity='.95' stroke='url(%23c)' stroke-width='.9'/><path d='M66 4.6 L69.4 7.5 L66 10.4 L62.6 7.5Z' fill='%23fce4aa' fill-opacity='.9'/></svg>");
-}
+/* ── 各項目專屬的光色：都在金色系內偏一點點，只在 hover／目前頁面才看得到 ── */
+.nav-item:not(.nav-subitem)                     { --acc: 255,232,176; }
+.nav-item[data-nav="about"]:not(.nav-subitem)   { --acc: 240,198,160; }
+.nav-item[data-nav="links"]:not(.nav-subitem)   { --acc: 228,208,150; }
+.nav-item[data-nav="news"]:not(.nav-subitem)    { --acc: 255,214,150; }
+#nav-group-exploration                          { --acc: 150,214,226; }
+.nav-item[data-nav="craft"]:not(.nav-subitem)   { --acc: 236,178,122; }
+.nav-item[data-nav="market"]:not(.nav-subitem)  { --acc: 216,200,124; }
+.nav-item[data-nav="fashion"]:not(.nav-subitem) { --acc: 238,176,196; }
+.nav-item[data-nav="macro"]:not(.nav-subitem)   { --acc: 196,208,228; }
 
 
 /* ══════════════════════════════════════════════════════════════
-   一、互動回饋（頂部＋左側共用）
-   hover：光暈淡入 ＋ 一道光掃過（一次）＋ 文字微移
-   按下：文字微縮
-   目前頁面：寶石彈出（transition 的過衝效果，一次性）
+   一、項目按鈕（左側＋頂部共用的動感）
+   hover：光柱＋底線長出＋圖示光環浮現並旋轉＋文字微移＋小金粉（JS）
+   目前頁面：光柱常亮＋底線＋光環靜止＋底線上每 9 秒閃過一道光
+   載入：項目依序滑入（一次性）
    ══════════════════════════════════════════════════════════════ */
 
-/* ── 一道光掃過：掛在 .nav-glow 的 ::after，被 glow 本身裁切，不會溢出 ── */
-.nav-item:not(.nav-subitem) > .nav-glow { overflow: hidden; }
-.nav-item:not(.nav-subitem) > .nav-glow::after {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(105deg, transparent 38%, rgba(255,236,190,.15) 50%, transparent 62%);
-  transform: translateX(-105%);
-  transition: none;                       /* 離開時瞬間歸位（此時 glow 已淡出，看不到） */
-  pointer-events: none;
-}
-.nav-item:not(.nav-subitem):hover > .nav-glow::after {
-  transform: translateX(105%);
-  transition: transform .85s cubic-bezier(.22,1,.36,1);
-}
-
-/* ── 寶石：預設縮到 0，目前頁面時彈出；hover 時露出一顆小的當預告 ── */
-.nav-item:not(.nav-subitem) > .nav-ribbon::after {
+/* 圖示光環（圖示由 JS 包成 .nr-ic） */
+html[data-nav-royal] .nr-ic { position: relative; display: inline-block; margin-right: .16em; }
+html[data-nav-royal] .nr-ic::before {
   content: "";
   position: absolute; left: 50%; top: 50%;
-  width: 7px; height: 7px;
-  background: linear-gradient(135deg, #fff3c4, #e0bd6c);
-  box-shadow: 0 0 7px 1px rgba(var(--nr-gold),.75);
-  transform: translate(-50%,-50%) rotate(45deg) scale(0);
-  opacity: 0;
-  transition: transform .5s cubic-bezier(.34,1.56,.64,1), opacity .3s ease;
+  width: 1.45em; height: 1.45em; margin: -.725em 0 0 -.725em;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    rgba(var(--acc),.95), rgba(var(--acc),.08) 36%, rgba(var(--acc),0) 55%, rgba(var(--acc),.08) 76%, rgba(var(--acc),.95));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
+  opacity: 0; transform: scale(.55);
+  transition: opacity .35s ease, transform .55s cubic-bezier(.34,1.56,.64,1);
   pointer-events: none;
 }
-.nav-item:not(.nav-subitem):not(.active):hover > .nav-ribbon::after {
-  opacity: .55;
-  transform: translate(-50%,-50%) rotate(45deg) scale(.55);
+html[data-nav-royal] .nav-item:hover .nr-ic::before {
+  opacity: .95; transform: scale(1);
+  animation: nr-spin 3.4s linear infinite;
 }
-.nav-item:not(.nav-subitem).active > .nav-ribbon::after {
-  opacity: 1;
-  transform: translate(-50%,-50%) rotate(45deg) scale(1);
+html[data-nav-royal] .nav-item.active:not(:hover) .nr-ic::before { opacity: .55; transform: scale(1); background: rgba(var(--acc),.7); }
+@keyframes nr-spin { to { transform: scale(1) rotate(360deg); } }
+
+/* 載入：依序滑入（backwards＝只在延遲期間套用起點，結束後不會蓋住 hover 的位移） */
+html[data-nav-royal] .nav-item:not(.nav-subitem) > .nav-content {
+  animation: nr-in .8s cubic-bezier(.22,1,.36,1) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms + 120ms);
 }
+@keyframes nr-in { from { opacity: 0; transform: translateX(-16px); } }
 
+/* ── 左側 ── */
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem) { margin: 4px 0; }
 
-/* ══════════════════════════════════════════════════════════════
-   二、頂部模式
-   ══════════════════════════════════════════════════════════════ */
-
-/* 主列：底部一層極淡的暖色底光＋上緣高光＋下投影，讓它「浮」在內容上方 */
-html[data-nav-mode="top"] .royal-nav {
-  background:
-    linear-gradient(180deg, rgba(var(--nr-gold),0) 45%, rgba(var(--nr-gold),.065) 100%),
-    rgba(5,4,10,.94) !important;
-  box-shadow: inset 0 1px 0 rgba(255,228,170,.07), 0 10px 26px rgba(0,0,0,.42);
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-glow {
+  background: radial-gradient(ellipse 148% 62% at -5% 50%,
+    rgba(var(--acc),.50) 0%, rgba(var(--acc),.17) 40%, transparent 66%) !important;
+  transition: opacity .5s ease !important;
 }
+/* 緞帶：平常縮短調暗，hover／目前頁面伸長點亮（比單純變亮更有動感，對比也更清楚） */
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-ribbon {
+  transform: scaleY(.62); transform-origin: 50% 50%;
+  transition: transform .5s cubic-bezier(.22,1,.36,1), opacity .4s ease, box-shadow .4s ease !important;
+}
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem):not(.active):not(:hover) > .nav-ribbon {
+  opacity: .6; box-shadow: 0 0 8px rgba(138,109,59,.7) !important;
+}
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem):hover > .nav-ribbon,
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem).active > .nav-ribbon { transform: scaleY(1); }
 
-/* 下緣裝飾：中央亮、向兩側漸隱的金線（疊在原有細底線上）＋中央垂飾 */
-html[data-nav-mode="top"] .royal-nav::after {
+/* 底線：從緞帶方向長出來 */
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem)::after {
   content: "";
-  /* top:100% ＝ 緊貼原有 1px 底線的上緣，高光線蓋在底線上，垂飾往下垂掛 */
-  position: absolute; left: 0; right: 0; top: 100%; height: 14px;
-  z-index: 1; pointer-events: none;
+  position: absolute; left: 30px; right: 24px; bottom: 4px; height: 1px;
   background:
-    var(--nr-pendant) 50% 0 / 132px 14px no-repeat,
-    linear-gradient(90deg,
-      rgba(var(--nr-gold),0) 0,
-      rgba(var(--nr-gold),.45) 20%,
-      rgba(252,228,170,.7) 50%,
-      rgba(var(--nr-gold),.45) 80%,
-      rgba(var(--nr-gold),0) 100%) 0 0 / 100% 1px no-repeat;
-  filter: drop-shadow(0 0 4px rgba(var(--nr-gold),.3));
+    linear-gradient(90deg, transparent, rgba(255,250,232,.95), transparent) -60px 0 / 60px 100% no-repeat,
+    linear-gradient(90deg, rgba(var(--acc),.95), rgba(var(--acc),.35) 60%, transparent);
+  box-shadow: 0 0 8px rgba(var(--acc),.5);
+  transform: scaleX(.12); transform-origin: 0 50%; opacity: 0;
+  transition: transform .6s cubic-bezier(.22,1,.36,1), opacity .4s ease;
+  pointer-events: none;
+}
+html[data-nav-royal][data-nav-mode="left"] .nav-group.nav-item::after { bottom: auto; top: 57px; }
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem):hover::after { transform: scaleX(1); opacity: 1; }
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem).active::after {
+  transform: scaleX(1); opacity: .85;
+  animation: nr-glint-l 9s ease-in-out infinite 2.5s;
+}
+@keyframes nr-glint-l {
+  0%   { background-position: -60px 0, 0 0; }
+  26%  { background-position: 240px 0, 0 0; }
+  100% { background-position: 240px 0, 0 0; }
 }
 
-/* 文字微微上浮；按下時回落並略縮 */
-html[data-nav-mode="top"] .nav-item:not(.nav-subitem) > .nav-content {
-  transition: transform .35s cubic-bezier(.22,1,.36,1);
-}
-html[data-nav-mode="top"] .nav-item:not(.nav-subitem):hover > .nav-content {
-  transform: translateY(-1px);
-}
-html[data-nav-mode="top"] .nav-item:not(.nav-subitem):active > .nav-content {
-  transform: translateY(0) scale(.97);
-  transition-duration: .1s;
-}
-
-
-/* ══════════════════════════════════════════════════════════════
-   三、左側模式
-   ══════════════════════════════════════════════════════════════ */
-
-/* ── 3-1 欄位裝飾框（固定在畫面上，不跟著欄位捲動）──
-   左緣出血到螢幕外，所以畫面上只會看到右側「兩個」轉角，
-   而不是四個。轉角＝圓角＋寶石＋漸隱尾線。 */
-html[data-nav-mode="left"]::before {
-  content: "";
-  position: fixed; z-index: 9990; pointer-events: none;
-  left: -30px; top: 8px; bottom: 8px;
-  width: calc(var(--nr-rail-edge) + 30px);
-  border: 1px solid rgba(var(--nr-gold),.34);
-  border-radius: 20px;
-  outline: 1px solid rgba(var(--nr-gold),.13);      /* 內縮細框：雙層金框，呼應全站 noble frame */
-  outline-offset: -5px;
-  background:
-    linear-gradient(90deg, rgba(var(--nr-gold),0), rgba(var(--nr-gold),.03) 55%, rgba(var(--nr-gold),.07) 100%),
-    rgba(6,5,10,.38);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  box-shadow: 0 0 40px rgba(0,0,0,.45), inset 0 0 26px rgba(var(--nr-gold),.04);
-}
-/* 轉角珠寶：寶石坐在圓角弧線中點（半徑 20 → 距兩邊各 5.86px）＋沿邊漸隱的亮尾線 */
-html[data-nav-mode="left"]::after {
-  content: "";
-  position: fixed; z-index: 9991; pointer-events: none;
-  left: -30px; top: 8px; bottom: 8px;
-  width: calc(var(--nr-rail-edge) + 30px);
-  background:
-    /* 寶石 ×2（右上、右下） */
-    var(--nr-gem) calc(100% - 12.4px) -0.6px / 13px 13px no-repeat,
-    var(--nr-gem) calc(100% - 12.4px) calc(100% - 12.4px) / 13px 13px no-repeat,
-    /* 上緣尾線、右緣上段尾線 */
-    linear-gradient(90deg,  rgba(252,228,170,0), rgba(252,228,170,.7)) calc(100% - 76px) 0 / 56px 1px no-repeat,
-    linear-gradient(180deg, rgba(252,228,170,.7), rgba(252,228,170,0)) calc(100% - 1px) 20px / 1px 56px no-repeat,
-    /* 下緣尾線、右緣下段尾線 */
-    linear-gradient(90deg,  rgba(252,228,170,0), rgba(252,228,170,.7)) calc(100% - 76px) calc(100% - 1px) / 56px 1px no-repeat,
-    linear-gradient(0deg,   rgba(252,228,170,.7), rgba(252,228,170,0)) calc(100% - 1px) calc(100% - 76px) / 1px 56px no-repeat;
-  filter: drop-shadow(0 0 3px rgba(255,228,170,.4));
-}
-
-/* 欄位本身縮進框內：視窗較矮需要捲動時，項目會在框內被裁切，不會壓到框線 */
-html[data-nav-mode="left"] .royal-nav {
-  top: 10px !important;
-  bottom: 10px !important;
-  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
-          mask-image: linear-gradient(180deg, transparent 0, #000 10px, #000 calc(100% - 10px), transparent 100%);
-}
-
-/* ── 3-2 項目回饋 ──
-   平常的緞帶調暗一點（對比才出得來），hover／目前頁面才全亮；
-   原本左側模式 transition:none，現在只對「透明度／陰影／文字位移」加過渡，
-   不碰任何幾何屬性，所以切換模式時不會有東西跑來跑去。 */
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-glow {
-  transition: opacity .4s ease !important;
-}
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-ribbon {
-  transition: opacity .35s ease, box-shadow .35s ease !important;
-}
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem):not(.active):not(:hover) > .nav-ribbon {
-  opacity: .55;
-  box-shadow: 0 0 6px rgba(var(--nr-gold),.35), 0 0 2px var(--gold-bright) !important;
-}
-/* 寶石嵌在緞帶上（緞帶只有 4px 寬，寶石中心放在 x=5px） */
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-ribbon::after { left: 5px; }
-
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-content {
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-content {
   transition: transform .4s cubic-bezier(.22,1,.36,1);
   transform-origin: 0 50%;
 }
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem):not(.nav-group):hover > .nav-content,
-html[data-nav-mode="left"] .nav-group > .nav-content:hover {
-  transform: translateX(5px);
-}
-html[data-nav-mode="left"] .nav-item:not(.nav-subitem):not(.nav-group):active > .nav-content,
-html[data-nav-mode="left"] .nav-group > .nav-content:active {
-  transform: translateX(2px) scale(.98);
-  transition-duration: .1s;
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem):not(.nav-group):hover > .nav-content,
+html[data-nav-royal][data-nav-mode="left"] .nav-group > .nav-content:hover { transform: translateX(4px); }
+html[data-nav-royal][data-nav-mode="left"] .nav-item:not(.nav-subitem):not(.nav-group):active > .nav-content,
+html[data-nav-royal][data-nav-mode="left"] .nav-group > .nav-content:active { transform: translateX(2px) scale(.98); transition-duration: .1s; }
+
+/* 欄位縮進面板內；視窗較矮需捲動時，項目在面板內被裁切、頂尾漸隱，不會壓到框線 */
+html[data-nav-royal][data-nav-mode="left"] .royal-nav {
+  top: 16px !important; bottom: 22px !important;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+          mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
 }
 
-/* ── 3-3 層次：子選單的導引線 ──
-   一條極淡的垂直線＋每個子項目一小截橫接線，
-   用「結構」（它們屬於上面那一組）而不是「亮度」來表達主／子層次。 */
-html[data-nav-mode="left"] .nav-submenu { position: relative; }
-html[data-nav-mode="left"] .nav-submenu::before {
-  content: "";
-  position: absolute; left: 14px; top: 0; bottom: 8px; width: 1px;
-  background: linear-gradient(180deg,
-    rgba(var(--nr-gold),.6),
-    rgba(var(--nr-gold),.4) 70%,
-    rgba(var(--nr-gold),0));
-  pointer-events: none;
+/* ── 頂部 ── */
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem) > .nav-glow {
+  background: radial-gradient(ellipse 68% 172% at 50% 118%,
+    rgba(var(--acc),.62) 0%, rgba(var(--acc),.22) 38%, transparent 60%) !important;
 }
-html[data-nav-mode="left"] .nav-subitem::before {
-  content: "";
-  position: absolute; left: -8px; top: 50%; width: 8px; height: 1px;
-  background: rgba(var(--nr-gold),.45);
-  transition: width .3s ease, left .3s ease, background .3s ease;
-  pointer-events: none;
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem) > .nav-ribbon {
+  background: linear-gradient(90deg, transparent, rgb(var(--acc)), transparent) !important;
+  box-shadow: 0 0 5px rgba(var(--acc),.25) !important;
 }
-html[data-nav-mode="left"] .nav-subitem:hover::before,
-html[data-nav-mode="left"] .nav-subitem.active::before {
-  left: -8px; width: 14px;
-  background: linear-gradient(90deg, rgba(var(--nr-gold),.45), var(--gold-bright));
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem):not(.active):not(:hover) > .nav-ribbon { opacity: .55; }
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem):hover > .nav-ribbon,
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem).active > .nav-ribbon {
+  opacity: 1; box-shadow: 0 0 9px rgba(var(--acc),.7) !important;
+}
+/* 目前頁面的底線上，每 9 秒閃過一道光 */
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem).active > .nav-ribbon::after {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0; width: 32%;
+  background: linear-gradient(90deg, transparent, rgba(255,250,232,.95), transparent);
+  opacity: 0;
+  animation: nr-glint-t 9s ease-in-out infinite 2.5s;
+}
+@keyframes nr-glint-t {
+  0%   { transform: translateX(0); opacity: 0; }
+  3%   { opacity: 1; }
+  24%  { transform: translateX(210%); opacity: 1; }
+  27%  { transform: translateX(210%); opacity: 0; }
+  100% { transform: translateX(210%); opacity: 0; }
+}
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem) > .nav-content {
+  transition: transform .35s cubic-bezier(.22,1,.36,1);
+}
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem):hover > .nav-content { transform: translateY(-1px); }
+html[data-nav-royal][data-nav-mode="top"] .nav-item:not(.nav-subitem):active > .nav-content { transform: translateY(0) scale(.97); transition-duration: .1s; }
+html[data-nav-royal][data-nav-mode="top"] .nav-group.nav-open .nav-group-arrow { opacity: 0; }
+
+/* 頂部主列：暖色漸層＋上緣高光；底線＝飾桿的內線 */
+html[data-nav-royal][data-nav-mode="top"] .royal-nav {
+  background:
+    radial-gradient(60% 140% at 50% 0%, rgba(252,246,186,.06), transparent 70%),
+    linear-gradient(180deg, rgba(var(--nr-gold),0) 50%, rgba(var(--nr-gold),.07) 100%),
+    linear-gradient(180deg, rgba(28,22,13,.95), rgba(8,7,11,.96)) !important;
+  border-bottom: 1px solid rgba(var(--nr-gold),.4) !important;
+  box-shadow: inset 0 1px 0 rgba(255,228,170,.09), 0 14px 32px rgba(0,0,0,.45);
+}
+/* 掃光：20 秒一輪，只有前 30% 在動 */
+html[data-nav-royal][data-nav-mode="top"] .royal-nav::before {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 24%; left: -40%; pointer-events: none;
+  background: linear-gradient(105deg, transparent, rgba(255,236,190,.04) 42%, rgba(255,246,214,.07) 50%, rgba(255,236,190,.04) 58%, transparent);
+  transform: skewX(-12deg);
+  animation: nr-sheen-top 20s ease-in-out infinite 3s;
+}
+@keyframes nr-sheen-top { 0% { left: -40%; } 30%, 100% { left: 130%; } }
+
+
+/* ══════════════════════════════════════════════════════════════
+   二、裝飾層 .nrp（由 JS 建立）：面板＋飾桿＋流光＋指示光
+   ══════════════════════════════════════════════════════════════ */
+.nrp, .nrp-sparks { display: none; }
+html[data-nav-royal][data-nav-mode="left"] .nrp,
+html[data-nav-royal][data-nav-mode="top"] .nrp {
+  display: block; position: fixed; z-index: 9980; pointer-events: none;
+}
+html[data-nav-royal] .nrp-sparks { display: block; position: fixed; inset: 0; z-index: 10001; pointer-events: none; }
+
+/* 面板本體（只有左側）：左緣出血、右側兩個圓角 */
+html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
+.nrp-body {
+  position: absolute; inset: 0; overflow: hidden;
+  /* 輪廓（缺角＋右緣外鼓）由 JS 以 clip-path 裁出 */
+  background:
+    radial-gradient(80px 80px at calc(100% - 38px) 0, rgba(252,228,170,.12), transparent 100%),
+    radial-gradient(80px 80px at calc(100% - 38px) 100%, rgba(252,228,170,.10), transparent 100%),
+    radial-gradient(130% 16% at 40% 0%, rgba(252,246,186,.09), transparent 72%),
+    radial-gradient(130% 14% at 40% 100%, rgba(var(--nr-gold),.10), transparent 72%),
+    linear-gradient(90deg, rgba(12,10,12,.34), rgba(20,15,10,.62));
+  -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+}
+/* 底部波紋（沿用子選單的兩條波，更淡更慢） */
+.nrp-body i { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; background-repeat: repeat-x; background-position: 0 100%; }
+.nrp-w1 { background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='12' viewBox='0 0 80 12'%3E%3Cpath d='M0 7 Q20 1 40 7 T80 7 V12 H0Z' fill='rgba(197,160,89,0.08)'/%3E%3Cpath d='M0 7 Q20 1 40 7 T80 7' fill='none' stroke='rgba(252,228,170,0.30)' stroke-width='1'/%3E%3C/svg%3E"); background-size: 80px 12px; animation: nr-wave1 24s linear infinite; }
+.nrp-w2 { background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='12' viewBox='0 0 56 12'%3E%3Cpath d='M0 8 Q14 3 28 8 T56 8' fill='none' stroke='rgba(252,228,170,0.17)' stroke-width='1'/%3E%3C/svg%3E"); background-size: 56px 12px; animation: nr-wave2 17s linear infinite; }
+@keyframes nr-wave1 { to { background-position: 80px 100%; } }
+@keyframes nr-wave2 { to { background-position: -56px 100%; } }
+/* 斜向掃光：18 秒一輪，只有前 28% 在動 */
+.nrp-body::before {
+  content: ""; position: absolute; top: -20%; bottom: -20%; width: 42%; left: -60%;
+  background: linear-gradient(105deg, transparent, rgba(255,236,190,.04) 42%, rgba(255,246,214,.07) 50%, rgba(255,236,190,.04) 58%, transparent);
+  transform: skewX(-12deg);
+  animation: nr-sheen 18s ease-in-out infinite 3s;
+}
+@keyframes nr-sheen { 0% { left: -60%; } 28%, 100% { left: 140%; } }
+
+.nrp-svg { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 0 5px rgba(var(--nr-gold),.22)); }
+.nrp-comet { position: absolute; left: -8px; top: -8px; }
+
+/* 面板內偶爾飄起的金粉 */
+.nrp-spark {
+  position: absolute; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 38% 35%, #fff 0%, #fcf6ba 42%, #c5a059 100%);
+  box-shadow: 0 0 5px 1px rgba(var(--nr-gold),.55);
+}
+/* hover 的小金粉 */
+.nrp-bspark { position: absolute; border-radius: 50%; pointer-events: none; opacity: 0; }
+
+/* 目前頁面指示光：疊在飾桿的珠點上，用 screen 混合＝把珠點「照亮」 */
+.nrp-ind {
+  position: absolute; left: 0; top: 0; opacity: 0; pointer-events: none;
+  mix-blend-mode: screen;
+  transform: translate(var(--ix, 0px), var(--iy, 0px));
+  transition: transform .85s cubic-bezier(.22,1,.36,1), opacity .5s ease;
+}
+.nrp-ind.v { width: 18px; height: 104px; }
+.nrp-ind.h { width: 160px; height: 18px; }
+.nrp-ind::before, .nrp-ind::after { content: ""; position: absolute; inset: 0; }
+.nrp-ind.v::before { background: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(255,232,176,.52), rgba(252,228,170,.15) 55%, transparent 80%); }
+.nrp-ind.h::before { background: radial-gradient(ellipse 50% 55% at 50% 50%, rgba(255,232,176,.52), rgba(252,228,170,.15) 55%, transparent 80%); }
+.nrp-ind::after {
+  background: radial-gradient(circle at 50% 50%, rgba(255,250,230,.95) 0 1.4px, rgba(255,240,200,.5) 3px, transparent 6px);
+  animation: nr-ind-breathe 6s ease-in-out infinite;
+}
+@keyframes nr-ind-breathe { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+.nrp-ind.flare { animation: nr-ind-flare .95s ease-out; }
+@keyframes nr-ind-flare { 0% { filter: brightness(1); } 28% { filter: brightness(2.1); } 100% { filter: brightness(1); } }
+
+
+
+/* ══════════════════════════════════════════════════════════════
+   三、群組展開提示：環形寶章（取代舊的小三角，緊貼文字右側）
+   ══════════════════════════════════════════════════════════════ */
+html[data-nav-royal] .nav-group-arrow { display: none !important; }
+html[data-nav-royal] .nr-chev {
+  position: relative; display: inline-block;
+  width: 1.05em; height: 1.05em; margin-left: .65em; vertical-align: -.14em;
+  border-radius: 50%;
+  border: 1px solid rgba(var(--acc),.5);
+  background: radial-gradient(circle, rgba(var(--acc),.22) 0%, rgba(var(--acc),.05) 70%, transparent 100%);
+  transition: box-shadow .4s ease, border-color .4s ease, background .4s ease;
+}
+html[data-nav-royal] .nr-chev::before {              /* 細 V 形 */
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: .3em; height: .3em;
+  border-right: 1.4px solid rgb(var(--acc)); border-bottom: 1.4px solid rgb(var(--acc));
+  transform: translate(-50%,-68%) rotate(45deg);
+  transition: transform .55s cubic-bezier(.34,1.56,.64,1);
+}
+html[data-nav-royal] .nav-group.nav-open .nr-chev::before { transform: translate(-50%,-32%) rotate(225deg); }
+html[data-nav-royal] .nr-chev::after {                /* hover 時繞行的亮弧 */
+  content: ""; position: absolute; inset: -1px; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(var(--acc),.95), rgba(var(--acc),.08) 40%, rgba(var(--acc),0) 60%, rgba(var(--acc),.95));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
+  opacity: 0; transition: opacity .35s ease;
+}
+html[data-nav-royal] .nav-group:hover .nr-chev::after { opacity: .95; animation: nr-spin 3.4s linear infinite; }
+html[data-nav-royal] .nav-group:hover .nr-chev { background: radial-gradient(circle, rgba(var(--acc),.34) 0%, rgba(var(--acc),.08) 70%, transparent 100%); }
+html[data-nav-royal] .nav-group.nav-open .nr-chev {
+  border-color: rgba(var(--acc),.85);
+  box-shadow: 0 0 9px rgba(var(--acc),.5), inset 0 0 6px rgba(var(--acc),.25);
 }
 
 
 /* ══════════════════════════════════════════════════════════════
-   四、減少動態：關掉本檔所有過渡
+   四、「切換頂部／左側選單」按鈕：凹角雕版
+   四角內凹＋角心寶珠、外亮內暗雙線（SVG 由 JS 依按鈕實際大小產生），
+   hover：雕版亮起、一道光掃過、⇄ 外圍浮出旋轉光環；按下微縮。
+   ══════════════════════════════════════════════════════════════ */
+html[data-nav-royal] .nav-mode-toggle {
+  background: none !important; border: none !important; box-shadow: none !important; border-radius: 0 !important;
+  --acc: 255,232,176;
+}
+html[data-nav-royal][data-nav-mode="left"] .nav-mode-toggle { height: 48px; padding: 0 32px; }
+html[data-nav-royal][data-nav-mode="top"] .nav-mode-toggle::before { display: none !important; }
+html[data-nav-royal] .nav-mode-toggle > .nmt-icon,
+html[data-nav-royal] .nav-mode-toggle > .nmt-label { position: relative; z-index: 2; }
+html[data-nav-royal] .nav-mode-toggle .nmt-icon { display: inline-block; transition: transform .5s cubic-bezier(.34,1.56,.64,1); }
+html[data-nav-royal] .nav-mode-toggle:hover .nmt-icon { transform: rotate(180deg); }
+html[data-nav-royal] .nav-mode-toggle .nmt-icon::before {     /* ⇄ 的光環 */
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 1.9em; height: 1.9em; margin: -.95em 0 0 -.95em; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(var(--acc),.95), rgba(var(--acc),.08) 36%, rgba(var(--acc),0) 55%, rgba(var(--acc),.08) 76%, rgba(var(--acc),.95));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
+  opacity: 0; transition: opacity .35s ease; pointer-events: none;
+}
+html[data-nav-royal] .nav-mode-toggle:hover .nmt-icon::before { opacity: .9; animation: nr-spin 3.4s linear infinite; }
+
+.nrb-svg { position: absolute; overflow: visible; pointer-events: none; z-index: 0; }
+.nrb-fill { fill: rgba(16,12,9,.66); transition: fill .3s ease; }
+.nrb-in   { fill: none; stroke: rgba(197,160,89,.3); stroke-width: 1; transition: stroke .3s ease; }
+.nrb-out  { fill: none; stroke: url(#nrb-g); stroke-opacity: .68; stroke-width: 1.5; transition: stroke-opacity .3s ease; }
+.nrb-pearl { fill: #0c0a0e; stroke: #f3dfa0; stroke-opacity: .78; stroke-width: .9; }
+.nrb-dot  { fill: #fff4cf; fill-opacity: .9; }
+.nrb-sh   { transform: translateX(0); }
+html[data-nav-royal] .nav-mode-toggle:hover .nrb-fill { fill: rgba(60,44,20,.78); }
+html[data-nav-royal] .nav-mode-toggle:hover .nrb-in { stroke: rgba(252,228,170,.62); }
+html[data-nav-royal] .nav-mode-toggle:hover .nrb-out { stroke-opacity: 1; }
+html[data-nav-royal] .nav-mode-toggle:hover .nrb-sh { transform: translateX(calc(var(--sw, 180px) * 1.9)); transition: transform .9s cubic-bezier(.22,1,.36,1); }
+html[data-nav-royal] .nav-mode-toggle:active { transform: scale(.96); }
+
+/* ══════════════════════════════════════════════════════════════
+   五、減少動態：環境動態全部停掉（保留靜態外觀）
    ══════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  .nav-item:not(.nav-subitem) > .nav-glow::after,
-  .nav-item:not(.nav-subitem):hover > .nav-glow::after,
-  .nav-item:not(.nav-subitem) > .nav-ribbon::after,
-  html[data-nav-mode] .nav-item:not(.nav-subitem) > .nav-content,
-  html[data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-glow,
-  html[data-nav-mode="left"] .nav-item:not(.nav-subitem) > .nav-ribbon,
-  html[data-nav-mode="left"] .nav-subitem::before { transition: none !important; }
-  .nav-item:not(.nav-subitem):hover > .nav-glow::after { transform: translateX(-105%); }
+  .nrp-w1, .nrp-w2, .nrp-body::before, .nrp-ind::after, .nrp-ind.flare,
+  html[data-nav-royal] .nav-item:not(.nav-subitem) > .nav-content,
+  html[data-nav-royal] .nav-item.active::after,
+  html[data-nav-royal] .nav-item.active > .nav-ribbon::after,
+  html[data-nav-royal] .nav-item:hover .nr-ic::before,
+  html[data-nav-royal] .nav-group:hover .nr-chev::after,
+  html[data-nav-royal] .nav-mode-toggle:hover .nmt-icon::before,
+  html[data-nav-royal][data-nav-mode="top"] .royal-nav::before { animation: none !important; }
+  .nrp-ind, html[data-nav-royal] .nr-ic::before { transition: none !important; }
 }
