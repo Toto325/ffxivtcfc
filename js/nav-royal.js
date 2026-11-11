@@ -66,11 +66,11 @@
         ch.className = 'nr-chev';
         ch.setAttribute('aria-hidden', 'true');
         ch.innerHTML =
-          '<svg viewBox="0 0 22 15" xmlns="' + NS + '">' +
-          '<path class="cv1" d="M2.4 2.6 L11 9.4 L19.6 2.6"/>' +
-          '<path class="cv2" d="M6.4 2.4 L11 6 L15.6 2.4"/>' +
-          '<circle class="cvb" cx="2.4" cy="2.6" r="1.15"/><circle class="cvb" cx="19.6" cy="2.6" r="1.15"/>' +
-          '<path class="cvg" d="M11 10.5 L12.9 12.5 L11 14.5 L9.1 12.5Z"/></svg>';
+          '<svg viewBox="0 0 16 14" xmlns="' + NS + '">' +
+          '<polygon class="f1" points="1.4,2.4 14.6,2.4 8,6"/>' +
+          '<polygon class="f2" points="1.4,2.4 8,6 8,12.6"/>' +
+          '<polygon class="f3" points="14.6,2.4 8,6 8,12.6"/>' +
+          '<polygon class="fo" points="1.4,2.4 14.6,2.4 8,12.6"/></svg>';
         cn.appendChild(ch);
       }
     });
@@ -127,32 +127,46 @@
   function clasp(cx, cy, vertical, sc, r) {
     var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
     [-1, 1].forEach(function (d) {
-      var x1 = d * (r + 6.5), x2 = d * (r + 24);
-      g += '<path d="M' + fmt(x1) + ' 0 C' + fmt(d * (r + 10.5)) + ' -4.6 ' + fmt(d * (r + 20)) + ' -4.6 ' + fmt(x2) + ' 0 C' +
-           fmt(d * (r + 20)) + ' 4.6 ' + fmt(d * (r + 10.5)) + ' 4.6 ' + fmt(x1) + ' 0Z" fill="#c5a059" fill-opacity=".16" stroke="#e9cf8a" stroke-opacity=".78" stroke-width=".9"/>';
-      g += '<path d="M' + fmt(d * (r + 9)) + ' 0 H' + fmt(d * (r + 21.5)) + '" stroke="#fce4aa" stroke-opacity=".5" stroke-width=".7"/>';
-      [[r + 31, 2.3, .95], [r + 38, 1.7, .76], [r + 44, 1.2, .58], [r + 49, .85, .42]].forEach(function (b) {
-        g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#fce4aa" fill-opacity="' + b[2] + '"/>';
+      /* 漸細的光線（靠圓章處最粗，尖端漸隱） */
+      g += '<polygon points="' + fmt(d * (r + 4.5)) + ',-1.1 ' + fmt(d * (r + 21)) + ',0 ' + fmt(d * (r + 4.5)) + ',1.1" fill="#fce4aa" fill-opacity=".85"/>';
+      /* 小鑽石（垂直桿時反向旋轉，維持尖端朝上） */
+      g += '<g transform="translate(' + fmt(d * (r + 28)) + ' 0) rotate(' + (vertical ? -90 : 0) + ')">' + gem(4.6) + '</g>';
+      /* 星粉：由大到小漸隱 */
+      [[r + 38, 1.6, .9], [r + 44, 1.2, .7], [r + 49, .9, .52], [r + 53, .65, .36]].forEach(function (b) {
+        g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#fff0c8" fill-opacity="' + b[2] + '"/>';
       });
     });
     return g + medalCore(r) + '</g>';
   }
-  /* 玫瑰花飾：兩層花瓣＋中心寶珠。坐在缺角中心，大小剛好被同心弧框線包住 */
-  function rosette(cx, cy, R, n, layers) {
-    var s = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')"><circle r="' + fmt(R + 5) + '" fill="url(#nr-halo)"/>';
-    var i, a;
-    if (layers > 1) {
-      for (i = 0; i < n; i++) {
-        a = (i + .5) * 360 / n;
-        s += '<ellipse cx="' + fmt(R * .5) + '" rx="' + fmt(R * .22) + '" ry="' + fmt(R * .1) + '" transform="rotate(' + fmt(a) + ')" fill="#fce4aa" fill-opacity=".34" stroke="#f3dfa0" stroke-opacity=".6" stroke-width=".6"/>';
-      }
-    }
-    for (i = 0; i < n; i++) {
-      a = i * 360 / n;
-      s += '<ellipse cx="' + fmt(R * .67) + '" rx="' + fmt(R * .34) + '" ry="' + fmt(R * .16) + '" transform="rotate(' + fmt(a) + ')" fill="#c5a059" fill-opacity=".24" stroke="#e9cf8a" stroke-opacity=".85" stroke-width=".8"/>';
-    }
-    return s + '<circle r="' + fmt(R * .36) + '" fill="#0c0a0e" stroke="#f3dfa0" stroke-opacity=".92" stroke-width="1"/>' +
-      '<circle r="' + fmt(R * .15) + '" fill="#fff4cf"/></g>';
+  /* ── 寶石系列：切面鑽石、星芒、鑲座 ── */
+  function pts(a) { return a.map(function (p) { return fmt(p[0]) + ',' + fmt(p[1]); }).join(' '); }
+  /* 切面寶石（以原點為中心，g＝半寬）：外菱形＋內檯面，四個切面明暗不同 */
+  function gem(g) {
+    var h = g * 1.14, t = g * .44, th = t * 1.14;
+    var T = [0, -h], R = [g, 0], B = [0, h], L = [-g, 0];
+    var tT = [0, -th], tR = [t, 0], tB = [0, th], tL = [-t, 0];
+    return '<polygon points="' + pts([T, R, B, L]) + '" fill="#0c0a0e"/>' +
+      '<polygon points="' + pts([T, L, tL, tT]) + '" fill="#fff6d6" fill-opacity=".92"/>' +
+      '<polygon points="' + pts([T, R, tR, tT]) + '" fill="#fce4aa" fill-opacity=".62"/>' +
+      '<polygon points="' + pts([R, B, tB, tR]) + '" fill="#9a7a38" fill-opacity=".75"/>' +
+      '<polygon points="' + pts([L, B, tB, tL]) + '" fill="#d9b66a" fill-opacity=".72"/>' +
+      '<polygon points="' + pts([tT, tR, tB, tL]) + '" fill="#fff0c0" fill-opacity=".95"/>' +
+      '<path d="M' + pts([T]) + 'L' + pts([tT]) + ' M' + pts([R]) + 'L' + pts([tR]) + ' M' + pts([B]) + 'L' + pts([tB]) + ' M' + pts([L]) + 'L' + pts([tL]) + '" stroke="#6f5426" stroke-opacity=".6" stroke-width=".45" fill="none"/>' +
+      '<polygon points="' + pts([T, R, B, L]) + '" fill="none" stroke="#f6e3a4" stroke-opacity=".95" stroke-width=".8" stroke-linejoin="round"/>';
+  }
+  /* 星芒：四個尖角、長而細的光芒（內凹星形） */
+  function sparkle(L, w, op) {
+    var a = fmt(w * .25), c = fmt(w);
+    return '<path d="M0 ' + (-L) + ' C' + a + ' ' + (-c) + ' ' + c + ' ' + (-a) + ' ' + L + ' 0 C' + c + ' ' + a + ' ' + a + ' ' + c + ' 0 ' + L +
+      ' C' + (-a) + ' ' + c + ' ' + (-c) + ' ' + a + ' ' + (-L) + ' 0 C' + (-c) + ' ' + (-a) + ' ' + (-a) + ' ' + (-c) + ' 0 ' + (-L) + 'Z" fill="#fff4cf" fill-opacity="' + op + '"/>';
+  }
+  /* 鑲座寶石：光暈＋細環鑲座＋長星芒（在寶石後方）＋切面寶石＋寶石上的一點亮光 */
+  function gemSet(cx, cy, g, sp) {
+    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')">' +
+      '<circle r="' + fmt(g + 9) + '" fill="url(#nr-halo)"/>' +
+      '<circle r="' + fmt(g + 3.6) + '" fill="#0c0a0e" fill-opacity=".92" stroke="#e9cf8a" stroke-opacity=".62" stroke-width=".8"/>' +
+      sparkle(sp, 2.4, .5) + gem(g) +
+      '<g transform="translate(' + fmt(-g * .34) + ' ' + fmt(-g * .5) + ')">' + sparkle(g * .42, 1.1, .95) + '</g></g>';
   }
 
   var DEFS_COMMON =
@@ -201,7 +215,7 @@
           '<path d="' + leftRod(0) + '" fill="none" stroke="url(#nr-m)" stroke-width="1.5"/>' +
           '<g mask="url(#nr-mb)"><path d="' + leftRod(3) + '" fill="none" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5"/></g>' +
         '</g>' +
-        rosette(G.xe, .75, 11.5, 8, 2) + rosette(G.xe, H - .75, 11.5, 8, 2) +
+        gemSet(G.xe, .75, 10.5, 23) + gemSet(G.xe, H - .75, 10.5, 23) +
         clasp(G.xe - 3, G.yc, true, 1, 11.5);
       elBody.style.clipPath = "path('" + leftRod(0) + " V.75 Z')";
       elBody.style.webkitClipPath = elBody.style.clipPath;
@@ -332,8 +346,8 @@
     var left = root.getAttribute('data-nav-mode') === 'left';
     var bw = btn.offsetWidth, bh = btn.offsetHeight;
     if (!bw || !bh) return;
-    var ix = left ? 0 : 5, iy = left ? 0 : 7;
-    var w = bw - ix * 2, h = bh - iy * 2, r = 10, sIn = 4.5;
+    var ix = left ? 0 : 11, iy = left ? 0 : 12;
+    var w = bw - ix * 2, h = bh - iy * 2, narrow = w < 80, r = narrow ? 8 : 10, sIn = narrow ? 3.6 : 4.5, gg = narrow ? 3.6 : 4.6, sp = narrow ? 9 : 12;
     var svg = btn.querySelector(':scope > .nrb-svg');
     if (!svg) {
       svg = document.createElementNS(NS, 'svg');
@@ -361,7 +375,7 @@
       '<g clip-path="url(#nrb-c)"><rect class="nrb-sh" x="' + fmt(-w * .6) + '" y="0" width="' + fmt(w * .5) + '" height="' + h + '" fill="url(#nrb-s)"/></g>' +
       '<path class="nrb-in" d="' + inner + '"/>' +
       '<path class="nrb-out" d="' + outer + '"/>' +
-      '<g class="nrb-ros">' + rosette(x0, y0, 6.4, 6, 1) + rosette(x1, y0, 6.4, 6, 1) + rosette(x0, y1, 6.4, 6, 1) + rosette(x1, y1, 6.4, 6, 1) + '</g>';
+      '<g class="nrb-ros">' + gemSet(x0, y0, gg, sp) + gemSet(x1, y0, gg, sp) + gemSet(x0, y1, gg, sp) + gemSet(x1, y1, gg, sp) + '</g>';
   }
 
   /* ───────── 7. 事件掛鉤 ───────── */
