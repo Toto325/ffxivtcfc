@@ -257,28 +257,27 @@ html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
    ══════════════════════════════════════════════════════════════ */
 html[data-nav-royal] .nav-group-arrow { display: none !important; }
 html[data-nav-royal] .nr-chev {
-  display: inline-block; margin-left: .6em; vertical-align: -.02em;
-  width: 1.2em; height: .84em; line-height: 0;
+  display: inline-block; margin-left: .55em; vertical-align: -.04em;
+  width: .72em; height: .62em; line-height: 0;
 }
 html[data-nav-royal] .nr-chev svg {
   width: 100%; height: 100%; overflow: visible;
-  transform-origin: 50% 52%;
+  transform-origin: 50% 50%;
   transition: transform .6s cubic-bezier(.34,1.56,.64,1), filter .4s ease;
-  filter: drop-shadow(0 0 2px rgba(var(--nr-gold),.35));
+  filter: drop-shadow(0 0 2px rgba(var(--nr-gold),.4));
 }
-html[data-nav-royal] .nr-chev .cv1 { fill: none; stroke: #d9b66a; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: stroke .3s ease; }
-html[data-nav-royal] .nr-chev .cv2 { fill: none; stroke: #c5a059; stroke-opacity: .65; stroke-width: .9; stroke-linecap: round; stroke-linejoin: round; }
-html[data-nav-royal] .nr-chev .cvb { fill: #e9cf8a; fill-opacity: .85; }
-html[data-nav-royal] .nr-chev .cvg { fill: #fce4aa; fill-opacity: .9; stroke: #c5a059; stroke-width: .5; transition: fill-opacity .3s ease; }
-html[data-nav-royal] .nav-group:hover .nr-chev .cv1 { stroke: #fce4aa; }
+html[data-nav-royal] .nr-chev .f1 { fill: #fff0c0; fill-opacity: .92; }
+html[data-nav-royal] .nr-chev .f2 { fill: #d9b66a; fill-opacity: .78; }
+html[data-nav-royal] .nr-chev .f3 { fill: #9a7a38; fill-opacity: .82; }
+html[data-nav-royal] .nr-chev .fo { fill: none; stroke: #f3dfa0; stroke-opacity: .95; stroke-width: .9; stroke-linejoin: round; }
 html[data-nav-royal] .nav-group:hover .nr-chev { animation: nr-bob 1.5s ease-in-out infinite; }
+html[data-nav-royal] .nav-group:hover .nr-chev svg { filter: drop-shadow(0 0 4px rgba(252,228,170,.75)) brightness(1.15); }
 @keyframes nr-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
 html[data-nav-royal] .nav-group.nav-open .nr-chev { animation: none; }
 html[data-nav-royal] .nav-group.nav-open .nr-chev svg {
   transform: scaleY(-1);
-  filter: drop-shadow(0 0 4px rgba(252,228,170,.7));
+  filter: drop-shadow(0 0 5px rgba(252,228,170,.8)) brightness(1.15);
 }
-html[data-nav-royal] .nav-group.nav-open .nr-chev .cv1 { stroke: #fce4aa; }
 
 /* ══════════════════════════════════════════════════════════════
    四、「切換頂部／左側選單」按鈕：凹角雕版
