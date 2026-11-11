@@ -60,11 +60,17 @@
           }
         }
       }
-      /* 群組的展開提示：緊貼文字右側的環形寶章（取代舊的小三角） */
+      /* 群組的展開提示：緊貼文字右側的華麗 V 形（雙層 V＋兩端小珠＋尖端垂掛寶石） */
       if (it.classList.contains('nav-group') && !cn.querySelector('.nr-chev')) {
         var ch = document.createElement('span');
         ch.className = 'nr-chev';
         ch.setAttribute('aria-hidden', 'true');
+        ch.innerHTML =
+          '<svg viewBox="0 0 22 15" xmlns="' + NS + '">' +
+          '<path class="cv1" d="M2.4 2.6 L11 9.4 L19.6 2.6"/>' +
+          '<path class="cv2" d="M6.4 2.4 L11 6 L15.6 2.4"/>' +
+          '<circle class="cvb" cx="2.4" cy="2.6" r="1.15"/><circle class="cvb" cx="19.6" cy="2.6" r="1.15"/>' +
+          '<path class="cvg" d="M11 10.5 L12.9 12.5 L11 14.5 L9.1 12.5Z"/></svg>';
         cn.appendChild(ch);
       }
     });
@@ -90,47 +96,63 @@
   document.body.appendChild(sparkLayer);
 
   /* ───────── 3. 幾何 ───────── */
-  var G = { mode: 'none', W: 0, H: 0, navH: 0, pts: null, xe: 0, yc: 0, bh: 60, b: 16 };
+  var G = { mode: 'none', W: 0, H: 0, navH: 0, pts: null, xe: 0, yc: 0, top: 14 };
   var M = 8;   // canvas 外擴邊距
+  var COVE = 18;   // 缺角半徑（花飾坐在缺角中心，被同心弧框線包住）
 
   /* 左側：一條「飾桿路徑」。off＝往內縮的距離（0 外線／3 珠點／6 內線）。
-     缺角圓心固定在 (xe, ys)，所以各條線是同心弧；右緣中央外鼓 b。 */
+     缺角圓心固定在 (xe, ys)，所以各條線是同心弧。 */
   function leftRod(off) {
-    var xe = G.xe, H = G.H, ys = .75, r = 20, yc = G.yc, bh = G.bh, b = G.b;
-    var rad = r + off, k = Math.sqrt(rad * rad - off * off), x = xe - off, yt = ys + off, yb = H - ys - off, bb = b - off * .15;
+    var xe = G.xe, H = G.H, ys = .75, r = COVE;
+    var rad = r + off, k = Math.sqrt(rad * rad - off * off), x = xe - off, yt = ys + off, yb = H - ys - off;
     return 'M0 ' + fmt(yt) + ' H' + fmt(xe - k) + ' A' + rad + ' ' + rad + ' 0 0 0 ' + fmt(x) + ' ' + fmt(ys + k) +
-      ' V' + fmt(yc - bh) +
-      ' C' + fmt(x) + ' ' + fmt(yc - bh + 34) + ' ' + fmt(x + bb) + ' ' + fmt(yc - 34) + ' ' + fmt(x + bb) + ' ' + fmt(yc) +
-      ' C' + fmt(x + bb) + ' ' + fmt(yc + 34) + ' ' + fmt(x) + ' ' + fmt(yc + bh - 34) + ' ' + fmt(x) + ' ' + fmt(yc + bh) +
       ' V' + fmt(H - ys - k) + ' A' + rad + ' ' + rad + ' 0 0 0 ' + fmt(xe - k) + ' ' + fmt(yb) + ' H0';
   }
-  /* 頂部：下緣飾桿，中央向下外鼓 */
-  function topRod(y, b) {
-    var W = G.W, cx = W / 2, bw = 82;
-    return 'M0 ' + fmt(y) + ' H' + fmt(cx - bw) +
-      ' C' + fmt(cx - bw + 46) + ' ' + fmt(y) + ' ' + fmt(cx - 34) + ' ' + fmt(y + b) + ' ' + fmt(cx) + ' ' + fmt(y + b) +
-      ' C' + fmt(cx + 34) + ' ' + fmt(y + b) + ' ' + fmt(cx + bw - 46) + ' ' + fmt(y) + ' ' + fmt(cx + bw) + ' ' + fmt(y) + ' H' + W;
-  }
+  /* 頂部：下緣飾桿（直線） */
+  function topRod(y) { return 'M0 ' + fmt(y) + ' H' + G.W; }
 
-  /* 圓章（與首頁分隔線同款：圓環＋四芒星＋光暈） */
-  function medallion(cx, cy, r) {
+  /* 圓章（與首頁分隔線同款：圓環＋四芒星），以原點為中心 */
+  function medalCore(r) {
     var s = r * .52;
-    var star = 'M0 ' + (-s) + ' C' + fmt(s * .16) + ' ' + fmt(-s * .28) + ' ' + fmt(s * .28) + ' ' + fmt(-s * .16) + ' ' + s + ' 0 C' +
-      fmt(s * .28) + ' ' + fmt(s * .16) + ' ' + fmt(s * .16) + ' ' + fmt(s * .28) + ' 0 ' + s + ' C' +
-      fmt(-s * .16) + ' ' + fmt(s * .28) + ' ' + fmt(-s * .28) + ' ' + fmt(s * .16) + ' ' + (-s) + ' 0 C' +
-      fmt(-s * .28) + ' ' + fmt(-s * .16) + ' ' + fmt(-s * .16) + ' ' + fmt(-s * .28) + ' 0 ' + (-s) + 'Z';
-    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')">' +
-      '<circle r="' + (r + 6) + '" fill="url(#nr-halo)"/>' +
-      '<circle r="' + r + '" fill="#0c0a0e" fill-opacity=".96" stroke="url(#nr-mm)" stroke-width="1.3"/>' +
+    var star = 'M0 ' + fmt(-s) + ' C' + fmt(s * .16) + ' ' + fmt(-s * .28) + ' ' + fmt(s * .28) + ' ' + fmt(-s * .16) + ' ' + fmt(s) + ' 0 C' +
+      fmt(s * .28) + ' ' + fmt(s * .16) + ' ' + fmt(s * .16) + ' ' + fmt(s * .28) + ' 0 ' + fmt(s) + ' C' +
+      fmt(-s * .16) + ' ' + fmt(s * .28) + ' ' + fmt(-s * .28) + ' ' + fmt(s * .16) + ' ' + fmt(-s) + ' 0 C' +
+      fmt(-s * .28) + ' ' + fmt(-s * .16) + ' ' + fmt(-s * .16) + ' ' + fmt(-s * .28) + ' 0 ' + fmt(-s) + 'Z';
+    return '<circle r="' + (r + 7) + '" fill="url(#nr-halo)"/>' +
+      '<circle r="' + r + '" fill="#0c0a0e" fill-opacity=".97" stroke="url(#nr-mm)" stroke-width="1.3"/>' +
       '<circle r="' + fmt(r - 3.2) + '" fill="none" stroke="#c5a059" stroke-opacity=".38" stroke-width=".8"/>' +
-      '<path d="' + star + '" fill="#fce4aa" fill-opacity=".92"/></g>';
+      '<path d="' + star + '" fill="#fce4aa" fill-opacity=".92"/>';
   }
-  /* 缺角中心的寶珠：圓環＋內核＋光暈 */
-  function pearl(cx, cy) {
-    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')">' +
-      '<circle r="9" fill="url(#nr-halo)"/>' +
-      '<circle r="3.7" fill="#0c0a0e" stroke="#f3dfa0" stroke-opacity=".85" stroke-width="1"/>' +
-      '<circle r="1.5" fill="#fff4cf"/></g>';
+  /* 飾桿扣飾：圓章居中，兩側各一片杏仁形葉飾，再接一串由大到小漸隱的珠子 */
+  function clasp(cx, cy, vertical, sc, r) {
+    var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
+    [-1, 1].forEach(function (d) {
+      var x1 = d * (r + 6.5), x2 = d * (r + 24);
+      g += '<path d="M' + fmt(x1) + ' 0 C' + fmt(d * (r + 10.5)) + ' -4.6 ' + fmt(d * (r + 20)) + ' -4.6 ' + fmt(x2) + ' 0 C' +
+           fmt(d * (r + 20)) + ' 4.6 ' + fmt(d * (r + 10.5)) + ' 4.6 ' + fmt(x1) + ' 0Z" fill="#c5a059" fill-opacity=".16" stroke="#e9cf8a" stroke-opacity=".78" stroke-width=".9"/>';
+      g += '<path d="M' + fmt(d * (r + 9)) + ' 0 H' + fmt(d * (r + 21.5)) + '" stroke="#fce4aa" stroke-opacity=".5" stroke-width=".7"/>';
+      [[r + 31, 2.3, .95], [r + 38, 1.7, .76], [r + 44, 1.2, .58], [r + 49, .85, .42]].forEach(function (b) {
+        g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#fce4aa" fill-opacity="' + b[2] + '"/>';
+      });
+    });
+    return g + medalCore(r) + '</g>';
+  }
+  /* 玫瑰花飾：兩層花瓣＋中心寶珠。坐在缺角中心，大小剛好被同心弧框線包住 */
+  function rosette(cx, cy, R, n, layers) {
+    var s = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')"><circle r="' + fmt(R + 5) + '" fill="url(#nr-halo)"/>';
+    var i, a;
+    if (layers > 1) {
+      for (i = 0; i < n; i++) {
+        a = (i + .5) * 360 / n;
+        s += '<ellipse cx="' + fmt(R * .5) + '" rx="' + fmt(R * .22) + '" ry="' + fmt(R * .1) + '" transform="rotate(' + fmt(a) + ')" fill="#fce4aa" fill-opacity=".34" stroke="#f3dfa0" stroke-opacity=".6" stroke-width=".6"/>';
+      }
+    }
+    for (i = 0; i < n; i++) {
+      a = i * 360 / n;
+      s += '<ellipse cx="' + fmt(R * .67) + '" rx="' + fmt(R * .34) + '" ry="' + fmt(R * .16) + '" transform="rotate(' + fmt(a) + ')" fill="#c5a059" fill-opacity=".24" stroke="#e9cf8a" stroke-opacity=".85" stroke-width=".8"/>';
+    }
+    return s + '<circle r="' + fmt(R * .36) + '" fill="#0c0a0e" stroke="#f3dfa0" stroke-opacity=".92" stroke-width="1"/>' +
+      '<circle r="' + fmt(R * .15) + '" fill="#fff4cf"/></g>';
   }
 
   var DEFS_COMMON =
@@ -142,9 +164,9 @@
     if (m === 'left') {
       G.mode = 'left';
       G.W = RW + 40;
-      G.H = window.innerHeight - 16;
+      G.H = window.innerHeight - G.top * 2;
       G.xe = G.W - 20; G.yc = G.H / 2;
-      ov.style.left = '-40px'; ov.style.top = '8px';
+      ov.style.left = '-40px'; ov.style.top = G.top + 'px';
       ov.style.width = G.W + 'px'; ov.style.height = G.H + 'px';
     } else if (m === 'top') {
       G.mode = 'top';
@@ -171,7 +193,7 @@
         '<linearGradient id="nr-fl" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="150" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
         '<linearGradient id="nr-fb" gradientUnits="userSpaceOnUse" x1="' + (G.xe - 110) + '" y1="0" x2="' + (G.xe - 36) + '" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
         '<mask id="nr-ml" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fl)"/></mask>' +
-        '<mask id="nr-mb" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fb)"/></mask>' +
+        '<mask id="nr-mb" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fb)"/><rect x="' + fmt(G.xe - 16) + '" y="' + fmt(G.yc - 68) + '" width="32" height="136" fill="#000"/></mask>' +
         '</defs>' +
         '<path id="nr-cp" d="' + leftRod(0) + '" fill="none" stroke="none"/>' +
         '<g mask="url(#nr-ml)">' +
@@ -179,12 +201,12 @@
           '<path d="' + leftRod(0) + '" fill="none" stroke="url(#nr-m)" stroke-width="1.5"/>' +
           '<g mask="url(#nr-mb)"><path d="' + leftRod(3) + '" fill="none" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5"/></g>' +
         '</g>' +
-        pearl(G.xe, .75) + pearl(G.xe, H - .75) +
-        medallion(G.xe + G.b - 3, G.yc, 11);
+        rosette(G.xe, .75, 11.5, 8, 2) + rosette(G.xe, H - .75, 11.5, 8, 2) +
+        clasp(G.xe - 3, G.yc, true, 1, 11.5);
       elBody.style.clipPath = "path('" + leftRod(0) + " V.75 Z')";
       elBody.style.webkitClipPath = elBody.style.clipPath;
     } else if (G.mode === 'top') {
-      var y0 = G.navH, yo = y0 + 7.25, yb = y0 + 3.4, b = 12, cx = W / 2;
+      var y0 = G.navH, yo = y0 + 8.2, yb = y0 + 4.2, cx = W / 2;
       s =
         '<defs>' + DEFS_COMMON +
         '<linearGradient id="nr-th" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="' + W + '" y2="0">' +
@@ -194,13 +216,12 @@
         '<linearGradient id="nr-tf" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="' + W + '" y2="0">' +
           '<stop offset="0" stop-color="#000"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>' +
         '<mask id="nr-tm" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect width="' + W + '" height="' + H + '" fill="url(#nr-tf)"/></mask>' +
+        '<mask id="nr-tm2" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect width="' + W + '" height="' + H + '" fill="url(#nr-tf)"/><rect x="' + fmt(cx - 62) + '" y="0" width="124" height="' + H + '" fill="#000"/></mask>' +
         '</defs>' +
-        '<path id="nr-cp" d="' + topRod(yo, b) + '" fill="none" stroke="none"/>' +
-        '<g mask="url(#nr-tm)">' +
-          '<path d="' + topRod(yo, b) + '" stroke="url(#nr-th)" stroke-width="1.6" fill="none"/>' +
-          '<path d="' + topRod(yb, b * .85) + '" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5" fill="none"/>' +
-        '</g>' +
-        medallion(cx, y0 + 13, 10.5);
+        '<path id="nr-cp" d="' + topRod(yo) + '" fill="none" stroke="none"/>' +
+        '<g mask="url(#nr-tm)"><path d="' + topRod(yo) + '" stroke="url(#nr-th)" stroke-width="1.6" fill="none"/></g>' +
+        '<g mask="url(#nr-tm2)"><path d="' + topRod(yb) + '" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5" fill="none"/></g>' +
+        clasp(cx, y0 + 6.2, false, .86, 11);
     }
     elSvg.setAttribute('viewBox', '0 0 ' + (W + 30) + ' ' + H);
     elSvg.setAttribute('width', W + 30); elSvg.setAttribute('height', H);
@@ -284,11 +305,9 @@
     var cy = r.top + (isGroup ? 31 : r.height / 2);
     var nb = nav.getBoundingClientRect();
     var inView = cy >= nb.top + 6 && cy <= nb.bottom - 6;
-    var IH = 104, local = Math.min(Math.max(cy - 8, 44), G.H - 44);
-    /* 飾桿中央外鼓：指示光的 x 要跟著鼓的曲線走 */
-    var t = Math.min(1, Math.abs(local - G.yc) / G.bh), bump = G.b * (1 - (3 * t * t - 2 * t * t * t));
+    var IH = 104, local = Math.min(Math.max(cy - G.top, 44), G.H - 44);
     ind.className = 'nrp-ind v';
-    ind.style.setProperty('--ix', fmt(G.xe - 3 + bump - 9) + 'px');
+    ind.style.setProperty('--ix', fmt(G.xe - 3 - 9) + 'px');
     ind.style.setProperty('--iy', fmt(local - IH / 2) + 'px');
     ind.style.opacity = inView ? 1 : .35;
     if (act !== lastActive) {
@@ -314,7 +333,7 @@
     var bw = btn.offsetWidth, bh = btn.offsetHeight;
     if (!bw || !bh) return;
     var ix = left ? 0 : 5, iy = left ? 0 : 7;
-    var w = bw - ix * 2, h = bh - iy * 2, r = 8, sIn = 4;
+    var w = bw - ix * 2, h = bh - iy * 2, r = 10, sIn = 4.5;
     var svg = btn.querySelector(':scope > .nrb-svg');
     if (!svg) {
       svg = document.createElementNS(NS, 'svg');
@@ -334,18 +353,15 @@
     var inner = 'M' + fmt(x0 + k) + ' ' + (y0 + sIn) + ' H' + fmt(x1 - k) + ' A' + rr + ' ' + rr + ' 0 0 0 ' + (x1 - sIn) + ' ' + fmt(y0 + k) +
       ' V' + fmt(y1 - k) + ' A' + rr + ' ' + rr + ' 0 0 0 ' + fmt(x1 - k) + ' ' + (y1 - sIn) + ' H' + fmt(x0 + k) +
       ' A' + rr + ' ' + rr + ' 0 0 0 ' + (x0 + sIn) + ' ' + fmt(y1 - k) + ' V' + fmt(y0 + k) + ' A' + rr + ' ' + rr + ' 0 0 0 ' + fmt(x0 + k) + ' ' + (y0 + sIn) + 'Z';
-    function pearlS(cx, cy) {
-      return '<circle class="nrb-pearl" cx="' + fmt(cx) + '" cy="' + fmt(cy) + '" r="2.5"/><circle class="nrb-dot" cx="' + fmt(cx) + '" cy="' + fmt(cy) + '" r="1"/>';
-    }
     svg.innerHTML =
-      '<defs><clipPath id="nrb-c"><path d="' + outer + '"/></clipPath>' +
+      '<defs><radialGradient id="nr-halo"><stop offset="0" stop-color="#fce4aa" stop-opacity=".3"/><stop offset="1" stop-color="#fce4aa" stop-opacity="0"/></radialGradient><clipPath id="nrb-c"><path d="' + outer + '"/></clipPath>' +
       '<linearGradient id="nrb-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e8b0"/><stop offset=".5" stop-color="#b08d45"/><stop offset="1" stop-color="#f0d88c"/></linearGradient>' +
       '<linearGradient id="nrb-s" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff6d6" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>' +
       '<path class="nrb-fill" d="' + outer + '"/>' +
       '<g clip-path="url(#nrb-c)"><rect class="nrb-sh" x="' + fmt(-w * .6) + '" y="0" width="' + fmt(w * .5) + '" height="' + h + '" fill="url(#nrb-s)"/></g>' +
       '<path class="nrb-in" d="' + inner + '"/>' +
       '<path class="nrb-out" d="' + outer + '"/>' +
-      pearlS(x0, y0) + pearlS(x1, y0) + pearlS(x0, y1) + pearlS(x1, y1);
+      '<g class="nrb-ros">' + rosette(x0, y0, 6.4, 6, 1) + rosette(x1, y0, 6.4, 6, 1) + rosette(x0, y1, 6.4, 6, 1) + rosette(x1, y1, 6.4, 6, 1) + '</g>';
   }
 
   /* ───────── 7. 事件掛鉤 ───────── */
