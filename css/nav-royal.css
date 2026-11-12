@@ -120,6 +120,8 @@ html[data-nav-royal][data-nav-mode="left"] .nav-group > .nav-content:active { tr
 /* 欄位縮進面板內；視窗較矮需捲動時，項目在面板內被裁切、頂尾漸隱，不會壓到框線 */
 html[data-nav-royal][data-nav-mode="left"] .royal-nav {
   top: 22px !important; bottom: 28px !important;
+  /* 上下各留 18px 內距（> 漸隱區 12px）：捲到最上／最下時，按鈕四角的寶石不會被邊緣裁切或漸隱吃掉 */
+  padding-top: 18px !important; padding-bottom: 18px !important;
   -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
           mask-image: linear-gradient(180deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
 }
@@ -257,7 +259,7 @@ html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
    ══════════════════════════════════════════════════════════════ */
 html[data-nav-royal] .nav-group-arrow { display: none !important; }
 html[data-nav-royal] .nr-chev {
-  display: inline-block; margin-left: .55em; vertical-align: -.04em;
+  display: inline-block; margin-left: .85em; vertical-align: -.04em;
   width: .72em; height: .62em; line-height: 0;
 }
 html[data-nav-royal] .nr-chev svg {
