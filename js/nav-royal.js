@@ -172,36 +172,87 @@
   }
 
   var GOLD = '#e3c780';
-  /* 角落：缺角外側的「第三道同心線」，是漸細的筆劃，兩端捲成螺旋；缺角中心一顆小鑽石。
-     以缺角圓心為原點，bottom＝true 時上下翻轉。 */
-  function cornerOrn(cx, cy, bottom) {
-    var R3 = COVE + 13, yy = 13, xx = Math.sqrt(R3 * R3 - yy * yy);
-    var top = scrollPts([-xx, yy], Math.PI, 17, 4.6, 1.45, -1).reverse();
-    var rod = scrollPts([-yy, xx], Math.PI / 2, 17, 4.6, 1.45, 1);
-    var arc = [], a0 = Math.atan2(yy, -xx), a1 = Math.atan2(xx, -yy), n = 22, i;
-    for (i = 1; i < n; i++) { var aa = a0 + (a1 - a0) * i / n; arc.push([R3 * Math.cos(aa), R3 * Math.sin(aa)]); }
-    var pts = top.concat(arc, rod);
-    var line = taper(pts, function (t) { return .42 + 1.25 * Math.pow(Math.sin(Math.PI * t), .9); }, GOLD, .82);
-    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
-      line + rays(17, .55, .38) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
+
+  /* ── 羽翼捲草：一根「羽」＝沿路徑漸細的金屬筆劃，末端以曲率漸增捲成小螺旋 ──
+     p 起點、h 起始方向(弧度)、L 長度、turn 總轉角(弧度，正＝順時針捲、負＝逆時針)、
+     bow 前段微彎(弧度)。曲率 = bow/L + turn 集中在末端（s³），所以前段流暢、尾端才捲。 */
+  function featherPts(p, h, L, turn, bow) {
+    var st = Math.max(10, Math.round(L / 1.0)), ds = L / st, x = p[0], y = p[1], hd = h, pts = [[x, y]], i;
+    var b1 = (turn - bow) * 4 / L;
+    for (i = 1; i <= st; i++) {
+      var s = (i - .5) / st;
+      hd += (bow / L + b1 * s * s * s) * ds;
+      x += Math.cos(hd) * ds; y += Math.sin(hd) * ds;
+      pts.push([x, y]);
+    }
+    return pts;
   }
-  /* 中央扣飾：中心一顆小鑽石，兩側是分岔的漸細螺旋捲草，再接小鑽石與星粉。
-     以中心為原點；vertical＝true 時旋轉 90°（沿垂直飾桿）。 */
+  /* 一根羽＝暗色刻線（壓出凹槽）＋金屬漸層本體＋前段一道亮脊 */
+  function feather(p, h, L, turn, bow, op) {
+    var pts = featherPts(p, h, L, turn, bow);
+    var wf = function (t) { return .32 + 1.75 * Math.sin(Math.PI * Math.pow(t, .62)); };
+    var body = taper(pts, wf, 'url(#nr-mm)', op);
+    var under = body.replace('fill="url(#nr-mm)"', 'fill="none" stroke="#0a080c" stroke-opacity=".55" stroke-width="1.3" stroke-linejoin="round"');
+    var hi = taper(pts.slice(0, Math.round(pts.length * .62)), function (t) { return .55 * (1 - t * .8); }, '#fff4cf', .5);
+    return under + body + hi;
+  }
+  /* 鑲嵌座：寶石外的一圈細菱形框＋四個尖端小珠，讓寶石像「鑲」在金屬上 */
+  function setting(g) {
+    var a = g * 1.62, b = g * 1.84;
+    return '<polygon points="' + P([[0, -b], [a, 0], [0, b], [-a, 0]]) + '" fill="none" stroke="' + GOLD + '" stroke-opacity=".6" stroke-width=".8" stroke-linejoin="round"/>' +
+      [[0, -b], [a, 0], [0, b], [-a, 0]].map(function (q) { return '<circle cx="' + fmt(q[0]) + '" cy="' + fmt(q[1]) + '" r="1" fill="#f6e6b4" fill-opacity=".85"/>'; }).join('');
+  }
+
+  /* 一片翅膀（標準方向：朝 +x 展開、羽毛往 +y 張開）：4 根漸細的羽由肩點向外展開，末端捲曲 */
+  var WING = [ /* 與軸線夾角、長度、捲角、微彎、不透明度 */
+    [0.00, 35, 0,   .30, .90],
+    [0.30, 29, 2.6, .00, .87],
+    [0.60, 23, 3.2, .00, .83],
+    [0.90, 17, 3.6, .00, .79]
+  ];
+  function wingSvg(S, tf) {
+    var w = '<g transform="translate(' + S[0] + ' ' + S[1] + ') ' + tf + '">', i;
+    for (i = 0; i < WING.length; i++) w += feather([0, 0], WING[i][0], WING[i][1], WING[i][2], WING[i][3], WING[i][4]);
+    return w + gem(2.9) + '</g>';
+  }
+
+  /* 角落：以缺角圓心為原點（y 往下＝往面板內）。
+     缺角中心是鑲嵌水晶；兩片翅膀各貼著上緣、右緣的飾桿向外展開（互為 90° 旋轉），羽尖往面板內側捲。
+     bottom＝true 時上下翻轉。 */
+  function cornerOrn(cx, cy, bottom) {
+    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
+      wingSvg([-26, 11], 'scale(-1 1)') + wingSvg([-11, 26], 'rotate(90)') +
+      rays(17, .55, .36) + setting(7.2) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
+  }
+
+  /* 中央扣飾：原點＝中心，沿飾桿方向展開（vertical＝true 時轉 90°）。
+     中心：鑲嵌水晶（外圈鑲座＋星芒）。底下一枚紡錘形的暗色金屬鑲板，壓住飾桿線讓扣飾「坐」在桿上。
+     兩側各有一對羽翼（上下鏡像）：5 根漸細的羽由近身處向外展開，末端捲曲。盡頭一顆小鑽石＋漸隱星粉。 */
   function centerOrn(cx, cy, vertical, sc) {
     var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
+    var lens = 'M-50 0 Q-26 -9 0 -9 Q26 -9 50 0 Q26 9 0 9 Q-26 9 -50 0Z';
+    g += '<path d="' + lens + '" fill="#0b090d" fill-opacity=".86"/>' +
+      '<path d="' + lens + '" fill="none" stroke="' + GOLD + '" stroke-opacity=".55" stroke-width=".8"/>' +
+      '<path d="' + lens + '" fill="none" stroke="' + GOLD + '" stroke-opacity=".22" stroke-width=".6" transform="scale(.84 .72)"/>';
+    var cfg = [ /* 與軸線夾角、長度、捲角、微彎、不透明度 */
+      [ 0.00, 43, 0,    .30, .90],
+      [ 0.24, 37, 2.6,  .00, .88],
+      [ 0.48, 30, 3.2,  .00, .85],
+      [ 0.72, 23, 3.6,  .00, .82],
+      [ 0.97, 17, 3.9,  .00, .78]
+    ];
     [-1, 1].forEach(function (d) {
       [-1, 1].forEach(function (v) {
-        var pts = scrollPts([d * 8, 0], d > 0 ? 0 : Math.PI, 11, 5.2, 1.4, d * v);
-        g += taper(pts, function (t) { return .35 + 1.25 * Math.pow(Math.sin(Math.PI * Math.pow(t, .72)), .9); }, GOLD, .84);
+        g += '<g transform="scale(' + d + ' ' + v + ')">';
+        cfg.forEach(function (c) { g += feather([11, 1.2], c[0], c[1], c[2], c[3], c[4]); });
+        g += '</g>';
       });
-      /* 外側：漸細尖線、小鑽石、星粉 */
-      g += '<polygon points="' + fmt(d * 24) + ',-.9 ' + fmt(d * 44) + ',0 ' + fmt(d * 24) + ',.9" fill="' + GOLD + '" fill-opacity=".7"/>';
-      g += '<g transform="translate(' + fmt(d * 51) + ' 0) rotate(' + (vertical ? -90 : 0) + ')">' + gem(4) + '</g>';
-      [[60, 1.5, .8], [66, 1.1, .6], [71, .8, .45], [75, .6, .3]].forEach(function (b) {
+      g += '<g transform="translate(' + fmt(d * 58) + ' 0) rotate(' + (vertical ? -90 : 0) + ')">' + gem(3.8) + '</g>';
+      [[66, 1.4, .75], [71, 1.0, .55], [75, .8, .4], [79, .6, .28]].forEach(function (b) {
         g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#f6e6b4" fill-opacity="' + b[2] + '"/>';
       });
     });
-    return g + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + rays(10, .5, .4) + gem(6) + glint(-1.8, -2.7, 3) + '</g></g>';
+    return g + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + rays(11, .5, .4) + setting(5.6) + gem(6.4) + glint(-1.9, -2.9, 3.1) + '</g></g>';
   }
   /* 按鈕四角：只留一顆小鑽石 */
   function gemSmall(cx, cy, g) {
