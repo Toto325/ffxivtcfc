@@ -8,7 +8,7 @@
  *  1. 裝飾層 .nrp
  *       左側：左緣出血的面板。右側兩個轉角是「內凹缺角」，缺角中心一顆寶珠，
  *             周圍的雙線是以寶珠為圓心的同心弧；右緣是飾桿（外亮內暗雙線＋珠點），
- *             垂直中央微微外鼓，托著一枚與首頁分隔線同款的 ✧ 圓章。
+ *             垂直中央微微外鼓，托著層疊翼片的中央扣飾。
  *       頂部：主列下緣垂掛的同款飾桿，中央同樣外鼓、托著圓章。
  *  2. 沿框線繞行的邊緣流光（canvas，極慢極淡）
  *  3. 飾桿上的「目前頁面指示光」（左側）：切換頁面時緩緩滑到對應項目旁
@@ -66,11 +66,16 @@
         ch.className = 'nr-chev';
         ch.setAttribute('aria-hidden', 'true');
         ch.innerHTML =
-          '<svg viewBox="0 0 16 14" xmlns="' + NS + '">' +
-          '<polygon class="f1" points="1.4,2.4 14.6,2.4 8,6"/>' +
-          '<polygon class="f2" points="1.4,2.4 8,6 8,12.6"/>' +
-          '<polygon class="f3" points="14.6,2.4 8,6 8,12.6"/>' +
-          '<polygon class="fo" points="1.4,2.4 14.6,2.4 8,12.6"/></svg>';
+          '<svg viewBox="0 0 16 14.6" xmlns="' + NS + '">' +
+          '<polygon points="0,5.2 5,5.2 8,13.6" fill="#7a5f2e" fill-opacity=".95"/>' +
+          '<polygon points="5,5.2 8,5.2 8,13.6" fill="#c9a85c" fill-opacity=".95"/>' +
+          '<polygon points="8,5.2 11,5.2 8,13.6" fill="#a8863f" fill-opacity=".95"/>' +
+          '<polygon points="11,5.2 16,5.2 8,13.6" fill="#6a5226" fill-opacity=".95"/>' +
+          '<polygon points="3,1 13,1 11,5.2 5,5.2" fill="#fff0c0" fill-opacity=".96"/>' +
+          '<polygon points="3,1 5,5.2 0,5.2" fill="#e9cf8a" fill-opacity=".9"/>' +
+          '<polygon points="13,1 16,5.2 11,5.2" fill="#d2b062" fill-opacity=".9"/>' +
+          '<polygon points="3,1 13,1 16,5.2 8,13.6 0,5.2" fill="none" stroke="#f6e6b4" stroke-width="1.1" stroke-linejoin="round"/>' +
+          '<polygon points="4.4,2.1 7,2.1 5.8,3.9" fill="#fff" fill-opacity=".85"/></svg>';
         cn.appendChild(ch);
       }
     });
@@ -156,103 +161,52 @@
     }
     return '<polygon points="' + P(Lp.concat(Rp.reverse())) + '" fill="' + color + '" fill-opacity="' + op + '"/>';
   }
-  /* 捲草中心線：從 p 沿方向 a（弧度）走 len 的直線，再以對數螺線向 side（+1 順時針／-1 逆時針）捲入 */
-  function scrollPts(p, a, len, R0, turns, side) {
-    var pts = [], dx = Math.cos(a), dy = Math.sin(a), i;
-    var st = Math.max(2, Math.round(len / 1.4));
-    for (i = 0; i <= st; i++) pts.push([p[0] + dx * len * i / st, p[1] + dy * len * i / st]);
-    var sx = p[0] + dx * len, sy = p[1] + dy * len;
-    var cx = sx - dy * side * R0, cy = sy + dx * side * R0;
-    var th0 = Math.atan2(sy - cy, sx - cx), total = turns * 2 * Math.PI, m = Math.ceil(total / .16), k = Math.log(1 / .13);
-    for (i = 1; i <= m; i++) {
-      var f = i / m, r = R0 * Math.exp(-k * f), th = th0 + side * total * f;
-      pts.push([cx + r * Math.cos(th), cy + r * Math.sin(th)]);
-    }
-    return pts;
-  }
-
   var GOLD = '#e3c780';
-  /* ── 新裝飾語彙：柳葉尖＋菱形小珠＋寶石座（不用捲草，靠漸細線條與尖端收尾做出華麗感） ── */
-  /* 柳葉：從 (x,y) 朝角度 a（度）長 len、半寬 w，兩端皆尖 */
-  function leaf(x, y, a, len, w, op) {
-    return '<path transform="translate(' + fmt(x) + ' ' + fmt(y) + ') rotate(' + fmt(a) + ')" d="M0 0 C' + fmt(len * .24) + ' ' + fmt(-w) + ' ' + fmt(len * .64) + ' ' + fmt(-w * .85) + ' ' + fmt(len) +
-      ' 0 C' + fmt(len * .64) + ' ' + fmt(w * .85) + ' ' + fmt(len * .24) + ' ' + fmt(w) + ' 0 0Z" fill="' + GOLD + '" fill-opacity="' + op + '"/>';
+  /* 切面板片（銳角、無曲線）：沿 +x 延伸，本體在 -y 側。
+     背板為深色底；上半是亮面、下半是暗面（像金屬受光），外框金邊；背端切角，尖端收針。 */
+  function shard(L, h, op) {
+    var c = h * .5, A = [0, 0], B = [0, -c], C = [c * .95, -h], T = [L, 0];
+    return '<polygon points="' + P([A, B, C, T]) + '" fill="#0c0a0e" fill-opacity=".92"/>' +
+      '<polygon points="' + P([A, B, T]) + '" fill="#8a6c30" fill-opacity="' + fmt(op * .9) + '"/>' +
+      '<polygon points="' + P([B, C, T]) + '" fill="#f6e6b4" fill-opacity="' + fmt(op * .85) + '"/>' +
+      '<polygon points="' + P([A, B, C, T]) + '" fill="none" stroke="#e9cf8a" stroke-opacity=".9" stroke-width=".7" stroke-linejoin="round"/>';
   }
-  /* 菱形小珠（半寬 g，上下略長） */
-  function bead(x, y, g, op) {
-    return '<polygon transform="translate(' + fmt(x) + ' ' + fmt(y) + ')" points="' + P([[0, -g * 1.35], [g, 0], [0, g * 1.35], [-g, 0]]) + '" fill="' + GOLD + '" fill-opacity="' + op + '"/>';
-  }
-  /* 寶石座：寶石外圍一圈菱形細框＋四個尖爪，讓寶石像「鑲」上去而不是「放」上去 */
-  function bezel(g, k) {
-    var s = g * (k || 1.6), t = s * 1.16, out = '';
-    out += '<polygon points="' + P([[0, -t], [s, 0], [0, t], [-s, 0]]) + '" fill="#0c0a0e" fill-opacity=".72" stroke="' + GOLD + '" stroke-opacity=".62" stroke-width=".7" stroke-linejoin="round"/>';
-    [[0, -t, -90], [s, 0, 0], [0, t, 90], [-s, 0, 180]].forEach(function (c) { out += leaf(c[0], c[1], c[2], g * .9, g * .2, .8); });
-    return out;
-  }
-  /* 沿圓弧（中心在原點）取樣 */
-  function arcPts(R, a0, a1) {
-    var out = [], n = Math.max(6, Math.ceil(Math.abs(a1 - a0) * R / 1.6)), i;
-    for (i = 0; i <= n; i++) { var aa = a0 + (a1 - a0) * i / n; out.push([R * Math.cos(aa), R * Math.sin(aa)]); }
-    return out;
-  }
-  function line(p, a, len) {
-    var out = [], st = Math.max(2, Math.round(len / 1.4)), i;
-    for (i = 0; i <= st; i++) out.push([p[0] + Math.cos(a) * len * i / st, p[1] + Math.sin(a) * len * i / st]);
+  /* 扇形板片組：n 片同形狀，逐片縮短、轉角，後面的先畫（最長的壓在最上層）*/
+  function fan(n, L, h, step, shrink) {
+    var out = '', k;
+    for (k = n - 1; k >= 0; k--) {
+      var sc = 1 - k * shrink;
+      out += '<g transform="rotate(' + fmt(-k * step) + ') scale(' + fmt(sc) + ')">' + shard(L, h, .95 - k * .13) + '</g>';
+    }
     return out;
   }
 
-  /* 角落：缺角外側的「第三道同心線」改成漸細的弧線，兩條直尾各以「小菱珠＋柳葉尖」收尾；
-     弧線外側有兩段更細的陪襯弧，弧心外側長出一朵三葉小冠，缺角中心是鑲了座的寶石。
-     以缺角圓心為原點，bottom＝true 時上下翻轉。 */
+  /* 角落：保留缺角中心的小鑽石與同心弧，沿上緣與右緣各加一組小型扇形切面板片。
+     以缺角圓心為原點（面板在 y>0、x<0 的一側），bottom＝true 時上下翻轉。 */
   function cornerOrn(cx, cy, bottom) {
-    var R3 = COVE + 13, yy = 13, xx = Math.sqrt(R3 * R3 - yy * yy), TL = 17;
-    var a0 = Math.atan2(yy, -xx), a1 = Math.atan2(xx, -yy), mid = (a0 + a1) / 2;
-    var tailA = line([-xx, yy], Math.PI, TL).reverse();        // 往左的直尾（由外端到弧端）
-    var arc = arcPts(R3, a0, a1).slice(1, -1);
-    var tailB = line([-yy, xx], Math.PI / 2, TL);              // 往下的直尾
-    var main = tailA.concat(arc, tailB);
-    var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">';
-    g += taper(main, function (t) { return .35 + 2.2 * Math.pow(Math.sin(Math.PI * t), .85); }, GOLD, .88);
-    /* 尾端：小菱珠＋柳葉尖 */
-    g += bead(-xx - TL - 4.4, yy, 1.5, .88) + leaf(-xx - TL - 8, yy, 180, 12, 2.1, .92);
-    g += bead(-yy, xx + TL + 4.4, 1.5, .88) + leaf(-yy, xx + TL + 8, 90, 12, 2.1, .92);
-    /* 三葉小冠：沿弧心方向往外長，中葉長、兩側葉收窄 */
-    var da = mid * 180 / Math.PI, ux = Math.cos(mid), uy = Math.sin(mid);
-    var bx = (R3 + 1) * ux, by = (R3 + 1) * uy;
-    g += leaf(bx, by, da, 14, 2.9, .94);
-    g += leaf(bx + ux * 2, by + uy * 2, da - 33, 9.5, 1.6, .84);
-    g += leaf(bx + ux * 2, by + uy * 2, da + 33, 9.5, 1.6, .84);
-    g += bead(bx + ux * 18.4, by + uy * 18.4, 1.3, .88);
-    /* 缺角中心：鑲了座的寶石 */
-    g += bezel(8, 1.3) + rays(21, .55, .34) + gem(8) + glint(-2.6, -3.9, 3.4);
-    return g + '</g>';
+    var horiz = '<g transform="translate(-31 14) rotate(180)">' + fan(3, 40, 9, 15, .22) + '</g>';
+    var vert = '<g transform="matrix(0 -1 -1 0 0 0)">' + horiz + '</g>';
+    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
+      horiz + vert + rays(14, .5, .34) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
   }
-
-  /* 中央扣飾：中心一顆鑲座寶石，兩側是杏仁形雙弧（內含小菱珠），
-     弧尖之後是細軸線，盡頭是柳葉箭頭加兩片側葉，最後收成漸小的星粉。
+  /* 中央扣飾（王冠／角飾）：切面寶石坐在金框菱形裡，上下各一對銳角金色角形飾件，
+     每支角由兩片切面板片疊成，從寶石向外分岔成 V 形。
      以中心為原點；vertical＝true 時旋轉 90°（沿垂直飾桿）。 */
   function centerOrn(cx, cy, vertical, sc) {
-    var cr = 'rotate(' + (vertical ? -90 : 0) + ')';
     var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
     [-1, 1].forEach(function (d) {
-      /* 杏仁形雙弧 */
       [-1, 1].forEach(function (v) {
-        var pts = [], n = 28, i;
-        for (i = 0; i <= n; i++) { var t = i / n; pts.push([d * (12.5 + 31 * t), v * 5.6 * Math.sin(Math.PI * Math.pow(t, .82))]); }
-        g += taper(pts, function (t) { return .3 + 1.15 * Math.pow(Math.sin(Math.PI * t), .8); }, GOLD, .86);
-      });
-      /* 杏仁內的細軸＋小菱珠，杏仁之後的細軸線 */
-      g += '<polygon points="' + fmt(d * 13) + ',-.45 ' + fmt(d * 58) + ',-.3 ' + fmt(d * 60) + ',0 ' + fmt(d * 58) + ',.3 ' + fmt(d * 13) + ',.45" fill="' + GOLD + '" fill-opacity=".62"/>';
-      g += '<g transform="translate(' + fmt(d * 27) + ' 0) ' + cr + '">' + bead(0, 0, 2.1, .92) + glint(-.5, -1, 1.6) + '</g>';
-      /* 軸線盡頭：柳葉箭頭＋兩片側葉 */
-      g += leaf(d * 55, 0, d > 0 ? 0 : 180, 13, 2.5, .9);
-      g += leaf(d * 54, 0, d > 0 ? 36 : 144, 8.5, 1.55, .8) + leaf(d * 54, 0, d > 0 ? -36 : -144, 8.5, 1.55, .8);
-      /* 星粉 */
-      [[72, 1.3, .7], [77, 1, .5], [81, .75, .35]].forEach(function (b) {
-        g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#f6e6b4" fill-opacity="' + b[2] + '"/>';
+        g += '<g transform="scale(' + d + ' ' + v + ') translate(13 ' + fmt(v * 0) + ')">' +
+          '<g transform="rotate(-38) scale(.7)">' + shard(34, 9, .72) + '</g>' +
+          '<g transform="rotate(-20) scale(.88)">' + shard(38, 10, .85) + '</g>' +
+          '<g transform="rotate(-5)">' + shard(40, 9, .95) + '</g>' +
+          '</g>';
       });
     });
-    return g + '<g transform="' + cr + '">' + bezel(6, 1.42) + rays(12, .5, .4) + gem(6) + glint(-1.8, -2.7, 3) + '</g></g>';
+    var K = [[16, 0], [0, -11], [-16, 0], [0, 11]], K2 = [[12.4, 0], [0, -8.2], [-12.4, 0], [0, 8.2]];
+    g += '<polygon points="' + P(K) + '" fill="#0c0a0e" fill-opacity=".95" stroke="#e9cf8a" stroke-opacity=".9" stroke-width="1" stroke-linejoin="round"/>' +
+      '<polygon points="' + P(K2) + '" fill="none" stroke="#c5a059" stroke-opacity=".55" stroke-width=".7" stroke-linejoin="round"/>';
+    return g + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + gem(7) + glint(-2, -3, 3.2) + '</g></g>';
   }
   /* 按鈕四角：只留一顆小鑽石 */
   function gemSmall(cx, cy, g) {
