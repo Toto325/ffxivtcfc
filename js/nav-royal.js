@@ -193,86 +193,92 @@
     return taper(pts, function (t) { return Math.max(.05, w * Math.min(1, t / .14, (1 - t) / .3)); }, GOLD, op);
   }
 
-  /* 角落：保留缺角中心的小鑽石與同心弧線。沿上緣、右緣各從內側飾桿線「換線」剝出四條乾淨長線：
-     與中央內層同一種平順的 S 形換線，起點錯開、長短與粗細遞減（由外而內越來越短、越細），
-     全部不捲、尖端收針。以缺角圓心為原點，bottom＝true 時上下翻轉。 */
-  function cornerOrn(cx, cy, bottom) {
+  /* ── 翼束：前端（靠近缺角／寶石的一端）展開得高、尾端壓平貼回飾桿 ──
+     兩束（上緣＋右緣）的高端都朝向缺角，合起來就是一個包住轉角的 L 形護角。
+     canonical：起筆點在 (x0, yF)，沿 +x 前進，y 以餘弦緩降到 yT（起、終點切線皆水平）。 */
+  function wingW(w) {
+    return function (t) {
+      var up = Math.sin(Math.min(1, t / .1) * Math.PI / 2);
+      var down = t < .22 ? 1 : 1 - .94 * Math.pow((t - .22) / .78, .85);
+      return Math.max(.05, w * (.35 + .65 * up) * down);
+    };
+  }
+  function wing(x0, yF, yT, len, lc, w, op) {
+    var pts = [], n = Math.round(len / .8), i;
+    for (i = 0; i <= n; i++) {
+      var s = i * .8, u = Math.min(1, s / lc), e = .5 * (1 + Math.cos(Math.PI * u));
+      pts.push([x0 + s, yT + (yF - yT) * e]);
+    }
+    return taper(pts, wingW(w), GOLD, op);
+  }
+  /* 前端落在以缺角圓心（或扣飾中心）為圓心的同心弧上 → 前端整齊地「抱」著寶石 */
+  function wingSet(spec, Rf, k) {
     var h = '';
-    /* [起點 x（在內側飾桿線 y=6 上）, 換線後與飾桿的間距 dy, 換線長度, 總長, 線寬, 不透明度] */
-    [[-26, 4.5, 26, 104, 2.9, .95], [-34, 8.5, 28, 80, 2.2, .82], [-42, 12.5, 30, 56, 1.7, .68], [-50, 16.5, 32, 34, 1.3, .54]].forEach(function (e) {
-      var A = e[1] / (.637 * e[2]);
-      h += brush(flow(e[0], 6, Math.PI, { len: e[3], s1: e[2], bend: -A }), e[4], e[5]);
+    spec.forEach(function (e) {
+      var x0 = Math.sqrt(Rf * Rf - e[0] * e[0]);
+      h += wing(x0, e[0], e[1], e[2], e[2] * .6, e[3] * (k || 1), e[4]);
     });
+    return h;
+  }
+  /* [前端 y, 尾端 y, 長度, 線寬, 不透明度] */
+  var CORNER_WING = [[9.5, 9.5, 104, 2.9, .95], [15, 10.8, 84, 2.2, .82], [20.5, 12.1, 64, 1.7, .68], [26, 13.4, 44, 1.3, .54]];
+
+  function cornerOrn(cx, cy, bottom) {
+    var h = '<g transform="scale(-1 1)">' + wingSet(CORNER_WING, 34) + '</g>';
     var v = '<g transform="matrix(0 -1 -1 0 0 0)">' + h + '</g>';
     return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
       h + v + rays(13, .45, .32) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
   }
 
-  /* 中央寶石：爪鑲的切面寶石（螢幕座標，vertical＝長軸沿垂直飾桿）。
-     ‧ 不用同心外框＋深色底（那是眼眶／虹膜／瞳孔的結構，會讀成眼睛），改成：
-       寬一點的菱形（不是細長杏仁形）、8 個冠部切面＋檯面，受光方向一致（左上亮、右下暗）；
-     ‧ 四個頂點各用一枚 V 形小爪扣住（珠寶鑲嵌的語彙）。 */
-  function jewel(vertical) {
-    var a = 12.5, c = 9.6, k = .46, i, j;
-    var V = vertical ? [[0, -a], [c, 0], [0, a], [-c, 0]] : [[-a, 0], [0, -c], [a, 0], [0, c]];
-    var Tv = V.map(function (q) { return [q[0] * k, q[1] * k]; });
-    function shade(poly, bump) {
-      var cx = 0, cy = 0, u, b;
-      poly.forEach(function (q) { cx += q[0]; cy += q[1]; });
-      cx /= poly.length; cy /= poly.length; u = Math.hypot(cx, cy) || 1;
-      b = .5 + .5 * ((cx / u) * -.6 + (cy / u) * -.8) + (bump || 0);
-      b = Math.max(0, Math.min(1, b)); b = b * b * (3 - 2 * b);
-      return 'rgb(' + Math.round(95 + 160 * b) + ',' + Math.round(74 + 167 * b) + ',' + Math.round(34 + 160 * b) + ')';
-    }
-    var out = '<polygon points="' + P(V) + '" fill="#0c0a0e"/>';
-    for (i = 0; i < 4; i++) {
-      j = (i + 1) % 4;
-      var f1 = [V[i], V[j], Tv[j]], f2 = [V[i], Tv[j], Tv[i]];
-      out += '<polygon points="' + P(f1) + '" fill="' + shade(f1, i % 2 ? .08 : -.06) + '"/>' +
-             '<polygon points="' + P(f2) + '" fill="' + shade(f2, i % 2 ? -.06 : .08) + '"/>';
-    }
-    out += '<polygon points="' + P(Tv) + '" fill="#f7e8b6"/>' +
-      '<polygon points="' + P(Tv) + '" fill="none" stroke="#fff6d6" stroke-opacity=".55" stroke-width=".4" stroke-linejoin="round"/>';
-    for (i = 0; i < 4; i++) {
-      j = (i + 1) % 4;
-      out += '<path d="M' + fmt(V[i][0]) + ' ' + fmt(V[i][1]) + ' L' + fmt(Tv[i][0]) + ' ' + fmt(Tv[i][1]) + ' M' + fmt(V[i][0]) + ' ' + fmt(V[i][1]) + ' L' + fmt(Tv[j][0]) + ' ' + fmt(Tv[j][1]) + '" stroke="#fff1c4" stroke-opacity=".35" stroke-width=".35" fill="none"/>';
-    }
-    out += '<polygon points="' + P(V) + '" fill="none" stroke="#f3dfa0" stroke-opacity=".95" stroke-width=".9" stroke-linejoin="round"/>';
-    /* 四爪 */
-    for (i = 0; i < 4; i++) {
-      var A0 = V[i], Bp = V[(i + 3) % 4], Bn = V[(i + 1) % 4];
-      var o = Math.hypot(A0[0], A0[1]) || 1, ox = A0[0] / o, oy = A0[1] / o;
-      function toward(Q, d) { var l = Math.hypot(Q[0] - A0[0], Q[1] - A0[1]) || 1; return [A0[0] + (Q[0] - A0[0]) / l * d + ox * .9, A0[1] + (Q[1] - A0[1]) / l * d + oy * .9]; }
-      var q1 = toward(Bp, 4.2), q2 = toward(Bn, 4.2), qv = [A0[0] + ox * 1.5, A0[1] + oy * 1.5];
-      out += '<polyline points="' + P([q1, qv, q2]) + '" fill="none" stroke="#e9cf8a" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/>';
-    }
-    return out + glint(vertical ? -2.4 : -3.2, vertical ? -4.8 : -2.6, 3.4);
-  }
+  /* 中央扣飾（沿用原設計的結構）：上下（沿飾桿）鏡像；兩側（橫跨飾桿）刻意不同。
+     ‧ 內側（-y，朝向面板）：兩條乾淨的長流線；
+     ‧ 外側（+y，朝向頁面）：四條分層換線（與角落同一語言，長短、粗細遞減）。
+     本版只做：加長、線寬往角落靠攏、亮度壓低、菱框與寶石加上裝飾。 */
+  /* 內側長流線 [總長, 換線後與飾桿的間距, 線寬, 不透明度] */
+  var CENTER_IN  = [[104, 12.5, 2.5, .74], [76, 8.5, 1.8, .52]];
+  /* 外側分層換線 [起點 x, 換線後間距, 換線長度, 總長, 線寬, 不透明度] */
+  var CENTER_OUT = [[4, 3.5, 30, 108, 2.9, .82], [13, 7, 28, 84, 2.2, .7], [22, 10.5, 26, 58, 1.7, .57], [31, 14, 24, 38, 1.3, .45]];
+  var CENTER_GX = 22;   // 筆劃起點離中心（略大於菱框尖端＋尖端小飾）
 
-  /* 中央扣飾：上下（沿飾桿）鏡像；兩側（橫跨飾桿）刻意不同。
-     ‧ 內側（-y，朝向面板）：兩條乾淨的長流線（原樣保留）；
-     ‧ 外側（+y，朝向頁面）：與角落同一語言的四條分層長線（內側兩條的繁化版）。
-     vertical＝true 時沿垂直飾桿（外側朝右）；否則沿水平飾桿（外側朝下）。 */
+  var FR_STYLE = 'A';
+  function centerFrame() {
+    var s = window.NR_GEM || FR_STYLE, o = '', k = .86;
+    function ccv(a, b, c) {   // 四邊內凹的星形菱框（c 越小越內凹）
+      return 'M' + a + ' 0 Q' + fmt(c * a) + ' ' + fmt(-c * b) + ' 0 ' + (-b) + ' Q' + fmt(-c * a) + ' ' + fmt(-c * b) + ' ' + (-a) + ' 0 Q' +
+        fmt(-c * a) + ' ' + fmt(c * b) + ' 0 ' + b + ' Q' + fmt(c * a) + ' ' + fmt(c * b) + ' ' + a + ' 0Z';
+    }
+    if (s === 'A') {        /* 內凹星形框＋橫跨飾桿方向的尖刺＋沿飾桿方向尖端小鑽 */
+      [-1, 1].forEach(function (d) {
+        o += '<polygon points="-2,' + d * 9.6 + ' 0,' + d * 20 + ' 2,' + d * 9.6 + '" fill="#e3c780" fill-opacity="' + .78 * k + '"/>' +
+          '<polygon points="-.7,' + d * 12 + ' 0,' + d * 24 + ' .7,' + d * 12 + '" fill="#e3c780" fill-opacity="' + .5 * k + '"/>';
+      });
+      o += '<path d="' + ccv(17.5, 11, .34) + '" fill="#0c0a0e" fill-opacity=".96" stroke="#e9cf8a" stroke-opacity="' + .9 * k + '" stroke-width="1" stroke-linejoin="round"/>' +
+        '<path d="' + ccv(13.6, 8.2, .34) + '" fill="none" stroke="#c5a059" stroke-opacity=".6" stroke-width=".7" stroke-linejoin="round"/>' +
+        '<g transform="translate(-19.6 0)">' + gem(2.3) + '</g><g transform="translate(19.6 0)">' + gem(2.3) + '</g>';
+    } else {                /* 直邊菱框＋外圍一圈珠點（呼應飾桿珠點）＋四個尖端小鑽 */
+      var K = [[17, 0], [0, -11], [-17, 0], [0, 11]], K2 = [[13.2, 0], [0, -8.2], [-13.2, 0], [0, 8.2]], K3 = [[21, 0], [0, -13.6], [-21, 0], [0, 13.6]];
+      o += '<polygon points="' + P(K3) + '" fill="none" stroke="#fce4aa" stroke-opacity="' + .55 * k + '" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="0 4.6"/>' +
+        '<polygon points="' + P(K) + '" fill="#0c0a0e" fill-opacity=".96" stroke="#e9cf8a" stroke-opacity="' + .9 * k + '" stroke-width="1" stroke-linejoin="round"/>' +
+        '<polygon points="' + P(K2) + '" fill="none" stroke="#c5a059" stroke-opacity=".6" stroke-width=".7" stroke-linejoin="round"/>' +
+        '<g transform="translate(-20 0)">' + gem(2.3) + '</g><g transform="translate(20 0)">' + gem(2.3) + '</g>' +
+        '<g transform="translate(0 -16.4)">' + gem(1.9) + '</g><g transform="translate(0 16.4)">' + gem(1.9) + '</g>';
+    }
+    return o;
+  }
   function centerOrn(cx, cy, vertical, sc) {
     var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">' +
       '<g transform="scale(1 ' + (vertical ? -1 : 1) + ')">';
     [-1, 1].forEach(function (d) {
-      g += '<g transform="scale(' + d + ' 1) translate(12.4 0)">' + swoosh(72, -.24, 1.7, .8) + swoosh(50, -.15, 1.2, .55) + OUTER_GEO() + '</g>';
+      var s = '';
+      CENTER_IN.forEach(function (e) {
+        s += brush(flow(0, 0, 0, { len: e[0], s1: e[0], bend: -e[1] / (.637 * e[0]) }), e[2], e[3]);
+      });
+      CENTER_OUT.forEach(function (e) {
+        s += brush(flow(e[0], 3, 0, { len: e[3], s1: e[2], bend: e[1] / (.637 * e[2]) }), e[4], e[5]);
+      });
+      g += '<g transform="scale(' + d + ' 1) translate(' + CENTER_GX + ' 0)">' + s + '</g>';
     });
-    g += '</g>';
-    return g + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + jewel(vertical) + '</g></g>';
-  }
-  /* 外側幾何裝飾（canonical：原點＝菱框尖端，+x 沿飾桿向外，+y 朝外側）*/
-  function OUTER_GEO() {
-    var out = '';
-    /* 與角落同一語言的「分層換線」：從外側那條飾桿線（y=3）上錯開起點剝出、不穿過它，
-       走到固定間距後與飾桿平行延伸；長短、粗細遞減，尖端錯落成一道斜排。
-       [起點 x, 換線後與飾桿線的間距 dy, 換線長度, 總長, 線寬, 不透明度]（canonical：原點＝菱框尖端，+y＝外側）*/
-    [[4, 3.5, 26, 80, 2.3, .92], [12, 7, 24, 60, 1.8, .78], [20, 10.5, 22, 42, 1.4, .64], [28, 14, 20, 28, 1.05, .5]].forEach(function (e) {
-      var A = e[1] / (.637 * e[2]);
-      out += brush(flow(e[0], 3, 0, { len: e[3], s1: e[2], bend: A }), e[4], e[5]);
-    });
-    return out;
+    return g + centerFrame() + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + gem(6.4) + glint(-1.9, -2.9, 3) + '</g></g></g>';
   }
 
   /* 展開提示：完整的鑽石，坐在一對 V 形流線翼的頂點（兩翼各兩層、漸細收針）。
@@ -334,7 +340,7 @@
         '<linearGradient id="nr-fl" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="150" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
         '<linearGradient id="nr-fb" gradientUnits="userSpaceOnUse" x1="' + (G.xe - 110) + '" y1="0" x2="' + (G.xe - 36) + '" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
         '<mask id="nr-ml" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fl)"/></mask>' +
-        '<mask id="nr-mb" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fb)"/><rect x="' + fmt(G.xe - 16) + '" y="' + fmt(G.yc - 80) + '" width="32" height="160" fill="#000"/></mask>' +
+        '<mask id="nr-mb" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fb)"/><rect x="' + fmt(G.xe - 16) + '" y="' + fmt(G.yc - 140) + '" width="32" height="280" fill="#000"/></mask>' +
         '</defs>' +
         '<path id="nr-cp" d="' + leftRod(0) + '" fill="none" stroke="none"/>' +
         '<g mask="url(#nr-ml)">' +
@@ -357,7 +363,7 @@
         '<linearGradient id="nr-tf" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="' + W + '" y2="0">' +
           '<stop offset="0" stop-color="#000"/><stop offset=".12" stop-color="#fff"/><stop offset=".88" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient>' +
         '<mask id="nr-tm" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect width="' + W + '" height="' + H + '" fill="url(#nr-tf)"/></mask>' +
-        '<mask id="nr-tm2" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect width="' + W + '" height="' + H + '" fill="url(#nr-tf)"/><rect x="' + fmt(cx - 62) + '" y="0" width="124" height="' + H + '" fill="#000"/></mask>' +
+        '<mask id="nr-tm2" maskUnits="userSpaceOnUse" x="0" y="0" width="' + W + '" height="' + H + '"><rect width="' + W + '" height="' + H + '" fill="url(#nr-tf)"/><rect x="' + fmt(cx - 110) + '" y="0" width="220" height="' + H + '" fill="#000"/></mask>' +
         '</defs>' +
         '<path id="nr-cp" d="' + topRod(yo) + '" fill="none" stroke="none"/>' +
         '<g mask="url(#nr-tm)"><path d="' + topRod(yo) + '" stroke="url(#nr-th)" stroke-width="1.6" fill="none"/></g>' +
