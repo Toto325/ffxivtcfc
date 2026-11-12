@@ -217,7 +217,7 @@ html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
 }
 @keyframes nr-sheen { 0% { left: -60%; } 28%, 100% { left: 140%; } }
 
-.nrp-svg { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 0 5px rgba(var(--nr-gold),.22)); }
+.nrp-svg { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 0 3px rgba(var(--nr-gold),.14)); }
 .nrp-comet { position: absolute; left: -8px; top: -8px; }
 
 /* 面板內偶爾飄起的金粉 */
