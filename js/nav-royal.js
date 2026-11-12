@@ -111,62 +111,101 @@
   /* 頂部：下緣飾桿（直線） */
   function topRod(y) { return 'M0 ' + fmt(y) + ' H' + G.W; }
 
-  /* 圓章（與首頁分隔線同款：圓環＋四芒星），以原點為中心 */
-  function medalCore(r) {
-    var s = r * .52;
-    var star = 'M0 ' + fmt(-s) + ' C' + fmt(s * .16) + ' ' + fmt(-s * .28) + ' ' + fmt(s * .28) + ' ' + fmt(-s * .16) + ' ' + fmt(s) + ' 0 C' +
-      fmt(s * .28) + ' ' + fmt(s * .16) + ' ' + fmt(s * .16) + ' ' + fmt(s * .28) + ' 0 ' + fmt(s) + ' C' +
-      fmt(-s * .16) + ' ' + fmt(s * .28) + ' ' + fmt(-s * .28) + ' ' + fmt(s * .16) + ' ' + fmt(-s) + ' 0 C' +
-      fmt(-s * .28) + ' ' + fmt(-s * .16) + ' ' + fmt(-s * .16) + ' ' + fmt(-s * .28) + ' 0 ' + fmt(-s) + 'Z';
-    return '<circle r="' + (r + 7) + '" fill="url(#nr-halo)"/>' +
-      '<circle r="' + r + '" fill="#0c0a0e" fill-opacity=".97" stroke="url(#nr-mm)" stroke-width="1.3"/>' +
-      '<circle r="' + fmt(r - 3.2) + '" fill="none" stroke="#c5a059" stroke-opacity=".38" stroke-width=".8"/>' +
-      '<path d="' + star + '" fill="#fce4aa" fill-opacity=".92"/>';
-  }
-  /* 飾桿扣飾：圓章居中，兩側各一片杏仁形葉飾，再接一串由大到小漸隱的珠子 */
-  function clasp(cx, cy, vertical, sc, r) {
-    var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
-    [-1, 1].forEach(function (d) {
-      /* 漸細的光線（靠圓章處最粗，尖端漸隱） */
-      g += '<polygon points="' + fmt(d * (r + 4.5)) + ',-1.1 ' + fmt(d * (r + 21)) + ',0 ' + fmt(d * (r + 4.5)) + ',1.1" fill="#fce4aa" fill-opacity=".85"/>';
-      /* 小鑽石（垂直桿時反向旋轉，維持尖端朝上） */
-      g += '<g transform="translate(' + fmt(d * (r + 28)) + ' 0) rotate(' + (vertical ? -90 : 0) + ')">' + gem(4.6) + '</g>';
-      /* 星粉：由大到小漸隱 */
-      [[r + 38, 1.6, .9], [r + 44, 1.2, .7], [r + 49, .9, .52], [r + 53, .65, .36]].forEach(function (b) {
-        g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#fff0c8" fill-opacity="' + b[2] + '"/>';
-      });
-    });
-    return g + medalCore(r) + '</g>';
-  }
-  /* ── 寶石系列：切面鑽石、星芒、鑲座 ── */
-  function pts(a) { return a.map(function (p) { return fmt(p[0]) + ',' + fmt(p[1]); }).join(' '); }
-  /* 切面寶石（以原點為中心，g＝半寬）：外菱形＋內檯面，四個切面明暗不同 */
+  /* ── 裝飾線條系列（像餐單的框線修飾）：漸細的書法式筆劃＋螺旋捲草＋小鑽石＋星粉 ── */
+  function P(a) { return a.map(function (p) { return fmt(p[0]) + ',' + fmt(p[1]); }).join(' '); }
+
+  /* 切面小鑽石（以原點為中心，g＝半寬）：四個切面明暗不同；整體偏暗，不搶眼 */
   function gem(g) {
     var h = g * 1.14, t = g * .44, th = t * 1.14;
     var T = [0, -h], R = [g, 0], B = [0, h], L = [-g, 0];
     var tT = [0, -th], tR = [t, 0], tB = [0, th], tL = [-t, 0];
-    return '<polygon points="' + pts([T, R, B, L]) + '" fill="#0c0a0e"/>' +
-      '<polygon points="' + pts([T, L, tL, tT]) + '" fill="#fff6d6" fill-opacity=".92"/>' +
-      '<polygon points="' + pts([T, R, tR, tT]) + '" fill="#fce4aa" fill-opacity=".62"/>' +
-      '<polygon points="' + pts([R, B, tB, tR]) + '" fill="#9a7a38" fill-opacity=".75"/>' +
-      '<polygon points="' + pts([L, B, tB, tL]) + '" fill="#d9b66a" fill-opacity=".72"/>' +
-      '<polygon points="' + pts([tT, tR, tB, tL]) + '" fill="#fff0c0" fill-opacity=".95"/>' +
-      '<path d="M' + pts([T]) + 'L' + pts([tT]) + ' M' + pts([R]) + 'L' + pts([tR]) + ' M' + pts([B]) + 'L' + pts([tB]) + ' M' + pts([L]) + 'L' + pts([tL]) + '" stroke="#6f5426" stroke-opacity=".6" stroke-width=".45" fill="none"/>' +
-      '<polygon points="' + pts([T, R, B, L]) + '" fill="none" stroke="#f6e3a4" stroke-opacity=".95" stroke-width=".8" stroke-linejoin="round"/>';
+    return '<polygon points="' + P([T, R, B, L]) + '" fill="#0c0a0e"/>' +
+      '<polygon points="' + P([T, L, tL, tT]) + '" fill="#f6e6b4" fill-opacity=".78"/>' +
+      '<polygon points="' + P([T, R, tR, tT]) + '" fill="#e9cf8a" fill-opacity=".5"/>' +
+      '<polygon points="' + P([R, B, tB, tR]) + '" fill="#8a6c30" fill-opacity=".7"/>' +
+      '<polygon points="' + P([L, B, tB, tL]) + '" fill="#c9a85c" fill-opacity=".62"/>' +
+      '<polygon points="' + P([tT, tR, tB, tL]) + '" fill="#f3e2ac" fill-opacity=".8"/>' +
+      '<polygon points="' + P([T, R, B, L]) + '" fill="none" stroke="#e9cf8a" stroke-opacity=".8" stroke-width=".75" stroke-linejoin="round"/>';
   }
-  /* 星芒：四個尖角、長而細的光芒（內凹星形） */
-  function sparkle(L, w, op) {
-    var a = fmt(w * .25), c = fmt(w);
-    return '<path d="M0 ' + (-L) + ' C' + a + ' ' + (-c) + ' ' + c + ' ' + (-a) + ' ' + L + ' 0 C' + c + ' ' + a + ' ' + a + ' ' + c + ' 0 ' + L +
-      ' C' + (-a) + ' ' + c + ' ' + (-c) + ' ' + a + ' ' + (-L) + ' 0 C' + (-c) + ' ' + (-a) + ' ' + (-a) + ' ' + (-c) + ' 0 ' + (-L) + 'Z" fill="#fff4cf" fill-opacity="' + op + '"/>';
+  /* 細星芒：四條漸細的尖線（放在鑽石後方，純線條，不用圓）*/
+  function rays(L, w, op) {
+    var out = '';
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+      var px = -d[1], py = d[0];
+      out += '<polygon points="' + P([[d[0] * 2 + px * w, d[1] * 2 + py * w], [d[0] * L, d[1] * L], [d[0] * 2 - px * w, d[1] * 2 - py * w]]) + '" fill="#f6e6b4" fill-opacity="' + op + '"/>';
+    });
+    return out;
   }
-  /* 鑲座寶石：光暈＋細環鑲座＋長星芒（在寶石後方）＋切面寶石＋寶石上的一點亮光 */
-  function gemSet(cx, cy, g, sp) {
-    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')">' +
-      '<circle r="' + fmt(g + 9) + '" fill="url(#nr-halo)"/>' +
-      '<circle r="' + fmt(g + 3.6) + '" fill="#0c0a0e" fill-opacity=".92" stroke="#e9cf8a" stroke-opacity=".62" stroke-width=".8"/>' +
-      sparkle(sp, 2.4, .5) + gem(g) +
-      '<g transform="translate(' + fmt(-g * .34) + ' ' + fmt(-g * .5) + ')">' + sparkle(g * .42, 1.1, .95) + '</g></g>';
+  /* 微小的一點亮光 */
+  function glint(x, y, L) {
+    var w = L * .13;
+    return '<path transform="translate(' + fmt(x) + ' ' + fmt(y) + ')" d="M0 ' + fmt(-L) + ' C' + fmt(w * .3) + ' ' + fmt(-w) + ' ' + fmt(w) + ' ' + fmt(-w * .3) + ' ' + fmt(L) + ' 0 C' +
+      fmt(w) + ' ' + fmt(w * .3) + ' ' + fmt(w * .3) + ' ' + fmt(w) + ' 0 ' + fmt(L) + ' C' + fmt(-w * .3) + ' ' + fmt(w) + ' ' + fmt(-w) + ' ' + fmt(w * .3) + ' ' + fmt(-L) + ' 0 C' +
+      fmt(-w) + ' ' + fmt(-w * .3) + ' ' + fmt(-w * .3) + ' ' + fmt(-w) + ' 0 ' + fmt(-L) + 'Z" fill="#fff4cf" fill-opacity=".7"/>';
+  }
+
+  /* 漸細筆劃：沿中心線取樣點，以 wf(t) 為寬度（t＝0..1）產生多邊形 */
+  function taper(pts, wf, color, op) {
+    var n = pts.length, Lp = [], Rp = [], i;
+    for (i = 0; i < n; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+      var tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1;
+      var nx = -ty / l, ny = tx / l, w = wf(i / (n - 1)) / 2;
+      Lp.push([pts[i][0] + nx * w, pts[i][1] + ny * w]);
+      Rp.push([pts[i][0] - nx * w, pts[i][1] - ny * w]);
+    }
+    return '<polygon points="' + P(Lp.concat(Rp.reverse())) + '" fill="' + color + '" fill-opacity="' + op + '"/>';
+  }
+  /* 捲草中心線：從 p 沿方向 a（弧度）走 len 的直線，再以對數螺線向 side（+1 順時針／-1 逆時針）捲入 */
+  function scrollPts(p, a, len, R0, turns, side) {
+    var pts = [], dx = Math.cos(a), dy = Math.sin(a), i;
+    var st = Math.max(2, Math.round(len / 1.4));
+    for (i = 0; i <= st; i++) pts.push([p[0] + dx * len * i / st, p[1] + dy * len * i / st]);
+    var sx = p[0] + dx * len, sy = p[1] + dy * len;
+    var cx = sx - dy * side * R0, cy = sy + dx * side * R0;
+    var th0 = Math.atan2(sy - cy, sx - cx), total = turns * 2 * Math.PI, m = Math.ceil(total / .16), k = Math.log(1 / .13);
+    for (i = 1; i <= m; i++) {
+      var f = i / m, r = R0 * Math.exp(-k * f), th = th0 + side * total * f;
+      pts.push([cx + r * Math.cos(th), cy + r * Math.sin(th)]);
+    }
+    return pts;
+  }
+
+  var GOLD = '#e3c780';
+  /* 角落：缺角外側的「第三道同心線」，是漸細的筆劃，兩端捲成螺旋；缺角中心一顆小鑽石。
+     以缺角圓心為原點，bottom＝true 時上下翻轉。 */
+  function cornerOrn(cx, cy, bottom) {
+    var R3 = COVE + 13, yy = 13, xx = Math.sqrt(R3 * R3 - yy * yy);
+    var top = scrollPts([-xx, yy], Math.PI, 17, 4.6, 1.45, -1).reverse();
+    var rod = scrollPts([-yy, xx], Math.PI / 2, 17, 4.6, 1.45, 1);
+    var arc = [], a0 = Math.atan2(yy, -xx), a1 = Math.atan2(xx, -yy), n = 22, i;
+    for (i = 1; i < n; i++) { var aa = a0 + (a1 - a0) * i / n; arc.push([R3 * Math.cos(aa), R3 * Math.sin(aa)]); }
+    var pts = top.concat(arc, rod);
+    var line = taper(pts, function (t) { return .42 + 1.25 * Math.pow(Math.sin(Math.PI * t), .9); }, GOLD, .82);
+    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
+      line + rays(17, .55, .38) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
+  }
+  /* 中央扣飾：中心一顆小鑽石，兩側是分岔的漸細螺旋捲草，再接小鑽石與星粉。
+     以中心為原點；vertical＝true 時旋轉 90°（沿垂直飾桿）。 */
+  function centerOrn(cx, cy, vertical, sc) {
+    var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
+    [-1, 1].forEach(function (d) {
+      [-1, 1].forEach(function (v) {
+        var pts = scrollPts([d * 8, 0], d > 0 ? 0 : Math.PI, 11, 5.2, 1.4, d * v);
+        g += taper(pts, function (t) { return .35 + 1.25 * Math.pow(Math.sin(Math.PI * Math.pow(t, .72)), .9); }, GOLD, .84);
+      });
+      /* 外側：漸細尖線、小鑽石、星粉 */
+      g += '<polygon points="' + fmt(d * 24) + ',-.9 ' + fmt(d * 44) + ',0 ' + fmt(d * 24) + ',.9" fill="' + GOLD + '" fill-opacity=".7"/>';
+      g += '<g transform="translate(' + fmt(d * 51) + ' 0) rotate(' + (vertical ? -90 : 0) + ')">' + gem(4) + '</g>';
+      [[60, 1.5, .8], [66, 1.1, .6], [71, .8, .45], [75, .6, .3]].forEach(function (b) {
+        g += '<circle cx="' + fmt(d * b[0]) + '" r="' + b[1] + '" fill="#f6e6b4" fill-opacity="' + b[2] + '"/>';
+      });
+    });
+    return g + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + rays(10, .5, .4) + gem(6) + glint(-1.8, -2.7, 3) + '</g></g>';
+  }
+  /* 按鈕四角：只留一顆小鑽石 */
+  function gemSmall(cx, cy, g) {
+    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ')">' + gem(g) + glint(-g * .3, -g * .45, g * .75) + '</g>';
   }
 
   var DEFS_COMMON =
@@ -207,7 +246,7 @@
         '<linearGradient id="nr-fl" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="150" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
         '<linearGradient id="nr-fb" gradientUnits="userSpaceOnUse" x1="' + (G.xe - 110) + '" y1="0" x2="' + (G.xe - 36) + '" y2="0"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient>' +
         '<mask id="nr-ml" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fl)"/></mask>' +
-        '<mask id="nr-mb" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fb)"/><rect x="' + fmt(G.xe - 16) + '" y="' + fmt(G.yc - 68) + '" width="32" height="136" fill="#000"/></mask>' +
+        '<mask id="nr-mb" maskUnits="userSpaceOnUse" x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '"><rect x="0" y="-4" width="' + (W + 30) + '" height="' + (H + 8) + '" fill="url(#nr-fb)"/><rect x="' + fmt(G.xe - 16) + '" y="' + fmt(G.yc - 80) + '" width="32" height="160" fill="#000"/></mask>' +
         '</defs>' +
         '<path id="nr-cp" d="' + leftRod(0) + '" fill="none" stroke="none"/>' +
         '<g mask="url(#nr-ml)">' +
@@ -215,8 +254,8 @@
           '<path d="' + leftRod(0) + '" fill="none" stroke="url(#nr-m)" stroke-width="1.5"/>' +
           '<g mask="url(#nr-mb)"><path d="' + leftRod(3) + '" fill="none" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5"/></g>' +
         '</g>' +
-        gemSet(G.xe, .75, 10.5, 23) + gemSet(G.xe, H - .75, 10.5, 23) +
-        clasp(G.xe - 3, G.yc, true, 1, 11.5);
+        cornerOrn(G.xe, .75, false) + cornerOrn(G.xe, H - .75, true) +
+        centerOrn(G.xe - 3, G.yc, true, 1);
       elBody.style.clipPath = "path('" + leftRod(0) + " V.75 Z')";
       elBody.style.webkitClipPath = elBody.style.clipPath;
     } else if (G.mode === 'top') {
@@ -235,7 +274,7 @@
         '<path id="nr-cp" d="' + topRod(yo) + '" fill="none" stroke="none"/>' +
         '<g mask="url(#nr-tm)"><path d="' + topRod(yo) + '" stroke="url(#nr-th)" stroke-width="1.6" fill="none"/></g>' +
         '<g mask="url(#nr-tm2)"><path d="' + topRod(yb) + '" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5" fill="none"/></g>' +
-        clasp(cx, y0 + 6.2, false, .86, 11);
+        centerOrn(cx, y0 + 6.2, false, .78);
     }
     elSvg.setAttribute('viewBox', '0 0 ' + (W + 30) + ' ' + H);
     elSvg.setAttribute('width', W + 30); elSvg.setAttribute('height', H);
@@ -347,7 +386,7 @@
     var bw = btn.offsetWidth, bh = btn.offsetHeight;
     if (!bw || !bh) return;
     var ix = left ? 0 : 11, iy = left ? 0 : 12;
-    var w = bw - ix * 2, h = bh - iy * 2, narrow = w < 80, r = narrow ? 8 : 10, sIn = narrow ? 3.6 : 4.5, gg = narrow ? 3.6 : 4.6, sp = narrow ? 9 : 12;
+    var w = bw - ix * 2, h = bh - iy * 2, narrow = w < 80, r = narrow ? 8 : 10, sIn = narrow ? 3.6 : 4.5, gg = narrow ? 3.4 : 4.4;
     var svg = btn.querySelector(':scope > .nrb-svg');
     if (!svg) {
       svg = document.createElementNS(NS, 'svg');
@@ -375,7 +414,7 @@
       '<g clip-path="url(#nrb-c)"><rect class="nrb-sh" x="' + fmt(-w * .6) + '" y="0" width="' + fmt(w * .5) + '" height="' + h + '" fill="url(#nrb-s)"/></g>' +
       '<path class="nrb-in" d="' + inner + '"/>' +
       '<path class="nrb-out" d="' + outer + '"/>' +
-      '<g class="nrb-ros">' + gemSet(x0, y0, gg, sp) + gemSet(x1, y0, gg, sp) + gemSet(x0, y1, gg, sp) + gemSet(x1, y1, gg, sp) + '</g>';
+      '<g class="nrb-ros">' + gemSmall(x0, y0, gg) + gemSmall(x1, y0, gg) + gemSmall(x0, y1, gg) + gemSmall(x1, y1, gg) + '</g>';
   }
 
   /* ───────── 7. 事件掛鉤 ───────── */
