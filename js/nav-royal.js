@@ -229,25 +229,26 @@
     return 'M' + fmt(a) + ' 0 Q' + fmt(c * a) + ' ' + fmt(-c * b) + ' 0 ' + fmt(-b) + ' Q' + fmt(-c * a) + ' ' + fmt(-c * b) + ' ' + fmt(-a) + ' 0 Q' +
       fmt(-c * a) + ' ' + fmt(c * b) + ' 0 ' + fmt(b) + ' Q' + fmt(c * a) + ' ' + fmt(c * b) + ' ' + fmt(a) + ' 0Z';
   }
-  /* 寶飾：四向漸細尖刺（沿軸，長 lx／ly）＋內凹星形雙層框＋切面寶石。原點＝寶石中心。 */
-  function jewel(a, b, g, lx, ly, k) {
-    var o = '', i, ax = [[1, 0, a, lx], [-1, 0, a, lx], [0, 1, b, ly], [0, -1, b, ly]];
-    k = k || 1;
-    ax.forEach(function (e) {
-      var dx = e[0], dy = e[1], r0 = e[2] * .66, L = e[3], w = L * .075, px = -dy, py = dx;
-      o += '<polygon points="' + P([[dx * r0 + px * w, dy * r0 + py * w], [dx * L, dy * L], [dx * r0 - px * w, dy * r0 - py * w]]) + '" fill="#e3c780" fill-opacity="' + .7 * k + '"/>';
+  /* 寶飾（與中央扣飾同一套構造，可縮放）：內凹星形雙層框＋兩層尖刺（橫跨長軸）＋長軸兩端小鑽＋切面寶石。
+     長軸沿 x；rot＝整體旋轉角（寶石與高光反向旋轉，保持正立）。sc＝整體縮放，sp＝尖刺長度縮放。 */
+  function frameJewel(sc, sp, k, rot) {
+    var o = '', sw = fmt(Math.max(.6, sc));
+    [-1, 1].forEach(function (d) {
+      o += '<polygon points="' + P([[-2 * sc, d * 9.6 * sc], [0, d * 20 * sp], [2 * sc, d * 9.6 * sc]]) + '" fill="#e3c780" fill-opacity="' + fmt(.78 * k) + '"/>' +
+        '<polygon points="' + P([[-.7 * sc, d * 12 * sc], [0, d * 24 * sp], [.7 * sc, d * 12 * sc]]) + '" fill="#e3c780" fill-opacity="' + fmt(.5 * k) + '"/>';
     });
-    return o +
-      '<path d="' + ccvPath(a, b, .34) + '" fill="#0c0a0e" fill-opacity=".96" stroke="#e9cf8a" stroke-opacity="' + .9 * k + '" stroke-width="' + fmt(Math.max(.6, g * .14)) + '" stroke-linejoin="round"/>' +
-      '<path d="' + ccvPath(a * .78, b * .78, .34) + '" fill="none" stroke="#c5a059" stroke-opacity=".55" stroke-width=".6" stroke-linejoin="round"/>' +
-      gem(g) + glint(-g * .3, -g * .45, g * .52);
+    o += '<path d="' + ccvPath(17.5 * sc, 11 * sc, .34) + '" fill="#0c0a0e" fill-opacity=".96" stroke="#e9cf8a" stroke-opacity="' + fmt(.9 * k) + '" stroke-width="' + sw + '" stroke-linejoin="round"/>' +
+      '<path d="' + ccvPath(13.6 * sc, 8.2 * sc, .34) + '" fill="none" stroke="#c5a059" stroke-opacity=".6" stroke-width="' + fmt(Math.max(.5, .7 * sc)) + '" stroke-linejoin="round"/>' +
+      '<g transform="translate(' + fmt(-19.6 * sc) + ' 0)">' + gem(2.3 * sc) + '</g><g transform="translate(' + fmt(19.6 * sc) + ' 0)">' + gem(2.3 * sc) + '</g>' +
+      '<g transform="rotate(' + (-(rot || 0)) + ')">' + gem(6.4 * sc) + glint(-1.9 * sc, -2.9 * sc, 3 * sc) + '</g>';
+    return o;
   }
 
   function cornerOrn(cx, cy, bottom) {
     var h = '<g transform="scale(-1 1)">' + wingSet(CORNER_WING, 34) + '</g>';
     var v = '<g transform="matrix(0 -1 -1 0 0 0)">' + h + '</g>';
     return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
-      h + v + jewel(11.6, 13.2, 6.5, 17.4, 17.4, .9) + '</g>';
+      h + v + '<g transform="rotate(90)">' + frameJewel(.76, .72, .9, 90) + '</g></g>';
   }
 
   /* 中央扣飾（沿用原設計的結構）：上下（沿飾桿）鏡像；兩側（橫跨飾桿）刻意不同。
@@ -285,20 +286,27 @@
     }
     return o;
   }
-  function centerOrn(cx, cy, vertical, sc) {
-    var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">' +
-      '<g transform="scale(1 ' + (vertical ? -1 : 1) + ')">';
+  function claspStrokes(lk) {
+    var g = '';
+    lk = lk || 1;
     [-1, 1].forEach(function (d) {
-      var s = '';
+      var t = '', op = Math.pow(lk, .6);
       CENTER_IN.forEach(function (e) {
-        s += brush(flow(0, 0, 0, { len: e[0], s1: e[0], bend: -e[1] / (.637 * e[0]) }), e[2], e[3]);
+        var L = e[0] * lk;
+        t += brush(flow(0, 0, 0, { len: L, s1: L, bend: -e[1] * op / (.637 * L) }), e[2], e[3]);
       });
       CENTER_OUT.forEach(function (e) {
-        s += brush(flow(e[0], 3, 0, { len: e[3], s1: e[2], bend: e[1] / (.637 * e[2]) }), e[4], e[5]);
+        var L1 = e[2] * lk, L = e[3] * lk;
+        t += brush(flow(e[0] * lk, 3, 0, { len: L, s1: L1, bend: e[1] * op / (.637 * L1) }), e[4], e[5]);
       });
-      g += '<g transform="scale(' + d + ' 1) translate(' + CENTER_GX + ' 0)">' + s + '</g>';
+      g += '<g transform="scale(' + d + ' 1) translate(' + CENTER_GX + ' 0)">' + t + '</g>';
     });
-    return g + centerFrame() + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + gem(6.4) + glint(-1.9, -2.9, 3) + '</g></g></g>';
+    return g;
+  }
+  function centerOrn(cx, cy, vertical, sc) {
+    return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">' +
+      '<g transform="scale(1 ' + (vertical ? -1 : 1) + ')">' + claspStrokes(1) + centerFrame() +
+      '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + gem(6.4) + glint(-1.9, -2.9, 3) + '</g></g></g>';
   }
 
   /* 展開提示：完整的鑽石，坐在一對 V 形流線翼的頂點（兩翼各兩層、漸細收針）。
@@ -528,16 +536,28 @@
       '<g clip-path="url(#nrb-c)"><rect class="nrb-sh" x="' + fmt(-w * .6) + '" y="0" width="' + fmt(w * .5) + '" height="' + h + '" fill="url(#nrb-s)"/></g>' +
       '<path class="nrb-in" d="' + inner + '"/>' +
       '<path class="nrb-out" d="' + outer + '"/>' +
-      '<g class="nrb-ros">' + plaqueCorner(x0, y0, 1, 1, w, narrow) + plaqueCorner(x1, y0, -1, 1, w, narrow) + plaqueCorner(x0, y1, 1, -1, w, narrow) + plaqueCorner(x1, y1, -1, -1, w, narrow) + '</g>';
+      '<g class="nrb-ros">' + plaqueOrn(w, h, x0, y0, x1, y1, narrow) + '</g>';
   }
-  /* 按鈕四角：和面板角落同一套語言——缺角中心一顆內凹星形寶飾，沿上下緣各一束「前端高、尾端壓平」的細翼。
-     按鈕只有 48px 高，所以只留沿上下緣的橫向翼束；寬度不足時（頂部模式）翼束依寬度縮短。 */
-  var PLAQUE_WING = [[6.2, 6.2, 60, 1.5, .8], [8.8, 7, 46, 1.1, .64], [11.4, 7.8, 33, .85, .5]];
-  function plaqueCorner(x, y, sx, sy, w, narrow) {
-    var lk = Math.max(.3, Math.min(1, (w / 2 - 20) / 60));
-    var jw = narrow ? 3 : 3.5;
-    return '<g transform="translate(' + fmt(x) + ' ' + fmt(y) + ') scale(' + sx + ' ' + sy + ')">' +
-      (w < 120 ? '' : wingSet(PLAQUE_WING, 17, 1, lk)) + jewel(jw * 1.7, jw * 1.95, jw, narrow ? 8 : 9.4, narrow ? 8 : 9.4, .9) + '</g>';
+  /* 按鈕＝縮小版的面板（轉 90°）：兩端是缺角寶飾＋沿上下緣的翼束，上下緣中央各一個縮小的中央扣飾。
+     按鈕只有 48px 高，所以不做直向的翼束；寬度不足（頂部模式的窄按鈕）時只留四角寶飾。 */
+  var PLAQUE_WING = [[7, 7, 44, 1.5, .85], [10, 7.7, 35, 1.15, .7], [13, 8.4, 27, .9, .56], [16, 9.1, 19, .7, .45]];
+  function plaqueOrn(w, h, x0, y0, x1, y1, narrow) {
+    var full = w >= 120, jsc = narrow ? .33 : .4, jsp = jsc * .93;
+    var csc = .45, clk = .4;                                      // 中央扣飾：縮放、筆劃長度縮放
+    var reachC = (CENTER_GX + 112 * clk) * csc;                   // 中央扣飾沿邊向外的範圍
+    var lw = full ? Math.max(.3, Math.min(1, (w / 2 - reachC - 3 - 17) / 44)) : 0;
+    function corner(x, y, sx, sy) {
+      return '<g transform="translate(' + fmt(x) + ' ' + fmt(y) + ') scale(' + sx + ' ' + sy + ')">' +
+        (full ? wingSet(PLAQUE_WING, 18, 1, lw) : '') +
+        '<g transform="rotate(90)">' + frameJewel(jsc, jsp, .9, 90) + '</g></g>';
+    }
+    function clasp(top) {   // top＝上緣：外側（頁面側）朝上，所以翻轉 y
+      var cy = top ? (y0 + 3.75 / 2 + .75 / 2 + .1) : (y1 - 3.75 / 2 - .75 / 2 - .1);
+      return '<g transform="translate(' + fmt(w / 2) + ' ' + fmt(cy) + ') scale(' + csc + ' ' + (top ? -csc : csc) + ')">' +
+        claspStrokes(clk) + centerFrame() + gem(6.4) + glint(-1.9, -2.9, 3) + '</g>';
+    }
+    return corner(x0, y0, 1, 1) + corner(x1, y0, -1, 1) + corner(x0, y1, 1, -1) + corner(x1, y1, -1, -1) +
+      (full ? clasp(true) + clasp(false) : '');
   }
 
   /* ───────── 7. 事件掛鉤 ───────── */
