@@ -173,68 +173,100 @@
 
   var GOLD = '#e3c780';
 
-  /* ── Art Deco 幾何裝飾（全部是直角折線＋小鑽石＋均勻細金屬雙線）── */
-
-  /* 軸對齊折線的平行偏移（直角轉角用斜接）：d＞0 偏向行進方向的左側 */
-  function offsetPoly(pts, d) {
-    var out = [], n = pts.length, i;
-    function dir(a, b) { var x = b[0] - a[0], y = b[1] - a[1], l = Math.hypot(x, y) || 1; return [x / l, y / l]; }
-    for (i = 0; i < n; i++) {
-      var n0 = i > 0 ? dir(pts[i - 1], pts[i]) : null, n1 = i < n - 1 ? dir(pts[i], pts[i + 1]) : null;
-      n0 = n0 || n1; n1 = n1 || n0;
-      var a = [-n0[1], n0[0]], b = [-n1[1], n1[0]], k = d / (1 + a[0] * b[0] + a[1] * b[1]);
-      out.push([pts[i][0] + (a[0] + b[0]) * k, pts[i][1] + (a[1] + b[1]) * k]);
+  /* ── 巴洛克捲線：書法式粗細變化的 S／C 形曲線，尾端捲成螺旋，螺旋心嵌一顆水晶 ── */
+  function bez(a, b, c, d, n) {
+    var out = [], i, t, u;
+    for (i = 0; i <= n; i++) {
+      t = i / n; u = 1 - t;
+      out.push([u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0],
+                u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1]]);
     }
     return out;
   }
-  function polyD(pts) { return pts.map(function (p, i) { return (i ? 'L' : 'M') + fmt(p[0]) + ' ' + fmt(p[1]); }).join(''); }
-  /* 鑲邊式雙線：暗色凹槽＋兩條平行細金屬線（外線亮、內線暗） */
-  function railPair(pts, gap, op) {
-    return '<path d="' + polyD(pts) + '" fill="none" stroke="#0a080c" stroke-opacity=".72" stroke-width="' + fmt(gap * 2 + 1.6) + '" stroke-linejoin="miter"/>' +
-      '<path d="' + polyD(offsetPoly(pts, gap)) + '" fill="none" stroke="#f0dc9c" stroke-opacity="' + op + '" stroke-width=".9" stroke-linejoin="miter"/>' +
-      '<path d="' + polyD(offsetPoly(pts, -gap)) + '" fill="none" stroke="' + GOLD + '" stroke-opacity="' + fmt(op * .62) + '" stroke-width=".9" stroke-linejoin="miter"/>';
+  /* 從 pts 的末端沿切線接一段對數螺旋（side＝+1 順時針／-1 逆時針；R0 起始半徑；turns 圈數）。回傳螺旋心 */
+  function spiralOn(pts, R0, turns, side) {
+    var n = pts.length, a = pts[n - 2], p = pts[n - 1];
+    var tx = p[0] - a[0], ty = p[1] - a[1], l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+    var cx = p[0] - ty * side * R0, cy = p[1] + tx * side * R0;
+    var th0 = Math.atan2(p[1] - cy, p[0] - cx), total = turns * 2 * Math.PI, m = Math.ceil(total / .12), k = Math.log(1 / .16), i;
+    for (i = 1; i <= m; i++) {
+      var f = i / m, r = R0 * Math.exp(-k * f), th = th0 + side * total * f;
+      pts.push([cx + r * Math.cos(th), cy + r * Math.sin(th)]);
+    }
+    return [cx, cy];
   }
-  function hair(pts, op, w) {
-    return '<path d="' + polyD(pts) + '" fill="none" stroke="' + GOLD + '" stroke-opacity="' + op + '" stroke-width="' + (w || .8) + '" stroke-linejoin="miter"/>';
+  /* 沿曲線平行偏移（取 pts 的 [i0,i1) 段） */
+  function offsetCurve(pts, d, i0, i1) {
+    var out = [], i;
+    for (i = i0; i < i1; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      var tx = b[0] - a[0], ty = b[1] - a[1], l = Math.hypot(tx, ty) || 1;
+      out.push([pts[i][0] - ty / l * d, pts[i][1] + tx / l * d]);
+    }
+    return out;
   }
-  function gemAt(x, y, g) { return '<g transform="translate(' + fmt(x) + ' ' + fmt(y) + ')">' + gem(g) + '</g>'; }
+  /* 一條捲線：暗色刻線＋金屬漸層本體（粗細由 wf 決定）＋一道細亮脊；wmax＝最粗處寬度 */
+  function stroke(pts, wmax, op) {
+    var wf = function (t) { return .3 + wmax * Math.pow(Math.sin(Math.PI * Math.pow(t, .78)), 1.15) * (1 - .55 * t); };
+    var body = taper(pts, wf, 'url(#nr-mm)', op);
+    var under = body.replace('fill="url(#nr-mm)"', 'fill="none" stroke="#0a080c" stroke-opacity=".5" stroke-width="1.2" stroke-linejoin="round"');
+    var hi = taper(pts.slice(0, Math.round(pts.length * .55)), function (t) { return .5 * (1 - t * .85); }, '#fff4cf', .45);
+    return under + body + hi;
+  }
+  function hairCurve(pts, op) {
+    return '<polyline points="' + P(pts) + '" fill="none" stroke="' + GOLD + '" stroke-opacity="' + op + '" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  function gemAt(x, y, g, rot) { return '<g transform="translate(' + fmt(x) + ' ' + fmt(y) + ')' + (rot ? ' rotate(' + rot + ')' : '') + '">' + gem(g) + glint(-g * .3, -g * .45, g * .75) + '</g>'; }
 
   /* 角落：以缺角圓心為原點（x 往左＝沿上緣、y 往下＝往面板內）。
-     三層階梯式直角折線沿上緣、右緣飾桿向外延伸，在缺角斜後方各呈三級大階梯（內層雙線、中層單線、外層細線，
-     層與層之間平行相距 8px）；對角線上由缺角鑽石往外依序排著遞減的鑽石，每級階梯的外凸轉角也各嵌一顆小鑽。
-     各折線末端接小鑽石。以對角線（y＝－x）為軸完全對稱。bottom＝true 時上下翻轉。 */
-  function stair(o, run) { /* o＝偏移量（內層 0、每外一層 +8）；階梯沿 (-1,+1) 對角線，每級 9px */
-    var x0 = -40 - o, y0 = 13 + o;
-    return [[x0 - run, y0], [x0, y0], [x0, y0 + 9], [x0 + 9, y0 + 9], [x0 + 9, y0 + 18], [x0 + 18, y0 + 18], [x0 + 18, y0 + 27], [x0 + 27, y0 + 27], [x0 + 27, y0 + 27 + run]];
+     一條 S 形主捲線沿上緣飾桿延伸，尾端向內捲成螺旋，螺旋心嵌水晶；主線旁伴一條平行細線；
+     另有一條小 C 形捲線從主線分出、往面板內側捲。以對角線（y＝－x）為軸鏡像出右緣那一組。
+     缺角中心是鑲嵌水晶。bottom＝true 時上下翻轉。 */
+  /* 以 root 為中心縮放 s 倍、旋轉 deg 度（負＝往面板內側） */
+  function xf(pts, root, deg, s) {
+    var r = deg * Math.PI / 180, c = Math.cos(r), n = Math.sin(r);
+    return pts.map(function (p) {
+      var dx = (p[0] - root[0]) * s, dy = (p[1] - root[1]) * s;
+      return [root[0] + dx * c - dy * n, root[1] + dx * n + dy * c];
+    });
+  }
+  function cornerArm() {
+    var m = bez([-24, 12], [-37, 12], [-43, 21], [-54, 21], 30).concat(bez([-54, 21], [-63, 21], [-71, 19.5], [-71, 14], 26).slice(1));
+    var c1 = spiralOn(m, 4.4, 1.15, 1);
+    return hairCurve(offsetCurve(m, 3.3, 4, 46), .5) + stroke(m, 2.6, .94) + gemAt(c1[0], c1[1], 2.3);
+  }
+  /* 對角線上的小豎琴形捲線：兩條 S 形交叉、尾端向外捲，指向面板內側（沿 +x 方向建構，再旋轉到對角線）；
+     兩捲之間嵌一顆水晶。rot 用來把寶石轉回正向。 */
+  function cornerLyre() {
+    var one = function (rot) {
+      var m = bez([8, 1.4], [20, 1.4], [27, -1], [34, -6], 22).concat(bez([34, -6], [39, -10], [46, -10.5], [48, -5], 18).slice(1));
+      var c = spiralOn(m, 3.8, 1.1, 1);
+      return stroke(m, 2.1, .92) + gemAt(c[0], c[1], 1.9, rot);
+    };
+    return '<g transform="translate(-15 15) rotate(135) scale(.86)">' + one(-135) + '<g transform="scale(1 -1)">' + one(135) + '</g>' + '</g>';
   }
   function cornerOrn(cx, cy, bottom) {
-    var l1 = stair(0, 24), l2 = stair(8, 22), l3 = stair(16, 18), s = '';
-    s += hair(l3, .34, .7) + hair(l2, .55, .85) + railPair(l1, 1.3, .9);
-    s += hair([[-9, 9], [-47, 47]], .5, .8);
-    [[-13, 40, 3.0], [-22, 31, 3.0], [-31, 22, 3.0], [-40, 13, 3.0]].forEach(function () {});
-    /* 內層階梯的外凸轉角（共三顆，含對角線頂點）與末端 */
-    s += gemAt(-31.5, 31.5, 3.8);              /* 內層對角頂點 */
-    s += gemAt(-39.5, 39.5, 2.6) ;             /* 中層對角頂點 */
-    s += gemAt(-47.5, 47.5, 2.1);              /* 外層對角頂點 */
-    s += gemAt(-67, 13, 2.9) + gemAt(-13, 67, 2.9);       /* 內層末端 */
+    var arm = cornerArm();
     return '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') scale(1 ' + (bottom ? -1 : 1) + ')">' +
-      s + rays(17, .55, .36) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
+      arm + '<g transform="matrix(0 -1 -1 0 0 0)">' + arm + '</g>' + cornerLyre() +
+      rays(17, .55, .36) + gem(8) + glint(-2.6, -3.9, 3.4) + '</g>';
   }
 
   /* 中央扣飾：原點＝中心，沿飾桿方向（vertical＝true 時轉 90°）。
-     中心鑽石兩側：階梯形的暗色鑲板（由寬而窄分三級，尖端收成菱形，與角落的階梯同一語彙），
-     板內是水平雙線（疊在飾桿的雙線上加亮），雙線末端各接一顆小鑽石，鑽石之後雙線漸隱消失。 */
+     中心鑽石兩側各一對 S 形捲線：從鑽石旁沿軸線出發、交叉後向外分開，尾端捲成螺旋（螺旋心嵌小水晶），
+     整體像一把豎琴／展開的雙翼；盡頭一顆小鑽石，之後單線漸隱。 */
   function centerOrn(cx, cy, vertical, sc) {
     var g = '<g transform="translate(' + fmt(cx) + ' ' + fmt(cy) + ') rotate(' + (vertical ? 90 : 0) + ') scale(' + (sc || 1) + ')">';
-    var plate = 'M12 -9 H25 V-7 H39 V-5 H57 L63 0 L57 5 V5 H39 V7 H25 V9 H12Z';
+    var arm = function (rot) {
+      var m = bez([9, 1.6], [24, 1.6], [32, -1], [40, -7], 24).concat(bez([40, -7], [45, -11], [53, -12], [56, -6], 20).slice(1));
+      var c = spiralOn(m, 4.2, 1.1, 1);
+      return stroke(m, 2.3, .94) + gemAt(c[0], c[1], 2.1, rot);
+    };
+    var q = vertical ? -90 : 0;
     [-1, 1].forEach(function (d) {
-      g += '<g transform="scale(' + d + ' 1)">' +
-        '<path d="' + plate + '" fill="#0b090d" fill-opacity=".88"/>' +
-        '<path d="' + plate + '" fill="none" stroke="' + GOLD + '" stroke-opacity=".6" stroke-width=".8" stroke-linejoin="miter"/>' +
-        railPair([[12, 0], [57, 0]], 3, .9) +
-        '<path d="M64 -3 H112 M64 3 H112" stroke="url(#nr-fd)" stroke-width=".9" fill="none"/>' +
-        '<g transform="translate(61 0) rotate(' + (vertical ? -90 : 0) + ')">' + gem(3.9) + '</g>' +
-        '</g>';
+      g += '<g transform="scale(' + d + ' 1)">' + arm(q * d) + '<g transform="scale(1 -1)">' + arm(q * d * -1) + '</g>' +
+        '<g transform="translate(66 0) rotate(' + (vertical ? -90 * d : 0) + ')">' + gem(3.4) + '</g>' +
+        '<path d="M72 0 H112" stroke="url(#nr-fd)" stroke-width=".9" fill="none"/></g>';
     });
     return g + '<g transform="rotate(' + (vertical ? -90 : 0) + ')">' + rays(10, .5, .4) + gem(6) + glint(-1.8, -2.7, 3) + '</g></g>';
   }
@@ -245,7 +277,7 @@
   }
 
   var DEFS_COMMON =
-    '<linearGradient id="nr-fd" gradientUnits="userSpaceOnUse" x1="64" y1="0" x2="112" y2="0"><stop offset="0" stop-color="#f0dc9c" stop-opacity=".9"/><stop offset="1" stop-color="#f0dc9c" stop-opacity="0"/></linearGradient>' +
+    '<linearGradient id="nr-fd" gradientUnits="userSpaceOnUse" x1="72" y1="0" x2="112" y2="0"><stop offset="0" stop-color="#f0dc9c" stop-opacity=".9"/><stop offset="1" stop-color="#f0dc9c" stop-opacity="0"/></linearGradient>' +
     '<radialGradient id="nr-halo"><stop offset="0" stop-color="#fce4aa" stop-opacity=".3"/><stop offset="1" stop-color="#fce4aa" stop-opacity="0"/></radialGradient>' +
     '<linearGradient id="nr-mm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0c0"/><stop offset=".5" stop-color="#c5a059"/><stop offset="1" stop-color="#f0d88c"/></linearGradient>';
 
