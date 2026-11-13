@@ -619,11 +619,24 @@
   /* ───────── 7. 事件掛鉤 ───────── */
   new MutationObserver(kick).observe(nav, { subtree: true, attributes: true, attributeFilter: ['class'] });
   nav.addEventListener('scroll', placeInd, { passive: true });
-  /* 左側選單捲動時，切換按鈕固定在頂端（sticky）；加上標記讓 CSS 顯示遮底，避免項目從按鈕底下透出 */
-  function markScrolled() { nav.classList.toggle('nav-scrolled', nav.scrollTop > 2); }
-  nav.addEventListener('scroll', markScrolled, { passive: true });
-  markScrolled();
-  function relayout() { layout(); plaque(); kick(); }
+  /* 左側模式：切換按鈕搬出捲動區，放進固定在面板頂端的 .nav-toggle-dock；
+     選單的捲動區從按鈕下方才開始（見 nav-unify.css），所以項目不會滑到按鈕後面或上方。
+     頂部模式：按鈕搬回 .royal-nav 的第一個子元素（頂部版面的格線需要它在裡面）。 */
+  var dock = document.createElement('div');
+  dock.className = 'nav-toggle-dock';
+  nav.parentNode.insertBefore(dock, nav.nextSibling);
+  function placeToggle() {
+    if (!btn) return;
+    if (root.getAttribute('data-nav-mode') === 'left') {
+      if (btn.parentNode !== dock) dock.appendChild(btn);
+      dock.style.width = nav.offsetWidth + 'px';
+      var h = dock.offsetHeight;
+      if (h > 0) root.style.setProperty('--nr-dock-h', h + 'px');
+    } else if (btn.parentNode !== nav) {
+      nav.insertBefore(btn, nav.firstChild);
+    }
+  }
+  function relayout() { placeToggle(); layout(); plaque(); kick(); }
   if (window.ResizeObserver) {
     new ResizeObserver(relayout).observe(nav);
     if (btn) new ResizeObserver(plaque).observe(btn);
