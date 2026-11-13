@@ -619,6 +619,10 @@
   /* ───────── 7. 事件掛鉤 ───────── */
   new MutationObserver(kick).observe(nav, { subtree: true, attributes: true, attributeFilter: ['class'] });
   nav.addEventListener('scroll', placeInd, { passive: true });
+  /* 左側選單捲動時，切換按鈕固定在頂端（sticky）；加上標記讓 CSS 顯示遮底，避免項目從按鈕底下透出 */
+  function markScrolled() { nav.classList.toggle('nav-scrolled', nav.scrollTop > 2); }
+  nav.addEventListener('scroll', markScrolled, { passive: true });
+  markScrolled();
   function relayout() { layout(); plaque(); kick(); }
   if (window.ResizeObserver) {
     new ResizeObserver(relayout).observe(nav);
