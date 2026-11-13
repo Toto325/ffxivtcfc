@@ -10,6 +10,7 @@
  *  二、圖示平常是統一的金色；hover／聚焦時漸變成該項目的專屬色，
  *      目前所在頁面維持專屬色（約八成亮度），光環與光暈同色。
  *  三、左側子選單（簡化版）：徽章＋選取底線＋圖示浮動。
+ *  五、手機漢堡列：徽章＋英文＋開合圖示。
  *  四、左側選單的「切換按鈕」固定在面板頂端（放進停靠區），只有項目區捲動。
  *
  * 想還原：移除 index.html 裡本檔的 <link>，並把 HTML 的圖示改回原符號。
@@ -206,13 +207,102 @@ html[data-nav-royal][data-nav-mode="left"] .royal-nav {
 
 
 /* ══════════════════════════════════════════════════════════════
+   五、手機漢堡列（窄螢幕頂部選單）
+   ☰ 放進與主選單同款的徽章；名稱右側接英文小字；右側換成華麗的開合圖示。
+   展開／按下時：徽章與光環變成「目前頁面」的專屬色（--acc 由 app.js 依頁面寫入）。
+   ☰ 本身不變，使用者始終認得這是選單、知道怎麼收合。
+   ══════════════════════════════════════════════════════════════ */
+.royal-nav .nav-burger { --acc: 255,232,176; }   /* 預設；app.js 切換頁面時會改寫 */
+
+.royal-nav .nav-burger .nb-icon {
+  position: relative;
+  display: grid; place-items: center;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(197,160,89,.5);
+  background: radial-gradient(circle at 32% 28%, rgba(var(--acc),.24), rgba(197,160,89,.05) 62%);
+  box-shadow: inset 0 0 8px rgba(197,160,89,.16);
+  transition: transform .45s cubic-bezier(.34,1.56,.64,1), border-color .3s ease, box-shadow .3s ease;
+}
+.royal-nav .nav-burger .nb-icon > i {
+  display: block; line-height: 1; font-size: 19px;
+  color: rgb(var(--ic-gold));
+  filter: drop-shadow(0 0 2px rgba(197,160,89,.35));
+  transition: color .3s ease, filter .3s ease;
+}
+.royal-nav .nav-burger .nb-icon::before {
+  content: "";
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--acc),.95) 80%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  opacity: 0; transition: opacity .3s ease; pointer-events: none;
+}
+/* 展開中／手指按住：專屬色＋光環旋轉（有滑鼠的裝置 hover 也一樣） */
+.royal-nav.nav-menu-open .nav-burger .nb-icon,
+.royal-nav .nav-burger:active .nb-icon {
+  border-color: rgba(var(--acc),.85);
+  box-shadow: 0 0 10px rgba(var(--acc),.45), inset 0 0 8px rgba(var(--acc),.28);
+}
+.royal-nav.nav-menu-open .nav-burger .nb-icon > i,
+.royal-nav .nav-burger:active .nb-icon > i {
+  color: rgb(var(--acc));
+  filter: drop-shadow(0 0 5px rgba(var(--acc),.75));
+}
+.royal-nav.nav-menu-open .nav-burger .nb-icon::before,
+.royal-nav .nav-burger:active .nb-icon::before { opacity: 1; animation: nav-ring-spin 2.4s linear infinite; }
+@media (hover: hover) {
+  .royal-nav .nav-burger:hover .nb-icon {
+    border-color: rgba(var(--acc),.85);
+    box-shadow: 0 0 10px rgba(var(--acc),.45), inset 0 0 8px rgba(var(--acc),.28);
+  }
+  .royal-nav .nav-burger:hover .nb-icon > i { color: rgb(var(--acc)); filter: drop-shadow(0 0 5px rgba(var(--acc),.75)); }
+  .royal-nav .nav-burger:hover .nb-icon::before { opacity: 1; animation: nav-ring-spin 2.4s linear infinite; }
+}
+
+/* 名稱：中文＋右側英文小字。窄螢幕放不下時英文先被截斷，中文不動 */
+.royal-nav .nav-burger .nb-label {
+  display: flex; align-items: baseline; gap: 10px;
+  min-width: 0; overflow: hidden;
+}
+.royal-nav .nav-burger .nb-cn { flex-shrink: 0; white-space: nowrap; }
+.royal-nav .nav-burger .nb-en {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: "Cinzel Decorative", serif; font-weight: 700;
+  font-size: .6rem; letter-spacing: 3px;
+  color: var(--gold); opacity: .8;
+}
+
+/* 開合圖示：華麗 V 形（由 nav-royal.js 放入 SVG）。展開時翻成 ∧ 並提亮 */
+.royal-nav .nav-burger .nb-caret {
+  display: block; width: 30px; height: 17px; line-height: 0; flex-shrink: 0;
+  font-size: 0;                       /* 沒有 JS 時留下的 ▾ 文字不要撐開版面 */
+  transform: none !important;         /* 蓋掉原本整個旋轉 180° 的規則，改由 SVG 自己翻轉（有彈性動畫） */
+}
+.royal-nav .nav-burger .nb-caret svg {
+  width: 100%; height: 100%; overflow: visible;
+  transform-origin: 50% 50%;
+  transition: transform .6s cubic-bezier(.34,1.56,.64,1), filter .4s ease;
+  filter: drop-shadow(0 0 2px rgba(197,160,89,.4));
+}
+.royal-nav.nav-menu-open .nav-burger .nb-caret svg {
+  transform: scaleY(-1);
+  filter: drop-shadow(0 0 5px rgba(252,228,170,.8)) brightness(1.15);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
    減少動態：停掉浮動與旋轉（保留顏色變化）
    ══════════════════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
   .royal-nav .nr-ic,
   html[data-nav-mode="left"] .nav-subitem .nav-emoji { transition: border-color .3s ease, box-shadow .3s ease; transform: none !important; }
   .royal-nav .nr-ic::before,
-  .royal-nav .nav-subitem .nav-emoji::before { animation: none !important; }
+  .royal-nav .nav-subitem .nav-emoji::before,
+  .royal-nav .nav-burger .nb-icon::before { animation: none !important; }
+  .royal-nav .nav-burger .nb-icon,
+  .royal-nav .nav-burger .nb-caret svg { transition: none; }
   html[data-nav-mode="left"] .nav-subitem.active::after { animation: none !important; }
   html[data-nav-mode="left"] .nav-subitem::after { transition: opacity .3s ease; }
 }
