@@ -397,11 +397,34 @@
         '<path id="nr-cp" d="' + topRod(yo) + '" fill="none" stroke="none"/>' +
         '<g mask="url(#nr-tm)"><path d="' + topRod(yo) + '" stroke="url(#nr-th)" stroke-width="1.6" fill="none"/></g>' +
         '<g mask="url(#nr-tm2)"><path d="' + topRod(yb) + '" stroke="#fce4aa" stroke-opacity=".4" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="0 8.5" fill="none"/></g>' +
-        centerOrn(cx, y0 + 6.2, false, .78);
+        '';   // 中央扣飾改由 syncTopClasp() 放進主列內（見下），避免被主列底色蓋住上半部
     }
     elSvg.setAttribute('viewBox', '0 0 ' + (W + 30) + ' ' + H);
     elSvg.setAttribute('width', W + 30); elSvg.setAttribute('height', H);
     elSvg.innerHTML = s;
+    syncTopClasp();
+  }
+
+  /* 頂部中央扣飾：放在主列（.royal-nav）內、項目文字之下、子選單之上。
+     之前它在 .nrp 裡，而 .nrp（z 9980）在主列（z 9999）下面，主列近乎不透明的底色把扣飾
+     跨進主列的上半部（長流線、向上尖刺、上半個菱框）整個蓋掉；放進主列內就不會被自己的底色蓋住，
+     同時仍在展開的子選單（z 9998）之下，不會畫到子選單卡片上。 */
+  var TOP_CLASP_SC = .9;
+  function syncTopClasp() {
+    var el = nav.querySelector(':scope > .nrp-clasp');
+    if (G.mode !== 'top') { if (el) el.remove(); return; }
+    var HW = 150, HH = 120;
+    if (!el) {
+      el = document.createElementNS(NS, 'svg');
+      el.setAttribute('class', 'nrp-clasp');
+      el.setAttribute('aria-hidden', 'true');
+      nav.appendChild(el);
+    }
+    el.setAttribute('width', HW * 2); el.setAttribute('height', HH * 2);
+    el.setAttribute('viewBox', '0 0 ' + HW * 2 + ' ' + HH * 2);
+    el.style.left = fmt(G.W / 2 - HW) + 'px';
+    el.style.top = fmt(G.navH + 6.2 - HH) + 'px';
+    el.innerHTML = centerOrn(HW, HH, false, TOP_CLASP_SC);
   }
 
   /* 邊緣流光路徑：直接從 SVG 路徑取樣（約 2px 一點），形狀怎麼變都不用改 */
@@ -474,17 +497,26 @@
 
   function placeInd() {
     var act = activeItem();
-    if (!act || G.mode !== 'left') { ind.style.opacity = 0; return; }
+    if (!act || (G.mode !== 'left' && G.mode !== 'top')) { ind.style.opacity = 0; return; }
     var r = act.getBoundingClientRect();
     if (!r.height || !r.width) { ind.style.opacity = 0; return; }
-    var isGroup = act.classList.contains('nav-group');
-    var cy = r.top + (isGroup ? 31 : r.height / 2);
-    var nb = nav.getBoundingClientRect();
-    var inView = cy >= nb.top + 6 && cy <= nb.bottom - 6;
-    var IH = 104, local = Math.min(Math.max(cy - G.top, 44), G.H - 44);
-    ind.className = 'nrp-ind v';
-    ind.style.setProperty('--ix', fmt(G.xe - 3 - 9) + 'px');
-    ind.style.setProperty('--iy', fmt(local - IH / 2) + 'px');
+    var nb = nav.getBoundingClientRect(), inView;
+    if (G.mode === 'left') {
+      var isGroup = act.classList.contains('nav-group');
+      var cy = r.top + (isGroup ? 31 : r.height / 2);
+      inView = cy >= nb.top + 6 && cy <= nb.bottom - 6;
+      var IH = 104, local = Math.min(Math.max(cy - G.top, 44), G.H - 44);
+      ind.className = 'nrp-ind v';
+      ind.style.setProperty('--ix', fmt(G.xe - 3 - 9) + 'px');
+      ind.style.setProperty('--iy', fmt(local - IH / 2) + 'px');
+    } else {
+      /* 頂部：沿主列下緣的飾桿水平滑動，停在目前頁面項目的正下方（x 取項目中心；兩排項目時 y 不變） */
+      var IW = 160, icx = Math.min(Math.max(r.left + r.width / 2, 40), G.W - 40);
+      inView = true;
+      ind.className = 'nrp-ind h';
+      ind.style.setProperty('--ix', fmt(icx - IW / 2) + 'px');
+      ind.style.setProperty('--iy', fmt(G.navH + 6.2 - 9) + 'px');
+    }
     ind.style.opacity = inView ? 1 : .35;
     if (act !== lastActive) {
       if (lastActive && !reduce) { ind.classList.remove('flare'); void ind.offsetWidth; ind.classList.add('flare'); }
