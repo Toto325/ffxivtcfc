@@ -40,7 +40,9 @@
 <link rel="stylesheet" href="css/page-craft.css?v=13">
 <link rel="stylesheet" href="css/page-market.css?v=13">
 <link rel="stylesheet" href="css/page-market-watchlist.css?v=13">
-<link rel="stylesheet" href="css/nav-royal.css?v=8">
+<link rel="stylesheet" href="css/nav-royal.css?v=9">
+<link rel="stylesheet" href="css/nav-unify.css?v=1">
+<link rel="stylesheet" href="css/touch-fixes.css?v=1">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
 </head>
@@ -50,20 +52,20 @@
 <nav class="royal-nav nav-has-burger">
   <button id="nav-mode-toggle" class="nav-mode-toggle" type="button" aria-label="切換選單顯示位置"><span class="nmt-icon" aria-hidden="true">⇄</span><span class="nmt-label" aria-hidden="true">頂部選單</span></button>
   <button id="nav-burger" class="nav-burger" type="button" aria-expanded="false" aria-label="展開選單"><span class="nb-icon" aria-hidden="true">☰</span><span class="nb-label" id="nav-burger-label">✧ 序語</span><span class="nb-caret" aria-hidden="true">▾</span></button>
-  <div class="nav-item" data-nav="home"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✧ 序語</span><span class="en">PROLOGUE</span></div></div>
-  <div class="nav-item" data-nav="about"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">❂ 簡介</span><span class="en">INTRO</span></div></div>
-  <div class="nav-item" data-nav="links"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✦ 指南</span><span class="en">DIRECTORY</span></div></div>
-  <div class="nav-item" data-nav="news"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">◈ 公告</span><span class="en">ANNOUNCEMENT</span></div></div>
-  <div class="nav-item nav-group" id="nav-group-exploration" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✧ 遠航探索</span><span class="en">EXPLORATION</span></div><span class="nav-group-arrow" aria-hidden="true">▾</span>
+  <div class="nav-item" data-nav="home"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-sparkle"></i></span>序語</span><span class="en">PROLOGUE</span></div></div>
+  <div class="nav-item" data-nav="about"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-book-open-text"></i></span>簡介</span><span class="en">INTRO</span></div></div>
+  <div class="nav-item" data-nav="links"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-compass"></i></span>指南</span><span class="en">DIRECTORY</span></div></div>
+  <div class="nav-item" data-nav="news"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-megaphone"></i></span>公告</span><span class="en">ANNOUNCEMENT</span></div></div>
+  <div class="nav-item nav-group" id="nav-group-exploration" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-sailboat"></i></span>遠航探索</span><span class="en">EXPLORATION</span></div><span class="nav-group-arrow" aria-hidden="true">▾</span>
     <div class="nav-submenu">
-      <div class="nav-item nav-subitem" data-nav="submarine"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji">⚓</span>潛水艇</span><span class="en">SUBMARINE</span></div></div>
-      <div class="nav-item nav-subitem" data-nav="airship"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji">✈</span>飛空艇</span><span class="en">AIRSHIP</span></div></div>
+      <div class="nav-item nav-subitem" data-nav="submarine"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji"><i class="ph ph-anchor"></i></span>潛水艇</span><span class="en">SUBMARINE</span></div></div>
+      <div class="nav-item nav-subitem" data-nav="airship"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji"><i class="ph ph-airplane-tilt"></i></span>飛空艇</span><span class="en">AIRSHIP</span></div></div>
     </div>
   </div>
-  <div class="nav-item" data-nav="craft"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">⚒ 生產</span><span class="en">CRAFT</span></div></div>
-  <div class="nav-item" data-nav="market"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">⚖ 市場</span><span class="en">MARKET</span></div></div>
-  <div class="nav-item" data-nav="fashion"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">✿ 時尚品鑑</span><span class="en">FASHION</span></div></div>
-  <div class="nav-item" data-nav="macro"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn">⚙ 巨集</span><span class="en">MACROS</span></div></div>
+  <div class="nav-item" data-nav="craft"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-hammer"></i></span>生產</span><span class="en">CRAFT</span></div></div>
+  <div class="nav-item" data-nav="market"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-scales"></i></span>市場</span><span class="en">MARKET</span></div></div>
+  <div class="nav-item" data-nav="fashion"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-t-shirt"></i></span>時尚品鑑</span><span class="en">FASHION</span></div></div>
+  <div class="nav-item" data-nav="macro"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-gear-six"></i></span>巨集</span><span class="en">MACROS</span></div></div>
 </nav>
 <main id="viewport">
   <section id="home" class="scene">
@@ -192,6 +194,6 @@
 <script src="js/market-panel.js"></script>
 <script src="js/macro-tool.js"></script>
 <script src="js/nav.js?v=13"></script>
-<script src="js/nav-royal.js?v=8"></script>
+<script src="js/nav-royal.js?v=9"></script>
 </body>
 </html>
