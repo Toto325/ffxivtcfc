@@ -188,7 +188,7 @@ html[data-nav-mode="left"] .nav-subitem.active::after {
    做法：JS（nav-royal.js）在左側模式把按鈕搬進 .nav-toggle-dock（固定定位，
    不在捲動區內）；項目捲動區改從按鈕下方開始，頂端有原本的漸隱。
    這樣不需要任何遮底，面板的裝飾框線不會被蓋住，項目也不會滑到按鈕上方。
-   --nr-dock-h 由 JS 量出停靠區高度（預設 102px = 上邊距 20＋按鈕 48＋下邊距 34）。
+   --nr-dock-h 由 JS 量出停靠區高度（預設 102px；實際依視窗高度變動）。
    ══════════════════════════════════════════════════════════════ */
 .nav-toggle-dock { display: none; }
 html[data-nav-mode="left"] .nav-toggle-dock {
@@ -196,10 +196,11 @@ html[data-nav-mode="left"] .nav-toggle-dock {
   position: fixed; left: 0; top: 22px;
   z-index: 10000;
 }
-html[data-nav-mode="left"] .nav-toggle-dock .nav-mode-toggle { margin: 20px 0 34px !important; }
+/* 上邊距隨視窗高度調整：視窗高時離上方框線遠一點（約 44px），視窗矮時收緊（最少 24px） */
+html[data-nav-mode="left"] .nav-toggle-dock .nav-mode-toggle { margin: clamp(24px, 4.5vh, 44px) 0 30px !important; }
 
 html[data-nav-royal][data-nav-mode="left"] .royal-nav {
-  top: calc(22px + var(--nr-dock-h, 102px)) !important;
+  top: calc(22px + var(--nr-dock-h, 110px)) !important;
   padding-top: 10px !important;
 }
 
