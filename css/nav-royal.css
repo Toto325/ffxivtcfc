@@ -19,14 +19,17 @@
 
 /* ── 各項目專屬的光色：都在金色系內偏一點點，只在 hover／目前頁面才看得到 ── */
 .nav-item:not(.nav-subitem)                     { --acc: 255,232,176; }
-.nav-item[data-nav="about"]:not(.nav-subitem)   { --acc: 240,198,160; }
-.nav-item[data-nav="links"]:not(.nav-subitem)   { --acc: 228,208,150; }
-.nav-item[data-nav="news"]:not(.nav-subitem)    { --acc: 255,214,150; }
+.nav-item[data-nav="about"]:not(.nav-subitem)   { --acc: 240,172,150; }   /* 玫瑰金 */
+.nav-item[data-nav="links"]:not(.nav-subitem)   { --acc: 190,224,152; }   /* 淺綠金 */
+.nav-item[data-nav="news"]:not(.nav-subitem)    { --acc: 255,186,84;  }   /* 琥珀 */
 #nav-group-exploration                          { --acc: 150,214,226; }
 .nav-item[data-nav="craft"]:not(.nav-subitem)   { --acc: 236,178,122; }
-.nav-item[data-nav="market"]:not(.nav-subitem)  { --acc: 216,200,124; }
+.nav-item[data-nav="market"]:not(.nav-subitem)  { --acc: 196,210,92;  }   /* 橄欖黃綠 */
 .nav-item[data-nav="fashion"]:not(.nav-subitem) { --acc: 238,176,196; }
 .nav-item[data-nav="macro"]:not(.nav-subitem)   { --acc: 196,208,228; }
+/* 子選單（同屬探索的冷色系，彼此仍分得出來） */
+.nav-subitem[data-nav="submarine"]              { --acc: 84,184,206;  }   /* 深海藍綠 */
+.nav-subitem[data-nav="airship"]                { --acc: 148,196,255; }   /* 天空藍 */
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -36,26 +39,7 @@
    載入：項目依序滑入（一次性）
    ══════════════════════════════════════════════════════════════ */
 
-/* 圖示光環（圖示由 JS 包成 .nr-ic） */
-html[data-nav-royal] .nr-ic { position: relative; display: inline-block; margin-right: .16em; }
-html[data-nav-royal] .nr-ic::before {
-  content: "";
-  position: absolute; left: 50%; top: 50%;
-  width: 1.45em; height: 1.45em; margin: -.725em 0 0 -.725em;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg,
-    rgba(var(--acc),.95), rgba(var(--acc),.08) 36%, rgba(var(--acc),0) 55%, rgba(var(--acc),.08) 76%, rgba(var(--acc),.95));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
-          mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1.4px));
-  opacity: 0; transform: scale(.55);
-  transition: opacity .35s ease, transform .55s cubic-bezier(.34,1.56,.64,1);
-  pointer-events: none;
-}
-html[data-nav-royal] .nav-item:hover .nr-ic::before {
-  opacity: .95; transform: scale(1);
-  animation: nr-spin 3.4s linear infinite;
-}
-html[data-nav-royal] .nav-item.active:not(:hover) .nr-ic::before { opacity: .55; transform: scale(1); background: rgba(var(--acc),.7); }
+/* 圖示徽章（.nr-ic）與光環：已移到 nav-unify.css，與子選單共用同一套樣式 */
 @keyframes nr-spin { to { transform: scale(1) rotate(360deg); } }
 
 /* 載入：依序滑入（backwards＝只在延遲期間套用起點，結束後不會蓋住 hover 的位移） */

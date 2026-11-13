@@ -1,0 +1,218 @@
+/* ============================================================
+ * nav-unify.css — 選單圖示徽章統一 ＋ 左側選單改善
+ *
+ * 必須放在 nav-royal.css 之後、touch-fixes.css 之前載入。
+ * 各項目的專屬色 --acc 定義在 nav-royal.css 最上方（改色改那裡）。
+ *
+ * 做的事：
+ *  一、主選單（左側＋頂部）與子選單共用同一套「圓形徽章」：
+ *      漸變底色＋細金框＋hover 時彗星式光環旋轉＋圖示微微上浮。
+ *  二、圖示平常是統一的金色；hover／聚焦時漸變成該項目的專屬色，
+ *      目前所在頁面維持專屬色（約八成亮度），光環與光暈同色。
+ *  三、左側子選單（簡化版）：徽章＋選取底線＋圖示浮動。
+ *  四、左側選單的「切換按鈕」固定在頂端，只有項目區捲動。
+ *
+ * 想還原：移除 index.html 裡本檔的 <link>，並把 HTML 的圖示改回原符號。
+ * ============================================================ */
+
+.royal-nav {
+  --ic-gold: 240,220,150;   /* 圖示平常的金色 */
+  --ic-d: 26px;             /* 徽章直徑（頂部主選單） */
+}
+html[data-nav-mode="left"] .royal-nav { --ic-d: 30px; }
+@media (max-width: 480px) { .royal-nav { --ic-d: 22px; } }
+
+
+/* ══════════════════════════════════════════════════════════════
+   一、徽章：主選單 .nr-ic ／ 子選單 .nav-emoji 共用
+   ══════════════════════════════════════════════════════════════ */
+.royal-nav .nr-ic,
+html[data-nav-mode="left"] .nav-subitem .nav-emoji {
+  position: relative;
+  display: inline-grid; place-items: center;
+  width: var(--ic-d); height: var(--ic-d);
+  margin-right: .55em; vertical-align: middle;
+  border-radius: 50%;
+  border: 1px solid rgba(197,160,89,.5);
+  background: radial-gradient(circle at 32% 28%, rgba(var(--acc),.24), rgba(197,160,89,.05) 62%);
+  box-shadow: inset 0 0 8px rgba(197,160,89,.16);
+  transition: transform .45s cubic-bezier(.34,1.56,.64,1), border-color .3s ease, box-shadow .3s ease;
+}
+html[data-nav-mode="left"] .nav-subitem .nav-emoji { --ic-d: 28px; }
+
+/* 圖示本體：平常金色，顏色變化有 .3 秒過渡 */
+.royal-nav .nr-ic > i,
+.royal-nav .nav-emoji > i {
+  display: block; line-height: 1;
+  font-size: calc(var(--ic-d, 26px) * .56);
+  color: rgb(var(--ic-gold));
+  filter: drop-shadow(0 0 2px rgba(197,160,89,.35));
+  transition: color .3s ease, filter .3s ease;
+}
+/* 頂部子選單的徽章（38px）沿用它原本的大小 */
+html[data-nav-mode="top"] .nav-subitem .nav-emoji > i { font-size: 1.15rem; }
+
+/* 光環：彗星式弧線（主選單／子選單同一款），顏色取各項目的專屬色 */
+.royal-nav .nr-ic::before,
+html .royal-nav .nav-subitem .nav-emoji::before {
+  content: "";
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--acc),.95) 80%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  opacity: 0;
+  transition: opacity .3s ease;
+  pointer-events: none;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   二、狀態：目前頁面 → 專屬色（約八成亮度）；hover／聚焦 → 專屬色全亮＋光環旋轉＋上浮
+   寫法順序重要：「目前頁面」在前、「hover」在後，兩者優先序相同時 hover 勝出。
+   群組（遠航探索）：左側只在游標落在它自己的標題列才算 hover（滑到子選單上不算）；
+   頂部的下拉本來就是群組的延伸，整個群組區域都算。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 主選單：目前所在頁面／群組展開中（光環靜止） ── */
+.royal-nav .nav-item.active:not(.nav-subitem) > .nav-content .nr-ic,
+.royal-nav .nav-group.nav-open > .nav-content .nr-ic {
+  border-color: rgba(var(--acc),.7);
+  box-shadow: 0 0 8px rgba(var(--acc),.3), inset 0 0 8px rgba(var(--acc),.2);
+}
+.royal-nav .nav-item.active:not(.nav-subitem) > .nav-content .nr-ic > i,
+.royal-nav .nav-group.nav-open > .nav-content .nr-ic > i {
+  color: rgba(var(--acc),.8);
+  filter: drop-shadow(0 0 4px rgba(var(--acc),.5));
+}
+.royal-nav .nav-item.active:not(.nav-subitem) > .nav-content .nr-ic::before,
+.royal-nav .nav-group.nav-open > .nav-content .nr-ic::before {
+  opacity: .5; background: rgba(var(--acc),.8);
+}
+
+/* ── 主選單：hover／聚焦（一般項目） ── */
+.royal-nav .nav-item:not(.nav-group):not(.nav-subitem):hover .nr-ic,
+.royal-nav .nav-item:not(.nav-group):not(.nav-subitem):focus-visible .nr-ic {
+  transform: translateY(-2px);
+  border-color: rgba(var(--acc),.85);
+  box-shadow: 0 0 10px rgba(var(--acc),.45), inset 0 0 8px rgba(var(--acc),.28);
+}
+.royal-nav .nav-item:not(.nav-group):not(.nav-subitem):hover .nr-ic > i,
+.royal-nav .nav-item:not(.nav-group):not(.nav-subitem):focus-visible .nr-ic > i {
+  color: rgb(var(--acc));
+  filter: drop-shadow(0 0 5px rgba(var(--acc),.75));
+}
+.royal-nav .nav-item:not(.nav-group):not(.nav-subitem):hover .nr-ic::before,
+.royal-nav .nav-item:not(.nav-group):not(.nav-subitem):focus-visible .nr-ic::before {
+  opacity: 1;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--acc),.95) 80%, transparent 100%);
+  animation: nav-ring-spin 2.4s linear infinite;
+}
+
+/* ── 主選單：hover／聚焦（群組）。左側＝標題列；頂部＝整個群組 ── */
+html[data-nav-mode="left"] .royal-nav .nav-group > .nav-content:hover .nr-ic,
+html[data-nav-mode="top"] .royal-nav .nav-group:hover > .nav-content .nr-ic,
+.royal-nav .nav-group:focus-visible > .nav-content .nr-ic {
+  transform: translateY(-2px);
+  border-color: rgba(var(--acc),.85);
+  box-shadow: 0 0 10px rgba(var(--acc),.45), inset 0 0 8px rgba(var(--acc),.28);
+}
+html[data-nav-mode="left"] .royal-nav .nav-group > .nav-content:hover .nr-ic > i,
+html[data-nav-mode="top"] .royal-nav .nav-group:hover > .nav-content .nr-ic > i,
+.royal-nav .nav-group:focus-visible > .nav-content .nr-ic > i {
+  color: rgb(var(--acc));
+  filter: drop-shadow(0 0 5px rgba(var(--acc),.75));
+}
+html[data-nav-mode="left"] .royal-nav .nav-group > .nav-content:hover .nr-ic::before,
+html[data-nav-mode="top"] .royal-nav .nav-group:hover > .nav-content .nr-ic::before,
+.royal-nav .nav-group:focus-visible > .nav-content .nr-ic::before {
+  opacity: 1;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--acc),.95) 80%, transparent 100%);
+  animation: nav-ring-spin 2.4s linear infinite;
+}
+
+/* ── 子選單（左側＋頂部）：目前頁面 → hover／聚焦 ──
+   前面加 html：頂部子選單原本的規則（寫死金色）優先序較高，要靠這個蓋過去 */
+html .royal-nav .nav-subitem.active .nav-emoji { border-color: rgba(var(--acc),.75); }
+html .royal-nav .nav-subitem.active .nav-emoji > i {
+  color: rgba(var(--acc),.8);
+  filter: drop-shadow(0 0 4px rgba(var(--acc),.5));
+}
+html .royal-nav .nav-subitem:hover .nav-emoji,
+html .royal-nav .nav-subitem:focus-visible .nav-emoji {
+  border-color: rgba(var(--acc),.9);
+  box-shadow: 0 0 12px rgba(var(--acc),.55), inset 0 0 8px rgba(var(--acc),.3);
+}
+html .royal-nav .nav-subitem:hover .nav-emoji > i,
+html .royal-nav .nav-subitem:focus-visible .nav-emoji > i {
+  color: rgb(var(--acc));
+  filter: drop-shadow(0 0 5px rgba(var(--acc),.75));
+}
+/* 左側補上與頂部相同的光環旋轉（頂部原本就有） */
+html[data-nav-mode="left"] .nav-subitem:hover .nav-emoji::before,
+html[data-nav-mode="left"] .nav-subitem:focus-visible .nav-emoji::before,
+html[data-nav-mode="left"] .nav-subitem.active .nav-emoji::before {
+  opacity: 1; animation: nav-ring-spin 2.4s linear infinite;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   三、左側子選單（簡化版）：徽章＋選取底線＋圖示浮動
+   原有的左側細線（ribbon）與光暈保留，不做卡片外框。
+   ══════════════════════════════════════════════════════════════ */
+html[data-nav-mode="left"] .nav-subitem:hover .nav-emoji,
+html[data-nav-mode="left"] .nav-subitem:focus-visible .nav-emoji { transform: translateY(-2px); }
+
+/* 選取底線：與左側主選單同一款（從左長出、hover 才出現；目前頁面常亮並每 9 秒閃過一道光） */
+html[data-nav-mode="left"] .nav-subitem::after {
+  content: "";
+  position: absolute; left: 30px; right: 30px; bottom: 3px; height: 1px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255,250,232,.95), transparent) -60px 0 / 60px 100% no-repeat,
+    linear-gradient(90deg, rgba(var(--acc),.95), rgba(var(--acc),.35) 60%, transparent);
+  box-shadow: 0 0 8px rgba(var(--acc),.5);
+  transform: scaleX(.12); transform-origin: 0 50%; opacity: 0;
+  transition: transform .6s cubic-bezier(.22,1,.36,1), opacity .4s ease;
+  pointer-events: none;
+}
+html[data-nav-mode="left"] .nav-subitem:hover::after,
+html[data-nav-mode="left"] .nav-subitem:focus-visible::after { transform: scaleX(1); opacity: 1; }
+html[data-nav-mode="left"] .nav-subitem.active::after {
+  transform: scaleX(1); opacity: .85;
+  animation: nr-glint-l 9s ease-in-out infinite 2.5s;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   四、左側「切換頂部／左側選單」按鈕：捲動時固定在頂端
+   原位置不變：選單內容超出高度（才需要捲動）時，按鈕本來就貼在面板上留白 20px 的位置。
+   選單被捲動時（JS 加上 .nav-scrolled），按鈕背後出現一條深色遮底，
+   項目從底下滑過去時不會透出來，下緣漸隱。
+   ══════════════════════════════════════════════════════════════ */
+html[data-nav-mode="left"] .nav-mode-toggle {
+  position: sticky !important;
+  top: 20px;
+  z-index: 6;
+}
+html[data-nav-mode="left"] .nav-mode-toggle::before {
+  content: "";
+  position: absolute; left: -200px; right: -200px; top: -20px; bottom: -34px;
+  background: linear-gradient(180deg, rgba(10,8,6,.95) 0, rgba(10,8,6,.95) calc(100% - 24px), transparent 100%);
+  opacity: 0; transition: opacity .25s ease;
+  pointer-events: none; z-index: -1;
+}
+html[data-nav-mode="left"] .royal-nav.nav-scrolled .nav-mode-toggle::before { opacity: 1; }
+
+
+/* ══════════════════════════════════════════════════════════════
+   減少動態：停掉浮動與旋轉（保留顏色變化）
+   ══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .royal-nav .nr-ic,
+  html[data-nav-mode="left"] .nav-subitem .nav-emoji { transition: border-color .3s ease, box-shadow .3s ease; transform: none !important; }
+  .royal-nav .nr-ic::before,
+  .royal-nav .nav-subitem .nav-emoji::before { animation: none !important; }
+  html[data-nav-mode="left"] .nav-subitem.active::after { animation: none !important; }
+  html[data-nav-mode="left"] .nav-subitem::after { transition: opacity .3s ease; }
+  html[data-nav-mode="left"] .nav-mode-toggle::before { transition: none; }
+}
