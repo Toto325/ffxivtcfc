@@ -71,6 +71,12 @@
     });
   })();
 
+  /* 手機漢堡列右側的開合圖示：換成與群組相同的華麗 V 形（開合時由 CSS 翻轉） */
+  (function prepBurgerCaret() {
+    var bc = document.querySelector('.nav-burger .nb-caret');
+    if (bc && !bc.querySelector('svg')) bc.innerHTML = chevSvg();
+  })();
+
   /* ───────── 2. 裝飾層 DOM ───────── */
   var ov = document.createElement('div');
   ov.className = 'nrp';

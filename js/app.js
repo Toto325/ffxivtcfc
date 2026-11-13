@@ -336,8 +336,22 @@ initStars(){
     }
     /* 手機漢堡列上顯示「目前所在頁面」 */
     var burgerLbl = document.getElementById('nav-burger-label');
-    var activeCn = document.querySelector('.nav-item[data-nav="' + id + '"] .cn');
-    if (burgerLbl && activeCn) burgerLbl.textContent = activeCn.textContent;
+    var activeItem = document.querySelector('.nav-item[data-nav="' + id + '"]');
+    var activeCn = activeItem && activeItem.querySelector('.cn');
+    var activeEn = activeItem && activeItem.querySelector('.en');
+    if (burgerLbl && activeCn) {
+      /* 中文名稱＋右側英文小字（兩個 span 分開，窄螢幕時英文先被截斷、中文不動） */
+      burgerLbl.textContent = '';
+      var bCn = document.createElement('span'); bCn.className = 'nb-cn'; bCn.textContent = activeCn.textContent;
+      burgerLbl.appendChild(bCn);
+      if (activeEn) { var bEn = document.createElement('span'); bEn.className = 'nb-en'; bEn.textContent = activeEn.textContent; burgerLbl.appendChild(bEn); }
+    }
+    /* 漢堡列的徽章／光環要用「目前頁面」的專屬色（--acc 定義在各選單項目上，見 nav-royal.css） */
+    var burgerBtn = document.getElementById('nav-burger');
+    if (burgerBtn && activeItem) {
+      var accVal = getComputedStyle(activeItem).getPropertyValue('--acc').trim();
+      if (accVal) burgerBtn.style.setProperty('--acc', accVal);
+    }
     var t = document.getElementById(id);
     if (!t) return;
     t.classList.add('active');                   // synchronous — no rAF gap
