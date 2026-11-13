@@ -192,6 +192,12 @@ html[data-nav-royal][data-nav-mode="top"] .nrp {
 }
 html[data-nav-royal] .nrp-sparks { display: block; position: fixed; inset: 0; z-index: 10001; pointer-events: none; }
 
+/* 頂部中央扣飾（JS 放進主列內：在項目文字之下、展開的子選單之上） */
+html[data-nav-royal][data-nav-mode="top"] .royal-nav > .nrp-clasp {
+  position: absolute; overflow: visible; pointer-events: none; z-index: 1;
+  filter: drop-shadow(0 0 3px rgba(var(--nr-gold),.14));
+}
+
 /* 面板本體（只有左側）：左緣出血、右側兩個圓角 */
 html[data-nav-royal][data-nav-mode="top"] .nrp-body { display: none; }
 .nrp-body {
