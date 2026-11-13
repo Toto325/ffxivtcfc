@@ -10,7 +10,7 @@
  *  二、圖示平常是統一的金色；hover／聚焦時漸變成該項目的專屬色，
  *      目前所在頁面維持專屬色（約八成亮度），光環與光暈同色。
  *  三、左側子選單（簡化版）：徽章＋選取底線＋圖示浮動。
- *  四、左側選單的「切換按鈕」固定在頂端，只有項目區捲動。
+ *  四、左側選單的「切換按鈕」固定在面板頂端（放進停靠區），只有項目區捲動。
  *
  * 想還原：移除 index.html 裡本檔的 <link>，並把 HTML 的圖示改回原符號。
  * ============================================================ */
@@ -184,24 +184,24 @@ html[data-nav-mode="left"] .nav-subitem.active::after {
 
 
 /* ══════════════════════════════════════════════════════════════
-   四、左側「切換頂部／左側選單」按鈕：捲動時固定在頂端
-   原位置不變：選單內容超出高度（才需要捲動）時，按鈕本來就貼在面板上留白 20px 的位置。
-   選單被捲動時（JS 加上 .nav-scrolled），按鈕背後出現一條深色遮底，
-   項目從底下滑過去時不會透出來，下緣漸隱。
+   四、左側「切換頂部／左側選單」按鈕：固定在面板頂端，只有項目區捲動
+   做法：JS（nav-royal.js）在左側模式把按鈕搬進 .nav-toggle-dock（固定定位，
+   不在捲動區內）；項目捲動區改從按鈕下方開始，頂端有原本的漸隱。
+   這樣不需要任何遮底，面板的裝飾框線不會被蓋住，項目也不會滑到按鈕上方。
+   --nr-dock-h 由 JS 量出停靠區高度（預設 102px = 上邊距 20＋按鈕 48＋下邊距 34）。
    ══════════════════════════════════════════════════════════════ */
-html[data-nav-mode="left"] .nav-mode-toggle {
-  position: sticky !important;
-  top: 20px;
-  z-index: 6;
+.nav-toggle-dock { display: none; }
+html[data-nav-mode="left"] .nav-toggle-dock {
+  display: flex; justify-content: center; align-items: flex-start;
+  position: fixed; left: 0; top: 22px;
+  z-index: 10000;
 }
-html[data-nav-mode="left"] .nav-mode-toggle::before {
-  content: "";
-  position: absolute; left: -200px; right: -200px; top: -20px; bottom: -34px;
-  background: linear-gradient(180deg, rgba(10,8,6,.95) 0, rgba(10,8,6,.95) calc(100% - 24px), transparent 100%);
-  opacity: 0; transition: opacity .25s ease;
-  pointer-events: none; z-index: -1;
+html[data-nav-mode="left"] .nav-toggle-dock .nav-mode-toggle { margin: 20px 0 34px !important; }
+
+html[data-nav-royal][data-nav-mode="left"] .royal-nav {
+  top: calc(22px + var(--nr-dock-h, 102px)) !important;
+  padding-top: 10px !important;
 }
-html[data-nav-mode="left"] .royal-nav.nav-scrolled .nav-mode-toggle::before { opacity: 1; }
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -214,5 +214,4 @@ html[data-nav-mode="left"] .royal-nav.nav-scrolled .nav-mode-toggle::before { op
   .royal-nav .nav-subitem .nav-emoji::before { animation: none !important; }
   html[data-nav-mode="left"] .nav-subitem.active::after { animation: none !important; }
   html[data-nav-mode="left"] .nav-subitem::after { transition: opacity .3s ease; }
-  html[data-nav-mode="left"] .nav-mode-toggle::before { transition: none; }
 }
