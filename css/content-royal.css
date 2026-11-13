@@ -1,0 +1,265 @@
+/* ============================================================
+ * content-royal.css  v1 — 內容頁「外框＋元件」呼應新選單
+ *
+ * 獨立的「加法」檔案：必須放在 nav-unify.css 之後、touch-fixes.css 之前載入。
+ * 只改外觀，不改版面（尺寸、padding、排版全部沿用 page-content.css 原值）。
+ * 想還原：移除 index.html 裡本檔的 <link>，並刪掉各 .noble-outer-frame 裡的
+ * <span class="cr-medal …"> 即可（沒有本檔時，那顆徽章不會顯示樣式，請一起刪除）。
+ *
+ * 設計邏輯（與 nav-royal.css 同一套語彙，但刻意更安靜，閱讀優先）：
+ *   ‧ 外框＝外亮內暗的雙線：外線較亮、內線較暗（原本是反過來的）。
+ *   ‧ 外線四角缺角內凹，角心一顆寶珠；上緣正中掛一顆該頁的圖示徽章（同選單徽章）。
+ *   ‧ 內框四角加短角飾；進頁面時有一道光沿外框跑一圈（只跑一次），其餘全部靜態。
+ *   ‧ 各頁的點綴色 --acc 與選單項目的專屬光色一致（公告琥珀、時尚粉金…）。
+ *   ‧ 一律排除 embed 模式（市場頁「製作求解」彈窗內的實例不要外框）。
+ * ============================================================ */
+
+@property --cr-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@property --cr-o { syntax: '<number>'; initial-value: 0; inherits: false; }
+
+/* ── 各頁點綴色（與 nav-royal.css 最上方的 --acc 同值；改色請兩邊一起改） ── */
+.scene                 { --acc: 255,232,176; }
+.scene#about           { --acc: 240,172,150; }
+.scene#links           { --acc: 190,224,152; }
+.scene#news            { --acc: 255,186,84;  }
+.scene#submarine       { --acc: 84,184,206;  }
+.scene#airship         { --acc: 148,196,255; }
+.scene#craft           { --acc: 236,178,122; }
+.scene#market          { --acc: 196,210,92;  }
+.scene#fashion         { --acc: 238,176,196; }
+.scene#macro           { --acc: 196,208,228; }
+
+/* 角飾（內框／卡片／按鈕共用）：四個角各一道 11px 的 L 形短線。
+   寫在 .scene 上，讓 --acc 在同一個元素算好再往下繼承。 */
+.scene {
+  --cr-brk:
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 0 0 / 11px 1px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 0 0 / 1px 11px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 100% 0 / 11px 1px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 100% 0 / 1px 11px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 0 100% / 11px 1px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 0 100% / 1px 11px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 100% 100% / 11px 1px no-repeat,
+    linear-gradient(rgba(var(--acc),.6), rgba(var(--acc),.6)) 100% 100% / 1px 11px no-repeat;
+}
+
+/* 缺角大小：左側模式 12px；頂部模式（外框 padding 只有 8px）縮成 2/3，才不會碰到內框 */
+html { --cr-k: 1; }
+html[data-nav-mode="top"] { --cr-k: .667; }
+
+
+/* ══════════════════════════════════════════════════════════════
+   一、外框（.noble-outer-frame）
+   ══════════════════════════════════════════════════════════════ */
+html:not([data-nav-mode="embed"]) .noble-outer-frame {
+  position: relative;
+  border-color: transparent;               /* 線改由 ::before 畫（才能缺角）；寬度保留，版面不變 */
+  background:
+    radial-gradient(70% 120px at 50% 0, rgba(252,246,186,.07), transparent 100%),
+    linear-gradient(180deg, rgba(26,20,12,.93), rgba(7,6,10,.94));
+  box-shadow: 0 0 60px rgba(0,0,0,.95), inset 0 0 25px rgba(197,160,89,.07);
+}
+
+/* ::before ＝ 外線（缺角）＋ 進頁面的流光 */
+html:not([data-nav-mode="embed"]) .noble-outer-frame::before {
+  content: "";
+  position: absolute; inset: -1.5px; z-index: 1; pointer-events: none;
+  --r: calc(12px * var(--cr-k));
+  border: 1.5px solid transparent;
+  background:
+    conic-gradient(from var(--cr-a),
+      transparent 0 78%,
+      rgba(255,236,190,calc(.35 * var(--cr-o))) 90%,
+      rgba(255,250,232,calc(.98 * var(--cr-o))) 100%) border-box,
+    radial-gradient(ellipse 34% 20px at 50% 0, rgba(var(--acc),.95), transparent 100%) border-box,
+    linear-gradient(rgba(197,160,89,.62), rgba(197,160,89,.62)) border-box;
+  /* 遮罩：「框線的環」減掉四個角落的圓（缺角） */
+  -webkit-mask:
+    radial-gradient(circle at 0 0,     transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 0,  transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 0 100%,  transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0) border-box;
+  -webkit-mask-composite: source-in, source-in, source-in, source-in, xor, source-over;
+          mask:
+    radial-gradient(circle at 0 0,     transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 0,  transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 0 100%,  transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0) border-box;
+          mask-composite: intersect, intersect, intersect, intersect, exclude, add;
+}
+
+/* ::after ＝ 角心寶珠＋缺角弧線＋徽章兩側的飾翼（點綴色，用遮罩剪出形狀） */
+html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
+  content: "";
+  position: absolute; z-index: 2; pointer-events: none;
+  --o7: calc(7px * var(--cr-k));
+  inset: calc(-1.5px - var(--o7));
+  background: linear-gradient(rgba(var(--acc),.88), rgba(var(--acc),.88));
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform=''%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform='translate(32 0) scale(-1 1)'%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform='translate(32 32) scale(-1 -1)'%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform='translate(0 32) scale(1 -1)'%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='16' viewBox='0 0 160 16'%3E %3Cdefs%3E %3ClinearGradient id='l' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='black' stop-opacity='0'/%3E%3Cstop offset='.55' stop-color='black' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='black' stop-opacity='1'/%3E%3C/linearGradient%3E %3ClinearGradient id='r' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='black' stop-opacity='1'/%3E%3Cstop offset='.45' stop-color='black' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='black' stop-opacity='0'/%3E%3C/linearGradient%3E %3C/defs%3E %3Crect x='10' y='7' width='42' height='1.5' fill='url(%23l)'/%3E %3Crect x='108' y='7' width='42' height='1.5' fill='url(%23r)'/%3E %3Cpath d='M52.2 7.75 l3.2 -3.2 l3.2 3.2 l-3.2 3.2z' fill='black'/%3E %3Cpath d='M101.4 7.75 l3.2 -3.2 l3.2 3.2 l-3.2 3.2z' fill='black'/%3E %3C/svg%3E");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), 160px 16px;
+  -webkit-mask-position: 0 0, 100% 0, 100% 100%, 0 100%, 50% calc(var(--o7) - 7px);
+          mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform=''%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform='translate(32 0) scale(-1 1)'%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform='translate(32 32) scale(-1 -1)'%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E %3Cg transform='translate(0 32) scale(1 -1)'%3E %3Cpath d='M19 7 A12 12 0 0 1 7 19' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='butt'/%3E %3Ccircle cx='7' cy='7' r='2.5' fill='black'/%3E %3Ccircle cx='7' cy='7' r='5' fill='none' stroke='black' stroke-opacity='.45' stroke-width='.8'/%3E %3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='16' viewBox='0 0 160 16'%3E %3Cdefs%3E %3ClinearGradient id='l' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='black' stop-opacity='0'/%3E%3Cstop offset='.55' stop-color='black' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='black' stop-opacity='1'/%3E%3C/linearGradient%3E %3ClinearGradient id='r' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='black' stop-opacity='1'/%3E%3Cstop offset='.45' stop-color='black' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='black' stop-opacity='0'/%3E%3C/linearGradient%3E %3C/defs%3E %3Crect x='10' y='7' width='42' height='1.5' fill='url(%23l)'/%3E %3Crect x='108' y='7' width='42' height='1.5' fill='url(%23r)'/%3E %3Cpath d='M52.2 7.75 l3.2 -3.2 l3.2 3.2 l-3.2 3.2z' fill='black'/%3E %3Cpath d='M101.4 7.75 l3.2 -3.2 l3.2 3.2 l-3.2 3.2z' fill='black'/%3E %3C/svg%3E");
+          mask-repeat: no-repeat;
+          mask-size: calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), calc(32px * var(--cr-k)) calc(32px * var(--cr-k)), 160px 16px;
+          mask-position: 0 0, 100% 0, 100% 100%, 0 100%, 50% calc(var(--o7) - 7px);
+}
+
+/* 進頁面時，一道光沿外框跑一圈（只跑一次；.scene 從 display:none 切成顯示時會重新播放） */
+.scene.active .noble-outer-frame::before {
+  animation: cr-sweep 2s cubic-bezier(.45,.05,.3,1) .2s forwards;
+}
+@keyframes cr-sweep {
+  0%   { --cr-a: 0deg;   --cr-o: 0; }
+  10%  { --cr-o: 1; }
+  86%  { --cr-o: 1; }
+  100% { --cr-a: 360deg; --cr-o: 0; }
+}
+
+/* 內框：線改暗（外亮內暗）＋四角短角飾。背景層貼在元素本身，不會跟著工具頁內部捲動 */
+html:not([data-nav-mode="embed"]) .noble-inner-frame {
+  border-color: rgba(197,160,89,.22);
+  background: var(--cr-brk);
+  background-origin: border-box;
+  box-shadow: inset 0 0 120px rgba(0,0,0,.95), inset 0 0 0 1px rgba(255,228,170,.025);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   二、頁面徽章（.cr-ic）：與選單 .nr-ic 同一套圓形徽章
+   .cr-medal ＝ 掛在外框上緣正中；.cr-ic.sm ＝ 指南頁分類標題旁的小徽章
+   ══════════════════════════════════════════════════════════════ */
+.cr-ic {
+  --cr-d: 28px;
+  position: relative;
+  display: inline-grid; place-items: center;
+  width: var(--cr-d); height: var(--cr-d);
+  border-radius: 50%;
+  border: 1px solid rgba(var(--acc),.7);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(var(--acc),.26), rgba(197,160,89,.05) 62%),
+    #0b0908;
+  box-shadow: 0 0 9px rgba(var(--acc),.26), inset 0 0 8px rgba(var(--acc),.18);
+  vertical-align: middle;
+}
+.cr-ic > i {
+  display: block; line-height: 1;
+  font-size: calc(var(--cr-d) * .56);
+  color: rgba(var(--acc),.9);
+  -webkit-text-fill-color: currentColor;
+  filter: drop-shadow(0 0 4px rgba(var(--acc),.5));
+}
+/* 彗星光環：平常靜止（同選單「目前頁面」），進頁面時轉一圈 */
+.cr-ic::before {
+  content: "";
+  position: absolute; inset: -4px; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--acc),.9) 80%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  opacity: .5; pointer-events: none;
+}
+.scene.active .cr-ic::before { animation: cr-ring 2.4s cubic-bezier(.3,.1,.2,1) .2s 1; }
+@keyframes cr-ring { from { transform: rotate(-200deg); } to { transform: rotate(0deg); } }
+
+.cr-medal {
+  --cr-d: 40px;
+  position: absolute; z-index: 3;
+  top: -.75px; left: 50%; transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.cr-ic.sm { --cr-d: 26px; margin-right: .5em; box-shadow: 0 0 6px rgba(var(--acc),.22), inset 0 0 6px rgba(var(--acc),.16); }
+.cr-ic.sm::before { opacity: .38; }
+@media (max-width: 480px) { .cr-medal { --cr-d: 34px; } }
+
+/* 徽章會凸出外框上緣 ~20px：頁面頂端留一點空間，避免在左側模式（.scene 可捲動）被裁到。
+   頂部模式 .scene 本來就有 24px 上內距，不用補。 */
+html[data-nav-mode="left"] .scene { padding-top: 26px; padding-bottom: 14px; }
+/* 頂部模式：選單下緣有垂掛飾桿，徽章再往下留一點，兩個裝飾才不會疊在一起 */
+html[data-nav-mode="top"] .scene.scene { padding-top: 40px !important; }
+html[data-nav-mode="embed"] .cr-medal { display: none; }
+
+
+/* ══════════════════════════════════════════════════════════════
+   三、分隔線：「雙線夾珠點」（飾桿同款）— 所有頁面（含工具頁標題下）共用
+   ══════════════════════════════════════════════════════════════ */
+.long-silk-line-short {
+  position: relative;
+  width: 200px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197,160,89,.9) 40%, transparent 40.3%, transparent 59.7%, rgba(197,160,89,.9) 60%, transparent);
+}
+.long-silk-line-short::before {        /* 中央珠點（菱形） */
+  content: ""; position: absolute; left: 50%; top: 50%;
+  width: 6px; height: 6px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: radial-gradient(circle at 35% 35%, #fff 0%, rgb(var(--acc)) 60%);
+  box-shadow: 0 0 7px rgba(var(--acc),.65);
+}
+.long-silk-line-short::after {         /* 內側暗線 */
+  content: ""; position: absolute; left: 12%; right: 12%; top: 4px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(197,160,89,.28) 40%, transparent 40.3%, transparent 59.7%, rgba(197,160,89,.28) 60%, transparent);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   四、指南頁分類標題：兩端線尾加小菱形、emoji 換成徽章
+   ══════════════════════════════════════════════════════════════ */
+.links-cat-line { position: relative; }
+.links-cat-line:first-child::after, .links-cat-line:last-child::before {
+  content: ""; position: absolute; top: 50%;
+  width: 5px; height: 5px;
+  background: rgba(var(--acc),.9); box-shadow: 0 0 6px rgba(var(--acc),.6);
+}
+.links-cat-line:first-child::after { right: 0; transform: translateY(-50%) rotate(45deg); }
+.links-cat-line:last-child::before { left: 0;  transform: translateY(-50%) rotate(45deg); }
+.links-cat-label { display: inline-flex; align-items: center; }
+
+
+/* ══════════════════════════════════════════════════════════════
+   五、互動元件：hover 語彙與選單項目一致（光柱＋底線從左長出），幅度比選單更小
+   ══════════════════════════════════════════════════════════════ */
+/* 公告列 */
+.news-item { position: relative; }
+.news-item:hover { background: linear-gradient(90deg, rgba(var(--acc),.13), transparent 72%); }
+.news-item::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, rgba(var(--acc),.95), rgba(var(--acc),.3) 60%, transparent);
+  transform: scaleX(.1); transform-origin: 0 50%; opacity: 0;
+  transition: transform .6s cubic-bezier(.22,1,.36,1), opacity .4s ease;
+  pointer-events: none;
+}
+.news-item:hover::after { transform: scaleX(1); opacity: 1; }
+
+/* 簡介卡片：套角飾（純靜態） */
+.intro-card { background: var(--cr-brk), rgba(197,160,89,.05); background-origin: border-box; border-color: rgba(197,160,89,.22); }
+
+/* 指南頁連結：原本 hover 會上浮 8px＋放大 6%，在雙欄裡太跳；收斂成與選單相近的輕微上浮 */
+.noble-anchor:hover { transform: translateY(-3px) scale(1.025); filter: brightness(1.18); }
+
+/* 「查看全部」按鈕：角飾＋hover 一道光掃過（同選單切換鈕） */
+.news-visit-btn {
+  position: relative; overflow: hidden;
+  background: var(--cr-brk), rgba(197,160,89,.05);
+  background-origin: border-box;
+  border-color: rgba(197,160,89,.3);
+}
+.news-visit-btn::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 38%, rgba(255,246,214,.16) 50%, transparent 62%);
+  transform: translateX(-110%);
+}
+.news-visit-btn:hover::after { transform: translateX(110%); transition: transform .9s cubic-bezier(.22,1,.36,1); }
+.news-visit-btn:hover { background: var(--cr-brk), rgba(var(--acc),.1); border-color: rgba(var(--acc),.6); }
+
+
+/* ══════════════════════════════════════════════════════════════
+   六、減少動態：流光與光環旋轉全部停掉（保留靜態外觀）
+   ══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .scene.active .noble-outer-frame::before,
+  .scene.active .cr-ic::before { animation: none !important; }
+  .news-item::after, .news-visit-btn:hover::after { transition: none !important; }
+}
