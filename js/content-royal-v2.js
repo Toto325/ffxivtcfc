@@ -64,10 +64,13 @@
        尾端仍然長而平。若只放大長度、不放大鉤子，鉤子就會退化成一個小彎，翼變成貼邊的直線。 */
     var wingLen = Math.max(40, Math.min(.52 * half, half - reach - .12 * half));
     var wlk = wingLen / (44 * cw);                         // PLAQUE_WING 最長那條是 44，換算成長度倍率
-    var spread = Math.max(9 * cw, Math.min(wingLen / 10, top ? 16 : 24));   // 鉤子扇開高度（螢幕 px）；按鈕約 9
-    var sy = spread / (9 * cw);                            // 相對於按鈕公式（前端 y 7→16，共 9）的放大倍率
-    var WS = N.PLAQUE_WING.map(function (e) {              // 只放大「離基準線 7 的高度」，最貼邊的那條不動
-      return [7 + (e[0] - 7) * sy, 7 + (e[1] - 7) * sy, e[2], e[3], e[4]];
+    var spread = Math.max(9 * cw, Math.min(wingLen / 10, top ? 18 : 28));   // 鉤子扇開高度（螢幕 px）；按鈕約 9。比扣飾下側的流線稍深一點，但不到兩倍
+    /* 6 條翼：原本 4 條（按鈕公式）＋ 2 條更細更短的（線寬不超過原本最細那條），增加密度而不是粗度；
+       中間兩條線寬 ×1.15；尾端收攏程度放寬（×1.3），讓中段仍有幾條線疊在一起，不會變成單一髮絲。 */
+    var BASE = N.PLAQUE_WING.concat([[19, 9.8, 14, .5, .36], [22, 10.4, 10, .4, .3]]);
+    var sy = spread / (15 * cw);                           // 前端 y 7→22 共 15 個單位，攤成 spread 這麼高
+    var WS = BASE.map(function (e, i) {                    // 只放大「離基準線 7 的高度」，最貼邊的那條不動
+      return [7 + (e[0] - 7) * sy, 7 + (e[1] - 7) * sy * 1.3, e[2], e[3] * ((i === 1 || i === 2) ? 1.15 : 1), e[4]];
     });
     var wRf = 16.6 * (WS[WS.length - 1][0] / 16);            // 前端同心弧半徑隨最大前端 y 放大，保持包住寶石的弧線
     function corner(x, y, sx, sy, wings) {
