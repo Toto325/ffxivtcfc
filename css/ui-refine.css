@@ -1,0 +1,127 @@
+/* ui-refine.css — 介面統一調整（載入於 content-royal-v2.css 之後、touch-fixes.css 之前）
+ *
+ * 層級規則：
+ *   舞台  頁面外框                ：完整飾物（content-royal / content-royal-v2）
+ *   匾額  單一物件（簡介、大按鈕） ：切換按鈕同款，等比放大（plaque.js）
+ *   容器  表格、結果列表、巨集面板 ：一條淡外框＋小圓角，標題用小菱形＋漸隱線
+ *   項目  資訊列、表格列           ：不加框，只用分隔線／hover 光柱
+ */
+
+/* ───────── 1. 匾額（plaque.js 畫的 SVG） ───────── */
+[data-plaque] { position: relative; isolation: isolate; }
+[data-plaque] > *:not(.plq-svg) { position: relative; z-index: 1; }
+.plq-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; z-index: 0; }
+.plq-fill { fill: rgba(16,12,9,.5); transition: fill .3s ease; }
+.plq-in   { fill: none; stroke: rgba(197,160,89,.3); stroke-width: 1; transition: stroke .3s ease; }
+.plq-out  { fill: none; stroke-opacity: .68; stroke-width: 1.5; transition: stroke-opacity .3s ease; }
+.plq-sh   { transform: translateX(0); }
+
+/* 按鈕型匾額：hover 與切換按鈕一樣亮起、光掃過 */
+[data-plaque="btn"]:hover .plq-fill { fill: rgba(60,44,20,.78); }
+[data-plaque="btn"]:hover .plq-in   { stroke: rgba(252,228,170,.62); }
+[data-plaque="btn"]:hover .plq-out  { stroke-opacity: 1; }
+[data-plaque="btn"]:hover .plq-sh   { transform: translateX(calc(var(--sw, 180px) * 1.9)); transition: transform .9s cubic-bezier(.22,1,.36,1); }
+[data-plaque="btn"]:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { [data-plaque="btn"]:hover .plq-sh { transition: none; } }
+
+/* ───────── 2. 大按鈕（查看全部公告／前往原文）：外觀交給匾額 ───────── */
+.news-visit-btn[data-plaque] {
+  border: none !important; background: none !important; box-shadow: none !important;
+  padding: calc(16px * var(--ps, 1)) calc(44px * var(--ps, 1)) !important;
+  transform: none;
+}
+.news-visit-btn[data-plaque]::after { content: none !important; }
+.news-visit-btn[data-plaque]:hover { background: none !important; transform: none; }
+.news-visit-btn[data-plaque="btn"]:active { transform: scale(.97); }
+
+/* ───────── 3. 簡介匾額：資料條列（數量不限） ───────── */
+.intro-plaque {
+  width: 100%; max-width: 640px; margin: 6px auto 0;
+  padding: calc(34px * var(--ps, 1)) calc(40px * var(--ps, 1)) calc(30px * var(--ps, 1));
+  box-sizing: border-box;
+}
+.ledger { margin: 0; padding: 0; }
+.ledger-row {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; column-gap: 14px;
+  padding: 13px 0; margin: 0;
+}
+.ledger-row + .ledger-row { border-top: 1px solid rgba(197,160,89,.13); }
+/* 標籤與數值之間的點線引導：與頂部選單飾桿的圓點同一種語彙 */
+.ledger-row::before {
+  content: ""; grid-column: 2; grid-row: 1; align-self: end; margin-bottom: .42em;
+  border-bottom: 2px dotted rgba(197,160,89,.26);
+}
+.ledger-row .intro-lbl { grid-column: 1; grid-row: 1; margin: 0; white-space: nowrap; }
+.ledger-row .intro-val { grid-column: 3; grid-row: 1; margin: 0; text-align: right; }
+.intro-plaque .intro-motto { border-top: 1px solid rgba(197,160,89,.22); margin-top: 8px; padding-top: 24px; }
+.intro-plaque .motto-text { line-height: 2.5; }
+
+@media (max-width: 600px) {
+  .intro-plaque { padding: 30px 20px 24px; }
+  .ledger-row { column-gap: 10px; }
+  .intro-plaque .motto-text { line-height: 2.2; letter-spacing: 1px; font-size: .95rem; }
+  .ledger-row .intro-val { letter-spacing: 1.5px; font-size: .98rem; }
+  .news-visit-btn[data-plaque] { padding-left: 22px !important; padding-right: 22px !important; }
+  .news-visit-btn[data-plaque] .btn-en { letter-spacing: 3px; font-size: .8rem !important; }
+}
+
+/* ───────── 4. 巨集頁：容器＋步驟之間的連接記號 ─────────
+   · 取消 v2 加在 .mt-sec 上的四角短線（舊版殘留的簡陋角框）。
+   · 模板 → 行編輯器 → 巨集預覽是有關聯的三步（頁首的三步驟提示），三塊面板統一寬度，
+     面板之間放一條淡線＋小菱形表示「接著是下一步」；不加順序數字。
+   · 標題前的 ▸ 改成小菱形，與整站分隔線的菱形珠點同一語彙。 */
+.mt-sec::after { content: none; }
+.macro-root-frame > .mt-sec { width: 100%; box-sizing: border-box; border-radius: 10px; margin-bottom: 0; }
+.macro-root-frame > .mt-sec:not(.mt-warn-sec) { margin-top: 18px; }
+.macro-root-frame > .mt-global-bar + .mt-sec { margin-top: 0; }
+.macro-root-frame > .mt-warn-sec { margin-top: 14px; }
+.macro-root-frame > .mt-sec:last-child { margin-top: 34px; }          /* 常用指令代名詞：獨立的參考區 */
+.macro-root-frame > .mt-editor-sec,
+.macro-root-frame > .mt-sec:has(.mt-preview) { margin-top: 42px; }    /* 留出連接記號的位置 */
+
+.mt-editor-sec::before,
+.mt-sec:has(.mt-preview)::before {
+  content: ""; position: absolute; left: 50%; top: -42px; width: 1px; height: 42px; pointer-events: none;
+  background: linear-gradient(rgba(197,160,89,0), rgba(197,160,89,.5) 34%, rgba(197,160,89,.5) 66%, rgba(197,160,89,0));
+}
+.mt-editor-sec::after,
+.mt-sec:has(.mt-preview)::after {
+  content: ""; position: absolute; left: 50%; top: -21px; width: 6px; height: 6px; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: #e9cf8d; box-shadow: 0 0 7px rgba(233,207,141,.55);
+}
+.mt-sec-lbl::before {
+  content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 10px; position: relative; top: -1px;
+  background: currentColor; transform: rotate(45deg); opacity: .85;
+}
+.mt-warn-sec .mt-sec-lbl { color: rgba(255,190,100,.92) !important; }
+
+/* ───────── 5. 表頭：與市場同一組「暖金底＋雙線底邊」，並且整行一條漸變 ─────────
+   .sub-table（潛水艇、飛空艇共用）的表頭沒有 sticky，所以能直接把漸變畫在 thead 的列上，
+   整行只有一條由左濃到右淡的漸層，不會逐格重複；th 本身保持透明。 */
+.sub-table thead tr {
+  background:
+    linear-gradient(90deg, rgba(197,160,89,.18), rgba(197,160,89,.07) 85%, rgba(197,160,89,.02)),
+    #0d0a07;
+}
+.sub-table th {
+  background: transparent;
+  color: rgba(234,208,146,.94);
+  border-bottom: 1px solid rgba(214,180,106,.62);
+  box-shadow: 0 2px 0 #060505, 0 3px 0 rgba(197,160,89,.2);
+}
+.sub-table th.sorted, .sub-table th.sub-sort-th:hover { color: var(--gold-bright, #fce4aa); }
+
+/* ───────── 6. 市場價格列表：補上容器外框（表頭與列表兩段拼成一個容器） ─────────
+   表頭（#mk-tab-head）與列表（#mk-listing-table-slot）是分開的兩個元素（表頭固定、列表單獨捲動），
+   所以各畫一半框：表頭畫上半、列表畫下半，圓角與 .sub-table 同為 10px。
+   寬度與原本列的上限一致（一般 536px、成交分頁 620px）。 */
+#mk-tab-head, #mk-listing-table-slot { max-width: 536px; box-sizing: border-box; }
+#mk-tab-head:has(.mfl-time), #mk-listing-table-slot:has(.mfl-time) { max-width: 620px; }
+#mk-tab-head:not(:empty) {
+  border: 1px solid var(--tb, rgba(197,160,89,.25)); border-bottom: none; border-radius: 10px 10px 0 0; overflow: hidden;
+}
+#mk-listing-table-slot:not(:empty) {
+  border: 1px solid var(--tb, rgba(197,160,89,.25)); border-top: none; border-radius: 0 0 10px 10px;
+}
+#mk-listing-table-slot .market-flexrow:last-child { border-bottom: none; }
