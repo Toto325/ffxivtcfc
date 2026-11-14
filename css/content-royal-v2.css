@@ -33,25 +33,53 @@ html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
     linear-gradient(180deg, rgba(26,20,12,.93), rgba(7,6,10,.94));
   -webkit-backdrop-filter: blur(25px); backdrop-filter: blur(25px);
   -webkit-mask-image:
-    radial-gradient(circle at 0 0,       transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
-    radial-gradient(circle at 100% 0,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
-    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
-    radial-gradient(circle at 0 100%,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px));
+    radial-gradient(circle at .75px .75px,       transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) .75px,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) calc(100% - .75px), transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at .75px calc(100% - .75px),    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px));
   -webkit-mask-size: 100% 100%; -webkit-mask-position: 0 0; -webkit-mask-repeat: no-repeat;
   -webkit-mask-composite: source-in;
           mask-image:
-    radial-gradient(circle at 0 0,       transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
-    radial-gradient(circle at 100% 0,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
-    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
-    radial-gradient(circle at 0 100%,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px));
+    radial-gradient(circle at .75px .75px,       transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) .75px,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) calc(100% - .75px), transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at .75px calc(100% - .75px),    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px));
           mask-size: 100% 100%; mask-position: 0 0; mask-repeat: no-repeat;
           mask-composite: intersect;
+}
+
+
+/* ── ::before（v1 的外線環）：只留「進頁面時沿外框跑一圈」的流光；靜態的線改由 SVG 的按鈕同款描邊畫 ── */
+html:not([data-nav-mode="embed"]) .noble-outer-frame::before {
+  background:
+    conic-gradient(from var(--cr-a),
+      transparent 0 78%,
+      rgba(255,236,190,calc(.35 * var(--cr-o))) 90%,
+      rgba(255,250,232,calc(.98 * var(--cr-o))) 100%) border-box;
+  -webkit-mask:
+    radial-gradient(circle at .75px .75px, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) .75px, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) calc(100% - .75px), transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at .75px calc(100% - .75px), transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0) border-box;
+  -webkit-mask-composite: source-in, source-in, source-in, source-in, xor, source-over;
+          mask:
+    radial-gradient(circle at .75px .75px, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) .75px, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at calc(100% - .75px) calc(100% - .75px), transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at .75px calc(100% - .75px), transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    linear-gradient(#000 0 0) padding-box,
+    linear-gradient(#000 0 0) border-box;
+          mask-composite: intersect, intersect, intersect, intersect, exclude, add;
 }
 
 /* ── 內框：線與角飾改由 SVG 畫（同圓心的凹角）；本體只留內陰影 ──────────── */
 html:not([data-nav-mode="embed"]) .noble-inner-frame {
   border-color: transparent;
   background: none;
+  /* 內線已經移到外線旁邊，內框自己的暗角邊緣不再被線蓋住：外側加一圈柔邊，讓暗角漸層過渡到外框底色 */
+  box-shadow: inset 0 0 120px rgba(0,0,0,.95), 0 0 16px 3px rgba(8,6,6,.85);
 }
 
 /* ── 徽章（.cr-medal）不再顯示；它的 <i> 仍留在 HTML 當作該頁圖示的來源 ── */
@@ -63,7 +91,8 @@ html:not([data-nav-mode="embed"]) .noble-inner-frame {
   overflow: visible; z-index: 3; pointer-events: none;
 }
 html[data-nav-mode="embed"] .cr2-svg { display: none; }
-.cr2-in  { fill: none; stroke: rgba(197,160,89,.34); stroke-width: 1; }
+.cr2-out { fill: none; stroke-opacity: .68; stroke-width: 1.5; }   /* 同切換按鈕 .nrb-out */
+.cr2-in  { fill: none; stroke: rgba(197,160,89,.3); stroke-width: 1; }   /* 同 .nrb-in */
 .cr2-gem { fill: rgba(var(--acc),.9); filter: drop-shadow(0 0 3px rgba(var(--acc),.7)); }
 
 /* ── 標題旁圖示：Phosphor（與選單同款），跟著該頁點綴色 ─────────────────── */
