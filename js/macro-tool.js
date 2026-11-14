@@ -2413,7 +2413,7 @@ function toolHTML(){
     +'</div>'
     // Templates
     +'<div class="mt-sec">'
-      +'<div class="mt-sec-hdr"><span class="mt-sec-lbl">▸ 模板快速開始</span>'
+      +'<div class="mt-sec-hdr"><span class="mt-sec-lbl">模板快速開始</span>'
       +'<button class="mt-clearall" id="mt-clearall">清空所有行</button></div>'
       +'<div class="mt-tpl-row">'
         +TEMPLATES.map(function(t){return '<div class="mt-tpl-card" data-tpl="'+t.id+'"><div class="mt-tpl-icon">'+t.icon+'</div><div class="mt-tpl-info"><div class="mt-tpl-name">'+t.label+'</div><div class="mt-tpl-desc">'+t.desc+'</div></div></div>';}).join('')
@@ -2422,7 +2422,7 @@ function toolHTML(){
     // Line editor
     +'<div class="mt-sec mt-editor-sec">'
       +'<div class="mt-sec-hdr">'
-        +'<span class="mt-sec-lbl">▸ 行編輯器</span>'
+        +'<span class="mt-sec-lbl">行編輯器</span>'
         +'<span class="mt-lc" id="mt-lc">0 / 15 行</span>'
       +'</div>'
       +'<div class="mt-lines" id="mt-lines"><div class="mt-empty">尚無行 — 選擇模板，或按「＋ 新增行」</div></div>'
@@ -2431,11 +2431,11 @@ function toolHTML(){
     +'</div>'
     // Warnings
     +'<div class="mt-sec mt-warn-sec" id="mt-warn-sec" style="display:none">'
-      +'<div class="mt-sec-lbl">▸ 提示與警告</div><div id="mt-warns"></div>'
+      +'<div class="mt-sec-lbl">提示與警告</div><div id="mt-warns"></div>'
     +'</div>'
     // Preview
     +'<div class="mt-sec" id="mt-preview-sec">'
-      +'<div class="mt-sec-hdr"><span class="mt-sec-lbl">▸ 巨集預覽</span>'
+      +'<div class="mt-sec-hdr"><span class="mt-sec-lbl">巨集預覽</span>'
       +'<div style="display:flex;gap:8px;">'
       +'<button class="mt-edit-toggle" id="mt-edit-toggle">切換編輯</button>'
       +'<button class="mt-copybtn" id="mt-copybtn">複製巨集</button>'
@@ -2445,7 +2445,7 @@ function toolHTML(){
     +'</div>'
     // Pronouns
     +'<div class="mt-sec">'
-      +'<div class="mt-sec-lbl">▸ 常用指令代名詞 <span class="mt-prosub">（點擊可複製）</span></div>'
+      +'<div class="mt-sec-lbl">常用指令代名詞 <span class="mt-prosub">（點擊可複製）</span></div>'
       +'<div class="mt-prorow">'+PRONS.map(function(p){return '<span class="mt-pro" title="'+esc(p.d)+'">'+esc(p.s)+'</span>';}).join('')+'</div>'
     +'</div>';
 }

@@ -10,19 +10,21 @@
     var mode = root.getAttribute('data-nav-mode');
     var svg = fr.querySelector(':scope > .cr2-svg');
     if (mode === 'embed') { if (svg) svg.remove(); return; }
-    var w = fr.offsetWidth, h = fr.offsetHeight;
+    var fb = fr.getBoundingClientRect();
+    var w = Math.round(fb.width * 100) / 100, h = Math.round(fb.height * 100) / 100;   // 取小數寬度：與頂部選單扣飾量到的是同一個數字
     if (!w || !h) return;
 
     var fmt = N.fmt;
 
-    /* 唯一的縮放係數 sc：只由框寬決定，與選單模式無關（寬螢幕的頂部模式＝左側模式）。
-       框寬 ≥ 960px 為 1.0（＝左側模式現在的設計）；更窄時「整個外框等比縮小」，下限 .4。
-       所有元素（缺角、寶石、線距、飾翼、扣飾、下緣短線）都乘同一個 sc，比例才不會走掉；
-       只有線寬有物理下限（再細會發虛），見 outW／inW。 */
-    var sc = Math.max(.4, Math.min(1, w / 960));
+    /* 縮放：公式與頂部選單扣飾共用（N.uiScale，定義在 nav-royal.js）。
+       框寬 ≥ 960px（＝左側模式最大螢幕的外框）全部為 1.0；更窄時橫向（長度、線寬）與縱向（翼飾高度）
+       分開縮放——手機缺的是寬度，高度夠用，所以 6 條翼維持原造型，只是縱向縮得比橫向少。
+       core＝扣飾核心與寶石的縮放，下限較高，手機上才不會小到看不見。 */
+    var S = N.uiScale ? N.uiScale(w) : { sx: Math.max(.4, Math.min(1, w / 960)), sy: Math.max(.4, Math.min(1, w / 960)), core: Math.max(.4, Math.min(1, w / 960)) };
+    var sc = S.sx;
 
     /* 與切換按鈕同一組公式：外線缺角半徑 r，內線只貼近外線 sIn，兩者同圓心（寶珠坐在圓心）。 */
-    var r = 18 * sc, c = 1.75 * sc;                        // 缺角半徑與寶石縮放
+    var r = 18 * sc, c = 1.75 * Math.max(sc, S.core * .85);   // 缺角半徑與寶石縮放（寶石用較高的下限）
     var sIn = 8.5 * sc;                                    // 外線與內線的距離（原 6.5，雙線看起來更厚）
     var outW = Math.max(1.2, 2 * sc), inW = Math.max(.8, sc);   // 線寬（物理下限）
     fr.style.setProperty('--cr-r', fmt(r) + 'px');         // 讓 CSS 的缺角遮罩半徑與 SVG 一致
@@ -61,14 +63,15 @@
     var cw = 1.25 * sc;                                    // 飾翼縮放（線寬、基準高度）
 
     /* 中央扣飾的範圍先算出來：角翼要「填到扣飾旁邊」，角翼＋扣飾約佔每半邊上緣的 85%，上緣看起來才像被承托住。 */
-    var csc = .85 * sc;
+    var csc = .85 * S.core;
     var reach = .33 * half;
     var clk = Math.max(.4, (reach / csc - 22) / 112);      // 22＝筆劃起點離寶石中心；112＝最長流線
 
     /* 飾翼：長度維持覆蓋率；扇開高度 ≈ 長度的 1/9.4（左側模式現在的比例），所以任何寬度下比例都一樣，不會變扁。 */
     var wingLen = Math.max(30, Math.min(.52 * half, half - reach - .12 * half));
     var wlk = wingLen / (44 * cw);                         // PLAQUE_WING 最長那條是 44，換算成長度倍率
-    var spread = Math.max(9 * cw, Math.min(wingLen / 9.4, 28));   // 鉤子扇開高度（螢幕 px）
+    var ratio = 5.2 + (9.4 - 5.2) * Math.max(0, Math.min(1, (S.sy - .75) / .25));   // 長高比：桌面 9.4，手機約 5.2
+    var spread = Math.max(9 * cw, Math.min(wingLen / ratio, 28));   // 鉤子扇開高度（螢幕 px）
     /* 6 條翼：原本 4 條（按鈕公式）＋ 2 條更細更短的，增加密度而不是粗度；
        中間兩條線寬 ×1.15；尾端收攏程度放寬（×1.3），讓中段仍有幾條線疊在一起。
        基準線 B0 跟著內線一起往下挪（內線距離加大後，翼仍保持在內線下方約 2.5px）。 */

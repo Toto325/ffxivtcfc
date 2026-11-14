@@ -415,11 +415,36 @@
      之前它在 .nrp 裡，而 .nrp（z 9980）在主列（z 9999）下面，主列近乎不透明的底色把扣飾
      跨進主列的上半部（長流線、向上尖刺、上半個菱框）整個蓋掉；放進主列內就不會被自己的底色蓋住，
      同時仍在展開的子選單（z 9998）之下，不會畫到子選單卡片上。 */
-  var TOP_CLASP_SC = .9;
+  /* ── 共用縮放（內容頁外框＋頂部選單扣飾共用同一條公式，兩顆扣飾才會永遠同大小）──
+     w＝內容頁外框的實際寬度；w ≥ 960（＝左側模式最大螢幕的外框）時全部為 1。
+     橫向（長度、線寬）與縱向（翼飾扇開高度）分開縮放：手機稀缺的是寬度，高度其實夠用，
+     所以縱向縮得比橫向少，6 條翼的造型不變，只是更「立」，不會被壓成扁線。
+     core＝扣飾核心（菱框＋寶石）的縮放，下限較高，手機上才看得清楚。 */
+  function uiScale(w) {
+    var t = Math.max(.05, w / 960);
+    var sx = Math.max(.55, Math.min(1, Math.pow(t, .6)));
+    var sy = Math.max(.75, Math.min(1, Math.pow(t, .3)));
+    return { sx: sx, sy: sy, core: Math.max(sx, .7) };
+  }
+  var CLASP_BASE = .85;     // 扣飾在 sc=1 時的縮放（＝內容頁外框現值）
+  function activeFrame() { return document.querySelector('.scene.active .noble-outer-frame'); }
+
+  var clState = '';
   function syncTopClasp() {
     var el = nav.querySelector(':scope > .nrp-clasp');
-    if (G.mode !== 'top') { if (el) el.remove(); return; }
+    if (G.mode !== 'top') { if (el) el.remove(); clState = ''; return; }
     var HW = 150, HH = 120;
+    /* 量「實際的內容頁外框」：中心與寬度都以它為準，捲軸、取整、padding 造成的差距都不用再猜 */
+    var fr = activeFrame(), fw = G.W - 40, cx = G.W / 2;
+    if (fr) {
+      var fb = fr.getBoundingClientRect(), nb = nav.getBoundingClientRect();
+      if (fb.width) { fw = fb.width; cx = fb.left + fb.width / 2 - nb.left; }
+    }
+    var sc = CLASP_BASE * uiScale(fw).core;
+    var left = Math.round((cx - HW) * DPR) / DPR;
+    var key = [fmt(left), fmt(sc), G.navH].join('|');
+    if (el && key === clState) return;
+    clState = key;
     if (!el) {
       el = document.createElementNS(NS, 'svg');
       el.setAttribute('class', 'nrp-clasp');
@@ -428,10 +453,29 @@
     }
     el.setAttribute('width', HW * 2); el.setAttribute('height', HH * 2);
     el.setAttribute('viewBox', '0 0 ' + HW * 2 + ' ' + HH * 2);
-    el.style.left = fmt(G.W / 2 - HW) + 'px';
+    el.style.left = fmt(left) + 'px';
     el.style.top = fmt(G.navH + 6.2 - HH) + 'px';
-    el.innerHTML = centerOrn(HW, HH, false, TOP_CLASP_SC);
+    el.innerHTML = centerOrn(HW, HH, false, sc);
   }
+  /* 換頁（.scene 的 active）、外框尺寸變動、捲軸出現時重新對齊 */
+  (function watchClasp() {
+    var raf = 0, ro = null, watched = null;
+    function tick() {
+      raf = 0;
+      var fr = activeFrame();
+      if (ro && fr !== watched) { if (watched) ro.unobserve(watched); watched = fr; if (fr) ro.observe(fr); }
+      syncTopClasp();
+    }
+    function req() { if (!raf) raf = requestAnimationFrame(tick); }
+    if (window.ResizeObserver) ro = new ResizeObserver(req);
+    var vp = document.getElementById('viewport');
+    if (vp) {
+      new MutationObserver(req).observe(vp, { attributes: true, attributeFilter: ['class'], subtree: true });
+      if (ro) ro.observe(vp);
+    }
+    window.addEventListener('resize', req);
+    window.addEventListener('load', req);
+  })();
 
   /* 邊緣流光路徑：直接從 SVG 路徑取樣（約 2px 一點），形狀怎麼變都不用改 */
   function buildPath() {
@@ -708,7 +752,8 @@
   /* 匯出繪圖函式給 content-royal-v2.js（內容頁外框）沿用，確保與選單／切換按鈕同一套造型 */
   window.NRO = { NS: NS, GOLD: GOLD, fmt: fmt, P: P, gem: gem, glint: glint, taper: taper, ccvPath: ccvPath,
     frameJewel: frameJewel, miniJewel: miniJewel, cornerOrn: cornerOrn, claspStrokes: claspStrokes,
-    centerFrame: centerFrame, wingSet: wingSet, PLAQUE_WING: PLAQUE_WING };
+    centerFrame: centerFrame, wingSet: wingSet, PLAQUE_WING: PLAQUE_WING,
+    uiScale: uiScale, plaqueOrn: plaqueOrn, centerOrn: centerOrn };
 
   /* 啟動 */
   relayout();
