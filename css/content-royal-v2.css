@@ -27,7 +27,7 @@ html:not([data-nav-mode="embed"]) .noble-outer-frame {
 html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
   content: "";
   position: absolute; inset: -1.5px; z-index: -1; pointer-events: none;
-  --r: calc(18px * var(--cr-k));
+  --r: var(--cr-r, calc(18px * var(--cr-k)));
   background:
     linear-gradient(180deg, rgba(214,180,106,.10), transparent 44px),   /* 上緣淡金底光：讓飾翼區有「被托住」的底色 */
     radial-gradient(70% 120px at 50% 0, rgba(252,246,186,.07), transparent 100%),
@@ -53,7 +53,7 @@ html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
 
 /* ── ::before（v1 的外線環）：只留「進頁面時沿外框跑一圈」的流光；靜態的線改由 SVG 的按鈕同款描邊畫 ── */
 html:not([data-nav-mode="embed"]) .noble-outer-frame::before {
-  --r: calc(18px * var(--cr-k));
+  --r: var(--cr-r, calc(18px * var(--cr-k)));
   background:
     conic-gradient(from var(--cr-a),
       transparent 0 78%,
@@ -97,7 +97,7 @@ html:not([data-nav-mode="embed"]) .noble-inner-frame {
 }
 html[data-nav-mode="embed"] .cr2-svg { display: none; }
 .cr2-out { fill: none; stroke-opacity: .68; stroke-width: 1.5; }
-html[data-nav-mode="left"] .cr2-out { stroke-width: 2; }   /* 大框上的線要比小按鈕稍粗，存在感才相當 */   /* 同切換按鈕 .nrb-out */
+/* 線寬由 JS 依框寬設定（寬框 2px，窄框有 1.2px 下限） */
 .cr2-in  { fill: none; stroke: rgba(197,160,89,.4); stroke-width: 1; }   /* 同 .nrb-in */
 .cr2-gem { fill: rgba(var(--acc),.9); filter: drop-shadow(0 0 3px rgba(var(--acc),.7)); }
 
@@ -184,3 +184,7 @@ html[data-nav-mode="left"] .cr2-out { stroke-width: 2; }   /* 大框上的線要
 
 /* ── 巨集頁的頁面上內距原本是 0，外框貼著視窗頂端，上緣扣飾會被切掉：左側模式補回與其他頁相同的 26px ── */
 html[data-nav-mode="left"] #macro.scene { padding-top: 26px !important; }
+
+
+/* ── 頂部模式：內容頁上緣與主選單下緣的扣飾之間多留一點空白（寬螢幕兩者尺寸一致，所以用間距而不是縮小飾物）── */
+html[data-nav-mode="top"] .scene { padding-top: 34px !important; }
