@@ -27,7 +27,7 @@ html:not([data-nav-mode="embed"]) .noble-outer-frame {
 html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
   content: "";
   position: absolute; inset: -1.5px; z-index: -1; pointer-events: none;
-  --r: calc(12px * var(--cr-k));
+  --r: calc(18px * var(--cr-k));
   background:
     radial-gradient(70% 120px at 50% 0, rgba(252,246,186,.07), transparent 100%),
     linear-gradient(180deg, rgba(26,20,12,.93), rgba(7,6,10,.94));
@@ -52,6 +52,7 @@ html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
 
 /* ── ::before（v1 的外線環）：只留「進頁面時沿外框跑一圈」的流光；靜態的線改由 SVG 的按鈕同款描邊畫 ── */
 html:not([data-nav-mode="embed"]) .noble-outer-frame::before {
+  --r: calc(18px * var(--cr-k));
   background:
     conic-gradient(from var(--cr-a),
       transparent 0 78%,
@@ -94,8 +95,9 @@ html:not([data-nav-mode="embed"]) .noble-inner-frame {
   overflow: visible; z-index: 3; pointer-events: none;
 }
 html[data-nav-mode="embed"] .cr2-svg { display: none; }
-.cr2-out { fill: none; stroke-opacity: .68; stroke-width: 1.5; }   /* 同切換按鈕 .nrb-out */
-.cr2-in  { fill: none; stroke: rgba(197,160,89,.3); stroke-width: 1; }   /* 同 .nrb-in */
+.cr2-out { fill: none; stroke-opacity: .68; stroke-width: 1.5; }
+html[data-nav-mode="left"] .cr2-out { stroke-width: 2; }   /* 大框上的線要比小按鈕稍粗，存在感才相當 */   /* 同切換按鈕 .nrb-out */
+.cr2-in  { fill: none; stroke: rgba(197,160,89,.4); stroke-width: 1; }   /* 同 .nrb-in */
 .cr2-gem { fill: rgba(var(--acc),.9); filter: drop-shadow(0 0 3px rgba(var(--acc),.7)); }
 
 /* ── 標題旁圖示：Phosphor（與選單同款），跟著該頁點綴色 ─────────────────── */
