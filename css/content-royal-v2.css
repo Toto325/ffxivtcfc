@@ -1,0 +1,151 @@
+/* ============================================================
+ * content-royal-v2.css — 內容頁外框改版（參考「切換按鈕」的凹角雕版）
+ *
+ * 獨立的「加法」檔案：必須放在 content-royal.css 之後、touch-fixes.css 之前載入，
+ * 並搭配 js/content-royal-v2.js（需要 nav-royal.js 匯出的 window.NRO）。
+ * 想還原：移除 index.html 裡本檔的 <link> 與 content-royal-v2.js 的 <script> 即可
+ * （標題旁的 Phosphor 圖示是直接寫在 HTML／JS 字串裡，要還原請對照 README-v2.txt）。
+ *
+ * 設計：
+ *   ‧ 外框＝外亮內暗的雙線，四個角都是「凹角」（外線與內線同圓心的弧），
+ *     背景也一起切成凹角，不再有露出來的方形底色。
+ *   ‧ 上面兩角：選單同款的飾線＋寶珠；下面兩角：只有一顆小寶珠。
+ *   ‧ 上緣正中：按鈕上緣那組扣飾（菱形寶石＋長流線翼）放大版，寶石中心用該頁點綴色。
+ *   ‧ 下緣正中：兩條極細短線（按鈕下緣同款）。
+ *   ‧ 左右緣、下緣中段不放任何東西，閱讀區保持安靜。
+ * ============================================================ */
+
+:root { --acc: 255,232,176; }
+
+/* ── 外框：背景改由 ::after 提供（才能和外線一起切出凹角）──────────────── */
+html:not([data-nav-mode="embed"]) .noble-outer-frame {
+  isolation: isolate;
+  background: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: none;
+}
+html:not([data-nav-mode="embed"]) .noble-outer-frame::after {
+  content: "";
+  position: absolute; inset: -1.5px; z-index: -1; pointer-events: none;
+  --r: calc(12px * var(--cr-k));
+  background:
+    radial-gradient(70% 120px at 50% 0, rgba(252,246,186,.07), transparent 100%),
+    linear-gradient(180deg, rgba(26,20,12,.93), rgba(7,6,10,.94));
+  -webkit-backdrop-filter: blur(25px); backdrop-filter: blur(25px);
+  -webkit-mask-image:
+    radial-gradient(circle at 0 0,       transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 0,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 0 100%,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px));
+  -webkit-mask-size: 100% 100%; -webkit-mask-position: 0 0; -webkit-mask-repeat: no-repeat;
+  -webkit-mask-composite: source-in;
+          mask-image:
+    radial-gradient(circle at 0 0,       transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 0,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 100% 100%, transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px)),
+    radial-gradient(circle at 0 100%,    transparent calc(var(--r) - .4px), #000 calc(var(--r) + .1px));
+          mask-size: 100% 100%; mask-position: 0 0; mask-repeat: no-repeat;
+          mask-composite: intersect;
+}
+
+/* ── 內框：線與角飾改由 SVG 畫（同圓心的凹角）；本體只留內陰影 ──────────── */
+html:not([data-nav-mode="embed"]) .noble-inner-frame {
+  border-color: transparent;
+  background: none;
+}
+
+/* ── 徽章（.cr-medal）不再顯示；它的 <i> 仍留在 HTML 當作該頁圖示的來源 ── */
+.noble-outer-frame > .cr-medal { display: none; }
+
+/* ── SVG 圖層：覆蓋整個外框（border-box），不擋滑鼠 ──────────────────── */
+.cr2-svg {
+  position: absolute; left: -1.5px; top: -1.5px;
+  overflow: visible; z-index: 3; pointer-events: none;
+}
+html[data-nav-mode="embed"] .cr2-svg { display: none; }
+.cr2-in  { fill: none; stroke: rgba(197,160,89,.34); stroke-width: 1; }
+.cr2-gem { fill: rgba(var(--acc),.9); filter: drop-shadow(0 0 3px rgba(var(--acc),.7)); }
+
+/* ── 標題旁圖示：Phosphor（與選單同款），跟著該頁點綴色 ─────────────────── */
+.unified-gold-header .cr-title-ic {
+  display: inline-block;
+  font-size: .8em; line-height: 1;
+  margin-right: .42em; letter-spacing: 0;
+  vertical-align: -.08em;
+  color: rgb(var(--acc));
+  -webkit-text-fill-color: currentColor;
+  filter: drop-shadow(0 0 6px rgba(var(--acc),.45));
+}
+.craft-loading-icon.ph { color: rgb(var(--acc)); }
+
+
+/* ══════════════════════════════════════════════════════════════
+   元件層（強度 B）：外框以內一律「更安靜」——細線＋選單式的 hover 光柱，不放飾物
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 一、固定表頭：不再是純黑，改暖金色調＋雙線底邊（外亮內暗，同飾桿）──────
+   底下墊一層不透明的暖黑，因為這些表頭多半是 sticky，捲動時不能透出下面的列。 */
+.market-flexrow-head,
+.wl-thead {            /* 單一元素的表頭列：左濃右淡 */
+  background:
+    linear-gradient(90deg, rgba(197,160,89,.18), rgba(197,160,89,.07) 85%, rgba(197,160,89,.02)),
+    #0d0a07;
+}
+.market-price-table th,
+.market-trend-table th,
+.ld-table th {         /* 表格的 th 每格各畫一次，用單色才不會出現一格一格的漸層 */
+  background:
+    linear-gradient(rgba(197,160,89,.12), rgba(197,160,89,.12)),
+    #0d0a07;
+}
+.market-flexrow-head,
+.market-price-table th,
+.market-trend-table th,
+.wl-thead,
+.ld-table th {
+  color: rgba(234,208,146,.94);
+  border-bottom: 1px solid rgba(214,180,106,.62);
+  box-shadow: 0 2px 0 #060505, 0 3px 0 rgba(197,160,89,.2);
+}
+
+/* ── 二、列的 hover：左側亮起一條光柱（同選單項目），幅度比選單小 ───────── */
+.market-flexrow:not(.market-flexrow-head):not(.market-flexrow-best):hover,
+.market-price-table tbody tr:hover,
+.market-trend-table tbody tr:hover,
+.ld-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(var(--acc),.12), rgba(var(--acc),.02) 70%, transparent);
+}
+.market-flexrow:not(.market-flexrow-head):hover { box-shadow: inset 2px 0 0 rgba(var(--acc),.8); }
+.market-price-table tbody tr:hover td:first-child,
+.market-trend-table tbody tr:hover td:first-child,
+.ld-table tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 rgba(var(--acc),.8); }
+
+/* ── 三、底線式分頁：啟用中的那一條改用該頁點綴色，加一道向下的柔光 ──────── */
+.craft-tab-btn.active,
+.craft-explore-tab.active,
+.craft-batchview-tab.active {
+  border-bottom-color: rgb(var(--acc));
+  box-shadow: 0 8px 10px -8px rgba(var(--acc),.85);
+}
+
+/* ── 四、輸入框 focus：點綴色細框＋柔光（原本各頁各自的金色 focus 保留為退路）── */
+.noble-inner-frame input[type="text"]:focus,
+.noble-inner-frame input[type="search"]:focus,
+.noble-inner-frame input[type="number"]:focus,
+.noble-inner-frame select:focus,
+.noble-inner-frame textarea:focus {
+  outline: none;
+  border-color: rgba(var(--acc),.7);
+  box-shadow: 0 0 0 1px rgba(var(--acc),.22), 0 0 14px rgba(var(--acc),.16);
+}
+
+/* ── 五、面板：圓角很大的卡片（生產頁）維持原樣；直角的段落面板（巨集頁）套四個小角飾 ── */
+.mt-sec { position: relative; }
+.mt-sec::after {
+  content: ""; position: absolute; inset: -1px; pointer-events: none;
+  background: var(--cr-brk); background-origin: border-box;
+}
+
+
+/* ── 巨集頁的頁面上內距原本是 0，外框貼著視窗頂端，上緣扣飾會被切掉：左側模式補回與其他頁相同的 26px ── */
+html[data-nav-mode="left"] #macro.scene { padding-top: 26px !important; }
