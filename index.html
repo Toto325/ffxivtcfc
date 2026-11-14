@@ -44,6 +44,7 @@
 <link rel="stylesheet" href="css/nav-unify.css?v=4">
 <link rel="stylesheet" href="css/content-royal.css?v=1">
 <link rel="stylesheet" href="css/content-royal-v2.css?v=1">
+<link rel="stylesheet" href="css/ui-refine.css?v=1">
 <link rel="stylesheet" href="css/touch-fixes.css?v=1">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
@@ -83,15 +84,17 @@
     <div class="noble-outer-frame"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-book-open-text"></i></span><div class="noble-inner-frame intro-layout">
       <h2 class="unified-gold-header small"><i class="ph ph-book-open-text cr-title-ic" aria-hidden="true"></i>公會簡介</h2>
       <div class="fancy-divider mini"><div class="long-silk-line-short"></div></div>
-      <div class="intro-grid">
-        <div class="intro-card"><div class="intro-lbl">創建時間</div><div class="intro-val">2025 / 11 / 28</div></div>
-        <div class="intro-card"><div class="intro-lbl">伺服器</div><div class="intro-val">利維坦</div></div>
-        <div class="intro-card"><div class="intro-lbl">公寓地址</div><div class="intro-val">穹頂皓天　第3區　30號</div></div>
-        <div class="intro-card"><div class="intro-lbl">招募形式</div><div class="intro-val">開放申請</div></div>
-      </div>
-      <div class="intro-motto">
-        <div class="intro-lbl motto-title">公會標語</div>
-        <p class="elegant-body-text motto-text">永久小型休閒公會，無任何貢獻要求<br>自願貢獻式經營，請安心以自己的方式享受遊戲<br>並保持自願自發，以禮以誠待人</p>
+      <div class="intro-plaque" data-plaque>
+        <dl class="ledger">
+          <div class="ledger-row"><dt class="intro-lbl">創建時間</dt><dd class="intro-val">2025 / 11 / 28</dd></div>
+          <div class="ledger-row"><dt class="intro-lbl">伺服器</dt><dd class="intro-val">利維坦</dd></div>
+          <div class="ledger-row"><dt class="intro-lbl">公寓地址</dt><dd class="intro-val">穹頂皓天　第3區　30號</dd></div>
+          <div class="ledger-row"><dt class="intro-lbl">招募形式</dt><dd class="intro-val">開放申請</dd></div>
+        </dl>
+        <div class="intro-motto">
+          <div class="intro-lbl motto-title">公會標語</div>
+          <p class="elegant-body-text motto-text">永久小型休閒公會，無任何貢獻要求<br>自願貢獻式經營，請安心以自己的方式享受遊戲<br>並保持自願自發，以禮以誠待人</p>
+        </div>
       </div>
     </div></div>
   </section>
@@ -134,7 +137,7 @@
       <h2 class="unified-gold-header small news-title"><i class="ph ph-megaphone cr-title-ic" aria-hidden="true"></i>官方最新公告</h2>
       <div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>
       <div id="news-list" class="news-list-container"><div class="news-loading"><span class="news-loading-icon">✧</span><span>正在讀取最新公告⋯</span></div></div>
-      <a href="https://www.ffxiv.com.tw/web/news/news_list.aspx" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih"><span class="btn-en">VIEW ALL ANNOUNCEMENTS</span><span class="btn-cn-sm">前往官網查看全部公告</span></a>
+      <a href="https://www.ffxiv.com.tw/web/news/news_list.aspx" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih" data-plaque="btn"><span class="btn-en">VIEW ALL ANNOUNCEMENTS</span><span class="btn-cn-sm">前往官網查看全部公告</span></a>
     </div></div>
   </section>
   <section id="submarine" class="scene">
@@ -163,7 +166,7 @@
       <div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>
       <p class="elegant-body-text page-note">感謝巴哈眾英雄熱心分享。如有幫到你，可對他們說聲謝謝。</p>
       <div id="fashion-content" class="news-list-container"><div class="news-loading"><span class="news-loading-icon">✿</span><span>正在讀取本週答案⋯</span></div></div>
-      <a href="https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih"><span class="btn-en">VIEW ORIGINAL POST</span><span class="btn-cn-sm">前往巴哈姆特原文討論串</span></a>
+      <a href="https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih" data-plaque="btn"><span class="btn-en">VIEW ORIGINAL POST</span><span class="btn-cn-sm">前往巴哈姆特原文討論串</span></a>
     </div></div>
   </section>
   <section id="macro" class="scene">
@@ -196,7 +199,8 @@
 <script src="js/market-panel.js"></script>
 <script src="js/macro-tool.js"></script>
 <script src="js/nav.js?v=13"></script>
-<script src="js/nav-royal.js?v=12"></script>
-<script src="js/content-royal-v2.js?v=1"></script>
+<script src="js/nav-royal.js?v=13"></script>
+<script src="js/content-royal-v2.js?v=2"></script>
+<script src="js/plaque.js?v=1"></script>
 </body>
 </html>
