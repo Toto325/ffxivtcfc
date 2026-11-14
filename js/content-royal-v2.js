@@ -52,11 +52,19 @@
        飾翼公式沿用按鈕（PLAQUE_WING，前端落在以寶石為圓心的同心弧上），整體 ×c，長度依框寬（見下）。 */
     var half = w / 2;
     var cs = c * (.7 + .3 * fk), jo = 1.8 * cs;
-    var wingLen = .40 * half;                              // 角落飾翼：約佔半邊寬度的 40%（按鈕為 44%）
+    /* 飾翼比例：按鈕的翼「長：扇開高度」約 5:1。之前長度跟著框寬放大到約 190px，扇開高度卻只放大 1.2 倍
+       （變成約 17:1），所以整束翼貼著邊線躺平。現在長度設上限（約 100px），並讓扇開高度跟著長度一起放大，
+       維持按鈕那種「從缺角長出來、向外撐開」的比例。 */
+    var wingLen = Math.min(Math.max(.2 * half, 48), top ? 84 : 104, .4 * half);
     var wlk = wingLen / (44 * cs);                         // PLAQUE_WING 最長那條是 44，換算成長度倍率
+    var sy = Math.max(1, (wingLen / 8) / (9 * cs));      // 扇開高度的放大倍率（基準：前端 y 7→16，共 9）
+    var WS = N.PLAQUE_WING.map(function (e) {              // 只放大「離基準線 7 的高度」，最貼邊的那條不動
+      return [7 + (e[0] - 7) * sy, 7 + (e[1] - 7) * sy, e[2], e[3], e[4]];
+    });
+    var wRf = 18 * (WS[WS.length - 1][0] / 16);            // 前端同心弧半徑隨最大前端 y 放大，保持包住寶石的弧線
     function corner(x, y, sx, sy, wings) {
       return '<g transform="translate(' + fmt(x) + ' ' + fmt(y) + ') scale(' + sx + ' ' + sy + ')">' +
-        (wings ? '<g transform="scale(' + fmt(cs) + ')">' + N.wingSet(N.PLAQUE_WING, 18, 1.15, wlk) + '</g>' : '') +
+        (wings ? '<g transform="scale(' + fmt(cs) + ')">' + N.wingSet(WS, wRf, 1.15, wlk) + '</g>' : '') +
         '<g transform="translate(' + fmt(jo) + ' ' + fmt(jo) + ')">' + N.miniJewel(cs) + '</g></g>';
     }
     o += corner(x0, y0, 1, 1, true) + corner(x1, y0, -1, 1, true) +
