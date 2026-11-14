@@ -17,9 +17,9 @@
     var fk = Math.min(1, w / 640);                         // 窄螢幕時整組縮小
 
     /* 與切換按鈕同一組公式：外線缺角半徑 r，內線只貼近外線 sIn，兩者同圓心（寶珠坐在圓心）。
-       左側模式 ×1.2、頂部模式 ×0.82（＝按鈕窄版的縮放），內容頁外線缺角半徑 12／8。 */
-    var r = top ? 8 : 12, c = top ? .82 : 1.2;
-    var sIn = top ? 3.6 : 5.4;
+       內容頁外線缺角半徑：左側 18、頂部 12。 */
+    var r = top ? 12 : 18, c = top ? 1.1 : 1.75;           // 缺角半徑（原 8／12）與寶石縮放：放大到有「主角」的存在感
+    var sIn = top ? 4 : 6.5;
     var a = .75, x0 = a, y0 = a, x1 = w - a, y1 = h - a;
     var rr = r + sIn, k = Math.sqrt(rr * rr - sIn * sIn);
     var inPath =
@@ -51,33 +51,34 @@
     /* 四個角：小菱形寶石坐在缺角圓心（同按鈕 corner()）；上面兩角再加「只順著上緣」的四條扇形飾翼。
        飾翼公式沿用按鈕（PLAQUE_WING，前端落在以寶石為圓心的同心弧上），整體 ×c，長度依框寬（見下）。 */
     var half = w / 2;
-    var cs = c * (.7 + .3 * fk), jo = 1.8 * cs;
-    /* 飾翼比例：按鈕的翼「長：扇開高度」約 5:1。之前長度跟著框寬放大到約 190px，扇開高度卻只放大 1.2 倍
-       （變成約 17:1），所以整束翼貼著邊線躺平。現在長度設上限（約 100px），並讓扇開高度跟著長度一起放大，
-       維持按鈕那種「從缺角長出來、向外撐開」的比例。 */
-    var wingLen = Math.min(Math.max(.2 * half, 48), top ? 84 : 104, .4 * half);
-    var wlk = wingLen / (44 * cs);                         // PLAQUE_WING 最長那條是 44，換算成長度倍率
-    var sy = Math.max(1, (wingLen / 8) / (9 * cs));      // 扇開高度的放大倍率（基準：前端 y 7→16，共 9）
+    var cs = c * (.7 + .3 * fk), jo = 1.8 * cs;            // 寶石縮放
+    var cw = (top ? .82 : 1.25) * (.7 + .3 * fk);          // 飾翼縮放（線寬、基準高度）：不跟寶石一起放大，免得翼變粗變重
+
+    /* 中央扣飾的範圍先算出來：角翼要「填到扣飾旁邊」。按鈕上角翼＋扣飾約佔每半邊上緣的 85%，上緣看起來才像被承托住。
+       頂部模式：主選單下緣已有一組大扣飾（翼寬約 134px），內容頁這組一定要比它小，所以流線翼上限 95px。 */
+    var csc = top ? .6 : .85;
+    var reach = top ? Math.min(.33 * half, 95) : .33 * half;
+    var clk = Math.max(.4, (reach / csc - 22) / 112);      // 22＝筆劃起點離寶石中心；112＝最長流線
+
+    /* 飾翼：長度維持按鈕的覆蓋率（不縮短）；缺角那端的「鉤子」扇開高度跟著框的尺寸放大，
+       尾端仍然長而平。若只放大長度、不放大鉤子，鉤子就會退化成一個小彎，翼變成貼邊的直線。 */
+    var wingLen = Math.max(40, Math.min(.52 * half, half - reach - .12 * half));
+    var wlk = wingLen / (44 * cw);                         // PLAQUE_WING 最長那條是 44，換算成長度倍率
+    var spread = Math.max(9 * cw, Math.min(wingLen / 10, top ? 16 : 24));   // 鉤子扇開高度（螢幕 px）；按鈕約 9
+    var sy = spread / (9 * cw);                            // 相對於按鈕公式（前端 y 7→16，共 9）的放大倍率
     var WS = N.PLAQUE_WING.map(function (e) {              // 只放大「離基準線 7 的高度」，最貼邊的那條不動
       return [7 + (e[0] - 7) * sy, 7 + (e[1] - 7) * sy, e[2], e[3], e[4]];
     });
-    var wRf = 18 * (WS[WS.length - 1][0] / 16);            // 前端同心弧半徑隨最大前端 y 放大，保持包住寶石的弧線
+    var wRf = 16.6 * (WS[WS.length - 1][0] / 16);            // 前端同心弧半徑隨最大前端 y 放大，保持包住寶石的弧線
     function corner(x, y, sx, sy, wings) {
       return '<g transform="translate(' + fmt(x) + ' ' + fmt(y) + ') scale(' + sx + ' ' + sy + ')">' +
-        (wings ? '<g transform="scale(' + fmt(cs) + ')">' + N.wingSet(WS, wRf, 1.15, wlk) + '</g>' : '') +
+        (wings ? '<g transform="scale(' + fmt(cw) + ')">' + N.wingSet(WS, wRf, 1.15, wlk) + '</g>' : '') +
         '<g transform="translate(' + fmt(jo) + ' ' + fmt(jo) + ')">' + N.miniJewel(cs) + '</g></g>';
     }
     o += corner(x0, y0, 1, 1, true) + corner(x1, y0, -1, 1, true) +
          corner(x0, y1, 1, -1, false) + corner(x1, y1, -1, -1, false);
 
-    /* 上緣正中：按鈕上緣那組扣飾的放大版（翻轉 y：外側朝上），寶石中心換成點綴色 */
-    /* 中央扣飾：寶石適度放大（照比例放大整組會過重），流線翼放長到約半邊寬度的 33%（按鈕為 33%）。
-       流線的彎曲量隨長度一起放大（claspStrokes 內部處理），所以放長後仍是同一種造型。 */
-    var csc = top ? .6 : .85;
-    /* 頂部模式：主選單下緣已有一組大扣飾（翼寬約 134px），內容頁這組一定要比它小，不然兩組疊成一團，
-       所以頂部模式的流線翼上限 95px；左側模式沒有這個問題，照框寬比例。 */
-    var reach = top ? Math.min(.33 * half, 95) : .33 * half;
-    var clk = Math.max(.4, (reach / csc - 22) / 112);   // 22＝筆劃起點離寶石中心；112＝最長流線
+    /* 上緣正中：中央扣飾（選單款），寶石中心換成點綴色；範圍已在上面算好（csc／reach／clk） */
     var cy = y0 + sIn / 2 + .4;
     o += '<g transform="translate(' + fmt(w / 2) + ' ' + fmt(cy) + ') scale(' + fmt(csc) + ' ' + fmt(-csc) + ')">' +
       N.claspStrokes(clk) + N.centerFrame() + N.gem(6.4) +
