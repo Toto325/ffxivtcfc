@@ -356,7 +356,7 @@ app.buildSub = function (){
     }
 
     root.innerHTML=`<div class="sub-mogship">
-<div class="explore-header"><h2 class="unified-gold-header small news-title">⚓ 潛水艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">查詢最佳經驗路線及收獲物路線規劃</p></div>
+<div class="explore-header"><h2 class="unified-gold-header small news-title"><i class="ph ph-anchor cr-title-ic" aria-hidden="true"></i>潛水艇</h2><div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div><p class="elegant-body-text page-note">查詢最佳經驗路線及收獲物路線規劃</p></div>
 <div class="sub-mode-toggle" role="tablist">
   <button type="button" class="sub-mode-btn active" data-mode="route"><i class="ph ph-path"></i>路線搜尋</button>
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>

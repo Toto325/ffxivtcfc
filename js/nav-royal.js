@@ -705,6 +705,11 @@
     it.addEventListener('mouseenter', function () { burst(it); });
   });
 
+  /* 匯出繪圖函式給 content-royal-v2.js（內容頁外框）沿用，確保與選單／切換按鈕同一套造型 */
+  window.NRO = { NS: NS, GOLD: GOLD, fmt: fmt, P: P, gem: gem, glint: glint, taper: taper, ccvPath: ccvPath,
+    frameJewel: frameJewel, miniJewel: miniJewel, cornerOrn: cornerOrn, claspStrokes: claspStrokes,
+    centerFrame: centerFrame, wingSet: wingSet, PLAQUE_WING: PLAQUE_WING };
+
   /* 啟動 */
   relayout();
   window.addEventListener('load', relayout);

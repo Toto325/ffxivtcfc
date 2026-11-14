@@ -48,7 +48,7 @@
     const root = document.getElementById('market-root');
     if (!root) return;
 
-    root.innerHTML = '<div class="craft-loading"><span class="craft-loading-icon">⚖</span><span>載入物品資料中⋯</span></div>';
+    root.innerHTML = '<div class="craft-loading"><i class="ph ph-scales craft-loading-icon"></i><span>載入物品資料中⋯</span></div>';
 
     // 市場頁只需要「全物品名稱索引」＋「市場資料層」，不需要 craft-data.js 那份好幾MB的配方庫，
     // 除非之後要顯示供應鏈視覺化，那時候才臨時另外載入 craft-data.js（用 typeof 判斷避免重複載入）。
@@ -85,7 +85,7 @@
     root.innerHTML =
       '<div class="market-top-fixed">' +
         '<div class="market-header">' +
-          '<h2 class="unified-gold-header small news-title">⚖ 市場</h2>' +
+          '<h2 class="unified-gold-header small news-title"><i class="ph ph-scales cr-title-ic" aria-hidden="true"></i>市場</h2>' +
           '<div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>' +
           '<p class="elegant-body-text page-note">查詢單一物品的即時價格、跨服比價與供應鏈，或看看最近交易熱度排行。</p>' +
         '</div>' +

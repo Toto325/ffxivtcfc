@@ -2401,7 +2401,7 @@ function pickerResultsHTML(){
    TOOL HTML
 ════════════════════════════════════════════════ */
 function toolHTML(){
-  return '<h2 class="unified-gold-header small">⚙ 巨集建立工具</h2>'
+  return '<h2 class="unified-gold-header small"><i class="ph ph-gear-six cr-title-ic" aria-hidden="true"></i>巨集建立工具</h2>'
     +'<div class="fancy-divider mini"><div class="long-silk-line-short"></div></div>'
     +'<p class="mt-intro">FF14 巨集上限 <b>15 行</b>，每行上限 <b>180 字元</b>（中文字每個佔3字元，英文/符號/空格各佔1字元）。工具即時計算並提示問題。每一行均可自由修改、增減及調換順序。模板供快速開始，可自由修改。</p>'
     +'<div class="mt-steps"><span class="mt-step active">① 選擇模板或新增行</span><span class="mt-step-arr">→</span><span class="mt-step">② 展開各行進行設定</span><span class="mt-step-arr">→</span><span class="mt-step">③ 確認後複製貼入遊戲</span></div>'
