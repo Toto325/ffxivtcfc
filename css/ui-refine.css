@@ -65,31 +65,15 @@
   .news-visit-btn[data-plaque] .btn-en { letter-spacing: 3px; font-size: .8rem !important; }
 }
 
-/* ───────── 4. 巨集頁：容器＋步驟之間的連接記號 ─────────
+/* ───────── 4. 巨集頁：容器（取消舊版四角短線） ─────────
    · 取消 v2 加在 .mt-sec 上的四角短線（舊版殘留的簡陋角框）。
-   · 模板 → 行編輯器 → 巨集預覽是有關聯的三步（頁首的三步驟提示），三塊面板統一寬度，
-     面板之間放一條淡線＋小菱形表示「接著是下一步」；不加順序數字。
-   · 標題前的 ▸ 改成小菱形，與整站分隔線的菱形珠點同一語彙。 */
+   · 面板統一寬度、圓角與間距；標題前的 ▸ 改成小菱形（與整站分隔線的菱形珠點同一語彙）。 */
 .mt-sec::after { content: none; }
 .macro-root-frame > .mt-sec { width: 100%; box-sizing: border-box; border-radius: 10px; margin-bottom: 0; }
 .macro-root-frame > .mt-sec:not(.mt-warn-sec) { margin-top: 18px; }
 .macro-root-frame > .mt-global-bar + .mt-sec { margin-top: 0; }
 .macro-root-frame > .mt-warn-sec { margin-top: 14px; }
-.macro-root-frame > .mt-sec:last-child { margin-top: 34px; }          /* 常用指令代名詞：獨立的參考區 */
-.macro-root-frame > .mt-editor-sec,
-.macro-root-frame > .mt-sec:has(.mt-preview) { margin-top: 42px; }    /* 留出連接記號的位置 */
-
-.mt-editor-sec::before,
-.mt-sec:has(.mt-preview)::before {
-  content: ""; position: absolute; left: 50%; top: -42px; width: 1px; height: 42px; pointer-events: none;
-  background: linear-gradient(rgba(197,160,89,0), rgba(197,160,89,.5) 34%, rgba(197,160,89,.5) 66%, rgba(197,160,89,0));
-}
-.mt-editor-sec::after,
-.mt-sec:has(.mt-preview)::after {
-  content: ""; position: absolute; left: 50%; top: -21px; width: 6px; height: 6px; pointer-events: none;
-  transform: translate(-50%, -50%) rotate(45deg);
-  background: #e9cf8d; box-shadow: 0 0 7px rgba(233,207,141,.55);
-}
+.macro-root-frame > .mt-sec:last-child { margin-top: 30px; }          /* 常用指令代名詞：獨立的參考區，與上面三塊隔開一點 */
 .mt-sec-lbl::before {
   content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 10px; position: relative; top: -1px;
   background: currentColor; transform: rotate(45deg); opacity: .85;
@@ -112,12 +96,20 @@
 }
 .sub-table th.sorted, .sub-table th.sub-sort-th:hover { color: var(--gold-bright, #fce4aa); }
 
-/* ───────── 6. 市場價格列表：補上容器外框（表頭與列表兩段拼成一個容器） ─────────
+/* ───────── 6. 市場價格列表：補上容器外框，寬度與上方資訊列對齊 ─────────
    表頭（#mk-tab-head）與列表（#mk-listing-table-slot）是分開的兩個元素（表頭固定、列表單獨捲動），
    所以各畫一半框：表頭畫上半、列表畫下半，圓角與 .sub-table 同為 10px。
-   寬度與原本列的上限一致（一般 536px、成交分頁 620px）。 */
-#mk-tab-head, #mk-listing-table-slot { max-width: 536px; box-sizing: border-box; }
-#mk-tab-head:has(.mfl-time), #mk-listing-table-slot:has(.mfl-time) { max-width: 620px; }
+   原本列有 536px／620px 的寬度上限（緊靠左邊），加了外框後會顯得「縮進去」，
+   所以改成與容器同寬，各欄用 flex-grow 依比例展開（窄螢幕時照舊依比例縮小）。 */
+#mk-tab-head, #mk-listing-table-slot { max-width: none; box-sizing: border-box; }
+#mk-tab-head .market-flexrow, #mk-listing-table-slot .market-flexrow,
+#mk-tab-head .market-flexrow:has(.mfl-time), #mk-listing-table-slot .market-flexrow:has(.mfl-time) { max-width: none; }
+#mk-tab-head .market-flexrow .mfl-price, #mk-listing-table-slot .market-flexrow .mfl-price { flex: 1.1 1 104px; }
+#mk-tab-head .market-flexrow .mfl-qty,   #mk-listing-table-slot .market-flexrow .mfl-qty   { flex: .6 1 56px; }
+#mk-tab-head .market-flexrow .mfl-total, #mk-listing-table-slot .market-flexrow .mfl-total { flex: 1.1 1 100px; }
+#mk-tab-head .market-flexrow .mfl-buyer, #mk-listing-table-slot .market-flexrow .mfl-buyer { flex: 2 3 140px; }
+#mk-tab-head .market-flexrow .mfl-world, #mk-listing-table-slot .market-flexrow .mfl-world { flex: 1.2 1 80px; }
+#mk-tab-head .market-flexrow .mfl-time,  #mk-listing-table-slot .market-flexrow .mfl-time  { flex: .9 1 84px; }
 #mk-tab-head:not(:empty) {
   border: 1px solid var(--tb, rgba(197,160,89,.25)); border-bottom: none; border-radius: 10px 10px 0 0; overflow: hidden;
 }
@@ -125,3 +117,29 @@
   border: 1px solid var(--tb, rgba(197,160,89,.25)); border-top: none; border-radius: 0 0 10px 10px;
 }
 #mk-listing-table-slot .market-flexrow:last-child { border-bottom: none; }
+
+/* ───────── 7. 頁面標題旁的圖示：與選單「目前頁面」同一套靜態徽章 ─────────
+   圓形徽章＋漸變底＋專屬色圖示；平常靜止（標題不能點，不做 hover 與持續流光，避免被誤認為按鈕），
+   進頁面時外圈光環轉一圈（沿用 cr-ring）。大小以標題字級為基準（≈1.3 倍），所以手機上會自動縮小。 */
+.unified-gold-header .cr-title-ic {
+  position: relative; display: inline-grid; place-items: center; vertical-align: middle;
+  width: 1.8em; height: 1.8em; font-size: .72em; line-height: 1;
+  margin: -.1em .85em 0 0; letter-spacing: 0;
+  border-radius: 50%; border: 1px solid rgba(var(--acc),.7);
+  background: radial-gradient(circle at 32% 28%, rgba(var(--acc),.26), rgba(197,160,89,.05) 62%), #0b0908;
+  box-shadow: 0 0 9px rgba(var(--acc),.26), inset 0 0 8px rgba(var(--acc),.18);
+  color: rgba(var(--acc),.94); -webkit-text-fill-color: currentColor; filter: none;
+}
+.unified-gold-header .cr-title-ic::after {
+  content: ""; position: absolute; inset: -4px; border-radius: 50%; pointer-events: none; opacity: .5;
+  background: conic-gradient(from 0deg, transparent 0 55%, rgba(var(--acc),.9) 80%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+}
+.scene.active .unified-gold-header .cr-title-ic::after { animation: cr-ring 2.4s cubic-bezier(.3,.1,.2,1) .2s 1; }
+@media (prefers-reduced-motion: reduce) { .scene.active .unified-gold-header .cr-title-ic::after { animation: none; } }
+
+/* ───────── 8. 指南頁補上與其他頁相同的內容頁標題（links-grid 是兩欄格線，標題與分隔線要橫跨兩欄） ───────── */
+.links-grid > .links-title, .links-grid > .links-div { grid-column: 1 / -1; }
+.links-grid > .links-title { justify-self: center; text-align: center; }
+.links-grid > .links-div { margin-bottom: 22px; }

@@ -424,7 +424,8 @@
     var t = Math.max(.05, w / 960);
     var sx = Math.max(.55, Math.min(1, Math.pow(t, .6)));
     var sy = Math.max(.75, Math.min(1, Math.pow(t, .3)));
-    return { sx: sx, sy: sy, core: Math.max(sx, .7) };
+    var hy = Math.max(.82, Math.min(1, Math.pow(t, .13)));   // 翼飾扇開高度：只隨寬度「微微」縮小，窄螢幕仍保有高度
+    return { sx: sx, sy: sy, hy: hy, core: Math.max(sx, .7) };
   }
   var CLASP_BASE = .85;     // 扣飾在 sc=1 時的縮放（＝內容頁外框現值）
   function activeFrame() { return document.querySelector('.scene.active .noble-outer-frame'); }
