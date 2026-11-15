@@ -32,17 +32,23 @@
       '<polygon points="' + P([tT, tR, tB, tL]) + '" fill="#fff" fill-opacity=".62"/>' +
       '<polygon points="' + P([T, R, B, L]) + '" fill="none" stroke="#fff6d6" stroke-opacity=".75" stroke-width=".8" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
   }
-  function seatSvg() {
+  var uidN = 0;
+  function seatSvg(loader) {
     if (!N || !N.ccvPath) return '';
-    var P = N.P, o = '';
+    var P = N.P, o = '', id = loader ? 'gmc' + (++uidN) : '';
     [-1, 1].forEach(function (d) {          /* 上下兩層尖刺（與原扣飾相同） */
       o += '<g class="sp"><polygon points="' + P([[-2, d * 9.6], [0, d * 20], [2, d * 9.6]]) + '" fill="#e3c780" fill-opacity=".78"/>' +
            '<polygon points="' + P([[-.7, d * 12], [0, d * 24], [.7, d * 12]]) + '" fill="#e3c780" fill-opacity=".5"/></g>';
     });
     o += '<path d="' + N.ccvPath(17.5, 11, .34) + '" fill="#0c0a0e" fill-opacity=".96" stroke="#e9cf8a" stroke-opacity=".9" stroke-width=".9" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
     o += '<path d="' + N.ccvPath(13.6, 8.2, .34) + '" fill="none" stroke="currentColor" stroke-opacity=".75" stroke-width=".7" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
-    [-1, 1].forEach(function (d) { o += '<g transform="translate(' + d * 19.6 + ' 0)">' + gemSvg(2.3) + '</g>'; });
-    o += '<g class="gm">' + gemSvg(6.4) + N.glint(-1.9, -2.9, 3) + '</g>';
+    [-1, 1].forEach(function (d) { o += '<g class="sg ' + (d < 0 ? 'sgl' : 'sgr') + '" transform="translate(' + d * 19.6 + ' 0)">' + gemSvg(2.3) + '</g>'; });
+    o += '<g class="gm">' + gemSvg(6.4) + N.glint(-1.9, -2.9, 3);
+    if (loader) {                          /* 載入器：一道斜光反覆掃過主寶石的切面（以寶石輪廓裁切） */
+      o += '<clipPath id="' + id + '"><polygon points="' + P([[0, -7.3], [6.4, 0], [0, 7.3], [-6.4, 0]]) + '"/></clipPath>' +
+           '<g class="shw" clip-path="url(#' + id + ')"><rect x="-2" y="-9" width="3.4" height="18" fill="#fff" fill-opacity=".7" transform="skewX(-22)"/></g>';
+    }
+    o += '</g>';
     return '<svg viewBox="-26 -26 52 52" aria-hidden="true">' + o + '</svg>';
   }
   function buildSeats() {
@@ -202,7 +208,42 @@
     }).observe(mk, { childList: true, subtree: true });
   }
 
-  function init() { buildSeats(); watchRoll(); watchMarket(); }
+  /* ───────── 6. 載入器：寶飾座甦醒（＋頁面層級加飾桿光波），載入結束時迸出金粉 ─────────
+     標記不動：把各頁原本的載入圖示（天秤／錘子／✿／circle-notch）換成同一個寶飾座載入器。
+     頁面層級（市場、生產、公告、潛水艇／飛空艇結果區）＝飾桿＋寶飾座；按鈕上的「計算中」＝只有小寶飾座。 */
+  var LOADER_SEL = '.craft-loading-icon, .news-loading-icon, .ex-spin.ph-circle-notch';
+  var loaders = new Set(), loopOn = false;
+  function upgradeLoader(el) {
+    if (el.__gl) return; el.__gl = true;
+    var page = !(el.closest && el.closest('button, .sub-btn')) && !el.matches('.ex-spin') || !!el.closest('.sub-busy');
+    el.classList.add('gl-asm'); if (page) el.classList.add('gl-rod');
+    el.innerHTML = '<span class="ic2-seat ld-seat" aria-hidden="true">' + seatSvg(true) + '</span>';
+    el.setAttribute('role', 'img'); el.setAttribute('aria-label', '載入中');
+    if (page) { el.__born = performance.now(); el.__rect = el.getBoundingClientRect(); loaders.add(el); if (!loopOn) loaderLoop(); }
+  }
+  function loaderLoop() {
+    loopOn = true;
+    loaders.forEach(function (el) {
+      if (!el.isConnected) {                                   /* 載入結束（節點被換掉）：停留超過 0.45 秒才迸金粉，避免快速載入時閃一下 */
+        loaders.delete(el);
+        if (!reduce && performance.now() - el.__born > 450) burst(el.__rect.left + el.__rect.width / 2, el.__rect.top + el.__rect.height / 2, '233,207,141', 9);
+      } else el.__rect = el.getBoundingClientRect();
+    });
+    if (loaders.size) raf(loaderLoop); else loopOn = false;
+  }
+  function scanLoaders(root) {
+    if (root.matches && root.matches(LOADER_SEL)) upgradeLoader(root);
+    if (root.querySelectorAll) root.querySelectorAll(LOADER_SEL).forEach(upgradeLoader);
+  }
+  function watchLoaders() {
+    scanLoaders(doc.body);
+    if (!window.MutationObserver) return;
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) { m.addedNodes.forEach(function (n) { if (n.nodeType === 1) scanLoaders(n); }); });
+    }).observe(doc.body, { childList: true, subtree: true });
+  }
+
+  function init() { buildSeats(); watchRoll(); watchMarket(); watchLoaders(); }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', init); else init();
   window.addEventListener('load', buildSeats);
 })();
