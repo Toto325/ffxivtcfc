@@ -16,26 +16,34 @@
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var raf = window.requestAnimationFrame.bind(window);
 
-  /* ───────── 1. 寶飾座 ───────── */
+  /* ───────── 1. 寶飾座 ─────────
+     與頁面上緣中央扣飾「同一組零件、同樣的細線比例」：內凹星形雙層框、上下兩層尖刺、兩側小鑽（有切面）、
+     中央切面寶石＋閃光星芒。差別只有：寶石改成卡片自己的顏色（--gem，用淺→深的切面表現），
+     線條用 non-scaling-stroke 固定為細線，所以放大時線不會變粗（這是之前放大後「不精緻」的主因）。
+     畫布座標與原扣飾相同（框寬 35、框高 22），整體大小由 CSS 的 --seat-w（＝菱框寬度）決定。 */
+  function gemSvg(g) {                      /* 與 N.gem 同一套切面，但顏色取 currentColor */
+    var h = g * 1.14, t = g * .44, th = t * 1.14, P = N.P;
+    var T = [0, -h], R = [g, 0], B = [0, h], L = [-g, 0], tT = [0, -th], tR = [t, 0], tB = [0, th], tL = [-t, 0];
+    return '<polygon points="' + P([T, R, B, L]) + '" fill="currentColor"/>' +
+      '<polygon points="' + P([T, L, tL, tT]) + '" fill="#fff" fill-opacity=".58"/>' +
+      '<polygon points="' + P([T, R, tR, tT]) + '" fill="#fff" fill-opacity=".24"/>' +
+      '<polygon points="' + P([R, B, tB, tR]) + '" fill="#000" fill-opacity=".4"/>' +
+      '<polygon points="' + P([L, B, tB, tL]) + '" fill="#000" fill-opacity=".14"/>' +
+      '<polygon points="' + P([tT, tR, tB, tL]) + '" fill="#fff" fill-opacity=".62"/>' +
+      '<polygon points="' + P([T, R, B, L]) + '" fill="none" stroke="#fff6d6" stroke-opacity=".75" stroke-width=".8" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+  }
   function seatSvg() {
     if (!N || !N.ccvPath) return '';
-    var sc = 1.0, ak = .62, sp = .72, P = N.P;
-    var a = 17.5 * sc * ak, b = 11 * sc, a2 = 13.6 * sc * ak, b2 = 8.2 * sc, o = '';
-    [-1, 1].forEach(function (d) {
-      o += '<g class="sp"><polygon points="' + P([[-2 * sc, d * 9.6 * sc], [0, d * 20 * sc * sp * 1.15], [2 * sc, d * 9.6 * sc]]) + '" fill="#e3c780" fill-opacity=".8"/>' +
-           '<polygon points="' + P([[-.7 * sc, d * 12 * sc], [0, d * 24 * sc * sp * 1.15], [.7 * sc, d * 12 * sc]]) + '" fill="#e3c780" fill-opacity=".5"/></g>';
+    var P = N.P, o = '';
+    [-1, 1].forEach(function (d) {          /* 上下兩層尖刺（與原扣飾相同） */
+      o += '<g class="sp"><polygon points="' + P([[-2, d * 9.6], [0, d * 20], [2, d * 9.6]]) + '" fill="#e3c780" fill-opacity=".78"/>' +
+           '<polygon points="' + P([[-.7, d * 12], [0, d * 24], [.7, d * 12]]) + '" fill="#e3c780" fill-opacity=".5"/></g>';
     });
-    o += '<path d="' + N.ccvPath(a, b, .34) + '" fill="#0c0a0e" fill-opacity=".97" stroke="#ecd38f" stroke-opacity=".95" stroke-width="1.5" stroke-linejoin="round"/>';
-    o += '<path d="' + N.ccvPath(a2, b2, .34) + '" fill="none" stroke="currentColor" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/>';
-    /* 中央鑲一顆切面寶石（取卡片寶石色；沒有圖示） */
-    o += '<g class="gm"><polygon points="' + P([[0, -6.2], [4.6, 0], [0, 6.2], [-4.6, 0]]) + '" fill="currentColor" fill-opacity=".92"/>' +
-         '<polygon points="' + P([[0, -6.2], [4.6, 0], [0, 0]]) + '" fill="#fff" fill-opacity=".38"/>' +
-         '<polygon points="' + P([[0, -6.2], [4.6, 0], [0, 6.2], [-4.6, 0]]) + '" fill="none" stroke="#fff6d6" stroke-opacity=".55" stroke-width=".5"/></g>';
-    [-1, 1].forEach(function (d) {      /* 兩側小鑽：取卡片寶石色 */
-      var x = d * 19.6 * sc * ak;
-      o += '<polygon points="' + P([[x - 2.6, 0], [x, -3], [x + 2.6, 0], [x, 3]]) + '" fill="currentColor"/>';
-    });
-    return '<svg viewBox="-29 -29 58 58" aria-hidden="true">' + o + '</svg>';
+    o += '<path d="' + N.ccvPath(17.5, 11, .34) + '" fill="#0c0a0e" fill-opacity=".96" stroke="#e9cf8a" stroke-opacity=".9" stroke-width=".9" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+    o += '<path d="' + N.ccvPath(13.6, 8.2, .34) + '" fill="none" stroke="currentColor" stroke-opacity=".75" stroke-width=".7" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+    [-1, 1].forEach(function (d) { o += '<g transform="translate(' + d * 19.6 + ' 0)">' + gemSvg(2.3) + '</g>'; });
+    o += '<g class="gm">' + gemSvg(6.4) + N.glint(-1.9, -2.9, 3) + '</g>';
+    return '<svg viewBox="-26 -26 52 52" aria-hidden="true">' + o + '</svg>';
   }
   function buildSeats() {
     var svg = seatSvg();

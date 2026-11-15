@@ -41,22 +41,26 @@
 .intro-cards {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(272px, 1fr)); gap: 24px 26px;
   width: 100%; max-width: 720px; margin: 8px auto 0; box-sizing: border-box; padding: 0 6px;
+  --seat-w: 80px;              /* ★ 寶飾座大小：這個數字＝菱形框本身的寬度（頁面上緣中央扣飾的菱框約 30px）。只改這一處即可 */
 }
 .intro-card2 {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
-  box-sizing: border-box; min-height: 96px; text-align: center; cursor: default;
-  padding: calc(18px * var(--ps, 1)) calc(18px * var(--ps, 1));
+  box-sizing: border-box; text-align: center; cursor: default;
+  /* 尖刺會超出菱框上下各約 0.37 倍寬度，所以上下留白跟著 --seat-w 走 */
+  padding: calc(var(--seat-w) * .37 + 20px) calc(18px * var(--ps, 1)) calc(20px * var(--ps, 1));
   transition: opacity .35s ease, filter .35s ease;
 }
-.ic2-head { display: flex; align-items: center; justify-content: center; gap: 11px; max-width: 100%; }
-.ic2-seat { position: relative; flex: none; width: 78x; height: 78px; display: block; color: rgb(var(--gem, 232,201,128)); }
-.ic2-seat > svg { position: absolute; left: 50%; top: 50%; width: 78px; height: 78px; transform: translate(-50%, -50%); overflow: visible; }
-.ic2-seat::before {            /* 寶石座底下的柔光（很淡，且是圓形，避免像眼睛的虹膜） */
-  content: ""; position: absolute; inset: 4px; border-radius: 50%;
+.ic2-head { display: flex; align-items: center; justify-content: center; gap: 12px; max-width: 100%; margin-bottom: calc(var(--seat-w) * .37 - 4px); }
+.ic2-seat { position: relative; flex: none; margin: 0 calc(var(--seat-w) * .1); width: var(--seat-w); height: calc(var(--seat-w) * .63); display: block; color: rgb(var(--gem, 232,201,128)); }
+.ic2-seat > svg { position: absolute; left: 50%; top: 50%; width: calc(var(--seat-w) * 1.4857); height: calc(var(--seat-w) * 1.4857); transform: translate(-50%, -50%); overflow: visible; }
+.ic2-seat::before {            /* 寶石座底下的柔光：正圓（避免橫向橢圓像虹膜） */
+  content: ""; position: absolute; left: 50%; top: 50%; width: calc(var(--seat-w) * .7); height: calc(var(--seat-w) * .7);
+  margin: calc(var(--seat-w) * -.35) 0 0 calc(var(--seat-w) * -.35); border-radius: 50%;
   background: radial-gradient(circle, rgba(var(--gem), .24), transparent 70%);
 }
-.ic2-seat::after {             /* 彗星外圈：hover／進場時轉動 */
-  content: ""; position: absolute; inset: -3px; border-radius: 50%; opacity: 0; pointer-events: none;
+.ic2-seat::after {             /* 彗星外圈（正圓，直徑＝菱框寬度）：hover／進場時轉動 */
+  content: ""; position: absolute; left: 0; top: 50%; width: 100%; height: var(--seat-w); margin-top: calc(var(--seat-w) / -2);
+  border-radius: 50%; opacity: 0; pointer-events: none;
   background: conic-gradient(from 0deg, transparent 0 56%, rgba(var(--gem), .95) 88%, rgba(255,248,222,.98) 95%, transparent 100%);
   -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.2px), #000 calc(100% - 1.6px));
           mask: radial-gradient(farthest-side, transparent calc(100% - 2.2px), #000 calc(100% - 1.6px));
@@ -77,7 +81,7 @@
 
 @media (max-width: 640px) {
   .intro-cards { grid-template-columns: 1fr; gap: 20px; max-width: 460px; }
-  .intro-card2 { min-height: 92px; gap: 10px; padding: calc(16px * var(--ps, 1)) calc(12px * var(--ps, 1)); }
+  .intro-card2 { gap: 10px; padding-left: calc(12px * var(--ps, 1)); padding-right: calc(12px * var(--ps, 1)); }
   .ic2-head { gap: 9px; }
   .ic2-head .intro-lbl { letter-spacing: 3px; }
   .ic2-en { letter-spacing: 2.5px; }
