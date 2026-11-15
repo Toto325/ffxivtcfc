@@ -36,9 +36,10 @@
        ‧ 下緣短線：長度隨寬度增加
      W、H 是實際像素尺寸；lw、lh 與座標是除以 s 之後的邏輯尺寸。 */
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
-  function ornaments(W, H, s, x0, y0, x1, y1) {
+  function ornaments(W, H, s, x0, y0, x1, y1, orn) {
+    orn = orn || 'full';   // full＝角翼＋扣飾＋下緣短線；lite＝只留四角寶石、扣飾與下緣短線（無角翼）；none＝只留四角寶石
     var lw = W / s, lh = H / s, half = lw / 2;
-    if (lw < 120) return N.plaqueOrn(lw, lh, x0, y0, x1, y1, false);
+    if (lw < 120) return N.plaqueOrn(lw, lh, x0, y0, x1, y1, false);   // 很窄的元素：直接用切換按鈕原版
 
     var csc = clamp(.45 * Math.pow(W / 176, .37), .45, .9) / s;     // 實際 0.45～0.9，換算成邏輯座標
     var clk = Math.max(.4, (.33 * half / csc - 22) / 112);          // 流線長度倍率：扣飾向外約 1/3 半寬
@@ -64,7 +65,8 @@
       for (i = 0; i <= n; i++) pts.push([lw / 2 - e[0] / 2 + i * e[0] / n, y1 - e[3]]);
       base += N.taper(pts, function (t) { return Math.max(.05, e[1] * Math.pow(Math.sin(Math.PI * t), .8)); }, N.GOLD, e[2]);
     });
-    return corner(x0, y0, 1, 1, true) + corner(x1, y0, -1, 1, true) + corner(x0, y1, 1, -1, false) + corner(x1, y1, -1, -1, false) + clasp + base;
+    var wg = orn === 'full', corners = corner(x0, y0, 1, 1, wg) + corner(x1, y0, -1, 1, wg) + corner(x0, y1, 1, -1, false) + corner(x1, y1, -1, -1, false);
+    return orn === 'none' ? corners : corners + clasp + base;
   }
 
   function build(el) {
@@ -73,7 +75,7 @@
     if (!w || !h) return;
     var s = parseFloat(el.getAttribute('data-plaque-scale')) || scaleFor(w, h);
     var lw = w / s, lh = h / s;                      // 邏輯尺寸（以按鈕的 1:1 座標畫）
-    var key = fmt(w) + 'x' + fmt(h) + '@' + fmt(s);
+    var key = fmt(w) + 'x' + fmt(h) + '@' + fmt(s) + (el.getAttribute('data-plaque-orn') || '');
     if (el.__plqKey === key) return;
     el.__plqKey = key;
     el.style.setProperty('--ps', fmt(s));
@@ -107,7 +109,7 @@
       '<g clip-path="url(#' + id + 'c)"><rect class="plq-sh" x="' + fmt(-lw * .6) + '" y="0" width="' + fmt(lw * .5) + '" height="' + fmt(lh) + '" fill="url(#' + id + 's)"/></g>' +
       '<path class="plq-in" d="' + inner + '"/>' +
       '<path class="plq-out" style="stroke:url(#' + id + 'g)" d="' + outer + '"/>' +
-      '<g>' + ornaments(w, h, s, x0, y0, x1, y1) + '</g>';
+      '<g>' + ornaments(w, h, s, x0, y0, x1, y1, el.getAttribute('data-plaque-orn')) + '</g>';
   }
 
   var ro = window.ResizeObserver ? new ResizeObserver(function (es) { es.forEach(function (e) { build(e.target); }); }) : null;
