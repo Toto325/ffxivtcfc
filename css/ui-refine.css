@@ -41,7 +41,7 @@
 .intro-cards {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(272px, 1fr)); gap: 24px 26px;
   width: 100%; max-width: 720px; margin: 8px auto 0; box-sizing: border-box; padding: 0 6px;
-  --seat-w: 44px;              /* ★ 寶飾座大小：這個數字＝菱形框本身的寬度（頁面上緣中央扣飾的菱框約 30px）。只改這一處即可 */
+  --seat-w: 40px;              /* ★ 寶飾座大小：這個數字＝菱形框本身的寬度（頁面上緣中央扣飾的菱框約 30px）。只改這一處即可 */
 }
 .intro-card2 {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 11px;
