@@ -25,8 +25,12 @@
       o += '<g class="sp"><polygon points="' + P([[-2 * sc, d * 9.6 * sc], [0, d * 20 * sc * sp * 1.15], [2 * sc, d * 9.6 * sc]]) + '" fill="#e3c780" fill-opacity=".8"/>' +
            '<polygon points="' + P([[-.7 * sc, d * 12 * sc], [0, d * 24 * sc * sp * 1.15], [.7 * sc, d * 12 * sc]]) + '" fill="#e3c780" fill-opacity=".5"/></g>';
     });
-    o += '<path d="' + N.ccvPath(a, b, .34) + '" fill="#0c0a0e" fill-opacity=".97" stroke="#ecd38f" stroke-opacity=".92" stroke-width="1" stroke-linejoin="round"/>';
-    o += '<path d="' + N.ccvPath(a2, b2, .34) + '" fill="none" stroke="currentColor" stroke-opacity=".7" stroke-width=".7" stroke-linejoin="round"/>';
+    o += '<path d="' + N.ccvPath(a, b, .34) + '" fill="#0c0a0e" fill-opacity=".97" stroke="#ecd38f" stroke-opacity=".95" stroke-width="1.5" stroke-linejoin="round"/>';
+    o += '<path d="' + N.ccvPath(a2, b2, .34) + '" fill="none" stroke="currentColor" stroke-opacity=".75" stroke-width="1" stroke-linejoin="round"/>';
+    /* 中央鑲一顆切面寶石（取卡片寶石色；沒有圖示） */
+    o += '<g class="gm"><polygon points="' + P([[0, -6.2], [4.6, 0], [0, 6.2], [-4.6, 0]]) + '" fill="currentColor" fill-opacity=".92"/>' +
+         '<polygon points="' + P([[0, -6.2], [4.6, 0], [0, 0]]) + '" fill="#fff" fill-opacity=".38"/>' +
+         '<polygon points="' + P([[0, -6.2], [4.6, 0], [0, 6.2], [-4.6, 0]]) + '" fill="none" stroke="#fff6d6" stroke-opacity=".55" stroke-width=".5"/></g>';
     [-1, 1].forEach(function (d) {      /* 兩側小鑽：取卡片寶石色 */
       var x = d * 19.6 * sc * ak;
       o += '<polygon points="' + P([[x - 2.6, 0], [x, -3], [x + 2.6, 0], [x, 3]]) + '" fill="currentColor"/>';
@@ -37,7 +41,7 @@
     var svg = seatSvg();
     doc.querySelectorAll('.ic2-seat').forEach(function (el) {
       if (el.__seat) return; el.__seat = true;
-      el.innerHTML = svg + '<i class="ph ph-' + (el.getAttribute('data-icon') || 'star') + '"></i>';
+      el.innerHTML = svg;
     });
   }
 
