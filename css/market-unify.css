@@ -307,3 +307,14 @@ tr.market-hot-item:hover td,
 .mk-back-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mk-back-btn:hover { background: rgba(197,160,89,.18); border-color: rgba(214,180,106,.62); color: #f3dfa6; }
 .mk-back-btn:focus-visible { outline: 2px solid rgba(var(--acc), .8); outline-offset: 1px; }
+
+/* ══════════════════════════════════════════════════════════════
+   NPC 收購價
+   物品頁：接在名稱／版本分類標籤後面的一小段淡色字，數字稍微加粗；NPC 不收的物品整段不出現（:empty 隱藏）
+   代幣兌換：🏪 標記沿用 🔗 的小標記樣式；圖例只列出「這份排行裡實際出現」的符號
+   ══════════════════════════════════════════════════════════════ */
+.mk-npc { margin-left: 10px; font-size: var(--fs-sub); font-weight: 400; color: var(--dim, rgba(255,255,255,.5)); white-space: nowrap; vertical-align: middle; cursor: help; }
+.mk-npc:empty { display: none; }
+.mk-npc b { font-size: var(--fs-head); font-weight: 700; color: rgba(234,208,146,.88); font-variant-numeric: tabular-nums; }
+.mtr-legend { margin: 6px 0 0; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); }
+.mtr-legend-gap { display: inline-block; width: 14px; }
