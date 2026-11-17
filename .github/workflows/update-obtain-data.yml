@@ -1,0 +1,87 @@
+name: 更新兌換與取得方式資料
+
+# 每週一 UTC 02:00（台灣早上 10 點）自動執行，排在「更新生產配方資料」（UTC 00:00）之後，
+# 因為兩邊都會讀 Teamcraft，錯開比較不會同時打資料來源。也可以在 GitHub 網頁上手動觸發。
+#
+# 這支 workflow 負責更新：
+#   data/obtain.json   取得方式（兌換、NPC 商店、副本、寶箱、掉落、採集…）
+#   data/exchange.json 代幣兌換「換什麼最划算」的換算路徑
+#   data/lunar.json    月球製作
+# 沒有這支檔案，上面三個檔案就不會跟著遊戲資料更新。
+on:
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: '略過「變動檢查」強制寫入（只有確認過差異是正常的才勾，平常留空）'
+        type: boolean
+        required: false
+        default: false
+
+# 同時只跑一個；後來的排隊，不取消正在跑的。
+concurrency:
+  group: obtain-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 簽出 repo
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 下載 Teamcraft 與台服資料表並建置，中間檔案放在 out/（不提交）。
+      # 任何一步失敗就停止，後面不會寫入，data/ 裡的上一版原封不動。
+      - name: 下載來源並建置
+        run: node scripts/pipeline/run-all.mjs
+
+      # 與 data/ 內上一版逐筆比對：消失的資料都要能用已知原因解釋，
+      # 無法解釋的超過門檻就以結束代碼 3 停止、不寫入（這時這個 job 會顯示失敗）。
+      - name: 整理成網站資料並做變動檢查
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            node scripts/pipeline/build-site-data.mjs --force
+          else
+            node scripts/pipeline/build-site-data.mjs
+          fi
+
+      - name: 檢查資料有沒有變動
+        id: diff
+        run: |
+          if git diff --quiet -- data/obtain.json data/exchange.json data/lunar.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 只加這三個檔案，所以 out/、.cache/ 之類的中間檔案不會被提交。
+      # 提交前先同步遠端：news 等其他 bot 也會推送到 main，避免推送被拒。
+      - name: 送出變更
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "obtain-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/obtain.json data/exchange.json data/lunar.json
+          git commit -m "chore: 自動更新兌換與取得方式資料 ($(date -u +%Y-%m-%d))"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      # 失敗時留下中間輸出，方便從 Actions 頁面下載來查原因（保留 3 天）。
+      - name: 失敗時保存診斷資料
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: obtain-pipeline-out
+          path: out/
+          retention-days: 3
+          if-no-files-found: ignore
