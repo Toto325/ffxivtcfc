@@ -39,6 +39,7 @@ if (args.includes('--merge')) {
   const R = w.recipes();
   const minRlvl = +opt('min-rlvl', 580), maxRlvl = +opt('max-rlvl', 99999), budget = +opt('budget', 6000);
   const [si, sn] = String(opt('shard', '0/1')).split('/').map(Number);
+  const limit = +opt('limit', 0), maxMinutes = +opt('max-minutes', 0), startedAt = Date.now(); // limit：只處理每個分片的前 N 個形狀（測試用）；max-minutes：超過就不再開始新的形狀（避免被 GitHub 的時限強制中斷）
   const only = opt('only', null) ? String(opt('only')).split(',') : null;
   // 依形狀分組，挑代表配方：HQ 材料最多的一個（算「全 HQ」起始品質）與完全沒有 HQ 的設定
   const shapes = new Map();
@@ -51,10 +52,14 @@ if (args.includes('--merge')) {
   let keys = Array.from(shapes.keys()).sort((a, b) => shapes.get(b).count - shapes.get(a).count || (a < b ? -1 : 1));
   if (only) { const want = new Set(only.map((id) => R[id] && w.shapeKeyOf(R[id])).filter(Boolean)); keys = keys.filter((k) => want.has(k)); } // --only 指定的是配方 id，實際比對的是它的「形狀」
   keys = keys.filter((_, i) => i % sn === si);
+  if (limit > 0) keys = keys.slice(0, limit);
   const lib = load(OUT); const existing = decodeAll(lib); const result = {};
   console.log('shapes to process:', keys.length, '(shard', si + '/' + sn + ', budget', budget, 'ms per search)');
+  let okCount = 0, failCount = 0;
   for (const k of keys) {
+    if (maxMinutes > 0 && (Date.now() - startedAt) / 60000 > maxMinutes) { console.log('已達時間上限 ' + maxMinutes + ' 分鐘，剩下的形狀留到下一次執行'); break; }
     const { id, rec } = shapes.get(k);
+    try {
     const hqAll = (rec.ingredients || []).filter((i) => i.quality > 0).map((i) => ({ id: i.id, amount: i.amount }));
     const variants = [[]].concat(hqAll.length ? [hqAll] : []);
     const S0 = rec.suggestedCraftsmanship > 0 ? rec.suggestedCraftsmanship : Math.max(400, 6.5 * rec.rlvl);
@@ -128,6 +133,9 @@ if (args.includes('--merge')) {
     console.log('shape of recipe', id, 'rlvl', rec.rlvl, '->', result[k].length, 'rotations kept,', Math.round((Date.now() - t0) / 1000) + 's');
     // 每完成一種形狀就寫檔，中斷也不會白做
     const out = { v: 1, actions: [], shapes: {} }; encode(out, Object.assign({}, existing, result)); fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, JSON.stringify(out));
+    okCount++;
+    } catch (e) { failCount++; delete result[k]; console.log('略過這個形狀（配方 ' + id + '）：' + (e && e.stack || e)); } // 單一形狀出錯不影響其他形狀
   }
-  console.log('done ->', OUT);
-})();
+  console.log('done ->', OUT, '| 成功', okCount, '個形狀 | 略過', failCount, '個');
+  if (okCount === 0 && keys.length > 0) process.exit(1); // 全部都失敗才算失敗
+})().catch((e) => { console.error('求解庫產生工具發生錯誤：', e && e.stack || e); process.exit(1); });
