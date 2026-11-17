@@ -39,6 +39,7 @@ if (args.includes('--merge')) {
   const R = w.recipes();
   const minRlvl = +opt('min-rlvl', 580), maxRlvl = +opt('max-rlvl', 99999), budget = +opt('budget', 6000);
   const [si, sn] = String(opt('shard', '0/1')).split('/').map(Number);
+  const beamOnly = args.includes('--beam-only'); // 快速模式：只用集束搜尋在一組參考數值點產生手法（不跑遺傳演算法與反推），每個形狀約 1～2 分鐘
   const limit = +opt('limit', 0), maxMinutes = +opt('max-minutes', 0), startedAt = Date.now(); // limit：只處理每個分片的前 N 個形狀（測試用）；max-minutes：超過就不再開始新的形狀（避免被 GitHub 的時限強制中斷）
   const only = opt('only', null) ? String(opt('only')).split(',') : null;
   // 依形狀分組，挑代表配方：HQ 材料最多的一個（算「全 HQ」起始品質）與完全沒有 HQ 的設定
@@ -74,6 +75,22 @@ if (args.includes('--merge')) {
     const refOf = (sv, ctr, third) => ({ craftsmanship: sv, control: ctr * sv, cp: isExpert ? cpFormula(sv) * third : cpFormula(sv) + third });
     let pool = (existing[k] || []).slice();
     const t0 = Date.now();
+    if (beamOnly) {
+      const hqv = hqAll.length ? hqAll : [], pts = [], list = [], seenSig = new Set();
+      REFS.forEach(function (r) { const sv = S0 * r[0], c = refOf(sv, r[1], r[2]); pts.push({ craftsmanship: Math.round(sv), control: Math.round(c.control), cp: Math.round(c.cp) }); });
+      [0.45, 0.6, 0.75, 0.9].forEach(function (f) { const sv = S0 * f; pts.push({ craftsmanship: Math.round(sv), control: Math.round((isExpert ? 0.75 : 0.905) * sv), cp: Math.round(isExpert ? cpFormula(sv) * 2.0 : cpFormula(sv)) }); });
+      for (const pt of pts) {
+        const bst = Object.assign({ jobId: rec.jobId, level: 100 }, pt);
+        const b = await w.send({ type: 'solve', recipeId: id, stats: bst, options: { strategy: 'beam', lang: 'tw', hqIngredients: hqv, beamMaxExpand: BEAM_BUDGET, beamWidths: BEAM_WIDTHS, beamRealCapMs: 600000 } });
+        const bk = b.ok && b.result && b.result.actionKeys, sig = bk && bk.join(',');
+        if (bk && bk.length && !seenSig.has(sig)) { seenSig.add(sig); list.push(bk); }
+      }
+      result[k] = list;
+      console.log('shape of recipe', id, 'rlvl', rec.rlvl, '->', list.length, 'rotations kept (beam-only),', Math.round((Date.now() - t0) / 1000) + 's');
+      const outB = { v: 1, actions: [], shapes: {} }; encode(outB, Object.assign({}, existing, result)); fs.mkdirSync(path.dirname(OUT), { recursive: true }); fs.writeFileSync(OUT, JSON.stringify(outB));
+      okCount++;
+      continue;
+    }
     for (const hq of variants) {
       // 參考點：不同強度 × 不同的加工／CP 比重。玩家的配置不一定貼近設計者比例（例如裝備不齊、某一項特別低），
       // 所以庫要涵蓋「加工偏低」「加工偏高」「CP 偏多／偏少」等不同取向，不能只集中在比例附近
