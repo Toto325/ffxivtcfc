@@ -48,6 +48,7 @@ const OUT = {
   actionIcons: path.join(__dirname, '..', 'js', 'craft-action-icons.js'),
   i18n: path.join(__dirname, '..', 'data', 'item-names-i18n.json'),
   itemNamesTw: path.join(__dirname, '..', 'js', 'item-names-tw.js'),
+  npcPrice: path.join(__dirname, '..', 'data', 'npc-price.json'),
 };
 
 function fetchJson(url) {
@@ -376,6 +377,19 @@ async function main() {
   itemCsv.slice(3).forEach(function (r) {
     if (/^\d+$/.test(r[0]) && (parseInt(r[searchCatCol], 10) || 0) > 0 && String(r[untradableCol]).toLowerCase() !== 'true') twMarketable[r[0]] = true;
   });
+  // NPC 收購價（把東西賣給系統 NPC 能拿到的固定金額）：台服 Item.csv 的 Price{Low}，0＝NPC 不收。
+  // 數值固定不會變，物品頁低調顯示，「換什麼最划算」也用它估算不可交易物品的價值。
+  const npcLowCol = itemCsv[1].indexOf('Price{Low}');
+  if (npcLowCol < 0) throw new Error('台服 Item.csv 找不到 Price{Low} 欄位，資料表可能已改版');
+  const npcPrice = {};
+  itemCsv.slice(3).forEach(function (r) {
+    if (!/^\d+$/.test(r[0]) || !itemNamesTw[r[0]]) return;
+    const v = parseInt(r[npcLowCol], 10) || 0;
+    if (v > 0) npcPrice[r[0]] = v;
+  });
+  const npcCount = Object.keys(npcPrice).length;
+  if (npcCount < 5000) throw new Error('NPC 收購價只解析到 ' + npcCount + ' 筆（正常約三萬筆），疑似資料表格式改版，已停止更新');
+  console.log('NPC 收購價:', npcCount, '筆');
   const patchVersion = {};
   Object.keys(patchNames).forEach(function (k) {
     const v = patchNames[k] && patchNames[k].version;
@@ -435,6 +449,7 @@ async function main() {
     i18nItems[id] = Object.assign({}, items[id], { tw: twItems[id] && twItems[id].tw, zh: zhItems[id] && zhItems[id].zh });
   }
   fs.writeFileSync(OUT.i18n, JSON.stringify(i18nItems));
+  fs.writeFileSync(OUT.npcPrice, JSON.stringify(npcPrice));
   console.log('已寫入', OUT.i18n, '（多語言完整版，供之後多語言介面使用）');
 
   /* 精簡版全物品繁中名稱表：跟上面的itemNamesTw是同一份資料（涵蓋items.json裡全部物品，
