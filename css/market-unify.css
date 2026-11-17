@@ -318,3 +318,6 @@ tr.market-hot-item:hover td,
 .mk-npc b { font-size: var(--fs-head); font-weight: 700; color: rgba(234,208,146,.88); font-variant-numeric: tabular-nums; }
 .mtr-legend { margin: 6px 0 0; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); }
 .mtr-legend-gap { display: inline-block; width: 14px; }
+
+/* 代幣兌換：賣給 NPC 的列，賣速／成交頻率欄顯示「即賣」（固定價格、不需要買家、必定成交） */
+.mk-instant { color: #8fd19e; font-weight: 600; cursor: help; }
