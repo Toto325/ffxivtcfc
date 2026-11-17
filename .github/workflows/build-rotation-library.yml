@@ -33,7 +33,9 @@ jobs:
         with: { node-version: 20 }
       - run: mkdir -p out && node tools/build-rotation-library.js --min-rlvl ${{ inputs.min_rlvl }} --max-rlvl ${{ inputs.max_rlvl }} --beam-budget ${{ inputs.beam_budget }} --beam-widths ${{ inputs.beam_widths }} --budget ${{ inputs.budget_ms }} --shard ${{ matrix.shard }}/8 --out out/lib-${{ matrix.shard }}.json
       - uses: actions/upload-artifact@v4
-        with: { name: lib-${{ matrix.shard }}, path: out/lib-${{ matrix.shard }}.json }
+        with:
+          name: lib-${{ matrix.shard }}
+          path: out/lib-${{ matrix.shard }}.json
   merge:
     needs: shard
     runs-on: ubuntu-latest
