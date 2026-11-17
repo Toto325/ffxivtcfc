@@ -58,6 +58,10 @@ function fetchJson(url) {
         return resolve(fetchJson(res.headers.location));
       }
       let data = '';
+      // 一定要指定編碼：不指定的話 c 是 Buffer，「data += c」會把每個 chunk 單獨轉成字串，
+      // 中文字（3 個位元組）剛好被切在兩個 chunk 中間時就會變成「���」亂碼。
+      // 這就是名稱表裡「過期黑鐵小���」這類零星亂碼的根因（fetchText 有設，fetchJson 之前漏了）。
+      res.setEncoding('utf8');
       res.on('data', (c) => { data += c; });
       res.on('end', () => {
         // 錯誤狀態碼時把回應內容也一起帶出來（截斷到300字），不然log只看得到「回應400」，
@@ -548,6 +552,11 @@ async function main() {
     'const CRAFT_FOODS=' + JSON.stringify(foods) + ';\n'
   );
   console.log('已寫入', OUT.foods);
+
+  // 最後把產出的檔案再檢查一遍：只要有「\ufffd」（亂碼替代字元）就直接失敗。
+  // workflow 失敗時不會提交，所以壞資料不會進 repo（這個檢查是為了永遠不會再發生上次那種整批亂碼）。
+  const bad = [OUT.itemNamesTw, OUT.i18n, OUT.craftData, OUT.actionNames, OUT.foods, OUT.npcPrice].filter((f) => f && fs.existsSync(f) && fs.readFileSync(f, 'utf8').includes('\ufffd'));
+  if (bad.length) throw new Error('產出的檔案含有亂碼字元（U+FFFD）：' + bad.join('、') + '，已停止，不會提交');
 }
 
 main().catch((err) => {
