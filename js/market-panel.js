@@ -23,575 +23,109 @@
     if (window.location.hash === h) return;
     try { window.history[push ? 'pushState' : 'replaceState'](null, '', window.location.pathname + window.location.search + h); } catch (e) { /* 某些環境不允許改網址就算了 */ }
   }
+  /* ── 返回導覽 ──
+   * 每次「從別的地方跳進某個物品頁」就記一格：來源是哪個分頁（含捲動位置），或來源是另一個物品（含當時看的分頁、世界、篩選）。
+   * 物品頁最上面有一顆「‹ 返回 〇〇」（只有跳進來時才出現，自己搜尋進來的不顯示）。
+   * 按鈕＝瀏覽器的「上一頁」，所以按鈕、瀏覽器上一頁、手機返回手勢走同一條路，不會互相打架。
+   * 離開市場頁就清空；生產頁彈窗（embed）沒有網址歷史，直接用記錄返回。 */
+  const navStack = [];
+  const MAIN_TAB_LABELS = { item: '物品查詢', radar: '製作商機', hot: '熱度排行', tokens: '代幣兌換' };
+  const ITEM_PANE_PLACEHOLDER = '<p class="craft-muted">搜尋一個物品開始查詢——即時價格、跨服比價、銷售速度，如果是可製作品還會顯示完整供應鏈。</p>';
+  function mainTabName() { const b = document.querySelector('.craft-tab-btn[data-mk-tab].active'); return b ? b.dataset.mkTab : 'item'; }
+  function paneScroller(tab) { const p = $('mk-pane-' + tab); return p ? p.querySelector('.market-pane-scrollbody') : null; }
+  function captureOrigin(targetId) {
+    const tab = mainTabName();
+    const sc = paneScroller(tab);
+    const base = { pane: sc ? sc.scrollTop : 0, win: window.scrollY || 0 };
+    if (tab !== 'item') return Object.assign({ kind: 'tab', tab: tab, label: MAIN_TAB_LABELS[tab] || tab }, base);
+    if (currentDetailItemId && String(targetId) !== String(currentDetailItemId)) {
+      const view = (detailViewState && detailViewState.itemId === String(currentDetailItemId)) ? Object.assign({}, detailViewState) : null;
+      return Object.assign({ kind: 'item', id: String(currentDetailItemId), name: ITEM_NAMES_TW_ALL[currentDetailItemId] || ('#' + currentDetailItemId), view: view }, base);
+    }
+    return null;
+  }
+  // 內容是非同步載入的，捲動位置要等內容撐開後才還原得了：分幾次嘗試，到位就停。
+  function restoreScrollSoon(el, top, winTop) {
+    let n = 0;
+    (function tryIt() {
+      if (el) el.scrollTop = top;
+      if (winTop != null) window.scrollTo(0, winTop);
+      n++;
+      const ok = (!el || Math.abs(el.scrollTop - top) < 3);
+      if (!ok && n < 8) setTimeout(tryIt, 150 * n);
+    })();
+  }
+  function resetItemPane() {
+    currentDetailItemId = null; detailLoadToken++; detailViewState = null;
+    $('mk-pane-item').innerHTML = ITEM_PANE_PLACEHOLDER;
+    renderRecentlyViewed(); fitMarketHeights();
+  }
+  function restoreOrigin(og, fromHash) {
+    if (og.kind === 'tab') {
+      const b = document.querySelector('.craft-tab-btn[data-mk-tab="' + og.tab + '"]');
+      if (b) b.click();
+      restoreScrollSoon(paneScroller(og.tab), og.pane, og.win);
+    } else {
+      openItemDetail(og.id, { back: true, fromHash: !!fromHash, restoreView: og.view });
+      restoreScrollSoon(paneScroller('item'), og.pane, og.win);
+    }
+  }
+  function goBack() {
+    if (!navStack.length) return;
+    if (IS_EMBED) { restoreOrigin(navStack.pop(), false); return; }
+    let fired = false;
+    const onPop = function () { fired = true; };
+    window.addEventListener('popstate', onPop, { once: true });
+    window.history.back();
+    setTimeout(function () { // 萬一瀏覽器沒有可退的紀錄（popstate 沒觸發），改用記錄直接返回
+      window.removeEventListener('popstate', onPop);
+      if (!fired && navStack.length) restoreOrigin(navStack.pop(), false);
+    }, 400);
+  }
+  function backRowHtml() {
+    const top = navStack[navStack.length - 1];
+    if (!top) return '';
+    const label = top.kind === 'tab' ? top.label : top.name;
+    return '<div class="mk-back-row"><button type="button" class="mk-back-btn" id="mk-back-btn" title="返回「' + escHtml(label) + '」"><i class="ph ph-caret-left"></i><span>返回 ' + escHtml(label) + '</span></button></div>';
+  }
   (function () {
     const rawNav = app.nav;
     app.nav = function (id) {
+      if (id !== 'market') navStack.length = 0;
       if (!IS_EMBED && id !== 'market' && hashIsMarket()) { try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* 忽略 */ } }
       const r = rawNav.apply(this, arguments);
       if (!IS_EMBED && id === 'market' && currentDetailItemId) syncHash(currentDetailItemId, false);
       return r;
     };
   })();
-  window.addEventListener('popstate', function () { // 瀏覽器上一頁／下一頁
+  window.addEventListener('popstate', function () { // 瀏覽器上一頁／下一頁（返回按鈕也走這裡）
     if (IS_EMBED || !hashIsMarket() || !$('mk-pane-item')) return;
     if (!document.getElementById('market').classList.contains('active')) app.nav('market');
     const id = readHashItem();
-    if (id) { if (id !== currentDetailItemId) openItemDetail(id, { fromHash: true }); }
-    else if (currentDetailItemId) { // 回到「還沒開任何物品」的那一步
-      currentDetailItemId = null; detailLoadToken++; detailViewState = null;
-      $('mk-pane-item').innerHTML = '<p class="craft-muted">搜尋一個物品開始查詢——即時價格、跨服比價、銷售速度，如果是可製作品還會顯示完整供應鏈。</p>';
-      renderRecentlyViewed(); fitMarketHeights();
+    const top = navStack[navStack.length - 1];
+    if (id) {
+      if (id !== currentDetailItemId || mainTabName() !== 'item') {
+        if (top && top.kind === 'item' && top.id === id) { navStack.pop(); restoreOrigin(top, true); }
+        else openItemDetail(id, { fromHash: true });
+      }
+    } else if (top && top.kind === 'tab') { // 回到「從某個分頁跳進來」之前
+      navStack.pop(); resetItemPane(); restoreOrigin(top, true);
+    } else if (currentDetailItemId) { // 回到「還沒開任何物品」的那一步
+      resetItemPane();
     }
   });
-
-  app.buildMarket = function () {
-    const root = document.getElementById('market-root');
-    if (!root) return;
-
-    root.innerHTML = '<div class="craft-loading"><i class="ph ph-scales craft-loading-icon"></i><span>載入物品資料中⋯</span></div>';
-
-    // 市場頁只需要「全物品名稱索引」＋「市場資料層」，不需要 craft-data.js 那份好幾MB的配方庫，
-    // 除非之後要顯示供應鏈視覺化，那時候才臨時另外載入 craft-data.js（用 typeof 判斷避免重複載入）。
-    const need = [];
-    if (typeof ITEM_NAMES_TW_ALL === 'undefined') need.push(['js/item-names-tw.js']);
-    if (typeof ITEM_ICONS_TW_ALL === 'undefined') need.push(['js/item-icons-tw.js']);
-    if (typeof MarketData === 'undefined') need.push(['js/market-data.js', function () { return typeof MarketData !== 'undefined'; }]);
-
-    if (!need.length) { renderMarketSkeleton(); return; }
-    // 走共用載入器（定義在 craft-panel.js）：market-data.js 生產頁也會載，不能各載各的
-    // 載入卡住（網路停住、檔案一直沒回應）時，不要一直轉圈：30 秒後改成明確的提示；之後如果檔案終於載好，還是會自動接著顯示
-    const stuckTimer = setTimeout(function () {
-      if (root.querySelector('.craft-loading') && !root.querySelector('.craft-error')) root.innerHTML = '<div class="craft-loading craft-error">資料載入逾時，請重新整理頁面（Ctrl＋F5）再試一次。</div>';
-    }, 30000);
-    Promise.all(need.map(function (n) { return app.loadScriptOnce(n[0], n[1]); })).then(function (results) {
-      clearTimeout(stuckTimer);
-      if (results.every(Boolean)) {
-        try { renderMarketSkeleton(); }
-        catch (e) { root.innerHTML = '<div class="craft-loading craft-error">市場頁顯示失敗（' + String(e && e.message || e).slice(0, 80) + '），請重新整理再試一次。</div>'; throw e; } // 錯誤訊息直接顯示在畫面上，不再只是停在載入中
-        return;
-      }
-      root.innerHTML = '<div class="craft-loading craft-error">資料載入失敗，請重新整理再試一次。</div>';
-    });
-  };
-
-  function $(id) { return document.getElementById(id); }
-  // 把文字放進 HTML 之前先「跳脫」：把 < > & " 換成安全的寫法，這樣名稱裡就算剛好有這些符號，也只會被當成文字顯示，
-  // 不會被瀏覽器當成網頁語法（例如名稱裡的 " 會把 title="…" 提早結束）。物品名稱目前都來自你自己的資料所以沒有實際風險，
-  // 但從 localStorage（最近查看）讀出來的內容可以被改，加上這一層比較保險。
-  function escHtml(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-
-  function renderMarketSkeleton() {
-    const root = document.getElementById('market-root');
-    root.innerHTML =
-      '<div class="market-top-fixed">' +
-        '<div class="market-header">' +
-          '<h2 class="unified-gold-header small news-title"><i class="ph ph-scales cr-title-ic" aria-hidden="true"></i>市場</h2>' +
-          '<div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>' +
-          '<p class="elegant-body-text page-note">查詢單一物品的即時價格、跨服比價與供應鏈，或看看最近交易熱度排行。</p>' +
-        '</div>' +
-        '<div class="market-recent-row" id="mk-recent-row"></div>' +
-        '<div class="market-searchbar">' +
-          '<div class="market-search-box">' +
-            '<input id="mk-search" class="craft-search" placeholder="搜尋物品名稱⋯" autocomplete="off" />' +
-            '<div id="mk-search-results" class="craft-search-results"></div>' +
-          '</div>' +
-          '<button type="button" id="mk-settings-btn" class="market-settings-btn" title="' + (MarketData.dcSelectorVisible ? '設定資料中心／我的世界' : '設定我的世界') + '">' +
-            '<i class="ph ph-gear-six market-settings-gear"></i><span id="mk-settings-summary" class="market-settings-segs"><span class="mss mss-empty">尚未設定市場資訊</span></span>' +
-          '</button>' +
-        '</div>' +
-        '<div class="market-tabs">' +
-          '<button type="button" class="craft-tab-btn active" data-mk-tab="item">物品查詢</button>' +
-          '<button type="button" class="craft-tab-btn" data-mk-tab="radar">製作商機</button>' +
-          '<button type="button" class="craft-tab-btn" data-mk-tab="hot">熱度排行</button>' +
-          '<button type="button" class="craft-tab-btn" data-mk-tab="tokens">代幣兌換</button>' +
-        '</div>' +
-      '</div>' +
-      '<div class="market-panes-flex">' +
-        '<div id="mk-pane-item" class="market-pane active">' +
-          '<p class="craft-muted">搜尋一個物品開始查詢——即時價格、跨服比價、銷售速度，如果是可製作品還會顯示完整供應鏈。</p>' +
-        '</div>' +
-        '<div id="mk-pane-radar" class="market-pane"></div>' +
-        '<div id="mk-pane-hot" class="market-pane"></div>' +
-        '<div id="mk-pane-tokens" class="market-pane"></div>' +
-      '</div>';
-
-    updateMarketSettingsSummary();
-    renderRecentlyViewed();
-    setupWatchlist();
-    bindSearchBox();
-    bindTabSwitch();
-    renderRadarShell();
-    MarketData.bindPricePrefsBars();
-    MarketData.autoEnhanceSelects(); // 市場頁的下拉全部換成站內設計的自製下拉
-    if (!prefsSupplyHooked) { // 全站取價設定改了：物品頁的供應鏈圖要原地重畫
-      prefsSupplyHooked = true;
-      MarketData.onPricePrefsChange(function () {
-        const ctx = lastSupplyCtx;
-        if (!ctx || !ctx.box.isConnected) return;
-        Promise.resolve(renderSupplyChainWithBreakdown(ctx.itemId, ctx.rid, ctx.box)).then(function (freshDcData) {
-          // 設定彈窗正開著：內容也要跟著重畫（例如基準切到「均價」才會出現「均價窗口」那一列），不用關掉再開。
-          // 面板沿用原本的位置與方向（openSupplySettingsPopover 對「已開著」的面板就是這樣處理）。
-          const pop = ensureAvgPricePopoverDom();
-          if (lastSupplyCtx && lastSupplyCtx.box === ctx.box && ctx.box.isConnected && pop.style.display === 'block' && pop.dataset.owner === 'supply') { // 不能比對 ctx 物件本身：每次重畫 lastSupplyCtx 都會換成新物件，只能比容器
-            openSupplySettingsPopover(ctx.box, ctx.itemId, ctx.rid, freshDcData);
-          }
-        });
-      });
-    }
-    fitMarketHeights();
-    const hashItem = readHashItem(); // 網址帶著物品（重新整理、分享連結）就直接開那個物品
-    if (hashItem) openItemDetail(hashItem, { fromHash: true });
-
-    $('mk-settings-btn').addEventListener('click', function (e) {
-      e.stopPropagation();
-      openMarketSettingsPopover(this);
-    });
-  }
-
-  /* 目前的市場設定摘要：分成幾段，每段「小圖示＋文字」，段與段之間用細線隔開。
-   * 以前是一串「陸行鳥・利維坦・自動最低稅率」用・黏在一起的純文字，要逐字讀；現在每一段各有圖示，
-   * 一眼分得出哪個是資料中心、哪個是我的世界、哪個是稅率。每一段的滑鼠提示說明它的作用。
-   * 還沒設定時整個按鈕用橘色提示，提醒玩家去設定（不設定的話稅後估算跟賣出參考都沒有）。 */
-  function updateMarketSettingsSummary() {
-    if (window.MarketWatchlist) MarketWatchlist.onSettingsChanged(); // 資料中心／我的世界改了，清單的價格範圍要跟著重查
-    const el = $('mk-settings-summary');
-    if (!el || typeof MarketData === 'undefined') return;
-    const s = MarketData.getSettings();
-    const segs = [];
-    if (s.dcName) segs.push('<span class="mss" title="資料中心（買進、材料成本查價的範圍）"><i class="ph ph-globe-hemisphere-west"></i>' + s.dcName + '</span>');
-    if (s.worldName) segs.push('<span class="mss" title="我的世界"><i class="ph ph-map-pin"></i>' + s.worldName + '</span>');
-    if (s.dcName && s.worldName) {
-      segs.push('<span class="mss" title="' + (s.sellCityKey ? '賣出稅率：使用你手動選的城市' : '賣出稅率：自動採用目前稅率最低的城市') + '"><i class="ph ph-percent"></i>' + (s.sellCityKey ? '手動稅率' : '自動最低稅率') + '</span>');
-    }
-    el.innerHTML = segs.length ? segs.join('') : '<span class="mss mss-empty">尚未設定市場資訊</span>';
-    const btn = $('mk-settings-btn'); if (btn) btn.classList.toggle('is-unset', !segs.length);
-  }
-
-  /* 市場設定彈出卡：生產頁craft-panel.js裡已經有一份幾乎一樣的邏輯（cf-market-*系列），
-   * 這裡先各自維護一份簡化版，等市場頁功能穩定後再考慮抽成共用元件——現階段兩邊都還在變動，
-   * 太早抽共用反而互相牽制，之後有餘力再做這個重構。
-   * 第4點：原本漏了「賣出城市」這一欄——沒有這個選項，稅後估算就只能死板套用「目前最低稅率」，
-   * 玩家沒辦法照自己角色實際退休/常去的城市去算。這裡補上，跟生產頁同一套邏輯：資料中心決定
-   * 「買」的查價範圍，世界決定「賣」的查價範圍，城市決定賣方稅率，不選城市就自動用目前最低稅率。 */
-  function ensureSettingsPopoverDom() {
-    let pop = $('mk-settings-popover');
-    if (pop) return pop;
-    pop = document.createElement('div');
-    pop.id = 'mk-settings-popover';
-    pop.className = 'craft-mat-worlds-popover craft-settings-popover';
-    pop.style.display = 'none';
-    pop.innerHTML =
-      '<p class="craft-mat-worlds-title">市場設定</p>' +
-      '<div class="craft-settings-field"' + (MarketData.dcSelectorVisible ? '' : ' style="display:none"') + '><label>資料中心<span class="craft-muted">（材料成本查詢範圍）</span></label><select id="mk-set-dc" class="craft-select craft-select-block"><option value="">資料中心⋯</option></select></div>' +
-      '<div class="craft-settings-field"><label>我的世界</label><select id="mk-set-world" class="craft-select craft-select-block"><option value="">我的世界⋯</option></select></div>' +
-      '<div class="craft-settings-field" id="mk-set-city-field" style="display:none"><label>賣出城市<span class="craft-muted">（決定賣方稅率）</span></label><select id="mk-set-city" class="craft-select craft-select-block"></select></div>' +
-      '<div class="craft-settings-field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="mk-set-exclude-outlier"' + (MarketData.getSettings().excludeOutlierTrades ? ' checked' : '') + '><span>排除異常成交<span class="craft-muted">（單筆成交價跟其他成交的中位數比，差距同時超過1000金和10倍，就不算進均價）</span></span></label></div>';
-    document.body.appendChild(pop);
-    $('mk-set-dc').addEventListener('change', async function () {
-      await MarketData.setDataCenter(this.value);
-      const worlds = this.value ? await MarketData.listWorldNamesInDc(this.value) : [];
-      $('mk-set-world').innerHTML = '<option value="">我的世界⋯</option>' + worlds.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
-      await refreshCitySelectOptions(null, null);
-      updateMarketSettingsSummary();
-      refreshMarketDependentDisplays();
-    });
-    $('mk-set-world').addEventListener('change', async function () {
-      await MarketData.setWorld(this.value);
-      await refreshCitySelectOptions(this.value, null);
-      updateMarketSettingsSummary();
-      refreshMarketDependentDisplays();
-    });
-    $('mk-set-city').addEventListener('change', function () {
-      MarketData.setSellCity(this.value || null);
-      updateMarketSettingsSummary();
-      refreshMarketDependentDisplays();
-    });
-    $('mk-set-exclude-outlier').addEventListener('change', function () {
-      MarketData.setExcludeOutlierTrades(this.checked); // 這個開關只影響「即時查詢」的均價；熱度排行的均價本來就固定排除異常成交，不受這個開關控制
-      refreshMarketDependentDisplays();
-    });
-    pop.addEventListener('click', function (e) { e.stopPropagation(); });
-    document.addEventListener('click', function () { pop.style.display = 'none'; });
-    return pop;
-  }
-
-  async function refreshCitySelectOptions(worldNameStr, presetCityKey) {
-    const citySel = $('mk-set-city');
-    const field = $('mk-set-city-field');
-    if (!worldNameStr) { field.style.display = 'none'; citySel.innerHTML = ''; return; }
-    const cities = await MarketData.listSellCities(worldNameStr);
-    if (!cities.length) { field.style.display = 'none'; citySel.innerHTML = ''; return; }
-    citySel.innerHTML = '<option value="">自動（目前最低稅率）</option>' +
-      cities.map(function (c) { return '<option value="' + c.cityKey + '">' + c.cityName + '（稅率' + c.percent + '%）</option>'; }).join('');
-    citySel.value = presetCityKey || '';
-    field.style.display = 'block';
-  }
-
-  // 設定一改（世界/城市/DC），正在看的物品詳情跟正在顯示的製作商機都要立刻反映新假設，
-  // 不然玩家選了別的賣出城市，畫面卻還停在舊稅率算出來的數字，會誤判。
-  function refreshMarketDependentDisplays() {
-    if (currentDetailItemId) loadMarketSection(currentDetailItemId, { keepView: true });
-    if (radarRefreshHook) radarRefreshHook();
-    fitMarketHeights();
-  }
-
-  async function openMarketSettingsPopover(anchorBtn) {
-    const pop = ensureSettingsPopoverDom();
-    try {
-      const dcNames = await MarketData.listDcNames();
-      $('mk-set-dc').innerHTML = '<option value="">資料中心⋯</option>' + dcNames.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
-      const saved = MarketData.getSettings();
-      if (saved.dcName) {
-        $('mk-set-dc').value = saved.dcName;
-        const worlds = await MarketData.listWorldNamesInDc(saved.dcName);
-        $('mk-set-world').innerHTML = '<option value="">我的世界⋯</option>' + worlds.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
-        if (saved.worldName) {
-          $('mk-set-world').value = saved.worldName;
-          await refreshCitySelectOptions(saved.worldName, saved.sellCityKey);
-        }
-      }
-    } catch (e) { /* 抓不到清單就先不管，畫面照常運作 */ }
-    pop.style.display = 'flex';
-    const r = anchorBtn.getBoundingClientRect();
-    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 280)) + 'px';
-    pop.style.top = (r.bottom + 6) + 'px';
-  }
-
-  /* 搜尋框：直接查 ITEM_NAMES_TW_ALL（全物品，不限配方相關），跟生產頁的配方搜尋是兩套獨立索引，
-   * 市場頁本來就該看得到裝備/雜物/家具這些不會出現在配方庫裡的東西。 */
-  /* 物品能不能在市場交易：看更新腳本產生的可交易清單。沒有這份清單（資料沒載到）時一律當作可交易，
-   * 不亂下「不可交易」的結論。注意這份清單可能比遊戲新物品慢一步，所以「不可交易」只用在提示，
-   * 不拿來擋住查詢——有掛單就一定顯示（見 loadMarketSection）。 */
-  let marketableSet = null;
-  function isMarketable(id) {
-    if (typeof ITEM_MARKETABLE_TW === 'undefined' || !ITEM_MARKETABLE_TW.length) return true;
-    if (!marketableSet) marketableSet = new Set(ITEM_MARKETABLE_TW.map(String));
-    return marketableSet.has(String(id));
-  }
-  // 台服可交易、但 Universalis 沒有資料的物品（例如國際服 7.5 已停用的舊染劑；台服版本較舊，仍可交易）。
-  let noUniversalisSet = null;
-  function isNoUniversalis(id) {
-    if (typeof ITEM_NO_UNIVERSALIS_TW === 'undefined' || !ITEM_NO_UNIVERSALIS_TW.length) return false;
-    if (!noUniversalisSet) noUniversalisSet = new Set(ITEM_NO_UNIVERSALIS_TW.map(String));
-    return noUniversalisSet.has(String(id));
-  }
-  function bindSearchBox() {
-    const input = $('mk-search');
-    const box = $('mk-search-results');
-    input.setAttribute('role', 'combobox'); input.setAttribute('aria-expanded', 'false'); input.setAttribute('aria-controls', 'mk-search-results'); input.setAttribute('aria-autocomplete', 'list');
-    box.setAttribute('role', 'listbox');
-    let debounceTimer = null;
-    input.addEventListener('input', function () {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(runSearch, 120);
-    });
-    function runSearch() {
-      const q = input.value.trim();
-      if (!q) { closeBox(); return; }
-      // 只搜尋可在市場交易的物品（ITEM_MARKETABLE_TW 由 update-craft-data.js 產生）；
-      // 貨幣、不可交易的物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去。
-      const ids = (typeof ITEM_MARKETABLE_TW !== 'undefined' && ITEM_MARKETABLE_TW.length) ? ITEM_MARKETABLE_TW : Object.keys(ITEM_NAMES_TW_ALL);
-      const matches = [];
-      for (let i = 0; i < ids.length; i++) {
-        const name = ITEM_NAMES_TW_ALL[ids[i]];
-        if (name && name.indexOf(q) !== -1) matches.push({ id: ids[i], name: name });
-      }
-      // 第5點抓到的真正原因：純粹按物品ID排序，會讓「基礎材料」被自己衍生出來的一大堆裝備
-      // 名稱排擠出前30名——例如「銀狼革」這個素材本身的ID，剛好比拿它做出來的33件裝備的ID都大，
-      // 純ID排序下，光是這些裝備就佔滿了前30名，真正要找的素材反而看不到。不是抓不到資料
-      // （這個物品在供應鏈圖上能正確顯示價格，證明資料完全存在），純粹是排序方式的問題。
-      // 改成先比對「符合程度」：完全等於搜尋字串 > 開頭符合 > 只是包含在中間；
-      // 同等級再比名字長度（越短越接近你在找的東西），最後才用ID排序當保底。
-      function rank(name) {
-        if (name === q) return 0;
-        if (name.indexOf(q) === 0) return 1;
-        return 2;
-      }
-      matches.sort(function (a, b) {
-        const ra = rank(a.name), rb = rank(b.name);
-        if (ra !== rb) return ra - rb;
-        if (a.name.length !== b.name.length) return a.name.length - b.name.length;
-        return Number(a.id) - Number(b.id);
-      });
-      // 原本這裡會砍到只留前30筆，是我自己加的上限，怕一次塞太多DOM節點卡頓。
-      // 現在下拉清單本身有自己的捲軸能正常捲動，這個限制沒必要，拿掉——搜尋結果要列出全部。
-      if (!matches.length) { box.innerHTML = '<div class="craft-muted" style="padding:8px">查無符合的物品</div>'; box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); fitMarketHeights(); return; }
-      // 一次最多畫 SEARCH_MAX 筆：搜「的」這種很短的字會符合上千個物品，每個都帶圖示一次全畫出來會卡；
-      // 排序已經是「最像的在前面」，後面的用更完整的名稱就能縮小，所以超過的部分只提示筆數。
-      const SEARCH_MAX = 200;
-      const shown = matches.slice(0, SEARCH_MAX);
-      box.innerHTML = shown.map(function (m, idx) {
-        const on = isWatched(m.id);
-        return '<div class="craft-search-item" role="option" id="mk-opt-' + idx + '" data-mk-pick="' + m.id + '">' + itemIconHtml(m.id, 24) + '<span>' + escHtml(m.name) + '</span>' +
-          '<button type="button" class="wl-star' + (on ? ' on' : '') + '" data-wl-star="' + m.id + '" tabindex="-1" title="' + (on ? '取消關注' : '加入關注') + '" aria-label="' + (on ? '取消關注' : '加入關注') + '">' + (on ? '★' : '☆') + '</button></div>';
-      }).join('') + (matches.length > SEARCH_MAX ? '<div class="craft-muted mk-search-more">還有 ' + (matches.length - SEARCH_MAX).toLocaleString() + ' 筆符合，輸入更完整的名稱可以縮小範圍</div>' : '');
-      box.classList.add('open');
-      input.setAttribute('aria-expanded', 'true');
-      activeIdx = -1; input.removeAttribute('aria-activedescendant');
-      fitMarketHeights();
-      box.querySelectorAll('[data-wl-star]').forEach(function (star) {
-        star.addEventListener('click', function (e) {
-          e.stopPropagation(); // 只切換關注，不要當成「選了這個物品」
-          const id = star.dataset.wlStar;
-          const nowOn = MarketWatchlist.toggle(id, ITEM_NAMES_TW_ALL[id] || ('#' + id));
-          star.classList.toggle('on', nowOn);
-          star.textContent = nowOn ? '★' : '☆';
-          star.title = nowOn ? '取消關注' : '加入關注';
-          star.setAttribute('aria-label', star.title);
-        });
-      });
-      box.querySelectorAll('[data-mk-pick]').forEach(function (el) {
-        el.addEventListener('click', function () { pick(el.dataset.mkPick); });
-      });
-    }
-    function pick(id) {
-      input.value = ITEM_NAMES_TW_ALL[id] || '';
-      closeBox();
-      openItemDetail(id);
-    }
-    function closeBox() { box.innerHTML = ''; box.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); activeIdx = -1; fitMarketHeights(); }
-    // 鍵盤：↑↓ 移動、Enter 選取（沒移動過就選第一個）、Esc 關閉
-    let activeIdx = -1;
-    function setActive(i) {
-      const items = box.querySelectorAll('.craft-search-item');
-      if (!items.length) return;
-      activeIdx = (i + items.length) % items.length;
-      items.forEach(function (el, k) { el.classList.toggle('is-active', k === activeIdx); el.setAttribute('aria-selected', k === activeIdx ? 'true' : 'false'); });
-      const cur = items[activeIdx];
-      input.setAttribute('aria-activedescendant', cur.id);
-      cur.scrollIntoView({ block: 'nearest' });
-    }
-    input.addEventListener('keydown', function (e) {
-      const open = box.classList.contains('open') && box.querySelector('.craft-search-item');
-      if (e.key === 'ArrowDown') { if (!open) { runSearch(); return; } e.preventDefault(); setActive(activeIdx + 1); }
-      else if (e.key === 'ArrowUp') { if (!open) return; e.preventDefault(); setActive(activeIdx <= 0 ? -1 : activeIdx - 1); }
-      else if (e.key === 'Enter') {
-        if (!open) return;
-        e.preventDefault();
-        const items = box.querySelectorAll('.craft-search-item');
-        const cur = items[activeIdx >= 0 ? activeIdx : 0];
-        if (cur) pick(cur.dataset.mkPick);
-      } else if (e.key === 'Escape') { if (box.classList.contains('open')) { e.preventDefault(); closeBox(); } }
-    });
-    document.addEventListener('click', function (e) {
-      if (!box.contains(e.target) && e.target !== input) { box.classList.remove('open'); input.setAttribute('aria-expanded', 'false'); fitMarketHeights(); }
-    });
-  }
-
-  function bindTabSwitch() {
-    document.querySelectorAll('[data-mk-tab]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        document.querySelectorAll('[data-mk-tab]').forEach(function (b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        const tab = btn.dataset.mkTab;
-        $('mk-pane-item').classList.toggle('active', tab === 'item');
-        $('mk-pane-radar').classList.toggle('active', tab === 'radar');
-        $('mk-pane-hot').classList.toggle('active', tab === 'hot');
-        $('mk-pane-tokens').classList.toggle('active', tab === 'tokens');
-        if (tab === 'hot' && !$('mk-pane-hot').dataset.rendered) {
-          $('mk-pane-hot').dataset.rendered = '1';
-          renderHotShell();
-        }
-        if (tab === 'tokens' && !$('mk-pane-tokens').dataset.rendered) {
-          $('mk-pane-tokens').dataset.rendered = '1';
-          renderTokensShell();
-        }
-        fitMarketHeights();
-      });
-    });
-  }
-
-  /* 第1點的最終解法：前四輪一直用CSS的max-height+多層flex:1去「猜」子層該不該收縮，
-   * 在實際瀏覽器裡並不會每次都可靠觸發——這就是反覆修不好的根本原因。改成直接用JS量測
-   * 「上面固定區塊」實際佔了多高，用量出來的真實px數字設定.market-panes-flex的高度，
-   * 下面的flex:1/min-height:0就是在一個「確定高度」的容器裡運作，不再是猜的，一定會生效。
-   * 任何會讓上面固定區塊高度改變的操作（開合搜尋下拉、切分頁、視窗縮放、設定變更）都要重新量。 */
-  function fitMarketHeights() {
-    const root = document.getElementById('market-root');
-    const topFixed = root && root.querySelector('.market-top-fixed');
-    const panesFlex = root && root.querySelector('.market-panes-flex');
-    if (!root || !topFixed || !panesFlex) return;
-    // 第4點：這套固定高度機制是為桌面版左右並排設計的，手機版（≤720px）兩欄會疊成一直條，
-    // 交給CSS媒體查詢處理成自然高度＋整頁捲動，這裡就不要再用行內style設定固定px高度去蓋掉它。
-    if (window.innerWidth <= 720) { panesFlex.style.height = ''; return; }
-    // 第6點抓到的真正原因：舊寫法用 root.getBoundingClientRect().bottom 當基準，但root的實際
-    // 渲染高度（CSS max-height:82vh，根據內容多高撐開）本身又受panesFlex目前的高度影響——
-    // 這是一個循環依賴：量出來的值會回頭影響下一次量測的基準，每次只能往正確答案「靠近一點點」，
-    // 要點很多下才收斂到正確高度，剛好對上你看到的症狀。改成完全不依賴root目前渲染高度的算法：
-    // 用window.innerHeight（永遠固定，不受任何內容影響）乘上跟CSS一致的85%上限，
-    // 再扣掉topFixed自己的實際高度（topFixed是flex-shrink:0，大小只取決於自己的內容，
-    // 跟panesFlex完全無關）——這樣算出來的值第一次就是對的，不用等好幾次點擊才收斂。
-    const viewportCap = window.innerHeight * 0.85;
-    const topFixedH = topFixed.getBoundingClientRect().height;
-    const available = Math.max(160, Math.floor(viewportCap - topFixedH));
-    panesFlex.style.height = available + 'px';
-  }
-  window.addEventListener('resize', function () { fitMarketHeights(); });
-
-  /* 最近查看：純本機 localStorage，零維護，不用帳號、不用後端。之後點進物品詳情頁時
-   * 會呼叫 recordRecentlyViewed() 把當下這個物品記進來，這裡先只做「讀出來顯示」的部分。 */
-  const RECENT_KEY = 'ff14fc-market-recent';
-  function getRecentlyViewed() {
-    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
-  }
-  function recordRecentlyViewed(itemId, name) {
-    try {
-      let list = getRecentlyViewed().filter(function (r) { return r.id !== itemId; });
-      list.unshift({ id: itemId, name: name });
-      list = list.slice(0, 20);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(list));
-    } catch (e) { /* localStorage被封鎖（例如私密瀏覽）就靜默放棄，不影響其他功能 */ }
-  }
-  /* 價格太長時的簡寫（只用在空間很窄的地方：各世界最低價格子、統計列）：
-   * 100萬以上改用「萬」、1億以上改用「億」，台服玩家看價格本來就習慣萬為單位；一千萬以內保留到小數點一位，
-   * 以上取整數（1190萬、5億）。完整數字永遠放在滑鼠提示跟下方表格裡，簡寫只是為了「放得下、看得清楚」。 */
-  function fmtCompactGil(n, from) {
-    if (from && n < from) return Math.round(n).toLocaleString();
-    if (n >= 1e8) { const v = n / 1e8; return (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10) + '億'; }
-    if (n >= 1e6) { const v = n / 1e4; return (v >= 1000 ? Math.round(v) : Math.round(v * 10) / 10) + '萬'; }
-    return n.toLocaleString();
-  }
-  /* 最近查看：以前是自動換行的一大片標籤（20個物品在一般視窗寬度下會掉成兩排、約66px高），
-   * 現在固定單行（約32px高），放不下的往右捲：滑鼠滾輪直接橫向捲動、左右各有一顆小箭頭、
-   * 邊緣用漸層淡出提示「後面還有」。省下的高度還給下面的內容。
-   * 目前正在看的那個物品用金色框標出來，一眼知道「我現在在哪一個」。最右邊可以清除紀錄。 */
-  /* 滑鼠按住最近查看那一排左右拖動（觸控螢幕本來就能直接滑，這裡只處理滑鼠）。
-   * 拖動超過4px才算「在拖」，這時放開滑鼠不能順便觸發標籤的點擊（不然拖完會誤開一個物品）；
-   * 監聽器只在載入時掛一次（renderRecentlyViewed 每開一個物品就重畫一次，不能在裡面掛，否則會越疊越多）。 */
-  let recentDrag = null, recentSuppressClick = false;
-  window.addEventListener('pointermove', function (e) {
-    if (!recentDrag) return;
-    const dx = e.clientX - recentDrag.x;
-    if (!recentDrag.moved && Math.abs(dx) > 4) { recentDrag.moved = true; recentDrag.sc.classList.add('is-dragging'); }
-    if (recentDrag.moved) recentDrag.sc.scrollLeft = recentDrag.left - dx;
-  });
-  window.addEventListener('pointerup', function () {
-    if (!recentDrag) return;
-    const d = recentDrag; recentDrag = null;
-    d.sc.classList.remove('is-dragging');
-    if (d.moved) { recentSuppressClick = true; setTimeout(function () { recentSuppressClick = false; }, 0); } // click 事件緊接在 pointerup 之後，同一輪就會被擋掉
-  });
-  function renderRecentlyViewed() {
-    const row = $('mk-recent-row');
-    const list = getRecentlyViewed();
-    if (!list.length) { row.innerHTML = ''; row.classList.remove('can-left', 'can-right'); return; }
-    row.innerHTML = '<span class="market-recent-label"><i class="ph ph-clock-counter-clockwise"></i>最近查看</span>' +
-      '<div class="market-recent-wrap">' +
-        '<button type="button" class="market-recent-nav prev" aria-label="往左" tabindex="-1"><i class="ph ph-caret-left"></i></button>' +
-        '<div class="market-recent-scroller">' +
-          list.map(function (r) {
-            return '<button type="button" class="market-recent-chip' + (String(r.id) === String(currentDetailItemId) ? ' is-current' : '') + '" data-mk-recent="' + r.id + '" title="' + escHtml(r.name) + '">' + itemIconHtml(r.id, 18) + '<span>' + escHtml(r.name) + '</span></button>';
-          }).join('') +
-        '</div>' +
-        '<button type="button" class="market-recent-nav next" aria-label="往右" tabindex="-1"><i class="ph ph-caret-right"></i></button>' +
-      '</div>' +
-      '<button type="button" class="market-recent-clear" title="清除最近查看紀錄"><i class="ph ph-x"></i></button>';
-    const sc = row.querySelector('.market-recent-scroller');
-    function edges() {
-      row.classList.toggle('can-left', sc.scrollLeft > 4);
-      row.classList.toggle('can-right', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
-    }
-    sc.addEventListener('scroll', edges);
-    sc.addEventListener('pointerdown', function (e) {
-      if (e.pointerType !== 'mouse' || e.button !== 0) return;
-      recentDrag = { x: e.clientX, left: sc.scrollLeft, sc: sc, moved: false };
-    });
-    sc.addEventListener('dragstart', function (e) { e.preventDefault(); }); // 不要讓瀏覽器把圖示當圖片拖走
-    sc.addEventListener('wheel', function (e) { // 滾輪直接橫向捲動（只有真的放不下時才攔截，不影響頁面本身的捲動）
-      if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      sc.scrollLeft += e.deltaY; e.preventDefault();
-    }, { passive: false });
-    row.querySelector('.market-recent-nav.prev').addEventListener('click', function () { sc.scrollBy({ left: -sc.clientWidth * 0.7, behavior: 'smooth' }); });
-    row.querySelector('.market-recent-nav.next').addEventListener('click', function () { sc.scrollBy({ left: sc.clientWidth * 0.7, behavior: 'smooth' }); });
-    row.querySelector('.market-recent-clear').addEventListener('click', function () {
-      try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 被封鎖就算了 */ }
-      renderRecentlyViewed();
-    });
-    row.querySelectorAll('[data-mk-recent]').forEach(function (el) {
-      el.addEventListener('click', function () { if (recentSuppressClick) return; openItemDetail(el.dataset.mkRecent); });
-    });
-    requestAnimationFrame(edges); // 要等排版完成才量得到寬度
-  }
-  window.addEventListener('resize', function () { const sc = document.querySelector('.market-recent-scroller'); if (sc) sc.dispatchEvent(new Event('scroll')); });
-
-  /* 物品詳情頁：即時跨服比價、銷售速度、（可製作品）供應鏈視覺化、被用在哪的反查。
-   * 供應鏈那塊才需要載入 craft-data.js（好幾MB），其他資訊只需要 MarketData，
-   * 所以市場資訊跟供應鏈分開兩個區塊、分開非同步載入，市場資訊不用等配方資料回來才顯示。 */
-  let currentDetailItemId = null; // 目前物品詳情頁顯示的itemId，市場設定一改要用這個判斷要不要重算
-  let marketUsedInIndex = null; // 延遲建立的反查表：itemId -> [recipeId]，只在真的需要時掃一次 CRAFT_RECIPES
-  let marketToRecipesIndex = null; // 同樣道理：itemId -> [recipeId]，這個物品「本身」可以用哪個配方做出來
-
-  /* 第9點：資料集裡有281筆配方 itemId=0、twAvailable=false——這些是全球版有、但台服目前
-   * 沒有的物品，資料來源沒辦法對到台服的物品ID，所以留了個0佔位，但先前索引時沒有濾掉，
-   * 才會在「被用在」清單這類地方冒出圖示是方塊、名稱是「0」的怪東西。從源頭索引就濾掉，
-   * 下游（用途清單、往上鑽、搜尋等）都不用再各自判斷。 */
-  function isTwRecipe(recipe) {
-    return !!recipe && recipe.twAvailable !== false && !!recipe.itemId;
-  }
-  function buildUsedInIndex() {
-    if (marketUsedInIndex) return marketUsedInIndex;
-    marketUsedInIndex = {};
-    Object.keys(CRAFT_RECIPES).forEach(function (rid) {
-      const recipe = CRAFT_RECIPES[rid];
-      if (!isTwRecipe(recipe)) return;
-      (recipe.ingredients || []).forEach(function (ing) {
-        if (!marketUsedInIndex[ing.itemId]) marketUsedInIndex[ing.itemId] = [];
-        // 同一個成品只算一次（多個職業都能做、或同一配方兩個欄位放同一材料，都會造成重複）
-        const list = marketUsedInIndex[ing.itemId];
-        if (!list.some(function (otherRid) { return CRAFT_RECIPES[otherRid].itemId === recipe.itemId; })) list.push(rid);
-      });
-    });
-    return marketUsedInIndex;
-  }
-
-  function buildToRecipesIndex() {
-    if (marketToRecipesIndex) return marketToRecipesIndex;
-    marketToRecipesIndex = {};
-    Object.keys(CRAFT_RECIPES).forEach(function (rid) {
-      const recipe = CRAFT_RECIPES[rid];
-      if (!isTwRecipe(recipe)) return;
-      const outId = recipe.itemId;
-      if (!marketToRecipesIndex[outId]) marketToRecipesIndex[outId] = [];
-      marketToRecipesIndex[outId].push(rid);
-    });
-    return marketToRecipesIndex;
-  }
-
-  // HQ標示：改回文字＋外框樣式（NQ不加任何符號）
-  function hqIconHtml() {
-    return '<span class="market-hq-tag">HQ</span>';
-  }
-
-  function itemIconHtml(itemId, size) {
-    const url = (typeof ITEM_ICONS_TW_ALL !== 'undefined' && ITEM_ICONS_TW_ALL[itemId]) || null;
-    return url
-      ? '<img src="' + url + '" width="' + size + '" height="' + size + '" class="market-item-icon" alt="" loading="lazy">'
-      : '<span class="market-item-icon market-item-icon-fallback" style="width:' + size + 'px;height:' + size + 'px"><i class="ph ph-cube"></i></span>';
-  }
-
-  /* 物品名稱旁的「版本・分類」，例如「6.2・布料」：版本來自 Teamcraft、分類來自台服遊戲資料表（資料由 update-craft-data.js 產生） */
-  function itemMetaHtml(itemId) {
-    if (typeof ITEM_META_TW === 'undefined') return '';
-    const v = ITEM_META_TW[itemId]; if (!v) return '';
-    const patch = ITEM_PATCH_TW[Math.floor(v / 1000)]; const cat = ITEM_CATEGORY_TW[v % 1000];
-    // 以前是一行灰色小字「版本 7.0・木材」，混在名稱旁邊看起來像雜訊；改成兩顆低調的小標籤，
-    // 版本（藍綠色）跟分類（金色）用不同色調區分，一眼認得出「這是屬性資訊」，又不搶名稱跟價格的風頭。
-    const chips = [];
-    if (patch) chips.push('<span class="market-meta-chip market-meta-ver" title="這個物品新增於版本 ' + patch + '">版本 ' + patch + '</span>');
-    if (cat) chips.push('<span class="market-meta-chip market-meta-cat" title="物品分類">' + cat + '</span>');
-    return chips.length ? '<span class="market-detail-meta">' + chips.join('') + '</span>' : '';
-  }
-
   function openItemDetail(itemId, o) {
     itemId = String(itemId);
-    detailViewState = null; // 開新物品＝從預設視圖開始（分頁、世界、篩選都重置）；只有改設定的重畫才沿用
+    o = o || {};
+    if (!o.back) { const og = captureOrigin(itemId); if (og) { navStack.push(og); if (navStack.length > 20) navStack.shift(); } }
+    detailViewState = o.restoreView || null; // 開新物品＝從預設視圖開始（分頁、世界、篩選都重置）；只有改設定的重畫才沿用
     const name = ITEM_NAMES_TW_ALL[itemId] || ('#' + itemId);
     currentDetailItemId = itemId; // 要在重畫「最近查看」之前設定，才標得出目前正在看哪一個
     if (!(o && o.fromHash)) syncHash(itemId, true);
     recordRecentlyViewed(itemId, name);
     renderRecentlyViewed();
     document.querySelector('[data-mk-tab="item"]').click();
-    $('mk-pane-item').innerHTML =
+    $('mk-pane-item').innerHTML = backRowHtml() +
       '<div class="market-detail-header">' + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '</h3>' +
         '<button type="button" class="market-history-btn market-watch-btn-header" id="mk-watch-btn"></button>' +
         '<button type="button" class="market-solve-btn" id="mk-solve-btn" disabled><i class="ph ph-flask"></i> 查詢是否可製作⋯</button>' +
@@ -603,10 +137,11 @@
           '<div id="mk-detail-supply"></div>' +
         '</div>' +
       '</div>';
+    const backBtn = $('mk-back-btn'); if (backBtn) backBtn.addEventListener('click', goBack);
     bindWatchButton(itemId); // 跟名稱同一行，不用等市場資料回來才看得到，關注這件事跟查不查得到價格無關
     if (!isMarketable(itemId)) { const wb = $('mk-watch-btn'); if (wb) { wb.disabled = true; wb.title = '不能在市場交易的物品沒有價格可以關注'; } }
     bindSolveButton(itemId);
-    loadMarketSection(itemId);
+    loadMarketSection(itemId, o.restoreView ? { keepView: true } : undefined);
     loadSupplyChainSection(itemId);
     bindObtainButton(itemId);
   }
@@ -2308,7 +1843,7 @@
       '<button type="button" class="market-supply-settings-row market-crystal-toggle" id="mk-sup-crystal" data-on="' + (crystalOn ? '1' : '0') + '">' +
         '<span>忽略水晶成本</span><span class="market-crystal-icon">' + (crystalOn ? '💎' : '◇') + '</span></button>' +
       (graphIds.length ? (
-        '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:10px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
+        '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:11px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
         '<div id="mk-sup-ov-body" style="display:' + (supplyOverrideSectionOpen ? 'block' : 'none') + '">' + overrideRows + '</div>'
       ) : '');
     // 錨點：左右跟著齒輪，上下用「整列操作列」的上緣／下緣。齒輪比旁邊的「查看完整供應鏈清單」按鈕矮，
@@ -3231,7 +2766,7 @@
         (bd.totalAuto != null && save > 0.5 ? '　自動選較便宜 <span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金（▼' + fmtGil(save) + '）</span>' : '')
       : (bd.totalAuto != null ? '每 1 個材料成本（部分材料市場沒有價格，只能算自動選較便宜）：<span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金</span>' : '<span class="craft-muted">材料成本無法完整估算（部分項目沒有價格）</span>');
     return '<div class="market-radar-breakdown-wrap" style="--d:' + depth + '">' +
-      (depth > 0 ? '<p class="craft-muted" style="font-size:10px;margin:2px 0">' + summary + '</p>' : '') +
+      (depth > 0 ? '<p class="craft-muted" style="font-size:11px;margin:2px 0">' + summary + '</p>' : '') +
       '<table class="market-radar-breakdown"><thead><tr><th class="market-radar-togcol"></th><th>材料</th><th>需求</th><th>買</th><th>差距</th><th>做</th><th>採用</th></tr></thead><tbody>' +
       bd.rows.map(function (p) {
         const buyTxt = p.buy != null ? fmtGil(p.buy) + ' 金' : '沒有價格';
@@ -3241,7 +2776,7 @@
           // 注意：這裡說的是「這個道具自己做所需的材料」缺價格，不是這個道具本身沒價格（本身的價格看左邊「買」欄）
           const miss = p.missing || [];
           const names = miss.slice(0, 3).map(function (id) { return ITEM_NAMES_TW_ALL[id] || id; }).join('、');
-          craftTxt = '無法完整估算' + (miss.length ? '<span class="craft-muted" style="display:block;font-size:10px" title="自己做所需的材料裡，這些道具在目前的價格基準下查不到價格">缺價格：' + names + (miss.length > 3 ? '⋯等 ' + miss.length + ' 項' : '') + '</span>' : '');
+          craftTxt = '無法完整估算' + (miss.length ? '<span class="craft-muted" style="display:block;font-size:11px" title="自己做所需的材料裡，這些道具在目前的價格基準下查不到價格">缺價格：' + names + (miss.length > 3 ? '⋯等 ' + miss.length + ' 項' : '') + '</span>' : '');
         } else craftTxt = '不能製作';
         const buyWins = p.chosen === 'buy' || p.craft == null;
         // 「差距」欄：買跟做兩個都有數字時，直接算出貴多少／省多少，不用使用者自己心算比較
@@ -3540,7 +3075,7 @@
           const note = [yieldNote, craftNote, otherNote, trendNote].filter(Boolean).join('　·　');
           return '<tr data-mk-radar-item="' + r.itemId + '" class="market-hot-item" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (r.profit >= 0 ? '+' : '') + fmtGil(r.profit) + '金</td>' +
             '<td style="color:' + (r.roi >= 0 ? '#4ade80' : '#f87171') + '">' + (r.roi >= 0 ? '+' : '') + r.roi.toFixed(0) + '%</td><td>' + (r.refined ? '<span class="mk-ref ok" title="依配方數量逐件吃掛單精算">✓</span>' : (ui.buyBasis === 'listing' && ui.matMode === 'buy' ? '<span class="mk-ref" title="用最低價估算">≈</span>' : '')) + fmtGil(r.cost) + '金</td><td>' + (r.warnLow ? '<i class="ph ph-warning mk-warn" title="最低掛單價遠低於成交均價"></i>' : '') + fmtGil(r.sell) + '金</td><td>' + r.vel.toFixed(1) + '/天</td>' +
-            '<td>' + (ITEM_NAMES_TW_ALL[r.itemId] || r.itemId) + expandBtn + '<div class="craft-muted" style="font-size:10px">' + note + '</div></td></tr>' +
+            '<td>' + (ITEM_NAMES_TW_ALL[r.itemId] || r.itemId) + expandBtn + '<div class="craft-muted" style="font-size:11px">' + note + '</div></td></tr>' +
             '<tr class="market-radar-detail-row" data-mk-radar-detail="' + r.rid + '" style="display:none"><td colspan="6"></td></tr>';
         }).join('') + '</tbody></table></div>' +
         (res.list.length > top.length ? '<button type="button" class="market-history-btn" id="mk-radar-more" style="margin-top:8px">顯示更多（還有 ' + (res.list.length - top.length) + ' 個）</button>' : '');
@@ -3777,7 +3312,7 @@
         const yieldNote = r.yields > 1 ? r.sellUnit.toLocaleString() + '金×' + r.yields : '';
         const worldNote = r.worldSell != null ? '你的世界 ' + r.worldSell.toLocaleString() + '金' : '你的世界目前無掛單';
         const noteLine = [yieldNote, worldNote].filter(Boolean).join('　·　');
-        return '<tr data-mk-radar-item="' + r.itemId + '" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (r.profit >= 0 ? '+' : '') + Math.round(r.profit).toLocaleString() + '金</td><td>' + Math.round(r.cost).toLocaleString() + '金</td><td>' + Math.round(r.sell).toLocaleString() + '金<br><span class="craft-muted" style="font-size:10px">' + noteLine + '</span></td><td>' + r.name + '</td></tr>';
+        return '<tr data-mk-radar-item="' + r.itemId + '" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (r.profit >= 0 ? '+' : '') + Math.round(r.profit).toLocaleString() + '金</td><td>' + Math.round(r.cost).toLocaleString() + '金</td><td>' + Math.round(r.sell).toLocaleString() + '金<br><span class="craft-muted" style="font-size:11px">' + noteLine + '</span></td><td>' + r.name + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       '<p class="craft-muted" style="margin-top:6px">粗估值：只算直接材料成本，沒有考慮製作時間跟賣方稅；「淨利／次」是做一次配方（可能一次做出不只1件）的總損益，不是單件價格。「最低價」是整個資料中心裡最便宜的掛單——買方能跨世界買，只看你自己世界的價格會漏掉「其實有人在別的世界用更低價賣」這件事，所以拿全服最低價當能不能賺的判斷基準；你自己世界的價格另外列出來當參考，那才是你實際上架時看得到的競爭對手。</p>';
     body.querySelectorAll('[data-mk-radar-item]').forEach(function (tr) {
@@ -4083,7 +3618,7 @@
         // 搜尋：選了某個分類就只在該分類裡找；選「全部」就全部分類一起找，每列標出所屬分類
         const pool = sel ? byGroup[sel.key] : list;
         const rows = pool.filter(function (x) { return x.name.indexOf(kw) !== -1; });
-        if (rows.length) { box.innerHTML = rows.map(function (x) { return tokenRowHtml(x, !sel); }).join(''); return; }
+        if (rows.length) { box.innerHTML = '<div class="market-token-panel">' + rows.map(function (x) { return tokenRowHtml(x, !sel); }).join('') + '</div>'; return; }
         const elsewhere = sel ? list.filter(function (x) { return x.name.indexOf(kw) !== -1; }).length : 0;
         // 被隱藏的代幣也要能被「找得到」：搜尋沒結果、但其實有被隱藏的符合時，明講出來，不然玩家會以為沒有這個代幣
         const hiddenMatch = tokenShowHidden ? 0 : allList.filter(function (x) { return hiddenIds[x.id] && x.name.indexOf(kw) !== -1; }).length;
@@ -4091,7 +3626,7 @@
           (hiddenMatch ? '　另有 ' + hiddenMatch + ' 個被隱藏的符合（換到的東西都沒有可比價），按上方的「顯示」可以看到。' : '') + '</p>';
         return;
       }
-      if (sel) { box.innerHTML = byGroup[sel.key].map(function (x) { return tokenRowHtml(x, false); }).join(''); return; }
+      if (sel) { box.innerHTML = '<div class="market-token-panel">' + byGroup[sel.key].map(function (x) { return tokenRowHtml(x, false); }).join('') + '</div>'; return; }
       // 「全部」：常見的分類各自一段（有標題），數量很多的（蒼天街重建的幾十種物資、其他雜項）不攤開，
       // 只在最下面留入口，不然一打開就是上百列，真正常用的反而被淹沒。
       const open = groups.filter(function (g) { return !g.fold; });
@@ -4100,11 +3635,11 @@
       box.innerHTML = open.map(function (g) {
         const arr = byGroup[g.key];
         const shown = arr.length > PREVIEW + 2 ? arr.slice(0, PREVIEW) : arr;
-        return '<div class="market-token-group-title">' + g.label + '<span class="craft-muted">' + arr.length + '</span></div>' +
+        return '<div class="market-token-panel"><div class="market-token-group-title">' + g.label + '<span class="craft-muted">' + arr.length + '</span></div>' +
           shown.map(function (x) { return tokenRowHtml(x, false); }).join('') +
-          (shown.length < arr.length ? '<button type="button" class="market-token-more" data-tcat="' + g.key + '">還有 ' + (arr.length - shown.length) + ' 項，看「' + g.label + '」全部 ›</button>' : '');
-      }).join('') + (folded.length ? '<div class="market-token-group-title">還有這些分類（數量較多，點進去看）</div><div class="market-token-fold-links">' +
-        folded.map(function (g) { return '<button type="button" class="craft-job-filter-btn" data-tcat="' + g.key + '">' + g.label + '<span class="market-token-cat-n">' + byGroup[g.key].length + '</span></button>'; }).join('') + '</div>' : '');
+          (shown.length < arr.length ? '<button type="button" class="market-token-more" data-tcat="' + g.key + '">還有 ' + (arr.length - shown.length) + ' 項，看「' + g.label + '」全部 ›</button>' : '') + '</div>';
+      }).join('') + (folded.length ? '<div class="market-token-panel"><div class="market-token-group-title">還有這些分類（數量較多，點進去看）</div><div class="market-token-fold-links">' +
+        folded.map(function (g) { return '<button type="button" class="craft-job-filter-btn" data-tcat="' + g.key + '">' + g.label + '<span class="market-token-cat-n">' + byGroup[g.key].length + '</span></button>'; }).join('') + '</div></div>' : '');
     }
     // 清單上方的一行說明：隱藏了幾個、為什麼，以及把它們叫出來的按鈕（隱藏不是刪除）
     function renderHideBar() {
@@ -4209,24 +3744,28 @@
       if (totalTrades > all.length) notes.push('另有 ' + (totalTrades - all.length) + ' 種無法比價（不可交易或沒有市場行情）');
       body.innerHTML = '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
-        const label = r.resultItems.map(function (x) { return (ITEM_NAMES_TW_ALL[x[0]] || ('#' + x[0])) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
+        const label = r.resultItems.map(function (x) { return itemRefHtml(x[0], { name: true }) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
         // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
         // 不是這個物品自己的市場價——用一個小圖示標出來；滑鼠停留可以看到追查到哪個最終物品。
         const endName = r.chainEnd != null ? (ITEM_NAMES_TW_ALL[r.chainEnd] || r.chainEnd) : '';
-        const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為再兌換成「' + endName + '」後的市價">🔗' + (r.chainEnd != null ? itemIconHtml(r.chainEnd, 16) : '') + '</span>' : '';
+        const chainTag = r.viaChain ? '<span class="market-token-chain-tag" title="此物品不可交易，數值為再兌換成「' + endName + '」後的市價">🔗' + (r.chainEnd != null ? '→' + itemRefHtml(r.chainEnd, { icon: 16, name: true, cls: 'mk-itemref-chain', title: '查看「' + endName + '」（此物品不可交易，數值為再兌換成它之後的市價）' }) : '') + '</span>' : '';
         const net = Math.abs(r.net) < 10 ? r.net.toFixed(1) : Math.round(r.net).toLocaleString();
         const pct = Math.max(0, Math.min(100, (Math.max(0, r[sortKey] || 0) / maxMetric) * 100));
-        return '<button type="button" class="mtr-row" data-mk-goto-item="' + first[0] + '">' +
+        return '<div role="button" tabindex="0" class="mtr-row" data-mk-goto-item="' + first[0] + '">' +
           '<span class="mtr-bar" style="width:' + pct.toFixed(1) + '%"></span>' +
           '<span class="mtr-rank">' + (i + 1) + '</span>' +
           '<span class="mtr-name">' + itemIconHtml(first[0], 22) + '<span class="mtr-label">' + label + '</span>' + chainTag + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' +
           '<span class="mtr-val' + (sortKey === 'net' ? ' active' : '') + '">' + net + unit('金') + '</span>' +
           '<span class="mtr-vel' + (sortKey === 'vel' ? ' active' : '') + '">' + fmtVelCell(r.vel) + '</span>' +
           '<span class="mtr-freq' + (sortKey === 'txnFreq' ? ' active' : '') + '">' + fmtFreqCell(r.txnFreq) + '</span>' +
-        '</button>';
+        '</div>';
       }).join('') + '<p class="mtr-foot">' + notes.join('；') + '</p></div>';
       body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
         el.addEventListener('click', function () { openItemDetail(el.dataset.mkGotoItem); });
+        el.addEventListener('keydown', function (e) { // 整列已不是 <button>，補上鍵盤操作
+          if (e.target !== el || (e.key !== 'Enter' && e.key !== ' ')) return;
+          e.preventDefault(); openItemDetail(el.dataset.mkGotoItem);
+        });
       });
     }
   }
@@ -4342,6 +3881,7 @@
           '最後更新：' + generated.toLocaleString()
         ]) +
         '<div class="market-hot-list">' +
+          '<div class="market-hot-head"><span class="mhh-rank">#</span><span class="mhh-icon"></span><span class="mhh-name">物品</span><span class="mhh-bar">' + metricDef.label + '</span><span class="mhh-val">數值</span></div>' +
           top.map(function (e, i) {
             const v = e.value;
             const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
@@ -4595,6 +4135,7 @@
       '<p class="craft-muted" style="margin-bottom:8px">' + metricDef.hint + '</p>' +
       summaryLine +
       '<div class="market-hot-list">' +
+          '<div class="market-hot-head"><span class="mhh-rank">#</span><span class="mhh-icon"></span><span class="mhh-name">物品</span><span class="mhh-bar">' + metricDef.label + '</span><span class="mhh-val">數值</span></div>' +
         top.map(function (r, i) {
           const v = r.stats[metricKey];
           // 數值跨好幾個數量級時用對數比例，才分得出差異
