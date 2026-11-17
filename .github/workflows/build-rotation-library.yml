@@ -10,6 +10,9 @@
 #
 # 跑完會自動把結果存回 data/craft-rotation-library.json（已經做好的形狀不會被覆蓋、會累積）。
 name: build-rotation-library
+concurrency:
+  group: build-rotation-library
+  cancel-in-progress: false
 on:
   workflow_dispatch:
     inputs:
@@ -74,4 +77,9 @@ jobs:
           git config user.email "actions@github.com"
           git add data/craft-rotation-library.json
           git commit -m "update rotation library" || echo "沒有變更"
-          git push
+          # 這幾十分鐘內如果 main 有別的更新（例如其他排程工作流程存檔），直接推送會被拒絕；先把最新的拉下來再推，最多重試 5 次
+          for i in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && exit 0
+            echo "推送失敗，第 $i 次重試…"; sleep 10
+          done
+          echo "推送失敗"; exit 1
