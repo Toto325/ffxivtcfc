@@ -422,7 +422,7 @@
       if (!matches.length) { box.innerHTML = '<div class="craft-muted" style="padding:8px">查無符合的物品</div>'; box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); fitMarketHeights(); return; }
       // 一次最多畫 SEARCH_MAX 筆：搜「的」這種很短的字會符合上千個物品，每個都帶圖示一次全畫出來會卡；
       // 排序已經是「最像的在前面」，後面的用更完整的名稱就能縮小，所以超過的部分只提示筆數。
-      const SEARCH_MAX = 100;
+      const SEARCH_MAX = 30;
       const shown = matches.slice(0, SEARCH_MAX);
       box.innerHTML = shown.map(function (m, idx) {
         const on = isWatched(m.id);
@@ -695,6 +695,7 @@
   function openItemDetail(itemId, o) {
     itemId = String(itemId);
     o = o || {};
+    closeNpcModal();
     let og = null;
     if (!o.back) { og = captureOrigin(itemId); if (og) { navStack.push(og); if (navStack.length > 20) navStack.shift(); } }
     detailViewState = o.restoreView || null; // 開新物品＝從預設視圖開始（分頁、世界、篩選都重置）；只有改設定的重畫才沿用
@@ -2176,6 +2177,32 @@
     if (npcFallback && (best == null || best.v < npcFallback.v)) return npcFallback; // 賣給 NPC 比再兌換更值錢（或根本追不到）
     return best;
   }
+  /* 只看「賣給系統 NPC」的兌換排行：換到的東西一律用 NPC 收購價計算（不管它有沒有市價），
+   * 付出的其他代幣仍用市價算成本。NPC 收購是固定價格、不需要買家、必定成交，所以沒有賣速可言。
+   * 單一物品的兌換，另外附上該物品的市價與賣速，讓玩家對照（不做任何總結，只是並列）。 */
+  function buildCurrencyNpcUses(itemId, dcData, basis) {
+    buildTradeIndices();
+    const trades = tradesByCurrencyCache[itemId] || [];
+    const rows = [];
+    trades.forEach(function (t) {
+      const myAmount = (t.currencies.find(function (x) { return x[0] === Number(itemId); }) || [0, 0])[1];
+      if (!myAmount) return;
+      const otherCost = tradeSideValue(t.currencies.filter(function (x) { return x[0] !== Number(itemId); }), dcData, basis);
+      if (otherCost == null) return;
+      let total = 0, ok = true;
+      t.items.forEach(function (it) { const pr = npcPriceOf(it[0]); if (!(pr > 0)) { ok = false; return; } total += pr * it[1]; });
+      if (!ok) return;
+      let mkt = null;
+      if (t.items.length === 1) {
+        const mp = tradeItemPrice(t.items[0][0], dcData, basis);
+        if (mp != null) { const lq = liquidityOf(t.items[0][0], dcData); mkt = { price: mp, vel: lq.vel }; }
+      }
+      rows.push({ resultItems: t.items, total: total, perUnit: (total - otherCost) / myAmount, mkt: mkt, locked: !!t.locked });
+    });
+    rows.sort(function (a, b) { return b.perUnit - a.perUnit; });
+    return rows;
+  }
+  function closeNpcModal() { const m = $('mk-npc-modal'); if (m) m.style.display = 'none'; }
   function buildCurrencyBestUses(itemId, dcData, basis, limit, sortKey) {
     buildTradeIndices();
     const dbg = typeof window !== 'undefined' && window.__CHAIN_DEBUG__;
@@ -2617,7 +2644,7 @@
       return { itemId: r.itemId, rid: urid, name: ITEM_NAMES_TW_ALL[r.itemId] || r.itemId };
     }).filter(Boolean);
     // 版面尺寸：卡片固定寬高，數量決定整排多寬，不會因為卡片一多就把單張卡片擠小
-    const CARD_W = 96, CARD_H = 88, GAP = 16, PAD = 14;
+    const CARD_W = 108, CARD_H = 96, GAP = 16, PAD = 14; // 卡片加大（原 96×88），好讓文字能加大一級
     // 上排（用途）一排最多放幾張：以前固定6張，欄位一窄整張SVG就等比例縮小，字也跟著縮到看不清楚。
     // 改成依「這個欄位目前實際多寬」算放得下幾張（最少3、最多SUPPLY_NODE_LIMIT），放不下的收進「還有N種」，
     // 這樣字級維持不變。量不到寬度（容器還沒顯示）時退回原本的上限。材料排不能收合（每項都是必要材料），維持原樣。
@@ -2627,7 +2654,7 @@
     const useOverflow = useNodesFull.length > nodeLimit;
     const useNodes = useOverflow ? useNodesFull.slice(0, nodeLimit - 1) : useNodesFull;
     // 中心卡片比一般卡片大一點，強調「這是目前正在看的物品」；有買/做比較時多放一行（買一行、做一行），多留高度。
-    const CENTER_W = 112, CENTER_H = centerCmp ? 94 : 84;
+    const CENTER_W = 124, CENTER_H = centerCmp ? 104 : 90;
     // 卡片之間「垂直連接線→轉角→垂直連接線」每一段的高度。以前是28，圖偏高、欄位放不下要捲動，縮到22仍夠容納圓角（半徑約10）加箭頭
     const LINK_GAP = 22;
     const rowCount = Math.max(matNodes.length, useNodes.length + (useOverflow ? 1 : 0), 1);
@@ -2762,24 +2789,24 @@
       const bg = negligible ? '#2b2822' : (delta > 0 ? '#16301f' : '#33261a'); // 不透明底色：跨在邊框上，不能讓邊框線透出來
       const icon = negligible ? '' : (delta > 0 ? '🔨' : '🛒');
       const label = negligible ? '≈' : icon + '▼' + fmtDeltaAbs(delta); // 圖示＝建議的做法（做／買），▼＝省下，數字＝省下的金額；兩種情況同一套說法
-      const bw = Math.max(36, 16 + label.length * 7.6);
-      const bx = x + w / 2 - bw - 3, by = topY - 9, bh = 18;
+      const bw = Math.max(40, 18 + label.length * 8.2);
+      const bx = x + w / 2 - bw - 3, by = topY - 10, bh = 20;
       const tip = negligible ? '這項買或做價格接近（差距<' + Math.round(limit).toLocaleString() + '金），建議直接買'
         : (delta > 0 ? '這項自己做比買省 ' + Math.round(delta).toLocaleString() + ' 金' : '這項直接買比做省 ' + Math.round(-delta).toLocaleString() + ' 金');
       // 徽章本身可以點，點了開明細面板——跟卡片本體的「點了跳轉」是分開的兩個互動區域，
       // 卡片本體click的時候要先判斷有沒有點在這個徽章上，點到了就不要再觸發跳轉（見cardClick綁定處）。
       return '<g class="market-delta-badge" data-mk-detail-item="' + badgeItemId + '"><title>' + tip + '</title><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" rx="9" fill="' + bg + '" stroke="' + color + '" stroke-width="1"/>' +
-        '<text x="' + (bx + bw / 2) + '" y="' + (by + bh / 2 + 4) + '" text-anchor="middle" font-size="11" fill="' + color + '" font-weight="700">' + label + '</text></g>';
+        '<text x="' + (bx + bw / 2) + '" y="' + (by + bh / 2 + 4) + '" text-anchor="middle" font-size="12" fill="' + color + '" font-weight="700">' + label + '</text></g>';
     }
     function cardHtml(x, topY, iconId, line1, line2, clickAttrs, isOverflow, opts) {
       opts = opts || {};
       const w = opts.w || CARD_W, h = opts.h || CARD_H;
       const r = opts.iconR || 15;
       const iconY = topY + 8 + r;
-      const nameY = iconY + r + 12;
-      const line2Y = nameY + 13;
-      const priceY = (line2 ? line2Y : nameY) + 16; // 價格是整張卡片最重要的資訊，字級放大後多留一點行距
-      const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 11, 9.5) : { text: '', fontSize: 10.5, titleAttr: '' };
+      const nameY = iconY + r + 13;
+      const line2Y = nameY + 14;
+      const priceY = (line2 ? line2Y : nameY) + 18; // 價格是整張卡片最重要的資訊，字級放大後多留一點行距
+      const fit = line1 ? fitName(line1, w - 12, opts.fontSize || 12, 11) : { text: '', fontSize: 11, titleAttr: '' };
       // decision='craft'：這項材料自己做比買便宜，邊框改成跟「省錢」同一個綠色，一眼認出「這個該自己做」；
       // decision='buy' 或沒有比較結果：維持原本金色邊框，不用特別標記——「照原樣買」是預設情況，不需要額外提醒。
       const strokeColor = isOverflow ? '#7a736a' : (opts.highlight ? '#f0d9a0' : (opts.decision === 'craft' ? '#4ade80' : '#c5a059'));
@@ -2788,13 +2815,13 @@
       let priceHtml = '';
       if (opts.centerLines) {
         priceHtml = opts.centerLines.map(function (ln, k) {
-          return '<text x="' + x + '" y="' + (nameY + 14 + k * 14) + '" text-anchor="middle" font-size="12" fill="' + ln.fill + '" font-weight="' + ln.weight + '"' + (ln.strike ? ' text-decoration="line-through"' : '') + '>' + ln.text + '</text>';
+          return '<text x="' + x + '" y="' + (nameY + 15 + k * 15) + '" text-anchor="middle" font-size="13" fill="' + ln.fill + '" font-weight="' + ln.weight + '"' + (ln.strike ? ' text-decoration="line-through"' : '') + '>' + ln.text + '</text>';
         }).join('');
       } else if (!isOverflow) {
         priceHtml = '<text class="mk-card-price"' + (opts.priceElId ? ' id="' + opts.priceElId + '"' : '') + ' data-price-item="' + iconId + '"' + (opts.amount > 1 ? ' data-amount="' + opts.amount + '"' : '') + ' x="' + x + '" y="' + priceY + '" text-anchor="middle" font-size="14" font-weight="700" fill="#d6ffe0"></text>';
       }
       // 數量（×N）放在中心圖示右邊的空位，不另外佔位置
-      const qtyHtml = opts.qtyText ? '<text x="' + (x + r + 10) + '" y="' + (iconY + 4) + '" font-size="12" fill="#fcf6ba" font-weight="700">' + opts.qtyText + '</text>' : '';
+      const qtyHtml = opts.qtyText ? '<text x="' + (x + r + 10) + '" y="' + (iconY + 4) + '" font-size="13" fill="#fcf6ba" font-weight="700">' + opts.qtyText + '</text>' : '';
       // 水晶未計入成本：整張卡片變暗＋左上角一顆💎，不用另外放一個膠囊說明
       const dimMark = opts.dim ? '<text x="' + (x - w / 2 + 5) + '" y="' + (topY + 13) + '" font-size="12">💎</text>' : '';
       const titleHtml = opts.cardTitle ? '<title>' + opts.cardTitle + '</title>' : fit.titleAttr;
@@ -2804,7 +2831,7 @@
           ? '<text x="' + x + '" y="' + iconY + '" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#ddd">還有</text>'
           : itemIconSvg(iconId, x, iconY, r)) +
         '<text x="' + x + '" y="' + nameY + '" text-anchor="middle" font-size="' + fit.fontSize.toFixed(1) + '" fill="' + (opts.highlight ? '#fcf6ba' : '#eee') + '" font-weight="' + (opts.highlight ? '600' : '400') + '">' + fit.text + '</text>' +
-        (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="12" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
+        (line2 ? '<text x="' + x + '" y="' + line2Y + '" text-anchor="middle" font-size="13" fill="#fcf6ba" font-weight="700">' + line2 + '</text>' : '') +
         priceHtml + qtyHtml + dimMark +
         deltaBadgeSvg(x, topY, w, opts.delta, iconId, opts.negl) +
       '</g>';
@@ -2900,14 +2927,14 @@
         (craftMultiplier > 1 ? '，' + craftMultiplier + ' 個' : '') + (verdict ? '。' + verdict : '');
     }
     box.innerHTML =
-      '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" class="market-supply-svg"><defs>' + svgDefs + '</defs>' +
+      '<div class="market-supply-scroll"><svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" style="min-width:' + Math.round(W * 0.85) + 'px" class="market-supply-svg"><defs>' + svgDefs + '</defs>' +
         svgParts +
         cardHtml(cx, centerTop, itemId, ITEM_NAMES_TW_ALL[itemId] || itemId, '', '', false, {
-          w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 11.5, highlight: true, priceElId: 'mk-center-price',
+          w: CENTER_W, h: CENTER_H, iconR: 18, fontSize: 12.5, highlight: true, priceElId: 'mk-center-price',
           delta: centerDelta, negl: 0, centerLines: centerLines, cardTitle: centerTitle, qtyText: rid ? '×' + craftMultiplier : ''
         }) +
         qtyCtrlHtml +
-      '</svg>' +
+      '</svg></div>' +
       '<div class="market-supply-bar">' +
         '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
         '<button type="button" class="market-fullchain-btn" data-mk-open-fullchain="1">查看完整供應鏈清單</button>' +
@@ -4137,6 +4164,7 @@
   }
   let tokenCatSel = 'all'; // 目前選的分類，重畫、切換分頁回來都維持
   let tokenShowHidden = false;
+  let tokenExcludeSlow = false; // 「排除明顯滯銷物品」勾選狀態（會記在 localStorage）
   /* 預設隱藏的代幣：
    * ① 換到的東西「全部都無法比價」（不可交易，或市場上完全沒有行情）——這類多半是限時活動的兌換物，或只換不可交易的外觀／坐騎，
    *    查價排行對玩家沒有意義，列出來只是增加雜訊。判斷依據是「用掛單價能不能算出至少一個兌換對象的價值」
@@ -4185,12 +4213,18 @@
 
     // 內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，清單一長就整個被裁掉、完全不能捲動。
     // 分類按鈕放在搜尋框上方：先選「哪一類」再用名稱縮小範圍，是兩個層次的篩選。
-    pane.innerHTML = '<p class="craft-muted market-pane-fixed" style="margin-bottom:8px">手上這批代幣該換什麼最划算？先選分類，再選一個代幣看排行。　🔗 先換成不可交易的中繼物品，再用它能換到的東西估價　🔒 需先完成任務或成就才能兌換</p>' +
-      '<div class="market-token-scope market-pane-fixed" id="mk-token-scope"></div>' +
-      '<div class="market-token-cats market-pane-fixed" id="mk-token-cats"></div>' +
-      '<input type="text" id="mk-token-search" class="craft-search market-pane-fixed" placeholder="搜尋代幣名稱⋯" style="width:100%;margin-bottom:6px">' +
-      '<div class="market-token-hidebar market-pane-fixed" id="mk-token-hidebar"></div>' +
-      '<p class="market-token-note market-pane-fixed" id="mk-token-note"></p>' +
+    pane.innerHTML =
+      '<div class="market-token-topbar market-pane-fixed">' +
+        '<button type="button" class="market-fold-btn" id="mk-token-fold-btn" aria-expanded="false"><i class="ph ph-funnel"></i><span class="market-fold-sum" id="mk-token-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>' +
+        '<input type="text" id="mk-token-search" class="craft-search" placeholder="搜尋代幣名稱⋯">' +
+      '</div>' +
+      '<div id="mk-token-fold" class="market-pane-fixed" style="display:none">' +
+        '<div class="market-token-scope" id="mk-token-scope"></div>' +
+        '<div class="market-token-cats" id="mk-token-cats"></div>' +
+        '<label class="market-hot-median" id="mk-token-noslow-label" title="賣速與成交頻率都低到幾乎算不出來的市場物品（掛了很久也賣不掉）。賣給 NPC 的兌換品必定成交，不受影響。"><input type="checkbox" id="mk-token-noslow"> 排除明顯滯銷物品</label>' +
+        '<div class="market-token-hidebar" id="mk-token-hidebar"></div>' +
+        '<p class="market-token-note" id="mk-token-note"></p>' +
+      '</div>' +
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
     function tokenRowHtml(x, showGroup) {
       return '<div class="market-token-row' + (hiddenIds[x.id] ? ' is-nocmp' : '') + '" data-token-id="' + x.id + '">' +
@@ -4208,6 +4242,7 @@
       $('mk-token-scope').innerHTML = MarketData.pricePrefsBarHtml(['sell']);
     }
     function renderCats() {
+      if ($('mk-token-fold-sum')) syncFoldSummary();
       $('mk-token-cats').innerHTML =
         '<button type="button" class="craft-job-filter-btn' + (tokenCatSel === 'all' ? ' active' : '') + '" data-tcat="all">全部</button>' +
         groups.map(function (g) {
@@ -4259,7 +4294,39 @@
         tokenShowHidden = !tokenShowHidden; rebuild(); renderCats(); renderList(); renderHideBar();
       });
     }
-    renderScope(); renderCats(); renderList(); renderHideBar();
+    // 篩選區收合（比照熱度排行）：收起時只剩「漏斗＋目前選了什麼」與搜尋框，清單才有空間；選擇會記住，預設收起
+    const TOKEN_FOLD_KEY = 'ff14fc-token-fold', TOKEN_NOSLOW_KEY = 'ff14fc-token-noslow';
+    function syncFoldSummary() {
+      const parts = [tokenCatSel === 'all' ? '全部分類' : (groupLabel[tokenCatSel] || '全部分類')];
+      if (tokenExcludeSlow) parts.push('排除滯銷');
+      if (tokenShowHidden) parts.push('含無可比價');
+      $('mk-token-fold-sum').textContent = parts.join('・');
+    }
+    function setTokenFold(open) {
+      $('mk-token-fold').style.display = open ? '' : 'none';
+      $('mk-token-fold-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
+      $('mk-token-fold-btn').classList.toggle('open', open);
+      try { localStorage.setItem(TOKEN_FOLD_KEY, open ? 'open' : 'closed'); } catch (e) { /* 存不了就只對這次有效 */ }
+      fitMarketHeights();
+    }
+    $('mk-token-fold-btn').addEventListener('click', function () { setTokenFold($('mk-token-fold').style.display === 'none'); });
+    try { if (localStorage.getItem(TOKEN_FOLD_KEY) === 'open') setTokenFold(true); } catch (e) { /* 預設收起 */ }
+    try { tokenExcludeSlow = localStorage.getItem(TOKEN_NOSLOW_KEY) === '1'; } catch (e) { tokenExcludeSlow = false; }
+    $('mk-token-noslow').checked = tokenExcludeSlow;
+    // 已展開的排行要重算（排序、價格設定、排除滯銷任何一個改了都一樣）；沒展開的下次點開時再算
+    function refreshOpenTokenBodies() {
+      pane.querySelectorAll('.market-token-body').forEach(function (body) {
+        const open = body.style.display !== 'none' && body.dataset.tokenId;
+        body.dataset.loaded = '';
+        if (open) renderTokenBody(body, body.dataset.tokenId);
+      });
+    }
+    $('mk-token-noslow').addEventListener('change', function () {
+      tokenExcludeSlow = this.checked;
+      try { localStorage.setItem(TOKEN_NOSLOW_KEY, tokenExcludeSlow ? '1' : '0'); } catch (e) { /* 忽略 */ }
+      syncFoldSummary(); refreshOpenTokenBodies();
+    });
+    renderScope(); renderCats(); renderList(); renderHideBar(); syncFoldSummary();
     MarketData.onPricePrefsChange(function () { // 全站取價設定改了：已展開的排行立刻重算，沒展開的下次點開時再算
       if (!pane.isConnected) return;
       renderScope();
@@ -4274,12 +4341,15 @@
       if (!c) return;
       tokenCatSel = c.dataset.tcat;
       renderCats(); renderList();
+      setTokenFold(false); // 分類是「選一次就看結果」的操作：選完立刻收起，把空間還給清單（摘要會顯示目前分類，想換再點開）
       const sb = pane.querySelector('.market-pane-scrollbody'); if (sb) sb.scrollTop = 0;
     });
     $('mk-token-search').addEventListener('input', renderList);
 
     const TOKEN_SORTS = [['net', '市價'], ['vel', '賣速'], ['txnFreq', '成交頻率']];
     pane.addEventListener('click', async function (e) {
+      const npcBtn = e.target.closest('[data-npc-open]');
+      if (npcBtn) { e.stopPropagation(); openNpcRanking(npcBtn.dataset.npcOpen); return; }
       const sortBtn = e.target.closest('[data-token-sort]');
       if (sortBtn) {
         const body = sortBtn.closest('.market-token-body');
@@ -4312,6 +4382,48 @@
       if (!(f > 0)) return '<span class="mtr-null" title="近30天成交不到5筆，筆數太少算不出可靠的頻率（不代表完全沒有成交）">&lt;5</span>' + unit('筆/月');
       return f.toFixed(2) + unit('筆/天');
     }
+    async function openNpcRanking(id) {
+      let modal = $('mk-npc-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'mk-npc-modal'; modal.className = 'market-modal-backdrop mk-npc-backdrop'; modal.style.display = 'none';
+        modal.innerHTML = '<div class="market-modal-box market-modal-box-wide mk-npc-box" role="dialog" aria-modal="true" aria-labelledby="mk-npc-title">' +
+          '<div class="market-modal-head"><h4 id="mk-npc-title"></h4><button type="button" class="market-modal-close" aria-label="關閉"><i class="ph ph-x"></i></button></div>' +
+          '<div class="market-modal-body" id="mk-npc-body"></div></div>';
+        document.body.appendChild(modal);
+        modal.addEventListener('click', function (e) { if (e.target === modal || e.target.closest('.market-modal-close')) closeNpcModal(); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeNpcModal(); });
+      }
+      const curName = ITEM_NAMES_TW_ALL[id] || ('#' + id);
+      $('mk-npc-title').innerHTML = '🏪 NPC 即賣排行<span class="mk-npc-title-sub">' + itemIconHtml(id, 18) + escHtml(curName) + '</span>';
+      const nbody = $('mk-npc-body');
+      nbody.innerHTML = '<p class="craft-muted">讀取中⋯</p>';
+      modal.style.display = 'flex';
+      const dcData = await getTokenData();
+      await ensureNpcPrices();
+      if (modal.style.display === 'none') return; // 讀取期間已被關掉
+      if (!dcData) { nbody.innerHTML = '<p class="craft-muted">目前沒有可用的市場快照資料，暫時無法算出排行。</p>'; return; }
+      const rows = buildCurrencyNpcUses(id, dcData, MarketData.getPricePrefs().sellBasis);
+      if (!rows.length) { nbody.innerHTML = '<p class="craft-muted">這個代幣換到的東西，系統 NPC 都不收購。</p>'; return; }
+      const STEP = 30;
+      let shown = 0;
+      function draw() {
+        shown = Math.min(rows.length, shown + STEP);
+        nbody.innerHTML = '<p class="mk-npc-sub">用「' + escHtml(curName) + '」換到的東西，直接賣給系統 NPC 的價格：固定價格、不需要等買家、必定成交。依「每 1 個代幣可得多少金」排序。</p>' +
+          '<div class="mk-npc-list"><div class="mk-npc-row mk-npc-headrow"><span></span><span>可以換到</span><span>每1' + itemIconHtml(id, 13) + '賣 NPC</span></div>' +
+          rows.slice(0, shown).map(function (r, i) {
+            const label = r.resultItems.map(function (x) { return itemRefHtml(x[0], { icon: 20, name: true }) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
+            const mkt = r.mkt ? '<span class="mk-npc-mkt">市價 ' + Math.round(r.mkt.price).toLocaleString() + '・' + fmtVelCell(r.mkt.vel) + '</span>' : '';
+            const per = Math.abs(r.perUnit) < 10 ? r.perUnit.toFixed(1) : Math.round(r.perUnit).toLocaleString();
+            return '<div class="mk-npc-row"><span class="mk-npc-rank">' + (i + 1) + '</span>' +
+              '<span class="mk-npc-main"><span class="mk-npc-name">' + label + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' + mkt + '</span>' +
+              '<span class="mk-npc-val"><span class="mk-npc-per"><b>' + per + '</b>' + unit('金') + '</span><small class="mk-npc-total">共 ' + Math.round(r.total).toLocaleString() + ' 金</small></span></div>';
+          }).join('') + '</div>' +
+          (shown < rows.length ? '<button type="button" class="market-token-more" id="mk-npc-more">顯示更多（還有 ' + (rows.length - shown) + ' 種）</button>' : '');
+        const more = $('mk-npc-more'); if (more) more.addEventListener('click', draw);
+      }
+      draw();
+    }
     async function renderTokenBody(body, id) {
       body.dataset.loaded = '1';
       body.innerHTML = '<p class="craft-muted">讀取排行中⋯</p>';
@@ -4326,11 +4438,16 @@
       await ensureNpcPrices();
       const sortKey = body.dataset.sort || 'net';
       const SHOW = 20;
-      const all = buildCurrencyBestUses(id, dcData, MarketData.getPricePrefs().sellBasis, 99999, sortKey);
+      const allRaw = buildCurrencyBestUses(id, dcData, MarketData.getPricePrefs().sellBasis, 99999, sortKey);
+      // 排除明顯滯銷：賣速與成交頻率都低到算不出來（賣速<0.05件/天且30天成交<5筆）。
+      // 賣給 NPC 的列（必定成交）一律保留，這正是這個選項要讓 NPC 即賣能公平競爭的原因。
+      const all = tokenExcludeSlow ? allRaw.filter(function (r) { return (r.viaNpc && !r.viaChain && !r.vel) || r.vel > 0 || r.txnFreq > 0; }) : allRaw;
+      const slowCut = allRaw.length - all.length;
       const best = all.slice(0, SHOW);
+      const npcCount = buildCurrencyNpcUses(id, dcData, MarketData.getPricePrefs().sellBasis).length;
       const totalTrades = Number(body.dataset.count) || 0;
       if (!best.length) {
-        body.innerHTML = '<p class="craft-muted">這個代幣可換的 ' + totalTrades + ' 種東西，都是不可交易、系統 NPC 也不收購的物品（常見於現行版本的神典石裝備、外觀與坐騎），或目前市場上沒有行情，所以沒有金幣價值可以比較。</p>';
+        body.innerHTML = '<p class="craft-muted">' + (slowCut ? '排除明顯滯銷物品之後，這個代幣沒有剩下可比價的兌換品（排除了 ' + slowCut + ' 種）。可以到上方篩選取消勾選。' : '這個代幣可換的 ' + totalTrades + ' 種東西，都是不可交易且NPC收購價為0，或目前市場上沒有行情的物品。') + '</p>';
         return;
       }
       // 排行改成「表頭＋對齊的欄」：欄名只在表頭寫一次，點表頭就能換排序。
@@ -4339,7 +4456,7 @@
       function sortHead(key, cls, html, tip) {
         return '<button type="button" class="mtr-sort ' + cls + (sortKey === key ? ' active' : '') + '" data-token-sort="' + key + '" title="' + tip + '">' + html + '</button>';
       }
-      const headHtml = '<div class="mtr-head"><span class="mtr-rank"></span><span class="mtr-name">可以換到</span>' +
+      const headHtml = '<div class="mtr-head"><span class="mtr-rank"></span><span class="mtr-name">可以換到' + (npcCount ? '<button type="button" class="mk-npc-open" data-npc-open="' + id + '" title="只看賣給系統 NPC 的價格排行（固定價格、不需要等買家、必定成交），共 ' + npcCount + ' 種">🏪<span class="mk-npc-open-l"> NPC 即賣排行（' + npcCount + '）</span> ›</button>' : '') + '</span>' +
         sortHead('net', 'mtr-val', '每1' + itemIconHtml(id, 13) + '價值', '用1個這種代幣，大約能換到多少金幣的東西（換成最划算的那一種）') +
         sortHead('vel', 'mtr-vel', '賣速', '最近每天大約賣出幾件') +
         sortHead('txnFreq', 'mtr-freq', '成交頻率', '近30天平均每天成交幾筆；30天內成交不到5筆時算不出來，顯示「<5筆/月」') +
@@ -4349,7 +4466,8 @@
       const notes = [];
       notes.push(all.length > SHOW ? '列出前 ' + SHOW + ' 名，共 ' + all.length + ' 種可比價' : '共 ' + all.length + ' 種可比價');
       if (tokenScopeEff() === 'world') notes.push('價格以「' + MarketData.getSettings().worldName + '」為準');
-      if (totalTrades > all.length) notes.push('另有 ' + (totalTrades - all.length) + ' 種無法換算金幣（不可交易且 NPC 不收購，或沒有市場行情）');
+      if (slowCut) notes.push('已排除 ' + slowCut + ' 種明顯滯銷物品');
+      if (totalTrades > allRaw.length) notes.push('另有 ' + (totalTrades - allRaw.length) + ' 種不可交易且NPC收購價為0，或目前市場上沒有行情');
       const legendParts = [];
       if (best.some(function (r) { return r.viaChain; })) legendParts.push('🔗→ 再兌換成該物品後的市價');
       if (best.some(function (r) { return r.viaNpc; })) legendParts.push('🏪 以 NPC 收購價估算（不可交易）');

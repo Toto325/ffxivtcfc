@@ -179,35 +179,6 @@
     chk();
   }
 
-  /* ───────── 5. 資料到位：市場最低價數字滾動 ───────── */
-  function countUp(el) {
-    var txt = el.textContent.trim();
-    if (el.children.length || !/^[\d,]+$/.test(txt)) return;
-    var to = parseInt(txt.replace(/,/g, ''), 10), t0 = performance.now(), dur = 700 + Math.min(500, String(to).length * 50);
-    if (!isFinite(to) || to < 10) return;
-    el.textContent = '0';
-    (function step(t) {
-      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = Math.round(to * e).toLocaleString('en-US');
-      if (k < 1) raf(step); else el.textContent = txt;
-    })(t0);
-  }
-  function watchMarket() {
-    var mk = doc.getElementById('market'); if (!mk || !window.MutationObserver || reduce) return;
-    new MutationObserver(function (ms) {
-      ms.forEach(function (m) {
-        m.addedNodes.forEach(function (n) {
-          if (n.nodeType !== 1) return;
-          var rows = n.matches && n.matches('.market-flexrow-best') ? [n] : (n.querySelectorAll ? n.querySelectorAll('.market-flexrow-best') : []);
-          Array.prototype.forEach.call(rows, function (row) {
-            if (row.__arrived) return; row.__arrived = true;
-            row.querySelectorAll('.mfl-price, .mfl-total').forEach(countUp);
-          });
-        });
-      });
-    }).observe(mk, { childList: true, subtree: true });
-  }
-
   /* ───────── 6. 載入器：寶飾座甦醒（＋頁面層級加飾桿光波），載入結束時迸出金粉 ─────────
      標記不動：把各頁原本的載入圖示（天秤／錘子／✿／circle-notch）換成同一個寶飾座載入器。
      頁面層級（市場、生產、公告、潛水艇／飛空艇結果區）＝飾桿＋寶飾座；按鈕上的「計算中」＝只有小寶飾座。 */
@@ -243,7 +214,7 @@
     }).observe(doc.body, { childList: true, subtree: true });
   }
 
-  function init() { buildSeats(); watchRoll(); watchMarket(); watchLoaders(); }
+  function init() { buildSeats(); watchRoll(); watchLoaders(); }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', init); else init();
   window.addEventListener('load', buildSeats);
 })();
