@@ -23,6 +23,15 @@
     if (window.location.hash === h) return;
     try { window.history[push ? 'pushState' : 'replaceState'](null, '', window.location.pathname + window.location.search + h); } catch (e) { /* 某些環境不允許改網址就算了 */ }
   }
+  function readHashTab() { if (!hashIsMarket()) return null; const m = /[#&]tab=(item|radar|hot|tokens)(?:&|$)/.exec(window.location.hash); return m ? m[1] : null; }
+  // 從分頁（熱度排行／代幣兌換…）點進物品前，先在歷史裡留一格「#page=market&tab=分頁」，
+  // 不然歷史只有「前一個看過的物品」，按上一頁就會跳去那個物品，而不是回到分頁。
+  function pushTabHash(tab) {
+    if (IS_EMBED) return;
+    const h = '#page=market&tab=' + tab;
+    if (window.location.hash === h) return;
+    try { window.history.pushState(null, '', window.location.pathname + window.location.search + h); } catch (e) { /* 忽略 */ }
+  }
   /* ── 返回導覽 ──
    * 每次「從別的地方跳進某個物品頁」就記一格：來源是哪個分頁（含捲動位置），或來源是另一個物品（含當時看的分頁、世界、篩選）。
    * 物品頁最上面有一顆「‹ 返回 〇〇」（只有跳進來時才出現，自己搜尋進來的不顯示）。
@@ -106,12 +115,17 @@
     if (id) {
       if (id !== currentDetailItemId || mainTabName() !== 'item') {
         if (top && top.kind === 'item' && top.id === id) { navStack.pop(); restoreOrigin(top, true); }
-        else openItemDetail(id, { fromHash: true });
+        else openItemDetail(id, { fromHash: true, back: true });
       }
-    } else if (top && top.kind === 'tab') { // 回到「從某個分頁跳進來」之前
-      navStack.pop(); resetItemPane(); restoreOrigin(top, true);
-    } else if (currentDetailItemId) { // 回到「還沒開任何物品」的那一步
-      resetItemPane();
+    } else {
+      const ht = readHashTab();
+      if (top && top.kind === 'tab' && (!ht || ht === top.tab)) { // 回到「從某個分頁跳進來」之前
+        navStack.pop(); resetItemPane(); restoreOrigin(top, true);
+      } else if (ht && ht !== mainTabName()) { // 例如「下一頁」走到分頁那一格
+        const b = document.querySelector('.craft-tab-btn[data-mk-tab="' + ht + '"]'); if (b) b.click();
+      } else if (currentDetailItemId) { // 回到「還沒開任何物品」的那一步
+        resetItemPane();
+      }
     }
   });
 
@@ -352,9 +366,28 @@
     input.setAttribute('role', 'combobox'); input.setAttribute('aria-expanded', 'false'); input.setAttribute('aria-controls', 'mk-search-results'); input.setAttribute('aria-autocomplete', 'list');
     box.setAttribute('role', 'listbox');
     let debounceTimer = null;
-    input.addEventListener('input', function () {
+    // 注音／拼音輸入法組字中，每敲一個鍵都會觸發 input，但那時的字根本還不是要搜的字：跳過，組字完成才搜。
+    input.addEventListener('input', function (e) {
       clearTimeout(debounceTimer);
+      if (e.isComposing) return;
       debounceTimer = setTimeout(runSearch, 120);
+    });
+    input.addEventListener('compositionend', function () { clearTimeout(debounceTimer); debounceTimer = setTimeout(runSearch, 0); });
+    // 結果清單的點擊用事件委派，只綁一次（原本每次搜尋都替每一列重綁 2 個監聽器）
+    box.addEventListener('click', function (e) {
+      const star = e.target.closest('[data-wl-star]');
+      if (star) {
+        e.stopPropagation(); // 只切換關注，不要當成「選了這個物品」
+        const id = star.dataset.wlStar;
+        const nowOn = MarketWatchlist.toggle(id, ITEM_NAMES_TW_ALL[id] || ('#' + id));
+        star.classList.toggle('on', nowOn);
+        star.textContent = nowOn ? '★' : '☆';
+        star.title = nowOn ? '取消關注' : '加入關注';
+        star.setAttribute('aria-label', star.title);
+        return;
+      }
+      const el = e.target.closest('[data-mk-pick]');
+      if (el) pick(el.dataset.mkPick);
     });
     function runSearch() {
       const q = input.value.trim();
@@ -389,7 +422,7 @@
       if (!matches.length) { box.innerHTML = '<div class="craft-muted" style="padding:8px">查無符合的物品</div>'; box.classList.add('open'); input.setAttribute('aria-expanded', 'true'); fitMarketHeights(); return; }
       // 一次最多畫 SEARCH_MAX 筆：搜「的」這種很短的字會符合上千個物品，每個都帶圖示一次全畫出來會卡；
       // 排序已經是「最像的在前面」，後面的用更完整的名稱就能縮小，所以超過的部分只提示筆數。
-      const SEARCH_MAX = 200;
+      const SEARCH_MAX = 100;
       const shown = matches.slice(0, SEARCH_MAX);
       box.innerHTML = shown.map(function (m, idx) {
         const on = isWatched(m.id);
@@ -400,20 +433,6 @@
       input.setAttribute('aria-expanded', 'true');
       activeIdx = -1; input.removeAttribute('aria-activedescendant');
       fitMarketHeights();
-      box.querySelectorAll('[data-wl-star]').forEach(function (star) {
-        star.addEventListener('click', function (e) {
-          e.stopPropagation(); // 只切換關注，不要當成「選了這個物品」
-          const id = star.dataset.wlStar;
-          const nowOn = MarketWatchlist.toggle(id, ITEM_NAMES_TW_ALL[id] || ('#' + id));
-          star.classList.toggle('on', nowOn);
-          star.textContent = nowOn ? '★' : '☆';
-          star.title = nowOn ? '取消關注' : '加入關注';
-          star.setAttribute('aria-label', star.title);
-        });
-      });
-      box.querySelectorAll('[data-mk-pick]').forEach(function (el) {
-        el.addEventListener('click', function () { pick(el.dataset.mkPick); });
-      });
     }
     function pick(id) {
       input.value = ITEM_NAMES_TW_ALL[id] || '';
@@ -636,7 +655,7 @@
   function itemIconHtml(itemId, size) {
     const url = (typeof ITEM_ICONS_TW_ALL !== 'undefined' && ITEM_ICONS_TW_ALL[itemId]) || null;
     return url
-      ? '<img src="' + url + '" width="' + size + '" height="' + size + '" class="market-item-icon" alt="" loading="lazy">'
+      ? '<img src="' + url + '" width="' + size + '" height="' + size + '" class="market-item-icon" alt="" loading="lazy" decoding="async">'
       : '<span class="market-item-icon market-item-icon-fallback" style="width:' + size + 'px;height:' + size + 'px"><i class="ph ph-cube"></i></span>';
   }
 
@@ -676,11 +695,12 @@
   function openItemDetail(itemId, o) {
     itemId = String(itemId);
     o = o || {};
-    if (!o.back) { const og = captureOrigin(itemId); if (og) { navStack.push(og); if (navStack.length > 20) navStack.shift(); } }
+    let og = null;
+    if (!o.back) { og = captureOrigin(itemId); if (og) { navStack.push(og); if (navStack.length > 20) navStack.shift(); } }
     detailViewState = o.restoreView || null; // 開新物品＝從預設視圖開始（分頁、世界、篩選都重置）；只有改設定的重畫才沿用
     const name = ITEM_NAMES_TW_ALL[itemId] || ('#' + itemId);
     currentDetailItemId = itemId; // 要在重畫「最近查看」之前設定，才標得出目前正在看哪一個
-    if (!(o && o.fromHash)) syncHash(itemId, true);
+    if (!(o && o.fromHash)) { if (og && og.kind === 'tab') pushTabHash(og.tab); syncHash(itemId, true); }
     recordRecentlyViewed(itemId, name);
     renderRecentlyViewed();
     document.querySelector('[data-mk-tab="item"]').click();
@@ -4074,12 +4094,12 @@
       desc: '生產、採集職的票券與信用點數、收藏品，以及製作／採集用的材料' },
     { key: 'hunt', label: '狩獵', ids: [27, 10307, 26533, 20308], desc: '狩獵（通緝）任務的獎勵貨幣，包含著名兵團成員的手冊' },
     { key: 'pvp', label: 'PvP', ids: [25, 36656, 21067], desc: 'PvP 對戰的獎勵貨幣：狼印戰績、戰利水晶、凶狼項圈' },
-    { key: 'fate', label: 'FATE', ids: [26807, 35833, 43961, 20638], desc: 'FATE（野外突發事件）的獎勵：雙色寶石與其收據、伊克西翁的雷角' },
-    { key: 'battle', label: '戰鬥', ids: [30341, 31351, 44868, 44869, 22599, 23383, 24816, 24815, 12236, 45040], desc: '幻巧拼圖的幻巧葉、博茲雅古錢、優蕾卡的大馬士革織物與神秘印章，以及副本掉落的火龍鱗、蟲珀、暗雲半魔晶石、破破爛爛的樂譜' },
+    { key: 'fate', label: 'FATE', ids: [26807, 35833, 43961, 20638, 45043], desc: 'FATE（野外突發事件）的獎勵：雙色寶石與其收據、伊克西翁的雷角' },
+    { key: 'battle', label: '戰鬥', ids: [30341, 31351, 44868, 44869, 22599, 23383, 24816, 24815, 12236, 45040, 45044, 47868], desc: '幻巧拼圖的幻巧葉、博茲雅古錢、優蕾卡的大馬士革織物與神秘印章，以及副本掉落的火龍鱗、蟲珀、暗雲半魔晶石、破破爛爛的樂譜' },
     // 寶圖：藏寶圖／寶圖迷宮掉落的稀有素材，各只換一件坐騎或道具（絢爛華麗的羽毛→阿爾科諾斯特笛、灼熱的火角→法厄同角笛…）。
     // 前兩個有查證；暮光寶石、驚奇補劑是依「同樣只換單一稀有品」的模式推斷。
     { key: 'treasure', label: '藏寶圖', ids: [37491, 39592, 41805, 39590], desc: '藏寶圖與藏寶圖迷宮掉落的稀有素材，到商人那裡換坐騎等獎勵' },
-    { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472], desc: '友好部族任務的貨幣，每個部族各有一種' },
+    { key: 'tribe', label: '友好部族', ids: [21073, 21074, 21075, 21076, 21077, 21078, 21079, 21080, 21081, 21935, 22525, 28186, 28187, 28188, 36657, 37854, 38952, 44472, 48084], desc: '友好部族任務的貨幣，每個部族各有一種' },
     { key: 'variant', label: '多變／異聞迷宮', ids: [38533, 38534, 38535, 39884, 39885, 39886, 41078, 41079, 41080], desc: '希拉狄哈、六根山、阿羅阿羅島的遺物、書籍與貨幣' },
     // 大型副本＝8人副本（XX之章），掉落的是「拿去換裝備的道具」。神秘貝殼／神秘原石是戈耳狄透鏡／彈簧換來的中繼物，同一條兌換鏈。
     { key: 'raid', label: '大型副本', ids: [16545, 13583, 13584, 13585, 13586, 19117, 19122, 21780, 23969], desc: '亞歷山大、歐米茄等 8 人大型副本（XX之章）掉落的兌換用道具' },
@@ -4310,7 +4330,7 @@
       const best = all.slice(0, SHOW);
       const totalTrades = Number(body.dataset.count) || 0;
       if (!best.length) {
-        body.innerHTML = '<p class="craft-muted">這個代幣可換的 ' + totalTrades + ' 種東西都無法比價（多為不可交易的物品，或目前市場上沒有行情）。</p>';
+        body.innerHTML = '<p class="craft-muted">這個代幣可換的 ' + totalTrades + ' 種東西，都是不可交易、系統 NPC 也不收購的物品（常見於現行版本的神典石裝備、外觀與坐騎），或目前市場上沒有行情，所以沒有金幣價值可以比較。</p>';
         return;
       }
       // 排行改成「表頭＋對齊的欄」：欄名只在表頭寫一次，點表頭就能換排序。
@@ -4319,7 +4339,7 @@
       function sortHead(key, cls, html, tip) {
         return '<button type="button" class="mtr-sort ' + cls + (sortKey === key ? ' active' : '') + '" data-token-sort="' + key + '" title="' + tip + '">' + html + '</button>';
       }
-      const headHtml = '<div class="mtr-head"><span class="mtr-rank">#</span><span class="mtr-name">可以換到</span>' +
+      const headHtml = '<div class="mtr-head"><span class="mtr-rank"></span><span class="mtr-name">可以換到</span>' +
         sortHead('net', 'mtr-val', '每1' + itemIconHtml(id, 13) + '價值', '用1個這種代幣，大約能換到多少金幣的東西（換成最划算的那一種）') +
         sortHead('vel', 'mtr-vel', '賣速', '最近每天大約賣出幾件') +
         sortHead('txnFreq', 'mtr-freq', '成交頻率', '近30天平均每天成交幾筆；30天內成交不到5筆時算不出來，顯示「<5筆/月」') +
@@ -4329,7 +4349,7 @@
       const notes = [];
       notes.push(all.length > SHOW ? '列出前 ' + SHOW + ' 名，共 ' + all.length + ' 種可比價' : '共 ' + all.length + ' 種可比價');
       if (tokenScopeEff() === 'world') notes.push('價格以「' + MarketData.getSettings().worldName + '」為準');
-      if (totalTrades > all.length) notes.push('另有 ' + (totalTrades - all.length) + ' 種無法比價（不可交易或沒有市場行情）');
+      if (totalTrades > all.length) notes.push('另有 ' + (totalTrades - all.length) + ' 種無法換算金幣（不可交易且 NPC 不收購，或沒有市場行情）');
       const legendParts = [];
       if (best.some(function (r) { return r.viaChain; })) legendParts.push('🔗→ 再兌換成該物品後的市價');
       if (best.some(function (r) { return r.viaNpc; })) legendParts.push('🏪 以 NPC 收購價估算（不可交易）');
@@ -4350,8 +4370,8 @@
           '<span class="mtr-rank">' + (i + 1) + '</span>' +
           '<span class="mtr-name">' + itemIconHtml(first[0], 22) + '<span class="mtr-label">' + label + '</span>' + chainTag + npcTag + (r.locked ? '<span class="market-token-chain-tag" title="需要先完成任務或成就才能兌換">🔒</span>' : '') + '</span>' +
           '<span class="mtr-val' + (sortKey === 'net' ? ' active' : '') + '">' + net + unit('金') + '</span>' +
-          '<span class="mtr-vel' + (sortKey === 'vel' ? ' active' : '') + '">' + (noLiq ? '<span class="craft-muted" title="賣給 NPC 即時成交，沒有賣速">—</span>' : fmtVelCell(r.vel)) + '</span>' +
-          '<span class="mtr-freq' + (sortKey === 'txnFreq' ? ' active' : '') + '">' + (noLiq ? '<span class="craft-muted">—</span>' : fmtFreqCell(r.txnFreq)) + '</span>' +
+          '<span class="mtr-vel' + (sortKey === 'vel' ? ' active' : '') + '">' + (noLiq ? '<span class="mk-instant" title="賣給系統 NPC：固定價格、不需要等買家，100% 成交">即賣</span>' : fmtVelCell(r.vel)) + '</span>' +
+          '<span class="mtr-freq' + (sortKey === 'txnFreq' ? ' active' : '') + '">' + (noLiq ? '<span class="mk-instant" title="賣給系統 NPC：固定價格、不需要等買家，100% 成交">即賣</span>' : fmtFreqCell(r.txnFreq)) + '</span>' +
         '</div>';
       }).join('') + (legendParts.length ? '<p class="mtr-legend">' + legendParts.join('<span class="mtr-legend-gap"></span>') + '</p>' : '') + '<p class="mtr-foot">' + notes.join('；') + '</p></div>';
       body.querySelectorAll('[data-mk-goto-item]').forEach(function (el) {
@@ -4475,7 +4495,7 @@
           '最後更新：' + generated.toLocaleString()
         ]) +
         '<div class="market-hot-list">' +
-          '<div class="market-hot-head"><span class="mhh-rank">#</span><span class="mhh-icon"></span><span class="mhh-name">物品</span><span class="mhh-bar">' + metricDef.label + '</span><span class="mhh-val">數值</span></div>' +
+          '<div class="market-hot-head"><span class="mhh-rank"></span><span class="mhh-icon"></span><span class="mhh-name">物品</span><span class="mhh-bar">' + metricDef.label + '</span><span class="mhh-val">數值</span></div>' +
           top.map(function (e, i) {
             const v = e.value;
             const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
@@ -4729,7 +4749,7 @@
       '<p class="craft-muted" style="margin-bottom:8px">' + metricDef.hint + '</p>' +
       summaryLine +
       '<div class="market-hot-list">' +
-          '<div class="market-hot-head"><span class="mhh-rank">#</span><span class="mhh-icon"></span><span class="mhh-name">物品</span><span class="mhh-bar">' + metricDef.label + '</span><span class="mhh-val">數值</span></div>' +
+          '<div class="market-hot-head"><span class="mhh-rank"></span><span class="mhh-icon"></span><span class="mhh-name">物品</span><span class="mhh-bar">' + metricDef.label + '</span><span class="mhh-val">數值</span></div>' +
         top.map(function (r, i) {
           const v = r.stats[metricKey];
           // 數值跨好幾個數量級時用對數比例，才分得出差異
