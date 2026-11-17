@@ -1,724 +1,18 @@
-/* macro-tool.js v2 — FF14 巨集建立工具 */
+/* macro-tool.js — 巨集建立工具（新版：區域／標籤瀏覽、巨集視窗、接力動態）
+   資料與指令產生在 macro-engine.js；區域與標籤在 macro-meta.js；貼上解析在 macro-parse.js。
+   欄位表單（renderFields 一族）與其事件沿用舊版邏輯，確保 140 種指令的功能完整。 */
 (function(){
 'use strict';
-var MAX=15,MAX_C=180,WARN_C=150;
-var lines=[],nextId=1,globalCfg={merrorOff:false,mlock:false},pickerCat=null,pickerSearch='',splitData=null,activeLineId=null;
-
-/* ── Sound effects ── */
-var SE=[{v:'',l:'無音效'}];for(var _i=1;_i<=16;_i++)SE.push({v:'<se.'+_i+'>',l:'音效 '+_i});
-
-/* ── Target options ── */
-var TGT=[
-  {v:'',l:'（不指定目標）'},{v:'<t>',l:'<t>　當前目標'},{v:'<me>',l:'<me>　自己'},
-  {v:'<f>',l:'<f>　焦點目標'},{v:'<tt>',l:'<tt>　目標的目標'},
-  {v:'<lt>',l:'<lt>　上次目標'},{v:'<mo>',l:'<mo>　滑鼠指向的角色'},
-  {v:'<r>',l:'<r>　最後傳悄悄話給你的人'},{v:'<le>',l:'<le>　最後選中的敵人'},
-  {v:'<la>',l:'<la>　最後攻擊你的敵人'},{v:'<c>',l:'<c>　自己的搭擋'},
-  {v:'<p>',l:'<p>　自己的召喚獸'},
-  {v:'<1>',l:'<1>　小隊1號'},{v:'<2>',l:'<2>　小隊2號'},{v:'<3>',l:'<3>　小隊3號'},
-  {v:'<4>',l:'<4>　小隊4號'},{v:'<5>',l:'<5>　小隊5號'},{v:'<6>',l:'<6>　小隊6號'},
-  {v:'<7>',l:'<7>　小隊7號'},{v:'<8>',l:'<8>　小隊8號'},
-  {v:'<attack1>',l:'<attack1>　攻擊標記1'},{v:'<attack2>',l:'<attack2>　攻擊標記2'},
-  {v:'<attack3>',l:'<attack3>　攻擊標記3'},{v:'<attack4>',l:'<attack4>　攻擊標記4'},
-  {v:'<attack5>',l:'<attack5>　攻擊標記5'},{v:'<bind1>',l:'<bind1>　止步標記1'},
-  {v:'<bind2>',l:'<bind2>　止步標記2'},{v:'<bind3>',l:'<bind3>　止步標記3'},
-  {v:'<stop1>',l:'<stop1>　禁止標記1'},{v:'<stop2>',l:'<stop2>　禁止標記2'},
-  {v:'<square>',l:'<square>　方塊標記'},{v:'<circle>',l:'<circle>　圓圈標記'},
-  {v:'<cross>',l:'<cross>　叉標記'},{v:'<triangle>',l:'<triangle>　三角標記'},
-  {v:'<e1>',l:'<e1>　PvP敵方1號'},{v:'<e2>',l:'<e2>　PvP敵方2號'},
-  {v:'<e3>',l:'<e3>　PvP敵方3號'},{v:'<e4>',l:'<e4>　PvP敵方4號'},
-  {v:'<e5>',l:'<e5>　PvP敵方5號'},{v:'custom',l:'自訂輸入...'}
-];
-
-/* ── Chat channels ── */
-var CH=[
-  {v:'p',l:'小隊 /p'},{v:'s',l:'說話 /s（20公尺）'},{v:'y',l:'呼喊 /y（100公尺）'},
-  {v:'sh',l:'喊話 /sh（整個區域）'},{v:'a',l:'團隊 /a'},{v:'fc',l:'部隊 /fc'},
-  {v:'pt',l:'戰隊 /pt'},{v:'l1',l:'通訊貝1 /l1'},{v:'l2',l:'通訊貝2 /l2'},
-  {v:'l3',l:'通訊貝3 /l3'},{v:'l4',l:'通訊貝4 /l4'},{v:'l5',l:'通訊貝5 /l5'},
-  {v:'l6',l:'通訊貝6 /l6'},{v:'l7',l:'通訊貝7 /l7'},{v:'l8',l:'通訊貝8 /l8'},
-  {v:'cwl1',l:'跨服通訊貝1 /cwl1'},{v:'cwl2',l:'跨服通訊貝2 /cwl2'},
-  {v:'cwl3',l:'跨服通訊貝3 /cwl3'},{v:'cwl4',l:'跨服通訊貝4 /cwl4'},
-  {v:'cwl5',l:'跨服通訊貝5 /cwl5'},{v:'cwl6',l:'跨服通訊貝6 /cwl6'},
-  {v:'cwl7',l:'跨服通訊貝7 /cwl7'},{v:'cwl8',l:'跨服通訊貝8 /cwl8'},
-  {v:'b',l:'新人頻道 /b'},{v:'e',l:'默語（僅自己）/e'}
-];
-
-/* ── MICON types ── */
-var MICON_T=[
-  {v:'action',l:'技能 (action)'},{v:'general',l:'通用技能 (general)'},
-  {v:'blueaction',l:'青魔法 (blueaction)'},{v:'pvpaction',l:'PvP技能 (pvpaction)'},
-  {v:'item',l:'道具 (item)'},{v:'emote',l:'情感動作 (emote)'},
-  {v:'mount',l:'坐騎 (mount)'},{v:'minion',l:'寵物 (minion)'},
-  {v:'gearset',l:'裝備套裝編號 (gearset)'},{v:'classjob',l:'職業圖示 (classjob)'},
-  {v:'marking',l:'目標標記 (marking)'},{v:'waymark',l:'場景標記 (waymark)'}
-];
-
-/* ── HUD windows ── */
-var HUD_W=[
-  {v:'TargetBar',l:'目標欄 (tbar)',g:'目標／焦點'},
-  {v:'TInfoHP',l:'目標情報：體力 (tihp)',g:'目標／焦點'},
-  {v:'TInfoProgress',l:'目標情報：進度條／詠唱欄 (tiprog)',g:'目標／焦點'},
-  {v:'TInfoStatus',l:'目標情報：狀態效果 (tistat)',g:'目標／焦點'},
-  {v:'FocusTarget',l:'焦點目標欄 (ftarget)',g:'目標／焦點'},
-  {v:'PartyList',l:'小隊列表 (plist)',g:'小隊／團隊'},
-  {v:'EnmityList',l:'敵對列表／仇恨列表 (elist)',g:'小隊／團隊'},
-  {v:'AllianceList1',l:'團隊列表1 (alist1)',g:'小隊／團隊'},
-  {v:'AllianceList2',l:'團隊列表2 (alist2)',g:'小隊／團隊'},
-  {v:'JobGauge1',l:'職業量譜1',g:'角色資訊'},
-  {v:'JobGauge2',l:'職業量譜2',g:'角色資訊'},
-  {v:'ParamBar',l:'角色參數欄 (param)',g:'角色資訊'},
-  {v:'LimitGauge',l:'極限技槽 (lgauge)',g:'角色資訊'},
-  {v:'ExpBar',l:'經驗值欄 (ebar)',g:'角色資訊'},
-  {v:'StatusEffects',l:'狀態效果 (sfx)',g:'角色資訊'},
-  {v:'SInfoEnhancements',l:'狀態資訊：強化 (sienh)',g:'角色資訊'},
-  {v:'SInfoConditionalEnhancements',l:'狀態資訊：條件強化 (sicenh)',g:'角色資訊'},
-  {v:'SInfoEnfeeblements',l:'狀態資訊：弱化 (sienf)',g:'角色資訊'},
-  {v:'SInfoOther',l:'狀態資訊：其他 (siother)',g:'角色資訊'},
-  {v:'Minimap',l:'小地圖 (mmap)',g:'介面／系統'},
-  {v:'MainMenu',l:'主選單 (mmenu)',g:'介面／系統'},
-  {v:'ServerInfo',l:'伺服器資訊 (server)',g:'介面／系統'},
-  {v:'Gil',l:'金幣 (gil)',g:'介面／系統'},
-  {v:'InventoryGrid',l:'背包縮圖 (igrid)',g:'介面／系統'},
-  {v:'DutyList',l:'任務列表 (dlist)',g:'介面／系統'},
-  {v:'ItemHelp',l:'道具說明 (ihelp)',g:'介面／系統'},
-  {v:'ActionHelp',l:'技能說明 (ahelp)',g:'介面／系統'},
-  {v:'ScenarioGuide',l:'主線嚮導',g:'介面／系統'},
-  {v:'Hotbar1',l:'熱鍵欄1',g:'熱鍵欄'},{v:'Hotbar2',l:'熱鍵欄2',g:'熱鍵欄'},
-  {v:'Hotbar3',l:'熱鍵欄3',g:'熱鍵欄'},{v:'Hotbar4',l:'熱鍵欄4',g:'熱鍵欄'},
-  {v:'Hotbar5',l:'熱鍵欄5',g:'熱鍵欄'},{v:'Hotbar6',l:'熱鍵欄6',g:'熱鍵欄'},
-  {v:'Hotbar7',l:'熱鍵欄7',g:'熱鍵欄'},{v:'Hotbar8',l:'熱鍵欄8',g:'熱鍵欄'},
-  {v:'Hotbar9',l:'熱鍵欄9',g:'熱鍵欄'},{v:'Hotbar10',l:'熱鍵欄10',g:'熱鍵欄'},
-  {v:'Crosshotbar',l:'十字熱鍵欄',g:'熱鍵欄'},
-  {v:'BattleHighGauge',l:'戰鬥高潮槽',g:'特殊玩法'},
-  {v:'FrontlineScore',l:'紛爭前線：戰績資訊 (flscore)',g:'特殊玩法'},
-  {v:'FrontlineCampaignInfo',l:'紛爭前線：戰役資訊 (flcamp)',g:'特殊玩法'},
-  {v:'RWGauge',l:'烈羽爭鋒：計量表 (rwg)',g:'特殊玩法'},
-  {v:'RWAlliance',l:'烈羽爭鋒：團隊列表 (rwa)',g:'特殊玩法'},
-  {v:'RWStation',l:'烈羽爭鋒：站點資訊 (rwst)',g:'特殊玩法'},
-  {v:'RWMerc',l:'烈羽爭鋒：哥布林傭兵資訊 (rwmrc)',g:'特殊玩法'},
-  {v:'FeastAlly',l:'群狼盛宴：我方情報 (fally)',g:'特殊玩法'},
-  {v:'FeastEnemy',l:'群狼盛宴：敵方情報 (fenemy)',g:'特殊玩法'},
-  {v:'CConflictProgress',l:'水晶都爭霸：進度槽 (ccprog)',g:'特殊玩法'},
-  {v:'CConflictAlly',l:'水晶都爭霸：我方資訊 (ccally)',g:'特殊玩法'},
-  {v:'CConflictEnemy',l:'水晶都爭霸：敵方資訊 (ccenemy)',g:'特殊玩法'},
-  {v:'CConflictMap',l:'水晶都爭霸：地圖 (ccmap)',g:'特殊玩法'},
-  {v:'CosmicExplorationInfo',l:'宇宙探索資訊 (csmex)',g:'特殊玩法'}
-];
-
-/* ── ItemSort areas & criteria ── */
-var IS_AREAS=[
-  {v:'inventory',l:'背包（物品欄）',g:'常用'},
-  {v:'armoury',l:'兵裝庫（整個）',g:'常用'},
-  {v:'retainer',l:'雇員物品（視窗需開啟才能執行）',g:'常用'},
-  {v:'saddlebag',l:'陸行鳥鞍囊（視窗需開啟才能執行）',g:'常用'},
-  {v:'rightsaddlebag',l:'陸行鳥鞍囊2（右，視窗需開啟才能執行）',g:'常用'},
-  {v:'mh',l:'兵裝庫：主手',g:'兵裝庫子分類'},
-  {v:'oh',l:'兵裝庫：副手',g:'兵裝庫子分類'},
-  {v:'head',l:'兵裝庫：頭部',g:'兵裝庫子分類'},
-  {v:'body',l:'兵裝庫：身體',g:'兵裝庫子分類'},
-  {v:'hands',l:'兵裝庫：手部',g:'兵裝庫子分類'},
-  {v:'legs',l:'兵裝庫：腿部',g:'兵裝庫子分類'},
-  {v:'feet',l:'兵裝庫：腳部',g:'兵裝庫子分類'},
-  {v:'neck',l:'兵裝庫：頸部（項鍊）',g:'兵裝庫子分類'},
-  {v:'ears',l:'兵裝庫：耳部（耳飾）',g:'兵裝庫子分類'},
-  {v:'wrists',l:'兵裝庫：腕部（手鐲）',g:'兵裝庫子分類'},
-  {v:'rings',l:'兵裝庫：戒指',g:'兵裝庫子分類'},
-  {v:'soul',l:'兵裝庫：靈魂水晶',g:'兵裝庫子分類'}
-];
-var IS_C=[
-  {v:'ilv',l:'物品品級',o:true},{v:'category',l:'道具種類（分類）',o:true},
-  {v:'id',l:'道具編號',o:true},{v:'spiritbond',l:'精煉度',o:true},
-  {v:'lv',l:'裝備等級',o:true},{v:'stack',l:'打包數量',o:true},
-  {v:'hq',l:'優質道具（HQ）',o:true},{v:'materia',l:'魔晶石數量',o:true},
-  {v:'tab',l:'分欄排列（不需選升降序）',o:false},
-  {v:'pdamage',l:'物理基本性能',o:true},{v:'mdamage',l:'魔法基本性能',o:true},
-  {v:'delay',l:'攻擊間隔',o:true},{v:'autoattack',l:'物理自動攻擊',o:true},
-  {v:'blockrate',l:'格擋發動力',o:true},{v:'blockstrength',l:'格擋性能',o:true},
-  {v:'defense',l:'物理防禦力',o:true},{v:'mdefense',l:'魔法防禦力',o:true},
-  {v:'str',l:'力量 STR',o:true},{v:'dex',l:'靈巧 DEX',o:true},
-  {v:'vit',l:'耐力 VIT',o:true},{v:'int',l:'智力 INT',o:true},
-  {v:'mnd',l:'精神 MND',o:true},
-  {v:'craftsmanship',l:'作業精度（製作）',o:true},
-  {v:'control',l:'加工精度（製作）',o:true},{v:'gathering',l:'採集力（採集）',o:true},
-  {v:'perception',l:'感知力（採集）',o:true}
-];
-
-/* ── Named emotes ── */
-var EMOTES=[
-  {v:'bow',l:'行禮'},{v:'welcome',l:'歡迎'},{v:'goodbye',l:'道別'},
-  {v:'kneel',l:'下跪'},{v:'gcsalute',l:'軍禮'},{v:'easternbow',l:'行東方禮'},
-  {v:'greet',l:'打招呼'},{v:'salute',l:'敬禮'},{v:'imperialsalute',l:'帝國式軍禮'},
-  {v:'easterngreeting',l:'抱拳禮'},{v:'ohokaliy',l:'噢霍卡利'},{v:'laliho',l:'啦哩吼'},
-  {v:'chuckle',l:'輕笑'},{v:'joy',l:'高興'},{v:'rally',l:'鼓勵'},
-  {v:'psych',l:'激勵'},{v:'laugh',l:'大笑'},{v:'happy',l:'欣喜若狂'},
-  {v:'thumbsup',l:'肯定'},{v:'congratulate',l:'稱讚'},{v:'vpose',l:'歡呼勝利'},
-  {v:'vreveal',l:'大獲全勝'},{v:'hurray',l:'勝利歡呼'},{v:'jumpforjoy1',l:'雀躍1'},
-  {v:'jumpforjoy2',l:'雀躍2'},{v:'jumpforjoy3',l:'雀躍3'},{v:'jumpforjoy4',l:'雀躍4'},
-  {v:'jumpforjoy5',l:'雀躍5'},{v:'determined',l:'幹勁十足'},{v:'wow',l:'兩眼放光'},
-  {v:'cry',l:'哭泣'},{v:'fume',l:'後悔'},{v:'upset',l:'失望'},
-  {v:'sulk',l:'懊惱'},{v:'huh',l:'莫名'},{v:'shrug',l:'聳肩'},
-  {v:'surprised',l:'驚訝'},{v:'grovel',l:'下跪認錯'},{v:'facepalm',l:'捂臉'},
-  {v:'aback',l:'大吃一驚'},{v:'deny',l:'否定'},{v:'furious',l:'憤怒'},
-  {v:'panic',l:'慌張'},{v:'disappointed',l:'大失所望'},{v:'angry',l:'不滿'},
-  {v:'shocked',l:'震驚'},{v:'stagger',l:'迷糊'},{v:'doubt',l:'質疑'},
-  {v:'headache',l:'頭痛'},{v:'sundering',l:'眾生離絕'},{v:'slump',l:'垂頭喪氣'},
-  {v:'dazed',l:'暈頭轉向'},{v:'rage',l:'氣得發抖'},{v:'tremble',l:'害怕'},
-  {v:'frighten',l:'嚇唬人'},{v:'delight',l:'陶醉捧臉'},{v:'cackle',l:'高傲冷笑'},
-  {v:'overreact',l:'誇張驚訝'},{v:'blush',l:'害羞'},{v:'deride',l:'叛逆精神'},
-  {v:'respect',l:'默哀'},{v:'shiver',l:'好冷'},{v:'sweat',l:'好熱'},
-  {v:'hug',l:'擁抱'},{v:'embrace',l:'深情擁抱'},{v:'charmed',l:'魅惑擁抱'},
-  {v:'slap',l:'甩巴掌'},{v:'clutchhead',l:'抱頭'},{v:'soothe',l:'安撫'},
-  {v:'comfort',l:'安慰'},{v:'pray',l:'祈禱'},{v:'blowkiss',l:'飛吻'},
-  {v:'pet',l:'撫摸'},{v:'handover',l:'遞交'},{v:'poke',l:'用手指戳'},
-  {v:'beckon',l:'招手'},{v:'point',l:'指向'},{v:'dote',l:'表達愛意'},
-  {v:'prettyplease',l:'撒嬌'},{v:'gratuity',l:'心意'},{v:'conduct',l:'指揮'},
-  {v:'carrybook',l:'抱書'},{v:'bouquet',l:'贈送花束'},{v:'malevolence',l:'詛咒'},
-  {v:'highfive',l:'擊掌'},{v:'throw',l:'投擲'},{v:'pose',l:'擺造型'},
-  {v:'think',l:'思考'},{v:'doze',l:'打盹'},{v:'lookout',l:'張望'},
-  {v:'me',l:'展示'},{v:'converse',l:'說話'},{v:'shush',l:'噓'},
-  {v:'photograph',l:'拍照'},{v:'flex',l:'肉體之美'},{v:'examineself',l:'自視'},
-  {v:'stretch',l:'伸展'},{v:'airquotes',l:'引用'},{v:'waterflip',l:'水中翻跟斗'},
-  {v:'elucidate',l:'說明'},{v:'lean',l:'背靠'},{v:'attend',l:'待命'},
-  {v:'sit',l:'坐下'},{v:'groundsit',l:'坐下到地上'},{v:'changepose',l:'改變姿勢'},
-  {v:'confirm',l:'確認'},{v:'reprimand',l:'提醒'},{v:'study',l:'認真看書'},
-  {v:'insist',l:'堅持主張'},{v:'consider',l:'疑問'},{v:'wasshoi',l:'嘿喲'},
-  {v:'spectacles',l:'托眼鏡'},{v:'visage',l:'用觸控板記錄'},{v:'water',l:'澆水'},
-  {v:'tomescroll',l:'摩挲神典石祈求'},{v:'twirl',l:'旋轉展示服裝'},{v:'winded',l:'單膝跪地'},
-  {v:'spirit',l:'觀戰'},{v:'sheathe',l:'收回武器'},{v:'draw',l:'亮出武器'},
-  {v:'divinearm',l:'神兵：臂'},{v:'divinedisk',l:'神兵：盤'},{v:'divinetiara',l:'神兵：冠'},
-  {v:'unbound',l:'象徵自由的姿勢'},{v:'wave',l:'揮手'},{v:'clap',l:'拍手'},
-  {v:'cheer',l:'加油'},{v:'visor',l:'頭部裝備操作'},{v:'scheme',l:'說明計畫'},
-  {v:'waitforit',l:'得意洋洋'},{v:'handtoheart',l:'手撫胸'},{v:'playdead',l:'裝死'},
-  {v:'guard',l:'巡視'},{v:'blownaway',l:'被震飛'},{v:'stomp',l:'跺地洩憤'},
-  {v:'wringhands',l:'搓手'},{v:'sweep',l:'掃地'},{v:'pantomime',l:'默劇'},
-  {v:'vexed',l:'疑惑'},{v:'reference',l:'比對文獻'},{v:'hildy',l:'紳士風度'},
-  {v:'fistbump',l:'對拳'},{v:'linkpearl',l:'通訊珠'},{v:'pen',l:'用羽毛筆寫字'},
-  {v:'read',l:'看書'},{v:'heart',l:'比心'},{v:'hum',l:'哼歌'},
-  {v:'ritualprayer',l:'祝禱'},{v:'toast',l:'乾杯'},{v:'bigfan',l:'扇大團扇'},
-  {v:'blowbubbles',l:'吹泡泡'},{v:'earwiggle',l:'搖兔兔耳'},{v:'flowershower',l:'花雨'},
-  {v:'no',l:'搖頭'},{v:'snap',l:'打響指'},{v:'yes',l:'點頭'},
-  {v:'tomestone',l:'神典石'},{v:'dance',l:'跳舞'},{v:'stepdance',l:'踢踏舞'},
-  {v:'mogdance',l:'莫古莫古舞'},{v:'yoldance',l:'胡鷹之舞'},{v:'lalihop',l:'啦哩吼舞'},
-  {v:'sundance',l:'太陽之舞'},{v:'harvestdance',l:'豐饒之舞'},{v:'balldance',l:'宮廷之舞'},
-  {v:'mandervilledance',l:'紳士之舞'},{v:'bombdance',l:'火盆舞'},{v:'thavnairiandance',l:'薩維奈舞'},
-  {v:'golddance',l:'黃金之舞'},{v:'edance',l:'東方傳統舞蹈'},{v:'moonlift',l:'日月之舞'},
-  {v:'songbird',l:'小黃鶯之舞'},{v:'flamedance',l:'烈焰之舞'},{v:'beesknees',l:'蜜蜂之舞'},
-  {v:'mmambo',l:'紳士舞步'},{v:'ladance',l:'公主之舞'},{v:'breakdance',l:'霹靂舞'},
-  {v:'lophop',l:'兔兔舞'},{v:'sabotender',l:'優雅仙人掌怪'},{v:'boxstep',l:'方形步'},
-  {v:'sidestep',l:'側步'},{v:'heeltoe',l:'趾踵步'},{v:'goobbuedo',l:'古卜步'},
-  {v:'popotostep',l:'波波托步'},{v:'getfantasy',l:'幻想舞步'},{v:'runway',l:'伸展台走秀'},
-  {v:'cheerjump',l:'聲援小紅'},{v:'cheerbright',l:'聲援小白'},{v:'cheergreen',l:'聲援小綠'},
-  {v:'cheeron',l:'聲援小藍'},{v:'cheerwave',l:'聲援小黃'},{v:'cheerviolet',l:'聲援小紫'},
-  {v:'cheerjumpindigo',l:'應援跳躍：靛'},{v:'cheerlb',l:'應援搖擺：藍'},{v:'cheerlg',l:'應援搖擺：綠'},
-  {v:'cheerly',l:'應援搖擺：黃'},{v:'cheeronorange',l:'應援揮舞：橘'},{v:'cheerwavepink',l:'應援揮手：粉'},
-  {v:'cheerrw',l:'應援打拍：白'},{v:'cheerrr',l:'應援打拍：紅'},{v:'cheerrv',l:'應援打拍：紫'},
-  {v:'battlestance',l:'準備戰鬥'},{v:'fistpump',l:'振作精神'},{v:'rangerpose1r',l:'戰隊演武正紅一式'},
-  {v:'rangerpose1l',l:'戰隊演武逆紅一式'},{v:'rangerpose2r',l:'戰隊演武正黑二式'},{v:'rangerpose2l',l:'戰隊演武逆黑二式'},
-  {v:'rangerpose3r',l:'戰隊演武正黃三式'},{v:'rangerpose3l',l:'戰隊演武逆黃三式'},{v:'redrangerposea',l:'紅騎士造型A'},
-  {v:'redrangerposeb',l:'紅騎士造型B'},{v:'blackrangerposea',l:'黑騎士造型A'},{v:'blackrangerposeb',l:'黑騎士造型B'},
-  {v:'yellowrangerposea',l:'黃騎士造型A'},{v:'yellowrangerposeb',l:'黃騎士造型B'},{v:'zantetsuken',l:'斬鐵劍'},
-  {v:'ultima',l:'究極'},{v:'crimsonlotus',l:'練武'},{v:'powerup',l:'蓄力迸發'},
-  {v:'eureka',l:'靈光一現'},{v:'backflip',l:'後空翻'},{v:'simulationm',l:'歐米茄M架勢'},
-  {v:'simulationf',l:'歐米茄F架勢'},{v:'paintred',l:'紅色陸行鳥之筆'},{v:'paintblue',l:'藍色陸行鳥之筆'},
-  {v:'paintblack',l:'黑色陸行鳥之筆'},{v:'paintyellow',l:'黃色陸行鳥之筆'},{v:'eatapple',l:'吃蘋果'},
-  {v:'eategg',l:'吃水煮蛋'},{v:'eatriceball',l:'吃飯團'},{v:'eatchicken',l:'吃炸雞'},
-  {v:'choco',l:'吃戀人巧克力'},{v:'cookie',l:'吃南瓜餅乾'},{v:'taco',l:'吃塔可'},
-  {v:'devourtaco',l:'狂吃塔可'},{v:'pizza',l:'吃披薩'},{v:'bread',l:'吃麵包'},
-  {v:'fryegg',l:'煎蛋'},{v:'tea',l:'飲用紅茶'},{v:'savortea',l:'品茶'},
-  {v:'greentea',l:'喝綠茶'},{v:'shakedrink',l:'搖雪克杯'},{v:'gridaniangulp',l:'暢飲格里達尼亞特調'},
-  {v:'gridaniansip',l:'小酌格里達尼亞特調'},{v:'lominsangulp',l:'暢飲利姆薩·羅敏薩特調'},{v:'lominsansip',l:'小酌利姆薩·羅敏薩特調'},
-  {v:'uldahngulp',l:'暢飲烏爾達哈特調'},{v:'uldahnsip',l:'小酌烏爾達哈特調'},{v:'pushups',l:'伏地挺身'},
-  {v:'situps',l:'仰臥起坐'},{v:'squats',l:'深蹲'},{v:'breathcontrol',l:'深呼吸'},
-  {v:'atease',l:'稍息'},{v:'attention',l:'立正'},{v:'box',l:'練拳'},
-  {v:'limber',l:'甩臂熱身'},{v:'estretch',l:'熱身'},{v:'waterfloat',l:'浮水'},
-  {v:'splash',l:'撩水'},{v:'advent',l:'威光降臨'},{v:'allsaintscharm',l:'守護天節的魔咒'},
-  {v:'magictrick',l:'魔術'},{v:'megaflare',l:'百萬火光'},{v:'iceheart',l:'寒冰的幻想'},
-  {v:'haurchefant',l:'太棒了！'},{v:'showleft',l:'展現左側'},{v:'showright',l:'展現右側'},
-  {v:'straightface',l:'表情：平常'},{v:'grin',l:'表情：笑容'},{v:'biggrin',l:'表情：咧嘴'},
-  {v:'leftwink',l:'表情：拋媚眼左'},{v:'smirk',l:'表情：自信'},{v:'shuteyes',l:'表情：閉目'},
-  {v:'scared',l:'表情：恐怖'},{v:'ouch',l:'表情：痛苦'},{v:'alert',l:'表情：吃驚'},
-  {v:'sneer',l:'表情：陰險'},{v:'concentrate',l:'表情：認真'},{v:'simper',l:'表情：柔和'},
-  {v:'reflect',l:'表情：沉思'},{v:'scoff',l:'表情：苦笑'},{v:'endure',l:'表情：忍耐'},
-  {v:'smile',l:'表情：微笑'},{v:'rightwink',l:'表情：拋媚眼右'},{v:'content',l:'表情：幸福'},
-  {v:'taunt',l:'表情：無畏'},{v:'sad',l:'表情：悲傷'},{v:'amazed',l:'表情：意外'},
-  {v:'annoyed',l:'表情：反感'},{v:'worried',l:'表情：擔心'},{v:'puckerup',l:'表情：嘟嘴'},
-  {v:'disturbed',l:'表情：困惑'},{v:'beam',l:'表情：滿足'},{v:'furrow',l:'表情：皺眉'},
-  {v:'ponder',l:'表情：思索'},{v:'fakesmile',l:'表情：假笑'},
-];
-
-/* ── Jobs for LFP / Search ── */
-var JOBS=[
-  {v:'GLA',l:'劍術師 GLA'},{v:'PGL',l:'格鬥家 PGL'},{v:'MRD',l:'斧術師 MRD'},
-  {v:'LNC',l:'槍術師 LNC'},{v:'ARC',l:'弓箭手 ARC'},{v:'CNJ',l:'幻術師 CNJ'},
-  {v:'ROG',l:'雙劍師 ROG'},{v:'THM',l:'咒術師 THM'},{v:'ACN',l:'巴術士 ACN'},
-  {v:'CRP',l:'刻木匠 CRP'},{v:'BSM',l:'鍛鐵匠 BSM'},{v:'ARM',l:'鑄甲匠 ARM'},
-  {v:'GSM',l:'雕金匠 GSM'},{v:'LTW',l:'製革匠 LTW'},{v:'WVR',l:'裁衣匠 WVR'},
-  {v:'ALC',l:'煉金術士 ALC'},{v:'CUL',l:'烹調師 CUL'},{v:'MIN',l:'採礦工 MIN'},
-  {v:'BTN',l:'園藝工 BTN'},{v:'FSH',l:'捕魚人 FSH'},{v:'PLD',l:'騎士 PLD'},
-  {v:'MNK',l:'武僧 MNK'},{v:'WAR',l:'戰士 WAR'},{v:'DRG',l:'龍騎士 DRG'},
-  {v:'BRD',l:'吟遊詩人 BRD'},{v:'NIN',l:'忍者 NIN'},{v:'WHM',l:'白魔法師 WHM'},
-  {v:'BLM',l:'黑魔法師 BLM'},{v:'SMN',l:'召喚師 SMN'},{v:'SCH',l:'學者 SCH'},
-  {v:'DRK',l:'暗黑騎士 DRK'},{v:'AST',l:'占星術士 AST'},{v:'MCH',l:'機工士 MCH'},
-  {v:'SAM',l:'武士 SAM'},{v:'RDM',l:'赤魔法師 RDM'},{v:'BLU',l:'青魔法師 BLU'},
-  {v:'GNB',l:'絕槍戰士 GNB'},{v:'DNC',l:'舞者 DNC'},{v:'SGE',l:'賢者 SGE'},
-  {v:'RPR',l:'奪魂者 RPR'},{v:'VPR',l:'毒蛇劍士 VPR'},{v:'PCT',l:'繪靈法師 PCT'}
-];
-
-/* ── PetMirage data ── */
-var PETMIRAGE_PETS=[
-  {v:'carbuncle',l:'寶石獸'},
-  {v:'garuda-egi',l:'迦樓羅之靈'},
-  {v:'titan-egi',l:'泰坦之靈'},
-  {v:'ifrit-egi',l:'伊弗利特之靈'},
-  {v:'eos',l:'伊歐斯（學者妖精）'}
-];
-var PETMIRAGE_APPEARANCES={
-  'carbuncle':[{v:'carbuncle',l:'寶石獸'},{v:'emerald-carbuncle',l:'綠寶石獸'},{v:'topaz-carbuncle',l:'黃寶石獸'},{v:'ruby-carbuncle',l:'紅寶石獸'}],
-  'garuda-egi':[{v:'ifrit-egi',l:'伊弗利特之靈'},{v:'titan-egi',l:'泰坦之靈'},{v:'garuda-egi',l:'迦樓羅之靈'},{v:'carbuncle',l:'寶石獸'},{v:'emerald-carbuncle',l:'綠寶石獸'},{v:'topaz-carbuncle',l:'黃寶石獸'},{v:'ruby-carbuncle',l:'紅寶石獸'}],
-  'titan-egi':[{v:'ifrit-egi',l:'伊弗利特之靈'},{v:'titan-egi',l:'泰坦之靈'},{v:'garuda-egi',l:'迦樓羅之靈'},{v:'carbuncle',l:'寶石獸'},{v:'emerald-carbuncle',l:'綠寶石獸'},{v:'topaz-carbuncle',l:'黃寶石獸'},{v:'ruby-carbuncle',l:'紅寶石獸'}],
-  'ifrit-egi':[{v:'ifrit-egi',l:'伊弗利特之靈'},{v:'titan-egi',l:'泰坦之靈'},{v:'garuda-egi',l:'迦樓羅之靈'},{v:'carbuncle',l:'寶石獸'},{v:'emerald-carbuncle',l:'綠寶石獸'},{v:'topaz-carbuncle',l:'黃寶石獸'},{v:'ruby-carbuncle',l:'紅寶石獸'}],
-  'eos':[{v:'selene',l:'賽勒涅（Selene）'}]
-};
-
-/* ── PetSize summons ── */
-var PETSIZE_PETS=[
-  {v:'Demi-Bahamut',l:'亞靈神巴哈姆特'},{v:'Demi-Phoenix',l:'亞靈神不死鳥'},
-  {v:'Ifrit-Egi',l:'紅寶石伊弗利特'},{v:'Titan-Egi',l:'黃寶石泰坦'},
-  {v:'Garuda-Egi',l:'綠寶石迦樓羅'},{v:'Bahamut',l:'烈日巴哈姆特'},
-  {v:'all',l:'全部'}
-];
-
-/* ── Graphic presets ── */
-var GPRESET_OPTS=[
-  {v:'1',l:'1 — 標準品質（筆記型電腦）'},{v:'2',l:'2 — 標準品質（桌上型電腦）'},
-  {v:'3',l:'3 — 高品質（筆記型電腦）'},{v:'4',l:'4 — 高品質（桌上型電腦）'},
-  {v:'5',l:'5 — 最高品質'}
-];
-
-/* ── Alarm time types ── */
-var ALARM_TTYPE=[{v:'lt',l:'本地時間 lt'},{v:'st',l:'伺服器時間 st'},{v:'et',l:'艾奧傑亞時間 et'}];
-
-/* ── Hotbar subcommands ── */
-var HOTBAR_SUBS=[
-  {v:'set',l:'設置技能（將技能/道具/坐騎等放入指定位置）'},
-  {v:'change',l:'更換（切換到指定編號熱鍵欄）'},
-  {v:'copy',l:'複製（複製熱鍵欄內容）'},
-  {v:'display',l:'顯示（開關指定熱鍵欄顯示）'},
-  {v:'share',l:'共通（設定全職業共通）'},
-  {v:'remove',l:'清除（解除熱鍵欄上的技能）'}
-];
-
-/* ── Hotbar set item types ── */
-var HOTBAR_SET_TYPES=[
-  {v:'action',l:'職業技能 action'},
-  {v:'blueaction',l:'青魔法技能 blueaction'},
-  {v:'general',l:'通用技能 general'},
-  {v:'item',l:'道具 item'},
-  {v:'emote',l:'情感動作 emote'},
-  {v:'buddy',l:'搭擋技能 buddy'},
-  {v:'pet',l:'召喚獸技能 pet'},
-  {v:'minion',l:'寵物 minion'},
-  {v:'mount',l:'坐騎 mount'},
-  {v:'marking',l:'目標標記 marking'},
-  {v:'waymark',l:'場景標記 waymark'}
-];
-var HOTBAR_SET_TYPES_PVP=[
-  {v:'action',l:'PvP技能 action'},
-  {v:'general',l:'通用技能 general'},
-  {v:'item',l:'道具 item'},
-  {v:'emote',l:'情感動作 emote'},
-  {v:'buddy',l:'搭擋技能 buddy'},
-  {v:'pet',l:'召喚獸技能 pet'},
-  {v:'minion',l:'寵物 minion'},
-  {v:'mount',l:'坐騎 mount'},
-  {v:'marking',l:'目標標記 marking'},
-  {v:'waymark',l:'場景標記 waymark'}
-];
-
-/* ── Chatlog subcommands ── */
-var CHATLOG_SUBS=[
-  {v:'fontsize',l:'字體大小'},
-  {v:'time_onoff',l:'時間顯示 開/關'},
-  {v:'time_format',l:'時間格式 12/24小時'},
-  {v:'time_base',l:'時間基準 本地/伺服器'},
-  {v:'call',l:'提示音設定'}
-];
-/* ── 主選單視窗開關清單 ── */
-var WINDOW_LIST=[
-  {v:'alist',l:'技能菜單 /alist',g:'角色／裝備'},
-  {v:'gear',l:'角色 /gear',g:'角色／裝備'},
-  {v:'armoury',l:'兵裝庫 /armoury',g:'角色／裝備'},
-  {v:'bag',l:'物品（背包）/bag',g:'角色／裝備'},
-  {v:'saddlebag',l:'陸行鳥鞍囊 /saddlebag',g:'角色／裝備'},
-  {v:'comp',l:'搭檔 /comp',g:'角色／裝備'},
-  {v:'mountguide',l:'坐騎一覽 /mountguide',g:'角色／裝備'},
-  {v:'minionguide',l:'寵物一覽 /minionguide',g:'角色／裝備'},
-  {v:'fashionguide',l:'時尚配件一覽 /fashionguide',g:'角色／裝備'},
-  {v:'pvpp',l:'對戰資料 /pvpp',g:'角色／裝備'},
-  {v:'achievements',l:'成就 /achievements',g:'角色／裝備'},
-  {v:'currency',l:'貨幣一覽 /currency',g:'角色／裝備'},
-  {v:'recommended',l:'推薦任務 /recommended',g:'角色／裝備'},
-  {v:'coll',l:'重要物品 /coll',g:'角色／裝備'},
-  {v:'kitem',l:'任務道具 /kitem',g:'角色／裝備'},
-  {v:'journal',l:'日誌 /journal',g:'任務／地圖'},
-  {v:'finder',l:'任務搜尋器 /finder',g:'任務／地圖'},
-  {v:'timers',l:'任務情報 /timers',g:'任務／地圖'},
-  {v:'rfinder',l:'大型任務搜尋器 /rfinder',g:'任務／地圖'},
-  {v:'record',l:'任務回顧 /record',g:'任務／地圖'},
-  {v:'ng+',l:'昔日重現模式 /ng+',g:'任務／地圖'},
-  {v:'gdutykey',l:'任務通用鍵 /gdutykey',g:'任務／地圖'},
-  {v:'hlog',l:'討伐筆記 /hlog',g:'任務／地圖'},
-  {v:'sightseeinglog',l:'探索筆記 /sightseeinglog',g:'任務／地圖'},
-  {v:'clog',l:'製作筆記 /clog',g:'任務／地圖'},
-  {v:'glog',l:'採集筆記 /glog',g:'任務／地圖'},
-  {v:'flog',l:'釣魚筆記 /flog',g:'任務／地圖'},
-  {v:'fg',l:'魚類圖鑑 /fg',g:'任務／地圖'},
-  {v:'orchestrion',l:'管弦樂琴 /orchestrion',g:'任務／地圖'},
-  {v:'challengelog',l:'挑戰筆記 /challengelog',g:'任務／地圖'},
-  {v:'map',l:'地圖 /map',g:'任務／地圖'},
-  {v:'teleport',l:'傳送 /teleport',g:'任務／地圖'},
-  {v:'return',l:'返回 /return',g:'任務／地圖'},
-  {v:'acurrent',l:'風脈泉 /acurrent',g:'任務／地圖'},
-  {v:'mountspeed',l:'坐騎速度 /mountspeed',g:'任務／地圖'},
-  {v:'pfinder',l:'隊員招募 /pfinder',g:'小隊／社群'},
-  {v:'fsfinder',l:'同好招募 /fsfinder',g:'小隊／社群'},
-  {v:'elist',l:'情感動作 /elist',g:'小隊／社群'},
-  {v:'fccmd',l:'部隊命令 /fccmd',g:'小隊／社群'},
-  {v:'hou',l:'房屋 /hou',g:'小隊／社群'},
-  {v:'pvpteamcmd',l:'戰隊命令 /pvpteamcmd',g:'小隊／社群'},
-  {v:'lcmd',l:'通訊貝命令 /lcmd',g:'小隊／社群'},
-  {v:'cwlcmd',l:'跨服貝命令 /cwlcmd',g:'小隊／社群'},
-  {v:'fs',l:'同好會 /fs',g:'小隊／社群'},
-  {v:'contactlist',l:'戰友列表 /contactlist',g:'小隊／社群'},
-  {v:'support',l:'服務台 /support',g:'系統／設定'},
-  {v:'officialsite',l:'官方網站 /officialsite',g:'系統／設定'},
-  {v:'pguide',l:'資訊中心 /pguide',g:'系統／設定'},
-  {v:'activehelp',l:'新手指南 /activehelp',g:'系統／設定'},
-  {v:'cconfig',l:'角色設置 /cconfig',g:'系統／設定'},
-  {v:'sconfig',l:'系統設置 /sconfig',g:'系統／設定'},
-  {v:'hudlayout',l:'界面設置 /hudlayout',g:'系統／設定'},
-  {v:'macros',l:'用戶宏 /macros',g:'系統／設定'},
-  {v:'keyconfig',l:'鍵位設置 /keyconfig',g:'系統／設定'},
-  {v:'lcolor',l:'信息顏色 /lcolor',g:'系統／設定'}
-];
-var CHATLOG_CH=[
-  {v:'t',l:'悄悄話 t（Tell，省略時預設）'},{v:'emote',l:'情感動作 emote'},
-  {v:'p',l:'小隊 p'},{v:'fc',l:'部隊 fc'},
-  {v:'al',l:'團隊 al'},{v:'new',l:'新人頻道 new'},
-  {v:'pvpteam',l:'戰隊 pvpteam'},
-  {v:'l1',l:'通訊貝1 l1'},{v:'l2',l:'通訊貝2 l2'},
-  {v:'l3',l:'通訊貝3 l3'},{v:'l4',l:'通訊貝4 l4'},
-  {v:'l5',l:'通訊貝5 l5'},{v:'l6',l:'通訊貝6 l6'},
-  {v:'l7',l:'通訊貝7 l7'},{v:'l8',l:'通訊貝8 l8'},
-  {v:'cwl',l:'跨服通訊貝 cwl（不分編號，統一設定）'}
-];
-
-/* ── Categories ── */
-var CATS=[
-  {id:'chat',   icon:'💬',label:'說話 / 通知',     desc:'聊天、廣播、悄悄話'},
-  {id:'emote',  icon:'🎭',label:'情感動作',         desc:'各類情感動作、自訂表演文字、動作記錄顯示'},
-  {id:'skill',  icon:'⚔', label:'技能',             desc:'施放職業技能、青魔法、對戰技能、搭檔／召喚獸技能'},
-  {id:'item',   icon:'🎒',label:'道具',             desc:'使用道具、整理背包、道具檢索'},
-  {id:'target', icon:'🎯',label:'目標操作',         desc:'選中、標記、焦點目標、場景標記'},
-  {id:'combat', icon:'🛡',label:'戰鬥設定',         desc:'目標設定、鎖定、決鬥、等級同步'},
-  {id:'timer',  icon:'⏱', label:'計時 / 通報 / 骰子',desc:'倒計時、準備確認、骰子、鬧鐘'},
-  {id:'move',   icon:'🚶',label:'角色 / 移動',     desc:'移動、換裝、拔刀收刀'},
-  {id:'pet',    icon:'🐉',label:'召喚獸 / 坐騎',   desc:'坐騎、寵物、召喚獸投影與尺寸'},
-  {id:'camera', icon:'📷',label:'鏡頭 / 拍照',     desc:'集體動作、觀景、鏡頭控制'},
-  {id:'party',  icon:'👥',label:'小隊 / 社交',     desc:'組隊、邀請、好友黑名單、搜尋玩家'},
-  {id:'status', icon:'👤',label:'狀態 / 身分',     desc:'在線狀態、組隊招募、稱號'},
-  {id:'display',icon:'🖥',label:'介面 / 顯示',     desc:'UI視窗開關、名牌、熱鍵欄、顯示設定'},
-  {id:'hotbar', icon:'📋',label:'熱鍵設定',         desc:'熱鍵欄操作、十字熱鍵、PvP熱鍵'},
-  {id:'av',     icon:'🔊',label:'畫面 / 音效',     desc:'圖像預設、音量、背景音樂'},
-  {id:'magia',  icon:'🔮',label:'魔素板',           desc:'魔素板旋轉與屬性切換'},
-  {id:'system', icon:'🎲',label:'雜項 / 系統',     desc:'遊戲時間、登出、副本檢查'},
-  {id:'macro',  icon:'🔧',label:'巨集設定',         desc:'圖示、鎖定、等待'},
-  {id:'custom', icon:'✎', label:'自訂行',           desc:'直接輸入任何完整指令'}
-];
-
-/* ── Type definitions (id, category, icon, label) ── */
-var TDEFS={
-  /* ── 說話 / 通知 ── */
-  chat:{cat:'chat',icon:'💬',label:'聊天訊息',kw:CH.map(function(c){return c.l;}).join(' ')},
-  chatcountdown:{cat:'chat',icon:'📢',label:'聊天倒數（建構器）',isBlock:true},
-  echo:{cat:'chat',icon:'🔊',label:'默語（僅自己）/e'},
-  tell:{cat:'chat',icon:'✉',label:'悄悄話 /t'},
-  reply:{cat:'chat',icon:'↩',label:'回覆悄悄話 /r'},
-  em:{cat:'emote',icon:'🎭',label:'感情表現（自訂文字）/em'},
-  cl:{cat:'chat',icon:'🗑',label:'清除訊息記錄 /cl'},
-  emotelog:{cat:'emote',icon:'📜',label:'情感動作記錄顯示 /emotelog'},
-  cth:{cat:'chat',icon:'🗑',label:'清除悄悄話記錄 /cth'},
-  qchat:{cat:'chat',icon:'💢',label:'快捷發言 /qchat（群狼盛宴）'},
-  /* ── 技能 / 道具 ── */
-  skill:{cat:'skill',icon:'⚔',label:'職業技能 /ac',isBlock:true},
-  generalskill:{cat:'skill',icon:'✦',label:'通用技能 /gaction',isBlock:true},
-  blueaction:{cat:'skill',icon:'🔵',label:'青魔法技能 /blueaction',isBlock:true},
-  pvpaction:{cat:'skill',icon:'🏆',label:'PvP技能 /pvpac',isBlock:true},
-  petaction:{cat:'skill',icon:'🐉',label:'召喚獸技能 /pac',isBlock:true},
-  companionaction:{cat:'skill',icon:'🐦',label:'搭擋技能 /cac',isBlock:true},
-  item:{cat:'item',icon:'🧪',label:'使用道具 /item',isBlock:true},
-  emote:{cat:'emote',icon:'✨',label:'情感動作 /emote',kw:EMOTES.map(function(e){return e.l+' /'+e.v;}).join(' ')},
-  abilityrotation:{cat:'skill',icon:'🔄',label:'能力技輪換（建構器）',isBlock:true},
-  itemsort:{cat:'item',icon:'📦',label:'道具整理（建構器）',isBlock:true},
-  itemsearch:{cat:'item',icon:'🔎',label:'道具檢索 /isearch'},
-  recast:{cat:'skill',icon:'⏳',label:'複唱時間 /recast'},
-  aaction:{cat:'skill',icon:'➕',label:'額外技能 /aaction'},
-  bluespellbook:{cat:'skill',icon:'📖',label:'青魔法書 /bluespellbook',isBlock:true},
-  apa:{cat:'skill',icon:'🏅',label:'對戰額外技能 /apa'},
-  /* ── 主選單視窗開關 ── */
-  openwindow:{cat:'display',icon:'🗔',label:'開啟選單視窗'},
-  /* ── 目標操作 ── */
-  targeting:{cat:'target',icon:'🎯',label:'選中目標'},
-  check:{cat:'target',icon:'🔍',label:'查看目標情報 /c'},
-  trade:{cat:'target',icon:'🤝',label:'交易 /trade'},
-  assist:{cat:'target',icon:'↗',label:'目標的目標 /as'},
-  focustarget:{cat:'target',icon:'◎',label:'焦點目標 /focustarget'},
-  facetarget:{cat:'target',icon:'↕',label:'轉向目標 /ft'},
-  lockon:{cat:'target',icon:'🔒',label:'鎖定目標 /lo'},
-  marking:{cat:'target',icon:'🏷',label:'目標標記 /mk',isBlock:true},
-  waymark:{cat:'target',icon:'📍',label:'場景標記 /wmark',isBlock:true},
-  /* ── 計時 / 通報 / 骰子 ── */
-  countdown_sys:{cat:'timer',icon:'⏰',label:'倒計時 /cd'},
-  readycheck:{cat:'timer',icon:'✅',label:'準備確認 /rcheck',isBlock:true},
-  ready:{cat:'timer',icon:'👍',label:'準備完畢 /rd'},
-  notready:{cat:'timer',icon:'👎',label:'未準備好 /nr'},
-  random:{cat:'timer',icon:'🎲',label:'隨機數字 /random'},
-  alarm:{cat:'timer',icon:'🔔',label:'鬧鐘 /alarm',isBlock:true},
-  dice:{cat:'timer',icon:'🎰',label:'骰子 /dice'},
-  /* ── 角色 / 移動 ── */
-  automove:{cat:'move',icon:'🚶',label:'自動前進 /automove'},
-  follow:{cat:'move',icon:'👣',label:'跟隨 /follow'},
-  battlemode:{cat:'move',icon:'⚔',label:'拔刀/收刀 /bm'},
-  gearset:{cat:'move',icon:'🗡',label:'裝備套裝 /gs',isBlock:true},
-  visor:{cat:'move',icon:'⛑',label:'頭部裝備 /visor'},
-  fashion:{cat:'move',icon:'👒',label:'時尚配件 /fashion'},
-  /* ── 召喚獸 / 坐騎 ── */
-  mount:{cat:'pet',icon:'🐴',label:'乘坐坐騎 /mount'},
-  minion:{cat:'pet',icon:'🐣',label:'召喚寵物 /minion'},
-  petsize:{cat:'pet',icon:'📐',label:'召喚獸尺寸 /petsize'},
-  petmirage:{cat:'pet',icon:'🌈',label:'召喚獸投影 /petglamour'},
-  ridepillion:{cat:'pet',icon:'🏍',label:'共同騎乘 /ridepillion'},
-  /* ── 鏡頭 / 拍照 ── */
-  gpose:{cat:'camera',icon:'📷',label:'集體動作 /gpose'},
-  facecamera:{cat:'camera',icon:'🎥',label:'面向鏡頭 /facecamera'},
-  idlingcamera:{cat:'camera',icon:'🌅',label:'觀景視角 /icam'},
-  tiltcamera:{cat:'camera',icon:'📐',label:'第三人稱俯視角度 /tiltcamera'},
-  /* ── 狀態 / 身分 ── */
-  busy:{cat:'status',icon:'🔴',label:'忙碌狀態 /busy'},
-  away:{cat:'status',icon:'🌙',label:'離開狀態 /afk'},
-  roleplaying:{cat:'status',icon:'🎭',label:'角色扮演中 /roleplaying'},
-  lfp:{cat:'status',icon:'👥',label:'希望組隊 /lfp',isBlock:true},
-  lfm:{cat:'status',icon:'💎',label:'接受鑲嵌請求 /lfm'},
-  scomment:{cat:'status',icon:'💬',label:'個性簽名 /scomment'},
-  bstatus:{cat:'status',icon:'🌱',label:'新人狀態 /nastatus'},
-  nnetwork:{cat:'status',icon:'🌐',label:'自動加入新人頻道 /nnetwork'},
-  nnetworkinvitation:{cat:'status',icon:'✉',label:'接受新人頻道邀請 /nnetworkinvitation'},
-  nnetworkleave:{cat:'status',icon:'🚪',label:'退出新人頻道 /nnetworkleave'},
-  search:{cat:'party',icon:'🔍',label:'搜尋玩家 /sea'},
-  title:{cat:'status',icon:'🏆',label:'稱號 /title'},
-  /* ── 小隊 / 社交 ── */
-  partycmd:{cat:'party',icon:'⚙',label:'小隊指令 /pcmd'},
-  join:{cat:'party',icon:'✅',label:'接受組隊邀請 /join'},
-  decline:{cat:'party',icon:'❌',label:'拒絕組隊邀請 /decline'},
-  invite:{cat:'party',icon:'📨',label:'邀請玩家 /invite'},
-  kick:{cat:'party',icon:'👢',label:'移除隊員 /kick'},
-  leader:{cat:'party',icon:'👑',label:'轉讓隊長 /leader'},
-  leave:{cat:'party',icon:'🚪',label:'退隊 /leave'},
-  psort:{cat:'party',icon:'📊',label:'小隊排序 /psort'},
-  meldrequest:{cat:'party',icon:'💠',label:'委託鑲嵌 /meldrequest'},
-  friendlist:{cat:'party',icon:'🧑‍🤝‍🧑',label:'好友命令 /flist',isBlock:true},
-  blacklist:{cat:'party',icon:'🚫',label:'黑名單命令 /blist',isBlock:true},
-  /* ── 戰鬥設定 ── */
-  levelsync:{cat:'combat',icon:'📊',label:'等級同步 /levelsync'},
-  statusoff:{cat:'combat',icon:'✗',label:'解除強化狀態 /statusoff'},
-  autolockon:{cat:'combat',icon:'🔐',label:'自動鎖定 /autolockon'},
-  autofacetarget:{cat:'combat',icon:'↩',label:'自動轉向目標 /autofacetarget'},
-  autotarget:{cat:'combat',icon:'🎯',label:'自動選中 /autotarget'},
-  targetself:{cat:'combat',icon:'🙋',label:'選中自己 /targetself'},
-  groundclick:{cat:'combat',icon:'🖱',label:'場景點擊取消選中 /groundclick'},
-  duelswitch:{cat:'combat',icon:'⚔',label:'決鬥申請攔截 /duelswitch'},
-  actionerror:{cat:'combat',icon:'⚠',label:'技能錯誤提示 /aerror'},
-  recasterror:{cat:'combat',icon:'🔁',label:'複唱錯誤提示 /rerror'},
-  /* ── 介面 / 顯示 ── */
-  hud:{cat:'display',icon:'🖥',label:'UI視窗開關 /hud',isBlock:true},
-  battleeffect:{cat:'display',icon:'💥',label:'戰鬥特效 /battleeffect'},
-  nameplatedisp:{cat:'display',icon:'🪧',label:'名牌顯示時機 /nameplatedisp'},
-  nameplatetype:{cat:'display',icon:'🏷',label:'名牌顯示格式 /nameplatetype'},
-  legacymark:{cat:'display',icon:'✴',label:'十二神印記 /lmark'},
-  displayhead:{cat:'display',icon:'⛑',label:'顯示頭部裝備 /displayhead'},
-  displayarms:{cat:'display',icon:'🗡',label:'顯示武器 /displayarms'},
-  autosheathe:{cat:'display',icon:'🔙',label:'自動收回武器 /ashathe'},
-  jobhudmode:{cat:'display',icon:'📊',label:'職業量譜模式 /jobhudmode'},
-  hudreset:{cat:'display',icon:'↺',label:'重置介面 /hudreset'},
-  uireset:{cat:'display',icon:'🔄',label:'重置介面窗口 /uireset'},
-  uiscale:{cat:'display',icon:'🔍',label:'介面縮放 /uiscale'},
-  chatlog:{cat:'display',icon:'💬',label:'消息視窗設定 /chatlog',isBlock:true},
-  targetring:{cat:'display',icon:'⭕',label:'目標環 /targetring'},
-  targetline:{cat:'display',icon:'➖',label:'目標線 /targetline'},
-  linkline:{cat:'display',icon:'🔗',label:'聯繫線 /linkline'},
-  /* ── 熱鍵設定 ── */
-  hotbar:{cat:'hotbar',icon:'📋',label:'熱鍵欄 /hotbar',isBlock:true},
-  pvphotbar:{cat:'hotbar',icon:'⚔',label:'對戰熱鍵欄 /pvphotbar',isBlock:true},
-  chotbar:{cat:'hotbar',icon:'🎮',label:'十字熱鍵欄 /chotbar',isBlock:true},
-  pvpchotbar:{cat:'hotbar',icon:'🎮',label:'對戰十字熱鍵欄 /pvpchotbar',isBlock:true},
-  chotbardisplay:{cat:'hotbar',icon:'👁',label:'一直顯示十字熱鍵欄 /chotbardisplay'},
-  chotbartype:{cat:'hotbar',icon:'🕹',label:'十字熱鍵欄操作類型 /chotbartype'},
-  /* ── 畫面 / 音效 ── */
-  gpreset:{cat:'av',icon:'🖼',label:'圖像設定預設 /gpreset'},
-  mastervolume:{cat:'av',icon:'🔈',label:'整體音量 /mastervolume'},
-  bgm:{cat:'av',icon:'🎵',label:'背景音樂 /bgm'},
-  soundeffects:{cat:'av',icon:'💥',label:'音效 /soundeffects'},
-  voice:{cat:'av',icon:'🗣',label:'語音 /voice'},
-  systemsounds:{cat:'av',icon:'🔔',label:'系統音 /systemsounds'},
-  ambientsounds:{cat:'av',icon:'🌿',label:'環境音 /ambientsounds'},
-  soundeffectsself:{cat:'av',icon:'🙋',label:'自身音效 /soundeffectsself'},
-  soundeffectsparty:{cat:'av',icon:'👥',label:'小隊音效 /soundeffectsparty'},
-  soundeffectsother:{cat:'av',icon:'🧑',label:'他人音效 /soundeffectsother'},
-  performsounds:{cat:'av',icon:'🎹',label:'演奏音量 /performsounds'},
-  mountbgm:{cat:'av',icon:'🎶',label:'坐騎音樂 /mountbgm'},
-  systemsoundsspeaker:{cat:'av',icon:'📢',label:'揚聲器系統音 /systemsoundsspeaker'},
-  /* ── 魔素板 ── */
-  magiaright:{cat:'magia',icon:'🔮',label:'魔素板順時旋轉 /magiaright'},
-  magialeft:{cat:'magia',icon:'🔮',label:'魔素板逆時旋轉 /magialeft'},
-  magiaattack:{cat:'magia',icon:'⚔',label:'魔素板攻勢 /magiaattack'},
-  magiadefense:{cat:'magia',icon:'🛡',label:'魔素板守勢 /magiadefense'},
-  magiaauto:{cat:'magia',icon:'🔄',label:'魔素板自動 /magiaauto'},
-  /* ── 雜項 / 系統 ── */
-  playtime:{cat:'system',icon:'🕐',label:'遊戲時間 /ptime'},
-  logout:{cat:'system',icon:'🚪',label:'標題畫面 /logout'},
-  shutdown:{cat:'system',icon:'⏻',label:'關閉遊戲 /shutdown'},
-  instance:{cat:'system',icon:'🗺',label:'副本區檢查 /instance'},
-  patchnote:{cat:'system',icon:'📋',label:'版本更新筆記 /patchnote'},
-  /* ── 巨集設定 ── */
-  micon:{cat:'macro',icon:'🖼',label:'巨集圖示 /micon'},
-  mlock:{cat:'macro',icon:'🔒',label:'巨集鎖定 /mlock'},
-  merror_line:{cat:'macro',icon:'⚠',label:'錯誤提示設定 /merror'},
-  wait_line:{cat:'macro',icon:'⏱',label:'等待（獨立行）/wait'},
-  /* ── 自訂行 ── */
-  custom:{cat:'custom',icon:'✎',label:'自訂行（自由輸入）'}
-};
-
-/* ── Templates ── */
-var TEMPLATES=[
-  {id:'chat',icon:'💬',label:'倒數公告',desc:'3秒倒數通知小隊出發',
-   lines:[
-    {type:'mlock',params:{},note:'鎖定巨集防止中斷'},
-    {type:'chat',params:{channel:'p',message:'準備好了嗎？',inlineWait:1},note:''},
-    {type:'chat',params:{channel:'p',message:'3...',inlineWait:1},note:''},
-    {type:'chat',params:{channel:'p',message:'2...',inlineWait:1},note:''},
-    {type:'chat',params:{channel:'p',message:'1...',inlineWait:1},note:''},
-    {type:'chat',params:{channel:'p',message:'出發！'},note:''}
-  ]},
-  {id:'aitank',icon:'🤖',label:'人工智慧坦克系統',desc:'讓隊友選擇拉怪方式',
-   lines:[
-    {type:'mlock',params:{},note:'鎖定巨集防止中斷'},
-    {type:'chat',params:{channel:'p',message:'你好！歡迎使用人工智能坦克系統',se:'<se.1>'},note:'第1行（含音效）'},
-    {type:'chat',params:{channel:'p',message:'請選擇您的坦克'},note:'第2行'},
-    {type:'chat',params:{channel:'p',message:'1.疾跑狂衝，一波到底。'},note:'第3行'},
-    {type:'chat',params:{channel:'p',message:'2.穩扎穩打，兩波一停。'},note:'第4行'},
-    {type:'chat',params:{channel:'p',message:'3.新手奶媽，一波就行。'},note:'第5行'},
-    {type:'chat',params:{channel:'p',message:'不選擇默認為2，很高興見到你。'},note:'第6行（可自行修改內容）'},
-  ]},
-  {id:'skill',icon:'⚔',label:'技能使用',desc:'施放技能，可附加通知選項',
-   lines:[
-    {type:'micon',params:{miconName:'',miconType:'action'},note:'技能圖示（同巨集第一個生效）'},
-    {type:'skill',params:{skillName:'',target:'<t>',inlineWait:0,
-      preAnnounce:false,preAnnounceMsg:'即將施放技能！',preAnnounceChannel:'p',preAnnounceWait:2,preAnnounceSe:'',
-      postNotify:false,postNotifyMsg:'技能已施放！',postNotifyChannel:'p',postNotifySe:'',
-      postEcho:false,postEchoMsg:'技能使用完畢',postEchoSe:'',
-      recastNotify:false,recastPrefix:'',recastSuffix:' 秒',recastChannel:'e',recastSe:''},note:''}
-  ]},
-  {id:'abilityrotation',icon:'🔄',label:'能力技輪換',desc:'多個能力技輪番施放',
-   lines:[
-    {type:'merror_line',params:{onOff:'off'},note:'建議關閉錯誤提示，避免冷卻中的訊息刷屏'},
-    {type:'micon',params:{miconName:'',miconType:'action'},note:''},
-    {type:'abilityrotation',params:{skills:['','',''],target:'<t>',inlineWait:0},note:'不斷按下此巨集可依序施放已冷卻的技能'}
-  ]},
-  {id:'gearset',icon:'🗡',label:'裝備切換',desc:'切換套裝並顯示圖示和確認',
-   lines:[
-    {type:'gearset',params:{gsAction:'change',gsNumber:'1',
-      addMicon:true,miconType:'gearset',addEcho:true,echoMsg:'已切換至套裝 1',echoSe:''},note:''}
-  ]},
-  {id:'itemsort',icon:'📦',label:'道具整理',desc:'整理背包與兵裝庫',
-   lines:[
-    {type:'itemsort',params:{
-      areas:['inventory','armoury'],
-      conditions:[{criterion:'ilv',order:'des'},{criterion:'category',order:'asc'}],
-      useClear:true,echoMsg:'整理完成！',echoSe:'<se.1>'},note:''}
-  ]},
-  {id:'marking',icon:'🏷',label:'目標標記',desc:'設定順序標記',
-   lines:[
-    {type:'mlock',params:{},note:''},
-    {type:'marking',params:{markType:'attack1',markTarget:'<t>',notify:false},note:'攻擊標記1'},
-    {type:'marking',params:{markType:'attack2',markTarget:'<t>',notify:false},note:'攻擊標記2'},
-    {type:'marking',params:{markType:'attack3',markTarget:'<t>',notify:false},note:'攻擊標記3'},
-  ]},
-  {id:'kaomoji',icon:'🐱',label:'自訂顏文字',desc:'顏文字圖案，可自由修改',
-   lines:[
-    {type:'chat',params:{channel:'p',message:'                           \u25cf'},note:'第1行'},
-    {type:'chat',params:{channel:'p',message:'                    /\\__\\__/\\'},note:'第2行'},
-    {type:'chat',params:{channel:'p',message:'                  /                   \\'},note:'第3行'},
-    {type:'chat',params:{channel:'p',message:'               \\( \uff3f  \u22ef \u25cf \u22ef \uff3f)/'},note:'第4行（可繼續新增行）'},
-  ]},
-  {id:'emote',icon:'✨',label:'情感動作',desc:'播放情感動作',
-   lines:[
-    {type:'micon',params:{miconName:'bow',miconType:'emote'},note:''},
-    {type:'emote',params:{emoteName:'bow',motionOnly:false,
-      addEm:false,emText:'向 <t> 深深一鞠躬。'},note:''}
-  ]},
-  {id:'em',icon:'🎭',label:'感情表現',desc:'自訂文字搭配情感動作',
-   lines:[
-    {type:'em',params:{text:'向 <t> 深深一鞠躬。',addMotion:true,motionEmote:'bow'},note:'可修改文字和動作'},
-  ]},
-  {id:'buzu',icon:'📣',label:'友好部族喊話',desc:'速解友好喊話任務用',
-   lines:[
-    {type:'chat',params:{channel:'s',message:'乘風而起 / 展翅高飛 / 翱翔天際 / 不屈之翼 / 追夢無限 / 大鯰魚保佑 / 啦哩吼 / 啦嘿 / 夢想加倍 / 超級小可愛'},note:'第1行'},
-    {type:'chat',params:{channel:'s',message:'河狸 / 咖啡時間 / 我就是人趣諸神 / 線軸 / 烏姆·阿拉 / 有咕波果哦 / 燉菜做好了 / 新鮮蔬菜上架了'},note:'第2行'},
-  ]},
-  {id:'blank',icon:'✦',label:'空白自訂',desc:'從零開始',lines:[]},
-  {id:'target_report',icon:'📍',label:'通報目標血量坐標',desc:'快速通報目標訊息',
-   lines:[
-    {type:'chat',params:{channel:'p',message:'<t> 【HP：<targethpp>】 <pos>'},note:'通報目標血量與坐標，頻道可自行更改'}
-  ]}
-];
-
-/* ── Pronouns ── */
-var PRONS=[
-  {s:'<t>',d:'當前目標'},{s:'<me>',d:'自己'},{s:'<f>',d:'焦點目標'},
-  {s:'<tt>',d:'目標的目標'},{s:'<lt>',d:'上次目標'},{s:'<mo>',d:'滑鼠指向的角色'},
-  {s:'<r>',d:'最後傳悄悄話的人'},{s:'<le>',d:'最後選中的敵人'},
-  {s:'<la>',d:'最後攻擊你的敵人'},{s:'<c>',d:'搭擋'},{s:'<p>',d:'召喚獸'},
-  {s:'<1>',d:'小隊1號'},{s:'<2>',d:'小隊2號'},{s:'<3>',d:'小隊3號'},
-  {s:'<4>',d:'小隊4號'},{s:'<5>',d:'小隊5號'},{s:'<6>',d:'小隊6號'},
-  {s:'<7>',d:'小隊7號'},{s:'<8>',d:'小隊8號'},
-  {s:'<attack1>',d:'攻擊標記1'},{s:'<attack2>',d:'攻擊標記2'},
-  {s:'<bind1>',d:'止步標記1'},{s:'<stop1>',d:'禁止標記1'},
-  {s:'<square>',d:'方塊標記'},{s:'<circle>',d:'圓圈標記'},
-  {s:'<cross>',d:'叉標記'},{s:'<triangle>',d:'三角標記'},
-  {s:'<e1>',d:'PvP敵方1號'},{s:'<e2>',d:'PvP敵方2號'},
-  {s:'<flag>',d:'地圖標記坐標'},
-  {s:'<hp>',d:'HP數值'},{s:'<hpp>',d:'HP百分比'},
-  {s:'<mp>',d:'MP數值'},{s:'<mpp>',d:'MP百分比'},
-  {s:'<job>',d:'當前職業等級'},{s:'<pos>',d:'當前位置坐標'},
-  {s:'<targethpp>',d:'目標HP%'},{s:'<focushpp>',d:'焦點目標HP%'},
-  {s:'<targetclass>',d:'目標職業等級'},{s:'<buddyhp>',d:'搭擋HP'},
-  {s:'<se.1>',d:'播放音效1'},{s:'<recast."技能名">',d:'技能剩餘冷卻秒數'},
-  {s:'{頻道}',d:'目前頻道名稱（輸出時自動替換，例如 小隊／部隊）'},{s:'<wait.1>',d:'等待1秒（內嵌於行末）'}
-];
-
-/* ════════════════════════════════════════════════
-   UTILITIES
-════════════════════════════════════════════════ */
-function cc(s){var n=0;for(var i=0;i<s.length;i++){var cp=s.codePointAt(i);n+=cp>0x7F?3:1;if(cp>0xFFFF)i++;/* 代理對佔了2個code unit，跳過第二半避免重複計算 */}return n;}
+var E=window.MacroEngine;
+if(!E||!window.MacroMeta||!window.MacroParse){console.error('macro-tool: 缺少 macro-engine / macro-meta / macro-parse');return;}
+var MAX=E.MAX,MAX_C=E.MAX_C,WARN_C=E.WARN_C;
+var ALARM_TTYPE=E.ALARM_TTYPE,CATS=E.CATS,CH=E.CH,CHATLOG_CH=E.CHATLOG_CH,CHATLOG_SUBS=E.CHATLOG_SUBS,EMOTES=E.EMOTES,GPRESET_OPTS=E.GPRESET_OPTS,
+  HOTBAR_SET_TYPES=E.HOTBAR_SET_TYPES,HOTBAR_SET_TYPES_PVP=E.HOTBAR_SET_TYPES_PVP,HOTBAR_SUBS=E.HOTBAR_SUBS,HUD_W=E.HUD_W,IS_AREAS=E.IS_AREAS,IS_C=E.IS_C,
+  JOBS=E.JOBS,MICON_T=E.MICON_T,PETMIRAGE_APPEARANCES=E.PETMIRAGE_APPEARANCES,PETMIRAGE_PETS=E.PETMIRAGE_PETS,PETSIZE_PETS=E.PETSIZE_PETS,
+  PRONS=E.PRONS,SE=E.SE,TDEFS=E.TDEFS,TEMPLATES=E.TEMPLATES,TGT=E.TGT,WINDOW_LIST=E.WINDOW_LIST;
+var cc=E.cc,dc=E.dc,tv=E.tv,seStr=E.seStr,waitStr=E.waitStr,buildLines=E.buildLines;
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function so(opts,cur){return opts.map(function(o){return '<option value="'+esc(o.v)+'"'+(o.v===cur?' selected':'')+'>'+esc(o.l)+'</option>';}).join('');}
-function dc(o){return JSON.parse(JSON.stringify(o));}
-function tv(p,key,ckey){var v=p[key];return v==='custom'?(p[ckey]||'<t>'):v||'';}
-function seStr(se){return se?(' '+se):'';}
-function waitStr(w){var n=parseInt(w)||0;return n>0?'<wait.'+n+'>':'';}
-
-/* 插入代名詞到輸入框游標位置 */
 var _lastMsgInput=null;
 function insertAtCursor(inp,text){
   if(!inp) return;
@@ -728,680 +22,127 @@ function insertAtCursor(inp,text){
   inp.dispatchEvent(new Event('input'));inp.focus();
 }
 
-/* 可編輯預覽狀態 */
+/* ════════════════════════════════════════════════
+   新版外殼：狀態、索引、歷史
+════════════════════════════════════════════════ */
+var LS_DRAFT='ffxivtc_macro_v2_draft',LS_LIB='ffxivtc_macro_v2_lib';
+var M=window.MacroMeta,FLD=window.MacroFields,PARSE=window.MacroParse;
+var lines=[],nextId=1,globalCfg={mlock:false,merrorOff:false},macroName='';
+var ui={mode:'area',area:null,tags:[],tagAll:false,query:'',sel:null,insertAt:null,replacing:null,
+        textMode:false,textVal:'',page:0,sheet:false,warnOpen:false,drag:null};
 var previewEditable=false;
-/* ════════════════════════════════════════════════
-   COMMAND BUILDERS — returns array of strings
-════════════════════════════════════════════════ */
-function buildLines(line){return mt3Sub(buildLines0(line),line);}
-function buildLines0(line){
-  var p=line.params||{}, r=parseInt(line.repeat)||1, out=buildLinesInner(line);
-  if(out.length===1&&r>1){var arr=[];for(var i=0;i<r;i++)arr.push(out[0]);return arr;}
-  return out;
+var hist=[],hi=-1,commitTimer=null,lastSnap='';
+
+/* 預設的下拉頻道（/dice 使用完整英文頻道名） */
+var DICE_CH=[{v:'party',l:'小隊'},{v:'alliance',l:'團隊'},{v:'freecompany',l:'部隊'},{v:'pvpteam',l:'戰隊'}]
+  .concat([1,2,3,4,5,6,7,8].map(function(n){return{v:'linkshell'+n,l:'通訊貝'+n};}))
+  .concat([1,2,3,4,5,6,7,8].map(function(n){return{v:'cwlinkshell'+n,l:'跨服通訊貝'+n};}));
+
+function $(id){return document.getElementById(id);}
+function getLine(id){for(var i=0;i<lines.length;i++)if(lines[i].id===id)return lines[i];return null;}
+function idxOf(id){for(var i=0;i<lines.length;i++)if(lines[i].id===id)return i;return -1;}
+function reduced(){return !!(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches);}
+function validate(){return E.validate(lines,globalCfg);}
+function getAllOutput(){return E.getAllOutput(lines,globalCfg);}
+
+/* ── 區域、標籤索引 ── */
+var AREAS=M.areas,AREA_BY={},TYPE_AREA={},TYPE_GROUP={},AREA_ORD={};
+AREAS.forEach(function(a,i){AREA_BY[a.id]=a;AREA_ORD[a.id]=i;a.groups.forEach(function(g){g.types.forEach(function(t){TYPE_AREA[t]=a.id;TYPE_GROUP[t]=g.name;});});});
+var AREA_ICON={talk:'ph-chat-circle-dots',act:'ph-sword',target:'ph-crosshair',combat:'ph-shield',char:'ph-horse',emote:'ph-smiley',
+  party:'ph-users-three',social:'ph-handshake',status:'ph-user-circle',ui:'ph-browsers',av:'ph-speaker-high',sys:'ph-gear-six'};
+var TAGS=M.tags,TAG_TYPES={},TAG_FACET={};
+Object.keys(TAGS).forEach(function(t){TAGS[t].forEach(function(g){(TAG_TYPES[g]=TAG_TYPES[g]||[]).push(t);});});
+Object.keys(M.facets).forEach(function(f){M.facets[f].forEach(function(g){TAG_FACET[g]=f;});});
+var STARTER_TAGS=['溝通','倒數','拍照','表演','一鍵切換','整理','顯示隱藏','提醒','音量','技能','目標','組隊','互動','設定','生產','副本'];
+function tagW(g){return 1/Math.log(2.5+(TAG_TYPES[g]||[]).length);}
+function typeOrd(t){return AREA_ORD[TYPE_AREA[t]]*1000+Object.keys(TDEFS).indexOf(t);}
+/* 命中標籤的類型，依「命中數 × 標籤稀有度」排序；不要求全中 */
+function scoreTypes(sel){
+  var res=[];
+  Object.keys(TAGS).forEach(function(t){
+    var s=0;sel.forEach(function(g){var i=TAGS[t].indexOf(g);if(i>=0)s+=tagW(g)*(i<2?1.5:1);});
+    if(s>0)res.push([t,s]);
+  });
+  res.sort(function(a,b){return b[1]-a[1]||typeOrd(a[0])-typeOrd(b[0]);});
+  return res.map(function(x){return x[0];});
+}
+function splitLabel(t){
+  var d=TDEFS[t];if(!d)return{n:t,c:''};
+  var m=/^(.*?)\s*(\/[A-Za-z0-9_]+)(.*)$/.exec(d.label);
+  if(m)return{n:(m[1]+m[3]).replace(/\s+/g,' ').trim()||d.label,c:m[2]};
+  return{n:d.label,c:''};
+}
+function defaultText(t){
+  try{return buildLines({id:0,type:t,params:{},note:'',repeat:1}).join('  ⏎  ');}catch(e){return '';}
+}
+/* 指令搜尋：以「指令」為主，中文名稱與標籤只是順便 */
+function searchTypes(q){
+  q=q.trim().toLowerCase();if(!q)return[];
+  var qs=q.replace(/^\//,'').split(/\s+/)[0],res=[];
+  Object.keys(TDEFS).forEach(function(t){
+    var d=TDEFS[t],sl=splitLabel(t),cmd=sl.c.toLowerCase(),lab=d.label.toLowerCase(),s=0;
+    if(cmd&&cmd.slice(1)===qs)s=100;
+    else if(cmd&&cmd.indexOf('/'+qs)===0)s=80;
+    else if(cmd&&cmd.indexOf(qs)>=0)s=50;
+    else if(lab.indexOf(q)>=0)s=40;
+    else if(d.kw&&d.kw.toLowerCase().indexOf(q)>=0)s=30;
+    else if((TAGS[t]||[]).some(function(g){return g.toLowerCase().indexOf(q)>=0;}))s=20;
+    if(s)res.push([t,s]);
+  });
+  res.sort(function(a,b){return b[1]-a[1]||typeOrd(a[0])-typeOrd(b[0]);});
+  return res.map(function(x){return x[0];});
 }
 
-function buildLinesInner(line){
-  var p=line.params||{};
-  switch(line.type){
-    /* ── 說話 / 通知（原有）── */
-    case 'chat':{
-      var msg='/'+(p.channel||'p')+' '+(p.message||'');
-      if(p.se) msg+=seStr(p.se);
-      var out=[];
-      msg+=waitStr(p.inlineWait);
-      out.push(msg);
-      return out;
-    }
-    case 'chatcountdown':{
-      var out=[];
-      var ch=p.channel||'p';
-      var msgs=p.msgs||[];
-      msgs.forEach(function(m){
-        var rowCh=m.channel||ch;
-        var line2='/'+rowCh+' '+(m.text||'');
-        if(m.se) line2+=seStr(m.se);
-        line2+=waitStr(m.wait);
-        out.push(line2);
-      });
-      return out.length?out:[''];
-    }
-    case 'echo':{
-      var msg='/e '+(p.message||'');
-      if(p.se) msg+=seStr(p.se);
-      return[msg];
-    }
-    case 'tell': return['/t '+(p.target||'')+' '+(p.message||'')];
-    case 'reply': return['/r '+(p.message||'')];
-    case 'cth': return['/cth'];
-    case 'em':{
-      var out=['/em '+(p.text||'')];
-      if(p.addMotion){
-        var motionCmd=p.motionEmote==='custom'?(p.motionCustom||''):p.motionEmote;
-        if(motionCmd) out.unshift('/'+motionCmd+' motion');
-      }
-      return out;
-    }
-    /* ── 技能 / 道具（原有）── */
-    case 'skill': case 'generalskill': case 'blueaction': case 'pvpaction':
-    case 'petaction': case 'companionaction':{
-      var cmdMap={skill:'/ac',generalskill:'/gaction',blueaction:'/blueaction',
-        pvpaction:'/pvpac',petaction:'/pac',companionaction:'/cac'};
-      var cmd=cmdMap[line.type];
-      var out=[];
-      if(p.preAnnounce){
-        var pre='/'+( p.preAnnounceChannel||'p')+' '+(p.preAnnounceMsg||'');
-        if(p.preAnnounceSe) pre+=seStr(p.preAnnounceSe);
-        pre+=waitStr(p.preAnnounceWait);
-        out.push(pre);
-      }
-      var skillTgt=p.groundOff?'gtoff':tv(p,'target','targetCustom');
-      var skillLine=cmd+' "'+(p.skillName||'')+'"'+(line.type!=='companionaction'?' '+skillTgt:'');
-      skillLine+=waitStr(p.inlineWait);
-      out.push(skillLine);
-      if(p.postNotify){
-        var post='/'+( p.postNotifyChannel||'p')+' '+(p.postNotifyMsg||'');
-        if(p.postNotifySe) post+=seStr(p.postNotifySe);
-        out.push(post);
-      }
-      if(p.postEcho){
-        var echo='/e '+(p.postEchoMsg||'');
-        if(p.postEchoSe) echo+=seStr(p.postEchoSe);
-        out.push(echo);
-      }
-      if(p.recastNotify){
-        var pre2=p.recastPrefix||('【'+(p.skillName||'技能')+'】剩餘冷卻：');
-        var suf=p.recastSuffix||' 秒';
-        var rline='/'+( p.recastChannel||'e')+' '+pre2+'<recast."'+(p.skillName||'')+'">'+suf;
-        if(p.recastSe) rline+=seStr(p.recastSe);
-        out.push(rline);
-      }
-      return out.length?out:[''];
-    }
-    case 'item':{
-      var out=['/item "'+(p.itemName||'')+'" '+tv(p,'target','targetCustom')];
-      if(p.postEcho){
-        var echo='/e '+(p.postEchoMsg||'已使用道具');
-        if(p.postEchoSe) echo+=seStr(p.postEchoSe);
-        out.push(echo);
-      }
-      return out;
-    }
-    case 'itemsearch': return['/isearch "'+(p.itemName||'')+'"'];
-    case 'emote':{
-      var en=p.emoteName==='custom'?(p.emoteCustom||''):p.emoteName;
-      var out=['/'+en+(p.motionOnly?' motion':'')];
-      if(p.addEm){
-        var em='/em '+(p.emText||'');
-        if(p.emSe) em+=seStr(p.emSe);
-        out.push(em);
-      }
-      return out;
-    }
-    case 'abilityrotation':{
-      var skills=p.skills||[];
-      var tgt=tv(p,'target','targetCustom')||'<t>';
-      var out=skills.map(function(s){
-        if(!s) return null;
-        var l='/ac "'+s+'" '+tgt;
-        l+=waitStr(p.inlineWait);
-        return l;
-      }).filter(Boolean);
-      return out.length?out:[''];
-    }
-    /* ── 目標操作（原有）── */
-    case 'openwindow': return['/'+(p.winCmd||'bag')];
-    case 'targeting':{
-      var cmd=p.targetCmd||'/bt';
-      var tgt=tv(p,'targetParam','targetParamCustom');
-      return[tgt?cmd+' '+tgt:cmd];
-    }
-    case 'check':{
-      var tgt=tv(p,'target','targetCustom');
-      return[tgt?'/c '+tgt:'/c'];
-    }
-    case 'trade':{
-      var tgt=tv(p,'target','targetCustom');
-      return[tgt?'/trade '+tgt:'/trade'];
-    }
-    case 'assist': return['/as '+tv(p,'target','targetCustom')];
-    case 'focustarget':{
-      var tgt=tv(p,'target','targetCustom');
-      return[tgt?'/focustarget '+tgt:'/focustarget'];
-    }
-    case 'facetarget': return['/ft'];
-    case 'lockon':{
-      var tgt=tv(p,'target','targetCustom');
-      return[tgt?'/lo '+tgt:'/lo'];
-    }
-    case 'marking':{
-      var out=[];
-      if(p.markType==='clear'){out.push('/mk clear');return out;}
-      out.push('/mk '+(p.markType||'attack1')+' '+tv(p,'markTarget','markTargetCustom'));
-      if(p.notify){
-        var n='/'+( p.notifyChannel||'p')+' '+(p.notifyMsg||'標記已設定！');
-        if(p.notifySe) n+=seStr(p.notifySe);
-        out.push(n);
-      }
-      return out;
-    }
-    case 'waymark':{
-      var out=[];
-      var act=p.waymarkAction||'toggle';
-      if(act==='clear') out.push('/wmark clear');
-      else if(act==='save') out.push('/wmark save '+(p.presetSlot||'1'));
-      else if(act==='preset') out.push('/wmark preset '+(p.presetSlot||'1'));
-      else if(act==='target') out.push('/wmark '+(p.waymarkName||'A')+' <t>');
-      else out.push('/wmark '+(p.waymarkName||'A'));
-      if(p.notify){
-        var n='/'+( p.notifyChannel||'p')+' '+(p.notifyMsg||'場景標記已設置！');
-        if(p.notifySe) n+=seStr(p.notifySe);
-        out.push(n);
-      }
-      return out;
-    }
-    /* ── 計時 / 通報（原有）── */
-    case 'countdown_sys':{
-      return[p.secs?'/cd '+p.secs:'/cd'];
-    }
-    case 'readycheck':{
-      var out=['/rcheck'];
-      if(p.notify){
-        var n='/'+( p.notifyChannel||'p')+' '+(p.notifyMsg||'準備確認！');
-        if(p.notifySe) n+=seStr(p.notifySe);
-        out.push(n);
-      }
-      return out;
-    }
-    case 'ready': return['/rd'];
-    case 'notready': return['/nr'];
-    /* ── 角色 / 移動（原有）── */
-    case 'automove': return['/automove'];
-    case 'follow':{
-      var tgt=tv(p,'target','targetCustom');
-      return[tgt?'/follow '+tgt:'/follow'];
-    }
-    case 'battlemode':{
-      var t=p.toggle||'toggle';
-      return[t==='draw'?'/bm draw':t==='sheathe'?'/bm sheathe':'/bm'];
-    }
-    case 'visor': return['/visor'];
-    case 'fashion': return['/fashion "'+(p.itemName||'')+'"'];
-    /* ── 召喚獸 / 坐騎（原有）── */
-    case 'mount': return[p.mountName?'/mount "'+(p.mountName||'')+'"':'/mount'];
-    case 'minion': return[p.minionName?'/minion "'+(p.minionName||'')+'"':'/minion'];
-    /* ── 鏡頭 / 拍照（原有）── */
-    case 'gpose': return['/gpose'];
-    /* ── 介面 / 顯示（原有）── */
-    case 'nameplatedisp':{
-      var tgt=p.target||'all';
-      var setting=p.setting||'1';
-      return['/nameplatedisp '+tgt+' '+setting];
-    }
-    case 'nameplatetype':{
-      var tgt2=p.target||'all';
-      var fmt=p.setting||'1';
-      return['/nameplatetype '+tgt2+' '+fmt];
-    }
-    case 'battleeffect':{
-      var tgt=p.effTarget||'self';
-      var type=p.effType||'all';
-      return['/battleeffect '+tgt+' '+type];
-    }
-    case 'hud':{
-      var wins=p.windows||[];
-      var t=p.toggle||'toggle';
-      var out=wins.map(function(w){
-        return t==='toggle'?'/hud "'+w+'"':'/hud "'+w+'" '+t;
-      });
-      return out.length?out:['/hud'];
-    }
-    /* ── 熱鍵設定（原有）── */
-    /* ── 角色套裝（原有）── */
-    case 'gearset':{
-      var out=[];
-      var act=p.gsAction||'change';
-      var gsCmd=act==='change'?'change':act==='save'?'save':act==='delete'?'delete':'view';
-      var gsLine='/gs '+gsCmd+' '+(p.gsNumber||'1');
-      if(act==='change'&&p.plateNumber) gsLine+=' '+p.plateNumber;
-      out.push(gsLine);
-      if(p.addEcho){
-        var echo='/e '+(p.echoMsg||'已切換套裝');
-        if(p.echoSe) echo+=seStr(p.echoSe);
-        out.push(echo);
-      }
-      if(p.addMicon) out.push('/micon '+(p.gsNumber||'1')+' gearset');
-      return out;
-    }
-    case 'itemsort':{
-      var out=[];
-      var areas=p.areas||[];
-      var conds=p.conditions||[];
-      areas.forEach(function(area){
-        if(p.useClear!==false) out.push('/itemsort clear '+area);
-        conds.forEach(function(c){
-          out.push('/itemsort condition '+area+' '+c.criterion+(c.order?' '+c.order:''));
-        });
-        out.push('/itemsort execute '+area);
-      });
-      if(p.echoMsg){
-        var echo='/e '+p.echoMsg;
-        if(p.echoSe) echo+=seStr(p.echoSe);
-        out.push(echo);
-      }
-      return out.length?out:[''];
-    }
-    /* ── 說話/通知 新增 ── */
-    case 'cl': return['/cl'];
-    case 'emotelog':{var elg=p.toggle||'toggle';return[elg==='toggle'?'/emotelog':'/emotelog '+elg];}
-    case 'qchat':{
-      var qc='/qchat "'+(p.name||'')+'"';
-      if(p.target&&p.target!=='') qc+=' '+tv(p,'target','targetCustom');
-      return[qc];
-    }
-    /* ── 技能/道具 新增 ── */
-    case 'recast': return['/recast "'+(p.skillName||'')+'"'];
-    case 'aaction':{
-      var aa_name=p.skillName||'';
-      if(aa_name==='clear') return['/aaction clear'];
-      var aa_t=p.toggle||'toggle';
-      return[aa_t==='toggle'?'/aaction "'+aa_name+'"':'/aaction "'+aa_name+'" '+aa_t];
-    }
-    case 'bluespellbook':{
-      var bsb=p.sub||'toggle';
-      if(bsb==='toggle') return['/bluespellbook'];
-      if(bsb==='clear') return['/bluespellbook clear'];
-      if(bsb==='preset') return['/bluespellbook preset '+(p.presetNum||'1')];
-      var bsb_t=p.spellToggle||'toggle';
-      var bsb_out=[];
-      (p.spells||['']).forEach(function(s){
-        if(!s) return;
-        bsb_out.push(bsb_t==='toggle'?'/bluespellbook set "'+s+'"':'/bluespellbook set "'+s+'" '+bsb_t);
-      });
-      return bsb_out.length?bsb_out:['/bluespellbook set ""'];
-    }
-    case 'apa': return['/apa "'+(p.skill1||'')+'" "'+(p.skill2||'')+'"'];
-    /* ── 計時/通報/骰子 新增 ── */
-    case 'alarm':{
-      var al=p.alarmSub||'open';
-      if(al==='open') return['/alarm'];
-      if(al==='clear') return['/alarm clear'];
-      var al_out=[];
-      var al_name=p.alarmName?'"'+p.alarmName+'"':'""';
-      var al_tt=p.timeType||'lt';
-      var al_time=p.alarmTime||'0000';
-      var al_line='/alarm '+al_name+' '+al_tt;
-      if(p.repeat) al_line+=' rp';
-      al_line+=' '+al_time;
-      if(p.advance&&parseInt(p.advance)>0) al_line+=' '+p.advance;
-      al_out.push(al_line);
-      return al_out;
-    }
-    case 'dice':{
-      var dc_out='/dice';
-      if(p.channel) dc_out='/dice '+(p.channel);
-      if(p.max) dc_out+=' '+p.max;
-      return[dc_out];
-    }
-    /* ── 召喚獸/坐騎 新增 ── */
-    case 'petsize':{
-      var ps_pet=p.petName||'all';
-      var ps_size=p.size||'toggle';
-      return[ps_size==='toggle'?'/petsize '+ps_pet:'/petsize '+ps_pet+' '+ps_size];
-    }
-    case 'petmirage':{
-      var pm_pet=p.petName||'carbuncle';
-      if(p.clear) return['/petglamour "'+pm_pet+'"'];
-      return['/petglamour "'+pm_pet+'" "'+(p.appearance||'')+'"'];
-    }
-    case 'ridepillion':{
-      var rp_tgt=tv(p,'target','targetCustom')||'<2>';
-      var rp_seat=p.seat||'1';
-      return['/ridepillion '+rp_tgt+' '+rp_seat];
-    }
-    /* ── 鏡頭/拍照 新增 ── */
-    case 'facecamera': return['/facecamera'];
-    case 'idlingcamera':{
-      var ic=tv(p,'target','targetCustom');
-      return[ic?'/icam '+ic:'/icam'];
-    }
-    case 'tiltcamera': return['/tiltcamera '+(p.value||'50')];
-    /* ── 狀態/身分 新增 ── */
-    case 'busy':{var bt=p.toggle||'toggle';return[bt==='toggle'?'/busy':'/busy '+bt];}
-    case 'away':{var at2=p.toggle||'toggle';return[at2==='toggle'?'/afk':'/afk '+at2];}
-    case 'roleplaying':{var rt=p.toggle||'toggle';return[rt==='toggle'?'/roleplaying':'/roleplaying '+rt];}
-    case 'lfp':{
-      var lfp_t=p.toggle||'toggle';
-      var lfp_jobs=(p.jobs||[]).join(' ');
-      if(lfp_t==='toggle') return[lfp_jobs?'/lfp '+lfp_jobs:'/lfp'];
-      if(lfp_t==='off') return['/lfp off'];
-      // on
-      return[lfp_jobs?'/lfp on '+lfp_jobs:'/lfp on'];
-    }
-    case 'lfm':{var lfmt=p.toggle||'toggle';return[lfmt==='toggle'?'/lfm':'/lfm '+lfmt];}
-    case 'scomment': return['/scomment '+(p.text||'')];
-    case 'bstatus':{var bst=p.toggle||'toggle';return[bst==='toggle'?'/nastatus':'/nastatus '+bst];}
-    case 'nnetwork':{var nn=p.toggle||'toggle';return[nn==='toggle'?'/nnetwork':'/nnetwork '+nn];}
-    case 'nnetworkinvitation':{var nni=p.toggle||'toggle';return[nni==='toggle'?'/nnetworkinvitation':'/nnetworkinvitation '+nni];}
-    case 'nnetworkleave': return['/nnetworkleave'];
-    case 'search':{
-      var seaParts=[];
-      if(p.nameMode&&p.playerName) seaParts.push(p.nameMode+' "'+p.playerName+'"');
-      if(p.status) seaParts.push(p.status);
-      if(p.jobs&&p.jobs.length) seaParts.push(p.jobs.join(' '));
-      if(p.lvMin){ seaParts.push(p.lvMax&&p.lvMax!==p.lvMin?p.lvMin+'-'+p.lvMax:p.lvMin); }
-      if(p.gc) seaParts.push('"'+p.gc+'"');
-      if(p.location) seaParts.push('"'+p.location+'"');
-      if(p.lang) seaParts.push(p.lang);
-      return[seaParts.length?'/sea '+seaParts.join(' '):'/sea'];
-    }
-    case 'title':{
-      var tt=p.sub||'random';
-      if(tt==='random') return['/title'];
-      if(tt==='clear') return['/title clear'];
-      return['/title set "'+(p.titleName||'')+'"'];
-    }
-    /* ── 小隊/社交 新增 ── */
-    case 'partycmd':{
-      var pc=p.sub||'';
-      if(!pc) return['/pcmd'];
-      var pc_tgt=tv(p,'target','targetCustom');
-      var needs_tgt=['add','leader','kick'];
-      if(needs_tgt.indexOf(pc)>=0&&pc_tgt) return['/pcmd '+pc+' '+pc_tgt];
-      return['/pcmd '+pc];
-    }
-    case 'join': return['/join'];
-    case 'decline': return['/decline'];
-    case 'invite':{var inv_t=tv(p,'target','targetCustom');return[inv_t?'/invite '+inv_t:'/invite'];}
-    case 'kick':{var kk_t=tv(p,'target','targetCustom');return[kk_t?'/kick '+kk_t:'/kick'];}
-    case 'leader':{var ld_t=tv(p,'target','targetCustom');return[ld_t?'/leader '+ld_t:'/leader'];}
-    case 'leave': return['/leave'];
-    case 'psort': return['/psort'];
-    case 'meldrequest':{var mr_t=tv(p,'target','targetCustom');return[mr_t?'/meldrequest '+mr_t:'/meldrequest'];}
-    case 'friendlist':{
-      var fl=p.sub||'';
-      if(!fl) return['/flist'];
-      var fl_tgt=tv(p,'target','targetCustom');
-      return[fl_tgt?'/flist '+fl+' '+fl_tgt:'/flist '+fl];
-    }
-    case 'blacklist':{
-      var bl=p.sub||'';
-      if(!bl) return['/blist'];
-      var bl_tgt=tv(p,'target','targetCustom');
-      return[bl_tgt?'/blist '+bl+' '+bl_tgt:'/blist '+bl];
-    }
-    /* ── 戰鬥設定（原有）── */
-    case 'levelsync': return['/levelsync'];
-    case 'statusoff': return['/statusoff "'+(p.statusName||'')+'"'];
-    /* ── 戰鬥設定 新增 ── */
-    case 'autolockon':{var alt=p.toggle||'toggle';return[alt==='toggle'?'/autolockon':'/autolockon '+alt];}
-    case 'autofacetarget':{var aft=p.toggle||'toggle';return[aft==='toggle'?'/autofacetarget':'/autofacetarget '+aft];}
-    case 'autotarget':{var att=p.toggle||'toggle';return[att==='toggle'?'/autotarget':'/autotarget '+att];}
-    case 'targetself':{var tst=p.toggle||'toggle';return[tst==='toggle'?'/targetself':'/targetself '+tst];}
-    case 'groundclick':{var gct=p.toggle||'toggle';return[gct==='toggle'?'/groundclick':'/groundclick '+gct];}
-    case 'duelswitch':{var dst=p.toggle||'toggle';return[dst==='toggle'?'/duelswitch':'/duelswitch '+dst];}
-    case 'actionerror':{var aet=p.toggle||'toggle';return[aet==='toggle'?'/aerror':'/aerror '+aet];}
-    case 'recasterror':{var ret=p.toggle||'toggle';return[ret==='toggle'?'/rerror':'/rerror '+ret];}
-    /* ── 介面/顯示 新增 ── */
-    case 'legacymark':{var lmt=p.toggle||'toggle';return[lmt==='toggle'?'/lmark':'/lmark '+lmt];}
-    case 'displayhead':{var dht=p.toggle||'toggle';return[dht==='toggle'?'/displayhead':'/displayhead '+dht];}
-    case 'displayarms':{var dat=p.toggle||'toggle';return[dat==='toggle'?'/displayarms':'/displayarms '+dat];}
-    case 'autosheathe':{var ast=p.toggle||'toggle';return[ast==='toggle'?'/ashathe':'/ashathe '+ast];}
-    case 'jobhudmode':{
-      var jhm=p.num||'';
-      return[jhm?'/jobhudmode '+jhm:'/jobhudmode'];
-    }
-    case 'hudreset': return['/hudreset'];
-    case 'uireset': return['/uireset'];
-    case 'uiscale':{
-      var us=p.value||'';
-      return[us==='reset'?'/uiscale reset':us?'/uiscale '+us:'/uiscale'];
-    }
-    case 'chatlog':{
-      var cl_out=[];
-      var cls=p.sub||'fontsize';
-      if(cls==='fontsize'){
-        var cl_fs='/chatlog fontsize';
-        if(p.tabNum) cl_fs+=' '+p.tabNum;
-        cl_fs+=' '+(p.fontSize||'12');
-        cl_out.push(cl_fs);
-      } else if(cls==='time_onoff'){
-        var cl_t='/chatlog time';
-        if(p.tabNum) cl_t+=' '+p.tabNum;
-        cl_t+=' '+(p.toggle||'on');
-        cl_out.push(cl_t);
-      } else if(cls==='time_format'){
-        cl_out.push('/chatlog time '+(p.format||'24'));
-      } else if(cls==='time_base'){
-        cl_out.push('/chatlog time '+(p.base||'local'));
-      } else if(cls==='call'){
-        var cl_c='/chatlog call';
-        if(p.clChannel) cl_c+=' '+p.clChannel;
-        if(p.callAction==='sound') cl_c+=' '+(p.soundNum||'1');
-        else cl_c+=' '+(p.toggle||'on');
-        cl_out.push(cl_c);
-      }
-      return cl_out.length?cl_out:['/chatlog'];
-    }
-    case 'targetring':{var tri=p.toggle||'toggle';return[tri==='toggle'?'/targetring':'/targetring '+tri];}
-    case 'targetline':{var tli=p.toggle||'toggle';return[tli==='toggle'?'/targetline':'/targetline '+tli];}
-    case 'linkline':{var lli=p.toggle||'toggle';return[lli==='toggle'?'/linkline':'/linkline '+lli];}
-    /* ── 熱鍵設定 新增 ── */
-    case 'hotbar':{
-      var hb_out=[];
-      var hb_sub=p.sub||'set';
-      var hb_cmd=p.zone==='pvp'?'/pvphotbar':'/hotbar';
-      if(hb_sub==='set'){
-        var hb_st=p.setType||'action';
-        var hb_sn=p.setName||'';
-        var hb_sl=hb_cmd+' '+hb_st+' "'+hb_sn+'"';
-        if(p.num) hb_sl+=' '+p.num;
-        if(p.slot2) hb_sl+=' '+p.slot2;
-        hb_out.push(hb_sl);
-      } else if(hb_sub==='change'){
-        hb_out.push(hb_cmd+' change '+(p.num||'1'));
-      } else if(hb_sub==='copy'){
-        hb_out.push(hb_cmd+' copy '+(p.srcJob||'current')+' '+(p.srcNum||'1')+' '+(p.dstJob||'current')+' '+(p.dstNum||'2'));
-      } else if(hb_sub==='display'){
-        var hb_dt=p.toggle||'toggle';
-        hb_out.push(hb_dt==='toggle'?hb_cmd+' display '+(p.num||'1'):hb_cmd+' display '+(p.num||'1')+' '+hb_dt);
-      } else if(hb_sub==='share'){
-        var hb_sh=p.toggle||'toggle';
-        hb_out.push(hb_sh==='toggle'?hb_cmd+' share '+(p.num||'1'):hb_cmd+' share '+(p.num||'1')+' '+hb_sh);
-      } else if(hb_sub==='remove'){
-        var hb_slot=p.slot||'all';
-        hb_out.push(hb_cmd+' remove '+(p.num||'1')+' '+hb_slot);
-      }
-      return hb_out.length?hb_out:[hb_cmd+' change 1'];
-    }
-    case 'pvphotbar':{
-      var phb_out=[];
-      var phb_sub=p.sub||'set';
-      if(phb_sub==='set'){
-        var phb_st=p.setType||'action';
-        var phb_sn=p.setName||'';
-        var phb_sl='/pvphotbar '+phb_st+' "'+phb_sn+'"';
-        if(p.num) phb_sl+=' '+p.num;
-        if(p.slot2) phb_sl+=' '+p.slot2;
-        phb_out.push(phb_sl);
-      } else if(phb_sub==='change'){
-        phb_out.push('/pvphotbar change '+(p.num||'1'));
-      } else if(phb_sub==='copy'){
-        phb_out.push('/pvphotbar copy '+(p.srcJob||'current')+' '+(p.srcNum||'1')+' '+(p.dstJob||'current')+' '+(p.dstNum||'2'));
-      } else if(phb_sub==='display'){
-        var phb_dt=p.toggle||'toggle';
-        phb_out.push(phb_dt==='toggle'?'/pvphotbar display '+(p.num||'1'):'/pvphotbar display '+(p.num||'1')+' '+phb_dt);
-      } else if(phb_sub==='share'){
-        var phb_sh=p.toggle||'toggle';
-        phb_out.push(phb_sh==='toggle'?'/pvphotbar share '+(p.num||'1'):'/pvphotbar share '+(p.num||'1')+' '+phb_sh);
-      } else if(phb_sub==='remove'){
-        var phb_slot=p.slot||'all';
-        phb_out.push('/pvphotbar remove '+(p.num||'1')+' '+phb_slot);
-      }
-      return phb_out.length?phb_out:['/pvphotbar change 1'];
-    }
-    case 'chotbar':{
-      var chb_out=[];
-      var chb_sub=p.sub||'set';
-      var chb_cmd=p.zone==='pvp'?'/pvpchotbar':'/chotbar';
-      if(chb_sub==='set'){
-        var chb_st=p.setType||'action';
-        var chb_sn=p.setName||'';
-        var chb_sl=chb_cmd+' '+chb_st+' "'+chb_sn+'"';
-        if(p.num) chb_sl+=' '+p.num;
-        if(p.pos) chb_sl+=' '+p.pos;
-        chb_out.push(chb_sl);
-      } else if(chb_sub==='change'){
-        chb_out.push(chb_cmd+' change '+(p.num||'1'));
-      } else if(chb_sub==='copy'){
-        chb_out.push(chb_cmd+' copy '+(p.srcJob||'current')+' '+(p.srcNum||'1')+' '+(p.dstJob||'current')+' '+(p.dstNum||'2'));
-      } else if(chb_sub==='display'){
-        var chb_dt=p.toggle||'toggle';
-        chb_out.push(chb_dt==='toggle'?chb_cmd+' display '+(p.num||'1'):chb_cmd+' display '+(p.num||'1')+' '+chb_dt);
-      } else if(chb_sub==='share'){
-        var chb_sh=p.toggle||'toggle';
-        chb_out.push(chb_sh==='toggle'?chb_cmd+' share '+(p.num||'1'):chb_cmd+' share '+(p.num||'1')+' '+chb_sh);
-      } else if(chb_sub==='remove'){
-        var chb_pos=p.pos||'all';
-        chb_out.push(chb_cmd+' remove '+(p.num||'1')+' '+chb_pos);
-      }
-      return chb_out.length?chb_out:[chb_cmd+' change 1'];
-    }
-    case 'pvpchotbar':{
-      var pchb_out=[];
-      var pchb_sub=p.sub||'set';
-      if(pchb_sub==='set'){
-        var pchb_st=p.setType||'action';
-        var pchb_sn=p.setName||'';
-        var pchb_sl='/pvpchotbar '+pchb_st+' "'+pchb_sn+'"';
-        if(p.num) pchb_sl+=' '+p.num;
-        if(p.pos) pchb_sl+=' '+p.pos;
-        pchb_out.push(pchb_sl);
-      } else if(pchb_sub==='change'){
-        pchb_out.push('/pvpchotbar change '+(p.num||'1'));
-      } else if(pchb_sub==='copy'){
-        pchb_out.push('/pvpchotbar copy '+(p.srcJob||'current')+' '+(p.srcNum||'1')+' '+(p.dstJob||'current')+' '+(p.dstNum||'2'));
-      } else if(pchb_sub==='display'){
-        var pchb_dt=p.toggle||'toggle';
-        pchb_out.push(pchb_dt==='toggle'?'/pvpchotbar display '+(p.num||'1'):'/pvpchotbar display '+(p.num||'1')+' '+pchb_dt);
-      } else if(pchb_sub==='share'){
-        var pchb_sh=p.toggle||'toggle';
-        pchb_out.push(pchb_sh==='toggle'?'/pvpchotbar share '+(p.num||'1'):'/pvpchotbar share '+(p.num||'1')+' '+pchb_sh);
-      } else if(pchb_sub==='remove'){
-        var pchb_pos=p.pos||'all';
-        pchb_out.push('/pvpchotbar remove '+(p.num||'1')+' '+pchb_pos);
-      }
-      return pchb_out.length?pchb_out:['/pvpchotbar change 1'];
-    }
-    case 'chotbardisplay':{var cbd=p.toggle||'toggle';return[cbd==='toggle'?'/chotbardisplay':'/chotbardisplay '+cbd];}
-    case 'chotbartype': return['/chotbartype '+(p.type||'hold')];
-    /* ── 畫面/音效 新增 ── */
-    case 'gpreset': return['/gpreset '+(p.num||'1')];
-    case 'mastervolume': return[p.value!==undefined&&p.value!==''?'/mastervolume '+p.value:'/mastervolume'];
-    case 'bgm': return[p.value!==undefined&&p.value!==''?'/bgm '+p.value:'/bgm'];
-    case 'soundeffects': return[p.value!==undefined&&p.value!==''?'/soundeffects '+p.value:'/soundeffects'];
-    case 'voice': return[p.value!==undefined&&p.value!==''?'/voice '+p.value:'/voice'];
-    case 'systemsounds': return[p.value!==undefined&&p.value!==''?'/systemsounds '+p.value:'/systemsounds'];
-    case 'ambientsounds': return[p.value!==undefined&&p.value!==''?'/ambientsounds '+p.value:'/ambientsounds'];
-    case 'soundeffectsself': return['/soundeffectsself '+(p.value||'100')];
-    case 'soundeffectsparty': return['/soundeffectsparty '+(p.value||'100')];
-    case 'soundeffectsother': return['/soundeffectsother '+(p.value||'100')];
-    case 'performsounds': return[p.value!==undefined&&p.value!==''?'/performsounds '+p.value:'/performsounds'];
-    case 'mountbgm':{var mbt=p.toggle||'toggle';return[mbt==='toggle'?'/mountbgm':'/mountbgm '+mbt];}
-    case 'systemsoundsspeaker': return[p.value!==undefined&&p.value!==''?'/systemsoundsspeaker '+p.value:'/systemsoundsspeaker'];
-    /* ── 魔素板 新增 ── */
-    case 'magiaright': return['/magiaright'];
-    case 'magialeft': return['/magialeft'];
-    case 'magiaattack':{var ma_t=tv(p,'target','targetCustom');return[ma_t?'/magiaattack '+ma_t:'/magiaattack'];}
-    case 'magiadefense':{var md_t=tv(p,'target','targetCustom');return[md_t?'/magiadefense '+md_t:'/magiadefense'];}
-    case 'magiaauto': return['/magiaauto '+(p.mode||'off')];
-    /* ── 雜項/系統 新增 ── */
-    case 'playtime': return['/ptime'];
-    case 'logout': return['/logout'];
-    case 'shutdown': return['/shutdown'];
-    case 'instance': return['/instance'];
-    case 'patchnote': return['/patchnote'];
-    /* ── 巨集設定 ── */
-    case 'micon':{
-      var mit=p.miconType||'action';
-      return[mit==='gearset'?'/micon '+(p.miconName||'1')+' gearset':'/micon "'+(p.miconName||'')+'" '+mit];
-    }
-    case 'mlock': return['/mlock'];
-    case 'merror_line': return['/merror '+(p.onOff||'off')];
-    case 'wait_line': return['/wait '+(parseInt(p.secs)||1)];
-    case 'random': return[p.max?'/random '+p.max:'/random'];
-    case 'custom': return[p.text||''];
-    default: return[''];
-  }
+/* ── 歷史（復原／重做）與草稿 ── */
+function snap(){return JSON.stringify({l:lines,g:globalCfg,n:nextId,nm:macroName});}
+function restore(s){var o=JSON.parse(s);lines=o.l||[];globalCfg=o.g||{mlock:false,merrorOff:false};nextId=o.n||1;macroName=o.nm||'';}
+function saveDraft(s){try{localStorage.setItem(LS_DRAFT,s);}catch(e){}}
+function commit(){
+  clearTimeout(commitTimer);
+  var s=snap();if(s===lastSnap)return;
+  lastSnap=s;hist=hist.slice(0,hi+1);hist.push(s);
+  if(hist.length>120)hist.shift();
+  hi=hist.length-1;saveDraft(s);refreshUndo();
+}
+function scheduleCommit(){clearTimeout(commitTimer);commitTimer=setTimeout(commit,500);}
+function fixSel(){if(ui.sel!=null&&!getLine(ui.sel))ui.sel=null;ui.replacing=null;}
+function undo(){commit();if(hi<=0)return;hi--;lastSnap=hist[hi];restore(hist[hi]);fixSel();saveDraft(lastSnap);renderAll();}
+function redo(){commit();if(hi>=hist.length-1)return;hi++;lastSnap=hist[hi];restore(hist[hi]);fixSel();saveDraft(lastSnap);renderAll();}
+function refreshUndo(){
+  var u=$('mx-undo'),r=$('mx-redo');
+  if(u)u.disabled=hi<=0;if(r)r.disabled=hi>=hist.length-1;
 }
 
-/* ── Render preserving scroll position ── */
-function renderKeepScroll(){
-  var frame=document.querySelector('.macro-root-frame');
-  var st=frame?frame.scrollTop:0;
-  render();
-  if(frame) frame.scrollTop=st;
-}
-function getAllOutput(){
+/* 舊版事件程式沿用的三個進入點 */
+function render(){commit();renderAll();}
+function updateRow(){patchSide();scheduleCommit();refreshEdOut();}
+function updatePreview(){patchSide();scheduleCommit();refreshEdOut();}
+
+/* ── 輸出模型：每一行指令對應到它屬於哪個邏輯行 ── */
+function ownerLines(){
   var out=[];
-  if(globalCfg.mlock) out.push('/mlock');
-  if(globalCfg.merrorOff) out.push('/merror off');
-  var miconLines=[];
-  lines.forEach(function(l){
-    buildLines(l).forEach(function(s){
-      if(s.startsWith('/micon')) miconLines.push(s);
-      else out.push(s);
-    });
-  });
-  // Always place /micon at the end (game only reads the last one for display)
-  // Note: only the FIRST /micon in the final macro affects the hotbar icon;
-  // we keep all of them but sorted to end so user can see they exist.
-  miconLines.forEach(function(s){out.push(s);});
-  return out;
+  if(globalCfg.mlock)out.push({t:'/mlock',o:'g'});
+  if(globalCfg.merrorOff)out.push({t:'/merror off',o:'g'});
+  var mi=[];
+  lines.forEach(function(l){buildLines(l).forEach(function(s){
+    if(s.indexOf('/micon')===0)mi.push({t:s,o:l.id});else out.push({t:s,o:l.id});
+  });});
+  return out.concat(mi);
 }
-
-function getTotalLines(){return getAllOutput().length;}
-
-/* ── Per-line preview ── */
-function linePreview(line){return buildLines(line).join(' | ');}
-function lineCount(line){return buildLines(line).length;}
-
-/* ════════════════════════════════════════════════
-   VALIDATION
-════════════════════════════════════════════════ */
-function validate(){
-  var W=[], total=getTotalLines();
-  if(total>MAX) W.push({lv:'error',msg:'行數超出上限：目前共 '+total+' 行（最多 '+MAX+' 行）。請刪除部分行或使用「分割巨集」功能。'});
-  getAllOutput().forEach(function(s,i){var c=cc(s);if(c>MAX_C)W.push({lv:'error',msg:'第 '+(i+1)+' 行字元超出上限（'+c+'/180）'});});
-  var mlockLine=lines.findIndex(function(l){return l.type==='mlock';});
-  if(mlockLine>0&&!globalCfg.mlock) W.push({lv:'warn',msg:'/mlock 在第 '+(mlockLine+1)+' 行，前面的行仍可能被中斷。建議移至第1行，或使用上方全局設定。'});
-  var miconCount=lines.filter(function(l){return l.type==='micon';}).length;
-  if(miconCount>1) W.push({lv:'warn',msg:'巨集中有 '+miconCount+' 個 /micon，只有第一個圖示生效，其餘被忽略。'});
-  var hasNorm=lines.some(function(l){return l.type==='hotbar'&&l.params.zone!=='pvp';});
-  var hasPvp=lines.some(function(l){return l.type==='hotbar'&&l.params.zone==='pvp';});
-  if(hasNorm&&hasPvp) W.push({lv:'warn',msg:'同時包含一般熱鍵欄（非戰鬥區）和 PvP 熱鍵欄（對戰區），兩者無法在同一場景生效。'});
-  // 必填名稱欄位檢查：避免欄位留空時輸出空白或無效指令卻沒有任何提示
-  lines.forEach(function(l,i){
-    var p=l.params||{}, ln=i+1, miss=null;
-    switch(l.type){
-      case 'tell': if(!p.target) miss='悄悄話對象尚未填寫'; break;
-      case 'skill': case 'generalskill': case 'blueaction':
-      case 'pvpaction': case 'petaction': case 'companionaction':
-        if(!p.skillName) miss='技能／動作名稱尚未填寫'; break;
-      case 'item': if(!p.itemName) miss='道具名稱尚未填寫'; break;
-      case 'statusoff': if(!p.statusName) miss='狀態名稱尚未填寫'; break;
-      case 'micon': if(p.miconType!=='gearset'&&!p.miconName) miss='/micon 的技能名稱尚未填寫'; break;
-      case 'emote': if(p.emoteName==='custom'&&!p.emoteCustom) miss='自訂情感動作指令名稱尚未填寫'; break;
-      case 'em': if(p.addMotion&&p.motionEmote==='custom'&&!p.motionCustom) miss='自訂行禮動作指令名稱尚未填寫'; break;
-    }
-    if(miss) W.push({lv:'error',msg:'第 '+ln+' 行：'+miss+'。'});
-  });
-  var hasSkill=lines.some(function(l){return l.type==='skill'||l.type==='generalskill';});
-  if(hasSkill) W.push({lv:'info',msg:'技能巨集提示：巨集無法配合 GCD 時機，可能打斷技能循環。建議只用於低頻或非高強度戰鬥場景。'});
-  return W;
+function model(){
+  var all=ownerLines(),texts=all.map(function(x){return x.t;}),pages,overflow=0;
+  if(texts.length>MAX){var sd=E.doSplit(texts,globalCfg);pages=[sd.m1,sd.m2];overflow=sd.overflow||0;}
+  else pages=[texts];
+  var ptr=0;
+  var rows=pages.map(function(pg){return pg.map(function(t){
+    var o=null;if(ptr<all.length&&all[ptr].t===t){o=all[ptr].o;ptr++;}
+    return{t:t,o:o};
+  });});
+  return{pages:rows,overflow:overflow,total:texts.length,texts:texts};
 }
 
 /* ════════════════════════════════════════════════
-   FIELD RENDERERS
+   欄位表單（沿用舊版）
 ════════════════════════════════════════════════ */
 function fRow(label,content,hint){
   // 無障礙修正：把這一行的標籤文字，自動補進內容裡每個 input/select/textarea 的
@@ -1436,7 +177,7 @@ var MSG_PROS=[
   {v:'<pos>',l:'坐標'},{v:'<job>',l:'職業'},
   {v:'<targethpp>',l:'目標HP%'},{v:'<focushpp>',l:'焦點HP%'},
   {v:'<se.1>',l:'音效1'},{v:'<se.2>',l:'音效2'},{v:'<se.3>',l:'音效3'},
-  {v:'<recast."技能名">',l:'冷卻時間'},{v:'{頻道}',l:'頻道名稱'},
+  {v:'<recast."技能名">',l:'冷卻時間'},
 ];
 function fMsgInp(id,key,ph,val){
   var chips=MSG_PROS.map(function(p){
@@ -1538,7 +279,7 @@ function renderFields(line){
         fRow('提前提醒（分鐘）',fInp(id,'advance','0~60，留空則準時提醒',p.advance,'number','min="0" max="60"'))
       :'');
     case 'dice': return fHint('在聊天頻道發送骰子結果（0~999，或指定上限 1~N）。省略頻道則在當前頻道發言。在巨集中使用時建議指定頻道。')+
-      fRow('頻道（選填）',fSel(id,'channel',[{v:'',l:'省略（當前頻道）'}].concat(CH_OPTS.filter(function(c){return c.v&&['party','alliance','freecompany','pvpteam','linkshell1','linkshell2','linkshell3','linkshell4','linkshell5','linkshell6','linkshell7','linkshell8','cwlinkshell1','cwlinkshell2','cwlinkshell3','cwlinkshell4','cwlinkshell5','cwlinkshell6','cwlinkshell7','cwlinkshell8'].indexOf(c.v)>=0;})),p.channel||''))+
+      fRow('頻道（選填）',fSel(id,'channel',[{v:'',l:'省略（當前頻道）'}].concat(DICE_CH),p.channel||''))+
       fRow('上限值（選填）',fInp(id,'max','省略則 0~999；填入數字則 1~N',p.max,'number','min="2" max="999"'));
 
     /* ── 召喚獸/坐騎 新增 ── */
@@ -1921,7 +662,7 @@ function renderChatCountdownFields(line){
       '</div>'+
     '</div>';
   }).join('');
-  return fHint('逐行輸出訊息，每行可附加等待時間（倒數效果）。預設全部使用同一個頻道，若某幾行想改用其他頻道（例如平時用小隊、最後一行改用喊話），可在該行的「此行頻道」個別覆寫，留空則沿用上方預設頻道。')+
+  return fHint('一次輸出多行聊天訊息，每行可附加等待時間，可用於倒數、排文字圖樣、多頻道發言、說故事等。預設全部使用同一個頻道，若某幾行想改用其他頻道（例如平時用小隊、最後一行改用喊話），可在該行的「此行頻道」個別覆寫，留空則沿用上方預設頻道。')+
     fRow('預設頻道',fCH(id,'channel',p.channel||'p'))+
     '<div class="ccd-list" id="ccd-list-'+id+'">'+rows+'</div>'+
     '<button class="ccd-add" data-id="'+id+'">＋ 新增行</button>';
@@ -2247,17 +988,6 @@ function renderHudFields(line){
 /* ════════════════════════════════════════════════
    LINE ROW HTML
 ════════════════════════════════════════════════ */
-function lineSummary(line){
-  var def=TDEFS[line.type]||{icon:'?',label:'未知'};
-  var prev=linePreview(line);var cnt=lineCount(line);
-  var cmds=buildLines(line);
-  var r=parseInt(line.repeat)||1;
-  return '<span class="ml-icon">'+def.icon+'</span>'+
-    '<span class="ml-type-name">'+def.label+'</span>'+
-    (cnt>1?'<span class="ml-blk-badge">'+cnt+'行</span>':'')+
-    (r>1?'<span class="ml-rep-badge">×'+r+'</span>':'')+
-    '<span class="ml-preview">'+esc(prev.length>60?prev.slice(0,60)+'…':prev)+'</span>';
-}
 
 function emoteComboOptions(){
   return [{v:'custom',l:'✏️ 自訂輸入情感動作指令名'}].concat(
@@ -2307,495 +1037,597 @@ function typeComboDropdownHTML(query,currentType){
   if(!any) html='<div class="sub-combo-empty">沒有符合的行類型，換個關鍵字試試？</div>';
   return html;
 }
-function lineHTML(line,idx){
-  var def=TDEFS[line.type]||{icon:'?',label:'未知'};
-  var cmds=buildLines(line);
-  var hdr_chars=cc(cmds[0]||'');
-  var char_class=hdr_chars>MAX_C?' ml-chars-over':hdr_chars>WARN_C?' ml-chars-warn':'';
-  var isFirst=idx===0, isLast=idx===lines.length-1;
-  var isActive=line.id===activeLineId;
-  return '<div class="ml-row'+(isActive?' ml-active':'')+'" data-id="'+line.id+'" data-expanded="'+(line.expanded?'1':'0')+'">'
-    +'<div class="ml-head" data-toggle-id="'+line.id+'">'
-      +'<div class="ml-left">'
-        +'<span class="mt3-grip" draggable="true" data-id="'+line.id+'" title="拖曳排序">⠿</span>'+'<span class="ml-num">'+(idx+1)+'</span>'
-        +'<div class="ml-reorder">'
-          +'<button class="ml-mv" data-id="'+line.id+'" data-dir="up"'+(isFirst?' disabled':'')+'>▲</button>'
-          +'<button class="ml-mv" data-id="'+line.id+'" data-dir="down"'+(isLast?' disabled':'')+'>▼</button>'
-        +'</div>'
-      +'</div>'
-      +'<div class="ml-summary">'+lineSummary(line)+'</div>'
-      +'<div class="ml-right">'
-        +linkBtnHTML(line)+'<span class="ml-chars'+char_class+'">'+hdr_chars+'/180</span>'
-        +'<span class="ml-exp-icon">'+(line.expanded?'▲':'▼')+'</span>'
-        +'<button class="ml-del" data-id="'+line.id+'" title="刪除此行">✕</button>'
-      +'</div>'
-    +'</div>'
-    +(line.expanded?'<div class="ml-body">'
-        +'<div class="ml-type-row">'
-          +'<span class="ml-type-lbl">行類型</span>'
-          +'<div class="sub-combo-wrap ml-type-combo" data-id="'+line.id+'">'
-            +'<input type="text" class="sub-combo-inp ml-type-combo-inp" data-id="'+line.id+'" value="'+esc(def.icon+' '+def.label)+'" autocomplete="off" placeholder="🔍 搜尋或選擇行類型…">'
-            +'<div class="sub-combo-dd ml-type-combo-dd" data-id="'+line.id+'" style="display:none"></div>'
-          +'</div>'
-        +'</div>'
-        +'<div class="ml-fields">'+renderFields(line)+'</div>'
-        +(def.isBlock?'<button class="ml-expand-btn" data-id="'+line.id+'">展開為獨立行（可個別編輯）</button>':
-          '<div class="ml-repeat-row"><span class="ml-repeat-lbl">重複次數</span><input class="ml-repeat-inp" type="number" min="1" max="15" data-id="'+line.id+'" value="'+(line.repeat||1)+'"><span class="ml-repeat-hint">（此行在輸出中重複幾次）</span></div>'
-        )
-        +'<div class="ml-note-wrap"><input class="ml-note" data-id="'+line.id+'" placeholder="備註（僅此工具顯示，不輸出到巨集）" value="'+esc(line.note||'')+'"></div>'
-        +'<div class="ml-cmd-preview">'+cmds.map(function(s){return esc(s);}).join('<br>')+'</div>'
-      +'</div>':'')
-    +'</div>';
-}
 
 /* ════════════════════════════════════════════════
-   CATEGORY PICKER
+   渲染：舞台（選擇／編輯）與巨集視窗
 ════════════════════════════════════════════════ */
-function pickerHTML(){
-  return '<div class="mt-picker">'
-    +'<div class="mt-picker-search-wrap">'
-      +'<input type="text" class="mt-picker-search" id="mt-picker-search" placeholder="🔍 搜尋指令類型（例如：技能、坐騎、/mount）" value="'+esc(pickerSearch)+'" autocomplete="off">'
-      +'<button type="button" class="mt-picker-search-clear" id="mt-picker-search-clear" style="display:'+(pickerSearch?'':'none')+'" title="清除搜尋">✕</button>'
-    +'</div>'
-    +'<div class="mt3-tags" id="mt3-tags">'+tagBarHTML()+'</div>'+'<div id="mt-picker-results">'+pickerResultsHTML()+'</div>'
-  +'</div>';
+function colorize(t){
+  var s=esc(t);
+  s=s.replace(/^(\/[A-Za-z0-9_]+)/,'<b class="tk-c">$1</b>');
+  s=s.replace(/(&lt;[^&]*?&gt;)/g,'<i class="tk-t">$1</i>');
+  return s;
 }
-function pickerResultsHTML(){
-  var q=(pickerSearch||'').trim().toLowerCase();
-  if(!q&&activeTags.length&&pickerCat===null) return tagResultsHTML();
-  if(q){
-    var matches=Object.keys(TDEFS).filter(function(k){
-      var d=TDEFS[k];
-      return d.label.toLowerCase().indexOf(q)>=0||k.toLowerCase().indexOf(q)>=0
-        ||(d.kw&&d.kw.toLowerCase().indexOf(q)>=0);
-    });
-    if(!matches.length){
-      return noMatchHTML();
-    }
-    return '<div class="mt-picker-title">搜尋結果（'+matches.length+'）</div>'
-      +'<div class="mt-picker-types">'
-      +matches.map(function(k){
-        var d=TDEFS[k];
-        var catDef=CATS.filter(function(c){return c.id===d.cat;})[0];
-        return '<button class="mt-type-btn" data-type="'+k+'">'+d.icon+' '+d.label
-          +(catDef?'<span class="mt-type-cat-tag">'+catDef.icon+catDef.label+'</span>':'')
-          +'</button>';
-      }).join('')
-      +'</div>';
+function chipHTML(t,withArea){
+  var sl=splitLabel(t),a=TYPE_AREA[t];
+  return '<button type="button" class="mx-chip a-'+a+'" data-act="chip" data-type="'+t+'" title="'+esc(TDEFS[t].label)+'">'
+    +'<span class="mx-chip-g"></span><span class="mx-chip-n">'+esc(sl.n)+'</span>'
+    +(sl.c?'<span class="mx-chip-c">'+esc(sl.c)+'</span>':'<span class="mx-chip-c">建構器</span>')
+    +(withArea?'<em class="mx-chip-a">'+esc(AREA_BY[a].label)+'</em>':'')
+    +'</button>';
+}
+function modeBtn(v,label,ic){
+  return '<button type="button" class="mx-sw-opt'+(ui.mode===v?' on':'')+'" data-act="mode" data-v="'+v+'"><i class="ph '+ic+'"></i>'+label+'</button>';
+}
+function areaBody(){
+  var h='<div class="mx-areas">'
+    +'<button type="button" class="mx-area mx-area-tpl'+(ui.area==='__tpl'?' on':'')+'" data-act="area" data-v="__tpl" data-hint="現成範例，點一下套用並可再修改"><i class="ph ph-sparkle"></i><span>範例</span></button>'
+    +AREAS.map(function(a){
+      return '<button type="button" class="mx-area a-'+a.id+(ui.area===a.id?' on':'')+'" data-act="area" data-v="'+a.id+'" data-hint="'+esc(a.groups.map(function(g){return g.name;}).join('・'))+'"><i class="ph '+AREA_ICON[a.id]+'"></i><span>'+a.label+'</span><b>'+a.count+'</b></button>';
+    }).join('')+'</div>';
+  var cur=ui.area==='__tpl'?'範例':(ui.area&&AREA_BY[ui.area]?AREA_BY[ui.area].groups.map(function(g){return g.name;}).join('・'):'');
+  h+='<div class="mx-hint" id="mx-hint" data-base="'+esc(cur)+'">'+esc(cur)+'</div>';
+  if(ui.area==='__tpl'){
+    h+='<div class="mx-tpls">'+TEMPLATES.map(function(t){
+      return '<button type="button" class="mx-tpl" data-act="tpl" data-id="'+t.id+'"><b>'+esc(t.label)+'</b><span>'+esc(t.desc)+'</span></button>';
+    }).join('')+'</div>';
+  }else if(ui.area&&AREA_BY[ui.area]){
+    h+=AREA_BY[ui.area].groups.map(function(g){
+      return '<div class="mx-grp"><div class="mx-grp-t">'+esc(g.name)+'</div><div class="mx-chips">'+g.types.map(function(t){return chipHTML(t,false);}).join('')+'</div></div>';
+    }).join('');
   }
-  if(!pickerCat){
-    return '<div class="mt-picker-title">選擇要新增的行類型：</div>'
-      +'<div class="mt-picker-cats">'
-      +CATS.map(function(c){return '<button class="mt-cat-btn" data-cat="'+c.id+'">'+c.icon+'<span class="mt-cat-lbl">'+c.label+'</span><span class="mt-cat-desc">'+c.desc+'</span></button>';}).join('')
-      +'</div>';
+  return h;
+}
+function tagBody(){
+  var sel=ui.tags,res=sel.length?scoreTypes(sel):[];
+  /* 左：已選＋關聯標籤 */
+  var cnt={};
+  if(sel.length){res.forEach(function(t){TAGS[t].forEach(function(g){if(sel.indexOf(g)<0)cnt[g]=(cnt[g]||0)+1;});});}
+  var left='';
+  if(sel.length){
+    left+='<div class="mx-tsel">'+sel.map(function(g){return '<button type="button" class="mx-tag on" data-act="tag" data-v="'+esc(g)+'">'+esc(g)+'<i class="ph ph-x"></i></button>';}).join('')
+      +'<button type="button" class="mx-tclear" data-act="tag-clear">清除</button></div>';
   }
-  var types=Object.keys(TDEFS).filter(function(k){return TDEFS[k].cat===pickerCat;});
-  var catDef=CATS.filter(function(c){return c.id===pickerCat;})[0]||{icon:'',label:''};
-  return '<div class="mt-picker-title">'
-    +'<button class="mt-picker-back">← 返回</button>'
-    +catDef.icon+' '+catDef.label+'</div>'
-    +'<div class="mt-picker-types">'
-    +types.map(function(k){var d=TDEFS[k];return '<button class="mt-type-btn" data-type="'+k+'">'+d.icon+' '+d.label+'</button>';}).join('')
-    +'</div>';
+  var pool;
+  if(!sel.length)pool=STARTER_TAGS.slice();
+  else pool=Object.keys(cnt).sort(function(a,b){return cnt[b]-cnt[a]||tagW(b)-tagW(a);}).slice(0,24);
+  left+='<div class="mx-tlist-t">'+(sel.length?'相關標籤':'從這些開始')+'</div><div class="mx-tlist">'
+    +pool.map(function(g){return '<button type="button" class="mx-tag" data-act="tag" data-v="'+esc(g)+'">'+esc(g)+(sel.length?'<small>'+cnt[g]+'</small>':'')+'</button>';}).join('')+'</div>';
+  left+='<button type="button" class="mx-tmore" data-act="tag-all"><i class="ph ph-caret-'+(ui.tagAll?'up':'down')+'"></i>全部標籤（'+Object.keys(TAG_TYPES).length+'）</button>';
+  if(ui.tagAll){
+    left+=Object.keys(M.facets).map(function(f){
+      var all=M.facets[f].filter(function(g){return TAG_TYPES[g];}).sort(function(a,b){return TAG_TYPES[b].length-TAG_TYPES[a].length;});
+      var common=all.filter(function(g){return TAG_TYPES[g].length>1;}),rare=all.filter(function(g){return TAG_TYPES[g].length===1;});
+      var mk=function(g){return '<button type="button" class="mx-tag'+(sel.indexOf(g)>=0?' on':'')+'" data-act="tag" data-v="'+esc(g)+'">'+esc(g)+'</button>';};
+      return '<div class="mx-tfacet"><div class="mx-tlist-t">'+esc(f)+'</div><div class="mx-tlist">'+common.map(mk).join('')+'</div>'
+        +(rare.length?'<details class="mx-rare"><summary>更精確（'+rare.length+'）</summary><div class="mx-tlist">'+rare.map(mk).join('')+'</div></details>':'')+'</div>';
+    }).join('');
+  }
+  /* 右：結果（只依命中排序，不顯示命中數） */
+  var right;
+  if(!sel.length)right='<div class="mx-empty-t"><i class="ph ph-tag"></i>選一個標籤，符合的指令會出現在這裡。<br>不確定時多選幾個也沒關係，不必每個都命中。</div>';
+  else right='<div class="mx-chips mx-res">'+res.map(function(t){return chipHTML(t,true);}).join('')+'</div>';
+  return '<div class="mx-tagwrap"><div class="mx-tagcol">'+left+'</div><div class="mx-tagres">'+right+'</div></div>';
+}
+function searchBody(){
+  var q=ui.query.trim(),h='',direct='';
+  if(q.charAt(0)==='/'&&/\s/.test(q)){
+    var p=PARSE.parseLine(E,FLD,q);
+    if(p)direct='<button type="button" class="mx-chip mx-direct a-'+TYPE_AREA[p.type]+'" data-act="direct"><span class="mx-chip-g"></span><span class="mx-chip-n">直接加入</span><span class="mx-chip-c">'+esc(q)+'</span><em class="mx-chip-a">'+esc(splitLabel(p.type).n)+'</em></button>';
+    else direct='<button type="button" class="mx-chip mx-direct" data-act="direct"><span class="mx-chip-g"></span><span class="mx-chip-n">以自訂行加入</span><span class="mx-chip-c">'+esc(q)+'</span></button>';
+  }
+  var res=searchTypes(q);
+  h+='<div class="mx-chips mx-res">'+direct+res.map(function(t){return chipHTML(t,true);}).join('')+'</div>';
+  if(!res.length&&!direct)h='<div class="mx-empty-t"><i class="ph ph-magnifying-glass"></i>找不到符合的指令。<br>可以改試標籤，或輸入完整指令後按 Enter。</div>';
+  return h;
+}
+function browseBody(){
+  if(ui.query.trim())return searchBody();
+  return ui.mode==='tag'?tagBody():areaBody();
+}
+function browseHTML(){
+  var h='<div class="mx-st-hd"><div class="mx-sw" role="tablist">'+modeBtn('area','區域','ph-squares-four')+modeBtn('tag','標籤','ph-tag')+'</div>'
+    +'<label class="mx-search"><i class="ph ph-magnifying-glass"></i><input id="mx-q" type="text" autocomplete="off" spellcheck="false" placeholder="輸入指令，如 /cd、/p 準備好了" value="'+esc(ui.query)+'"><kbd>/</kbd></label></div>';
+  if(ui.replacing){
+    var rl=getLine(ui.replacing);
+    h+='<div class="mx-note"><i class="ph ph-arrows-left-right"></i>更換第 '+(idxOf(ui.replacing)+1)+' 行的類型'+(rl?'（目前：'+esc(TDEFS[rl.type].label)+'）':'')+'<button type="button" data-act="cancel-replace">取消</button></div>';
+  }else if(ui.insertAt!=null){
+    h+='<div class="mx-note"><i class="ph ph-arrow-line-down"></i>新增的行會插入第 '+(ui.insertAt+1)+' 行之前<button type="button" data-act="cancel-insert">改為加到最後</button></div>';
+  }
+  return h+'<div class="mx-st-body" id="mx-st-body">'+browseBody()+'</div>';
+}
+var COMP_ACTION={skill:1,generalskill:1,blueaction:1,pvpaction:1,petaction:1,companionaction:1,item:1};
+function companions(type){
+  if(COMP_ACTION[type])return['wait_line','echo'];
+  if(type==='chat'||type==='tell'||type==='em')return['wait_line'];
+  if(type==='countdown_sys')return['chat','wait_line'];
+  if(type==='readycheck')return['countdown_sys'];
+  if(type==='marking'||type==='waymark')return['chat'];
+  return[];
+}
+function editHTML(line){
+  var a=TYPE_AREA[line.type],d=TDEFS[line.type],idx=idxOf(line.id),comp=companions(line.type);
+  var multi=buildLines(line).length>1&&line.type!=='custom';
+  return '<div class="mx-ed-hd a-'+a+'"><button type="button" class="mx-back" data-act="back"><i class="ph ph-arrow-left"></i>返回</button>'
+    +'<span class="mx-ed-path">'+esc(AREA_BY[a].label)+' › '+esc(TYPE_GROUP[line.type])+' › <b>'+esc(d.label)+'</b></span>'
+    +'<span class="mx-ed-n"><span class="mx-gem sm"><i>'+(idx+1)+'</i></span>第 '+(idx+1)+' 行</span>'
+    +'<button type="button" class="mx-ed-sw" data-act="replace" title="更換這一行的類型"><i class="ph ph-arrows-left-right"></i></button></div>'
+    +'<div class="mx-ed-body" id="mx-ed">'+renderFields(line)+'</div>'
+    +'<div class="mx-ed-out"><span>輸出</span><code id="mx-ed-out"></code></div>'
+    +'<div class="mx-ed-ft">'
+      +'<label class="mx-f"><span>備註</span><input type="text" class="ml-note" data-id="'+line.id+'" value="'+esc(line.note||'')+'" placeholder="只給自己看，不會輸出"></label>'
+      +'<label class="mx-f mx-f-n"><span>重複</span><input type="number" min="1" max="15" class="ml-repeat-inp" data-id="'+line.id+'" value="'+(parseInt(line.repeat)||1)+'"></label>'
+      +(multi?'<button type="button" class="mx-mini ml-expand-btn" data-id="'+line.id+'" title="把這個建構器拆成一行一行的自訂行"><i class="ph ph-rows"></i>展開成單行</button>':'')
+    +'</div>'
+    +(comp.length?'<div class="mx-comp"><span>常搭配</span>'+comp.map(function(t){return '<button type="button" class="mx-chip sm a-'+TYPE_AREA[t]+'" data-act="comp" data-type="'+t+'"><i class="ph ph-plus"></i>'+esc(splitLabel(t).n)+'</button>';}).join('')+'</div>':'');
+}
+function refreshEdOut(){
+  var el=$('mx-ed-out');if(!el||ui.sel==null)return;
+  var l=getLine(ui.sel);if(!l)return;
+  el.innerHTML=buildLines(l).map(colorize).join('<br>')||'<span class="mx-dim">（沒有輸出）</span>';
+}
+function stageHTML(){
+  var l=ui.sel!=null?getLine(ui.sel):null;
+  if(l&&!ui.replacing)return editHTML(l);
+  return browseHTML();
 }
 
-/* ════════════════════════════════════════════════
-   TOOL HTML
-════════════════════════════════════════════════ */
+/* 自製下拉：沿用市場頁的 .wl-dd 樣式；原生 select 隱藏，change 事件照舊 */
+function closeDDs(){document.querySelectorAll('.mx-dd .wl-dd-list').forEach(function(l){l.hidden=true;l.parentNode.classList.remove('open');});}
+function enhanceSelect(sel){
+  if(sel._mx)return;sel._mx=true;sel.style.display='none';
+  var wrap=document.createElement('div');wrap.className='wl-dd mx-dd';
+  wrap.innerHTML='<button type="button" class="wl-dd-btn" aria-haspopup="listbox" aria-expanded="false"><span></span><i class="ph ph-caret-down"></i></button><div class="wl-dd-list" hidden></div>';
+  sel.parentNode.insertBefore(wrap,sel.nextSibling);
+  var btn=wrap.querySelector('.wl-dd-btn'),list=wrap.querySelector('.wl-dd-list');
+  function draw(){
+    var cur=sel.options[sel.selectedIndex];btn.firstElementChild.textContent=cur?cur.text:'';
+    list.innerHTML=Array.prototype.map.call(sel.options,function(o){return '<button type="button" role="option" class="wl-dd-opt'+(o.selected?' on':'')+'" data-v="'+esc(o.value)+'">'+esc(o.text)+'</button>';}).join('');
+  }
+  draw();
+  btn.addEventListener('click',function(e){
+    e.stopPropagation();var was=!list.hidden;closeDDs();
+    if(!was){list.hidden=false;wrap.classList.add('open');
+      var r=wrap.getBoundingClientRect();wrap.classList.toggle('dd-up',(window.innerHeight-r.bottom)<220&&r.top>(window.innerHeight-r.bottom));}
+  });
+  list.addEventListener('click',function(e){
+    var o=e.target.closest('.wl-dd-opt');if(!o)return;
+    sel.value=o.dataset.v;sel.dispatchEvent(new Event('change',{bubbles:true}));draw();closeDDs();
+  });
+}
+
+function renderStage(keepScroll){
+  var st=$('mx-stage');if(!st)return;
+  var old=$('mx-ed'),sc=old?old.scrollTop:0,pg=window.pageYOffset;
+  st.innerHTML=stageHTML();
+  if(ui.sel!=null&&getLine(ui.sel)&&!ui.replacing){
+    var ed=$('mx-ed');
+    ed.querySelectorAll('select.mf-sel').forEach(enhanceSelect);
+    bindFieldEvents(st);
+    refreshEdOut();
+    if(keepScroll){ed.scrollTop=sc;}
+  }
+}
+
+/* ── 巨集視窗 ── */
+function rowHTML(r,n,start,li){
+  var o=r.o,line=(o!=null&&o!=='g')?getLine(o):null,cls='mx-row';
+  if(line)cls+=' a-'+TYPE_AREA[line.type];else cls+=' mx-auto';
+  if(o!=null&&o===ui.sel)cls+=' sel';
+  var b=cc(r.t);if(b>MAX_C)cls+=' over';else if(b>WARN_C)cls+=' warn';
+  var act='';
+  if(start&&line){
+    act='<span class="mx-act"><button type="button" data-act="up" data-o="'+o+'" title="上移"><i class="ph ph-caret-up"></i></button>'
+      +'<button type="button" data-act="down" data-o="'+o+'" title="下移"><i class="ph ph-caret-down"></i></button>'
+      +'<button type="button" data-act="dup" data-o="'+o+'" title="複製這一行"><i class="ph ph-copy"></i></button>'
+      +'<button type="button" data-act="del" data-o="'+o+'" title="刪除"><i class="ph ph-trash"></i></button></span>';
+  }
+  return '<div class="'+cls+(start?' start':'')+'" data-o="'+(o==null?'':o)+'"'+(line?' draggable="true"':'')+'>'
+    +'<span class="mx-gem"><i>'+n+'</i></span>'
+    +'<span class="mx-txt">'+(r.t?colorize(r.t):'<span class="mx-dim">（空白）</span>')+'</span>'
+    +'<span class="mx-b" title="字元數（中文字佔 3，上限 '+MAX_C+'）">'+b+'</span>'+act
+    +'<span class="mx-meter"><u style="width:'+Math.min(100,Math.round(b/MAX_C*100))+'%"></u></span></div>';
+}
+function warnFix(w){
+  if(/^\/mlock 在第/.test(w.msg))return '<button type="button" class="mx-mini" data-act="fix-mlock">改用全局 /mlock</button>';
+  return '';
+}
+function sideHTML(){
+  var m=model();ui._m=m;
+  if(ui.page>=m.pages.length)ui.page=0;
+  var rows=m.pages[ui.page],W=validate(),bad=W.filter(function(w){return w.lv!=='info';}).length;
+  var maxB=m.texts.reduce(function(a,t){return Math.max(a,cc(t));},0);
+  var h='<div class="mx-side-hd"><input type="text" class="mx-name" id="mx-name" placeholder="未命名巨集" value="'+esc(macroName)+'" maxlength="40">'
+    +'<div class="mx-tools">'
+    +'<button type="button" id="mx-undo" data-act="undo" title="復原 (Ctrl+Z)"'+(hi<=0?' disabled':'')+'><i class="ph ph-arrow-counter-clockwise"></i></button>'
+    +'<button type="button" id="mx-redo" data-act="redo" title="重做 (Ctrl+Y)"'+(hi>=hist.length-1?' disabled':'')+'><i class="ph ph-arrow-clockwise"></i></button>'
+    +'<button type="button" data-act="text" class="'+(ui.textMode?'on':'')+'" title="文字模式：直接編輯或貼上整段巨集"><i class="ph ph-text-aa"></i></button>'
+    +'<button type="button" data-act="lib" data-pop="1" title="我的巨集"><i class="ph ph-books"></i></button>'
+    +'<button type="button" data-act="share" title="複製分享連結"><i class="ph ph-share-network"></i></button>'
+    +'<button type="button" data-act="more" data-pop="1" title="更多"><i class="ph ph-dots-three"></i></button></div></div>'
+    +'<div class="mx-stat"><span class="mx-cnt'+(m.total>MAX?' over':m.total>12?' warn':'')+'"><b>'+m.total+'</b>/'+MAX+' 行</span>'
+    +'<span class="mx-maxb'+(maxB>MAX_C?' over':maxB>WARN_C?' warn':'')+'" title="單行最大字元數（中文字佔 3）">最長 '+maxB+'/'+MAX_C+'</span>'
+    +(bad?'<button type="button" class="mx-wchip" data-act="warn"><i class="ph ph-warning"></i>'+bad+'</button>':'')
+    +'<span class="mx-sp"></span>'
+    +'<button type="button" class="mx-tg'+(globalCfg.mlock?' on':'')+'" data-act="g-mlock" title="執行完畢前不允許其他巨集打斷，建議複雜巨集使用">/mlock</button>'
+    +'<button type="button" class="mx-tg'+(globalCfg.merrorOff?' on':'')+'" data-act="g-merror" title="關閉執行中的錯誤提示，巨集結束後自動恢復">/merror off</button></div>';
+  if(ui.warnOpen&&W.length){
+    h+='<div class="mx-warns">'+W.map(function(w){return '<div class="mx-warn '+w.lv+'"><i class="ph '+(w.lv==='error'?'ph-x-circle':w.lv==='warn'?'ph-warning':'ph-info')+'"></i><span>'+esc(w.msg)+'</span>'+warnFix(w)+'</div>';}).join('')+'</div>';
+  }
+  if(ui.textMode){
+    return h+'<div class="mx-textwrap"><textarea id="mx-ta" class="mx-ta" spellcheck="false" placeholder="貼上或輸入巨集，每行一個指令。">'+esc(ui.textVal)+'</textarea>'
+      +'<div class="mx-text-ft"><button type="button" class="mx-mini on" data-act="text-apply"><i class="ph ph-check"></i>套用為行</button><button type="button" class="mx-mini" data-act="text-cancel">取消</button>'
+      +'<span class="mx-dim">無法辨識的行會保留成自訂行</span></div></div>'
+      +'<div class="mx-side-ft"><button type="button" class="mx-copy" data-plaque="btn" data-act="copy-text"><i class="ph ph-copy"></i><span>複製文字</span></button></div>';
+  }
+  if(m.pages.length>1){
+    h+='<div class="mx-pgs">'+m.pages.map(function(p,i){return '<button type="button" class="mx-pg'+(i===ui.page?' on':'')+'" data-act="page" data-v="'+i+'">巨集 '+(i+1)+'<small>'+p.length+'</small></button>';}).join('')+'</div>';
+  }
+  var h2='<div class="mx-win" id="mx-win">',prev=null,n=0;
+  rows.forEach(function(r,i){
+    var start=r.o!==prev||i===0;
+    if(start&&i>0&&r.o!=null&&r.o!=='g'){var gi=idxOf(r.o);if(gi>=0)h2+='<div class="mx-gap" data-act="gap" data-at="'+gi+'" title="在這裡插入一行"><u></u></div>';}
+    h2+=rowHTML(r,i+1,start);prev=r.o;n++;
+  });
+  for(var k=rows.length;k<MAX;k++){
+    var first=k===rows.length;
+    h2+='<div class="mx-row mx-empty'+(first?' first':'')+'" data-slot="1" data-act="slot"><span class="mx-gem off"><i>'+(k+1)+'</i></span><span class="mx-ghost" data-base="'+(first?'＋ 加入第 '+(k+1)+' 行':'')+'">'+(first?'<u>＋</u> 加入第 '+(k+1)+' 行':'')+'</span></div>';
+  }
+  h2+='</div>';
+  if(m.overflow>0)h2+='<div class="mx-over"><i class="ph ph-x-circle"></i>超出兩個巨集的容量，少了 '+m.overflow+' 行。請刪減內容。</div>';
+  var strip='<div class="mx-strip" data-act="sheet">';
+  for(var s2=0;s2<MAX;s2++)strip+='<span class="mx-gem xs'+(s2<m.pages[0].length?'':' off')+'"></span>';
+  strip+='<b>'+m.total+'/'+MAX+'</b><i class="ph ph-caret-up"></i></div>';
+  var ft='<div class="mx-side-ft">';
+  if(m.pages.length>1){
+    ft+=m.pages.map(function(p,i){return '<button type="button" class="mx-copy'+(i===0?'" data-plaque="btn':' alt')+'" data-act="copy" data-pg="'+i+'"><i class="ph ph-copy"></i><span>複製巨集 '+(i+1)+'</span></button>';}).join('');
+  }else ft+='<button type="button" class="mx-copy" data-plaque="btn" data-act="copy" data-pg="0"><i class="ph ph-copy"></i><span>複製巨集</span></button>';
+  ft+='</div>';
+  return h+h2+ft+strip;
+}
+function renderSide(){
+  var sd=$('mx-side');if(!sd)return;
+  var keep=document.activeElement&&document.activeElement.id==='mx-name';
+  var pos=keep?document.activeElement.selectionStart:0,win=$('mx-win'),st=win?win.scrollTop:0;
+  sd.innerHTML=sideHTML();
+  sd.classList.toggle('open',ui.sheet);
+  var w2=$('mx-win');if(w2)w2.scrollTop=st;
+  if(keep){var nm=$('mx-name');nm.focus();try{nm.setSelectionRange(pos,pos);}catch(e){}}
+  refreshUndo();
+  if(window.PlaqueUI&&window.PlaqueUI.scan)window.PlaqueUI.scan(sd);
+}
+function renderAll(){renderStage(true);renderSide();}
 function toolHTML(){
   return '<h2 class="unified-gold-header small"><i class="ph ph-gear-six cr-title-ic" aria-hidden="true"></i>巨集建立工具</h2>'
     +'<div class="fancy-divider mini"><div class="long-silk-line-short"></div></div>'
-    +'<p class="mt-intro">FF14 巨集上限 <b>15 行</b>，每行上限 <b>180 字元</b>（中文字每個佔3字元，英文/符號/空格各佔1字元）。工具即時計算並提示問題。每一行均可自由修改、增減及調換順序。模板供快速開始，可自由修改。</p>'
-    +'<div class="mt-steps"><span class="mt-step active">① 選擇模板或新增行</span><span class="mt-step-arr">→</span><span class="mt-step">② 展開各行進行設定</span><span class="mt-step-arr">→</span><span class="mt-step">③ 確認後複製貼入遊戲</span></div>'
-    // Global settings
-    +'<div class="mt-global-bar">'
-      +'<span class="mt-global-ttl">全局設定（自動加入巨集開頭）</span>'
-      +'<label class="mt-glbl-chk" title="執行完畢前不允許其他巨集打斷，建議複雜巨集使用"><input type="checkbox" id="g-mlock"'+(globalCfg.mlock?' checked':'')+'> /mlock　鎖定巨集</label>'
-      +'<label class="mt-glbl-chk" title="關閉執行中的錯誤提示，巨集結束後自動恢復，技能輪換及整理類巨集建議開啟"><input type="checkbox" id="g-merror"'+(globalCfg.merrorOff?' checked':'')+'>  /merror off　關閉錯誤提示</label>'
-    +'</div>'
-    +varBarHTML()
-    // Templates
-    +'<div class="mt-sec">'
-      +'<div class="mt-sec-hdr"><span class="mt-sec-lbl">模板快速開始</span>'
-      +'<button class="mt-clearall" id="mt-clearall">清空所有行</button></div>'
-      +'<div class="mt-tpl-row">'
-        +TEMPLATES.map(function(t){return '<div class="mt-tpl-card" data-tpl="'+t.id+'"><div class="mt-tpl-icon">'+t.icon+'</div><div class="mt-tpl-info"><div class="mt-tpl-name">'+t.label+'</div><div class="mt-tpl-desc">'+t.desc+'</div></div></div>';}).join('')
-      +'</div>'
-    +'</div>'
-    // Line editor
-    +'<div class="mt-sec mt-editor-sec">'
-      +'<div class="mt-sec-hdr">'
-        +'<span class="mt-sec-lbl">行編輯器</span>'
-        +'<span class="mt3-hist"><button type="button" id="mt3-undo" title="復原 (Ctrl+Z)">↶</button><button type="button" id="mt3-redo" title="重做 (Ctrl+Y)">↷</button><button type="button" id="mt3-mode" class="mt3-modebtn" title="全展開：每行欄位都看得到；聚焦：一次只展開一行"></button></span>'+'<span class="mt-lc" id="mt-lc">0 / 15 行</span>'
-      +'</div>'
-      +'<div class="mt-lines" id="mt-lines"><div class="mt-empty">尚無行 — 選擇模板，或按「＋ 新增行」</div></div>'
-      +'<div id="mt-picker-wrap"></div>'
-      +'<button class="mt-addbtn" id="mt-addbtn">＋ 新增行</button>'
-    +'</div>'
-    // Warnings
-    +'<div class="mt-sec mt-warn-sec" id="mt-warn-sec" style="display:none">'
-      +'<div class="mt-sec-lbl">提示與警告</div><div id="mt-warns"></div>'
-    +'</div>'
-    // Preview
-    +'<div class="mt-sec" id="mt-preview-sec">'
-      +'<div class="mt-sec-hdr"><span class="mt-sec-lbl">巨集預覽</span>'
-      +'<div style="display:flex;gap:8px;">'
-      +'<button class="mt-edit-toggle" id="mt-edit-toggle">切換編輯</button>'
-      +'<button class="mt-copybtn" id="mt-copybtn">複製巨集</button>'
-      +'</div></div>'
-      +'<div id="mt-preview-wrap"><pre class="mt-preview" id="mt-preview">（巨集為空）</pre></div>'
-      +'<div id="mt-split-area"></div>'
-    +'</div>'
-    // Pronouns
-    +'<div class="mt-sec">'
-      +'<div class="mt-sec-lbl">常用指令代名詞 <span class="mt-prosub">（點擊可複製）</span></div>'
-      +'<div class="mt-prorow">'+PRONS.map(function(p){return '<span class="mt-pro" title="'+esc(p.d)+'">'+esc(p.s)+'</span>';}).join('')+'</div>'
-    +'</div>';
+    +'<div class="mx"><section class="mx-stage" id="mx-stage"></section><aside class="mx-side" id="mx-side"></aside></div>'
+    +'<div class="mx-pop" id="mx-pop" hidden></div>';
 }
 
 /* ════════════════════════════════════════════════
-   RENDER
+   動作與事件
 ════════════════════════════════════════════════ */
-function render(){
-  mt3Mode();
-  var el=document.getElementById('mt-lines');
-  if(!el) return;
-  el.innerHTML=lines.length?lines.map(function(l,i){return lineHTML(l,i);}).join('')
-    :'<div class="mt-empty">尚無行 — 選擇模板，或按「＋ 新增行」</div>';
-  var lc=document.getElementById('mt-lc');
-  if(lc){var t=getTotalLines();lc.innerHTML=gemsHTML(t)+'<span class="mt3-lcn">'+t+' / 15 行</span>';lc.className='mt-lc'+(t>MAX?' over':t>12?' warn':'');}
-  var ab=document.getElementById('mt-addbtn');if(ab) ab.disabled=getTotalLines()>=MAX;
-  var pw=document.getElementById('mt-picker-wrap');
-  if(pw){
-    var showPicker=(pickerCat!==null)||(pickerCat===null&&!!pw.dataset.open);
-    pw.innerHTML=showPicker?pickerHTML():'';
-    if(showPicker)bindPickerEvents();
+function patchSide(){
+  var sd=$('mx-side');if(!sd)return;
+  var html=sideHTML(),tmp=document.createElement('div');tmp.innerHTML=html;
+  var cur=Array.prototype.slice.call(sd.children),nw=Array.prototype.slice.call(tmp.children);
+  var sig=function(a){return a.map(function(c){return c.className.split(' ')[0];}).join('|');};
+  if(sig(cur)!==sig(nw)){renderSide();return;}
+  var win=$('mx-win'),st=win?win.scrollTop:0;
+  for(var i=0;i<cur.length;i++){
+    if(cur[i].outerHTML===nw[i].outerHTML)continue;
+    if(cur[i].contains(document.activeElement)&&cur[i].classList.contains('mx-side-hd'))continue;
+    cur[i].replaceWith(nw[i]);
   }
-  bindLineEvents();
-  updatePreview();
-  mt3After();
+  var w2=$('mx-win');if(w2)w2.scrollTop=st;
+  sd.classList.toggle('open',ui.sheet);refreshUndo();
 }
 
-function updatePreview(){
-  var out=getAllOutput();
-  // Don't overwrite if user is editing
-  if(!previewEditable){
-    var pre=document.getElementById('mt-preview');
-    if(pre){if(out.length)pre.innerHTML=out.map(function(s){return '<span class="mt3-ln">'+esc(s)+'</span>';}).join('\n');else pre.textContent='（巨集為空）';}
+function rectPt(el){var r=el.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};}
+function fly(a,b,done){
+  var m=document.createElement('span');m.className='mx-mote';
+  m.style.left=a.x+'px';m.style.top=a.y+'px';document.body.appendChild(m);
+  var dx=b.x-a.x,dy=b.y-a.y;
+  var an=m.animate([
+    {transform:'translate(-50%,-50%) scale(.5)',opacity:0},
+    {transform:'translate(-50%,-50%) scale(1)',opacity:1,offset:.15},
+    {transform:'translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px)) scale(1)',opacity:1,offset:.88},
+    {transform:'translate(calc(-50% + '+dx+'px),calc(-50% + '+dy+'px)) scale(1.7)',opacity:0}
+  ],{duration:640,easing:'cubic-bezier(.22,.8,.3,1)'});
+  an.onfinish=function(){m.remove();done();};
+}
+function ringGem(g){if(!g)return;g.classList.add('mx-ring');setTimeout(function(){g.classList.remove('mx-ring');},1400);}
+function ringRect(el){
+  if(!el||reduced())return;
+  var r=el.getBoundingClientRect(),NS='http://www.w3.org/2000/svg',w=r.width+8,h=r.height+8;
+  var s=document.createElementNS(NS,'svg');s.setAttribute('class','mx-rr');
+  s.style.cssText='left:'+(r.left-4)+'px;top:'+(r.top-4)+'px;width:'+w+'px;height:'+h+'px';
+  s.setAttribute('viewBox','0 0 '+w+' '+h);
+  s.innerHTML='<rect x="1.5" y="1.5" width="'+(w-3)+'" height="'+(h-3)+'" rx="3" pathLength="100"/>';
+  document.body.appendChild(s);setTimeout(function(){s.remove();},1400);
+}
+/* 接力：新增一行後，光點從選項飛到視窗裡的新行（行號寶石轉一圈），再接力到第一個要填的欄位 */
+function relay(from,lineId){
+  var gem=document.querySelector('#mx-win .mx-row[data-o="'+lineId+'"] .mx-gem');
+  var hop=function(){
+    var ed=$('mx-ed');if(!ed)return;
+    var ins=ed.querySelectorAll('input.mf-inp:not([type=checkbox])'),t=null;
+    for(var i=0;i<ins.length;i++){if(!ins[i].value&&ins[i].offsetParent){t=ins[i];break;}}
+    if(!t)return;
+    try{t.focus({preventScroll:true});}catch(e){t.focus();}
+    ringRect(t);
+  };
+  var go=function(){ringGem(gem);setTimeout(hop,reduced()?0:560);};
+  if(!from||!gem||reduced()||!document.body.animate){go();return;}
+  fly(from,rectPt(gem),go);
+}
+function addLine(type,params,from,rep){
+  var line={id:nextId++,type:type,params:params||{},note:'',expanded:false,repeat:rep||1};
+  var at=ui.insertAt!=null?Math.min(ui.insertAt,lines.length):lines.length;
+  lines.splice(at,0,line);
+  ui.insertAt=null;ui.replacing=null;ui.sel=line.id;ui.query='';
+  commit();renderAll();relay(from,line.id);
+  return line;
+}
+function replaceType(type,from){
+  var l=getLine(ui.replacing);if(!l)return;
+  l.type=type;l.params={};ui.sel=l.id;ui.replacing=null;ui.query='';
+  commit();renderAll();relay(from,l.id);
+}
+function moveLine(id,toId,after){
+  var i=idxOf(id);if(i<0||id===toId)return;
+  var l=lines.splice(i,1)[0],j=idxOf(toId);if(j<0){lines.splice(i,0,l);return;}
+  lines.splice(after?j+1:j,0,l);render();
+}
+function swapLine(id,dir){
+  var i=idxOf(id),j=i+dir;if(i<0||j<0||j>=lines.length)return;
+  var t=lines[i];lines[i]=lines[j];lines[j]=t;render();
+}
+function applyTpl(id){
+  var tpl=TEMPLATES.filter(function(t){return t.id===id;})[0];if(!tpl)return;
+  if(lines.length>0&&!window.confirm('套用「'+tpl.label+'」會取代現有所有行（可用復原還原），確認？'))return;
+  lines=tpl.lines.map(function(l){return Object.assign({},l,{id:nextId++,params:dc(l.params),expanded:false});});
+  ui.sel=null;ui.insertAt=null;ui.replacing=null;ui.area=null;ui.mode='area';
+  commit();renderAll();
+}
+function parseText(txt){
+  var out=[];
+  txt.split(/\r\n|\r|\n/).forEach(function(raw){
+    var s=raw.replace(/\s+$/,'');if(!s.trim())return;
+    var p=PARSE.parseLine(E,FLD,s);
+    out.push({id:nextId++,type:p?p.type:'custom',params:p?p.params:{text:s},note:'',expanded:false,repeat:1});
+  });
+  return out;
+}
+function copyOut(pg,btn){
+  var m=ui._m||model(),rows=m.pages[pg]||[];
+  var out=rows.map(function(r){return r.t;}).join('\r\n');
+  if(!out.trim()){window.alert('巨集為空，請先新增內容');return;}
+  copyText(out,btn,btn.dataset.lbl||'複製巨集');
+  /* 複製成功只做亮起：該頁寶石依序閃過 */
+  document.querySelectorAll('#mx-win .mx-row:not(.mx-empty) .mx-gem').forEach(function(g,i){
+    setTimeout(function(){g.classList.add('mx-flash');setTimeout(function(){g.classList.remove('mx-flash');},500);},reduced()?0:i*28);
+  });
+}
+
+/* ── 浮動面板（我的巨集／更多） ── */
+function closePop(){var p=$('mx-pop');if(p){p.hidden=true;p.innerHTML='';}}
+function openPop(anchor,html){
+  var p=$('mx-pop');if(!p)return;
+  p.innerHTML=html;p.hidden=false;
+  var r=anchor.getBoundingClientRect(),w=Math.min(320,window.innerWidth-16);
+  p.style.width=w+'px';
+  p.style.left=Math.max(8,Math.min(window.innerWidth-w-8,r.right-w))+'px';
+  p.style.top=Math.min(window.innerHeight-60,r.bottom+6)+'px';
+}
+function getLib(){try{var a=JSON.parse(localStorage.getItem(LS_LIB)||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}}
+function setLib(a){try{localStorage.setItem(LS_LIB,JSON.stringify(a));return true;}catch(e){window.alert('儲存失敗：瀏覽器儲存空間不可用');return false;}}
+function libHTML(){
+  var lib=getLib();
+  return '<div class="mx-pop-t">我的巨集<small>只存在這個瀏覽器，請定期匯出備份</small></div>'
+    +'<button type="button" class="mx-mini on" data-act="lib-save"><i class="ph ph-floppy-disk"></i>儲存目前的巨集</button>'
+    +'<div class="mx-lib">'+(lib.length?lib.map(function(x,i){
+      return '<div class="mx-lib-i"><span><b>'+esc(x.name||'未命名')+'</b><small>'+(x.data&&x.data.l?x.data.l.length:0)+' 行</small></span>'
+        +'<button type="button" data-act="lib-load" data-i="'+i+'" title="載入"><i class="ph ph-download-simple"></i></button>'
+        +'<button type="button" data-act="lib-del" data-i="'+i+'" title="刪除"><i class="ph ph-trash"></i></button></div>';
+    }).join(''):'<div class="mx-dim">還沒有儲存的巨集</div>')+'</div>'
+    +'<div class="mx-pop-ft"><button type="button" class="mx-mini" data-act="lib-export"><i class="ph ph-export"></i>匯出全部</button>'
+    +'<button type="button" class="mx-mini" data-act="lib-import"><i class="ph ph-upload-simple"></i>匯入</button></div>'
+    +'<input type="file" id="mx-file" accept="application/json,.json" hidden>';
+}
+function moreHTML(){
+  return '<div class="mx-pop-t">更多</div>'
+    +'<div class="mx-more-row"><span>統一聊天頻道</span><select id="mx-allch" class="mf-sel">'+so(CH,'p')+'</select><button type="button" class="mx-mini" data-act="all-ch">套用</button></div>'
+    +'<button type="button" class="mx-mini danger" data-act="clear-all"><i class="ph ph-trash"></i>清空所有行</button>'
+    +'<div class="mx-pop-t">代名詞速查<small>點一下複製</small></div><div class="mx-pros">'
+    +PRONS.map(function(p){return '<span class="mx-pro" data-sym="'+esc(p.s)+'" title="'+esc(p.d)+'">'+esc(p.s)+'</span>';}).join('')+'</div>';
+}
+function snapshotData(){return{v:1,n:macroName,g:[globalCfg.mlock?1:0,globalCfg.merrorOff?1:0],l:lines.map(function(l){return[l.type,l.params,l.note||'',parseInt(l.repeat)||1];})};}
+function loadData(o){
+  if(!o||!Array.isArray(o.l))return false;
+  lines=o.l.filter(function(x){return TDEFS[x[0]];}).map(function(x){return{id:nextId++,type:x[0],params:x[1]||{},note:x[2]||'',expanded:false,repeat:parseInt(x[3])||1};});
+  globalCfg={mlock:!!(o.g&&o.g[0]),merrorOff:!!(o.g&&o.g[1])};macroName=o.n||'';
+  ui.sel=null;ui.insertAt=null;ui.replacing=null;ui.textMode=false;
+  return true;
+}
+function b64enc(s){return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+function b64dec(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return decodeURIComponent(escape(atob(s)));}
+function checkSharedOnLoad(){
+  var m=/[#&]m=([^&]+)/.exec(window.location.hash);if(!m)return;
+  var o=null;try{o=JSON.parse(b64dec(m[1]));}catch(e){}
+  if(o&&Array.isArray(o.l)&&o.l.length){
+    var ok=!lines.length||window.confirm('偵測到分享的巨集（'+o.l.length+' 行'+(o.n?'，「'+o.n+'」':'')+'），要載入嗎？\n（會取代目前編輯中的內容，可用復原還原）');
+    if(ok){loadData(o);commit();}
   }
-  var warns=validate();
-  var ws=document.getElementById('mt-warn-sec'),wc=document.getElementById('mt-warns');
-  if(ws&&wc){
-    if(!warns.length){ws.style.display='none';}
-    else{ws.style.display='';wc.innerHTML=warns.map(function(w){
-      return '<div class="mt-warn '+w.lv+'">'+(w.lv==='error'?'⛔':w.lv==='warn'?'⚠️':'ℹ️')+' '+esc(w.msg)+'</div>';
-    }).join('');}
+  try{history.replaceState(null,'',window.location.pathname+window.location.search);}catch(e){}
+}
+
+/* ── 事件 ── */
+function onAct(act,el,e){
+  var a=el.dataset;
+  switch(act){
+    case 'mode':ui.mode=a.v;ui.query='';renderStage();break;
+    case 'area':ui.area=a.v;ui.query='';renderStage();break;
+    case 'tag':{var i=ui.tags.indexOf(a.v);if(i>=0)ui.tags.splice(i,1);else ui.tags.push(a.v);renderStage();break;}
+    case 'tag-clear':ui.tags=[];renderStage();break;
+    case 'tag-all':ui.tagAll=!ui.tagAll;renderStage();break;
+    case 'chip':{var pt=rectPt(el);if(ui.replacing)replaceType(a.type,pt);else addLine(a.type,{},pt);break;}
+    case 'direct':{var q=ui.query.trim(),p=PARSE.parseLine(E,FLD,q);addLine(p?p.type:'custom',p?p.params:{text:q},rectPt(el));break;}
+    case 'comp':{var idx=idxOf(ui.sel);ui.insertAt=idx>=0?idx+1:null;addLine(a.type,{},rectPt(el));break;}
+    case 'tpl':applyTpl(a.id);break;
+    case 'back':ui.sel=null;ui.replacing=null;renderAll();break;
+    case 'replace':ui.replacing=ui.sel;renderStage();break;
+    case 'cancel-replace':ui.replacing=null;renderStage();break;
+    case 'cancel-insert':ui.insertAt=null;renderStage();break;
+    case 'gap':ui.insertAt=+a.at;ui.sel=null;ui.replacing=null;renderAll();focusSearch();break;
+    case 'slot':ui.insertAt=null;ui.sel=null;ui.replacing=null;ui.page=Math.max(0,(ui._m?ui._m.pages.length:1)-1);renderAll();focusSearch();break;
+    case 'up':swapLine(+a.o,-1);break;
+    case 'down':swapLine(+a.o,1);break;
+    case 'dup':{var s=getLine(+a.o);if(s){var c=Object.assign({},s,{id:nextId++,params:dc(s.params)});lines.splice(idxOf(s.id)+1,0,c);ui.sel=c.id;render();}break;}
+    case 'del':{var id=+a.o;lines=lines.filter(function(l){return l.id!==id;});if(ui.sel===id)ui.sel=null;render();break;}
+    case 'g-mlock':globalCfg.mlock=!globalCfg.mlock;render();break;
+    case 'g-merror':globalCfg.merrorOff=!globalCfg.merrorOff;render();break;
+    case 'undo':undo();break;
+    case 'redo':redo();break;
+    case 'warn':ui.warnOpen=!ui.warnOpen;renderSide();break;
+    case 'fix-mlock':lines=lines.filter(function(l){return l.type!=='mlock';});globalCfg.mlock=true;if(ui.sel!=null&&!getLine(ui.sel))ui.sel=null;render();break;
+    case 'page':ui.page=+a.v;renderSide();break;
+    case 'sheet':ui.sheet=!ui.sheet;$('mx-side').classList.toggle('open',ui.sheet);break;
+    case 'copy':copyOut(+a.pg,el);break;
+    case 'copy-text':{var ta=$('mx-ta');var t=ta?ta.value.replace(/\r\n|\r|\n/g,'\r\n'):'';if(!t.trim()){window.alert('沒有內容可複製');break;}copyText(t,el,'複製文字');break;}
+    case 'text':
+      if(ui.textMode){ui.textMode=false;renderSide();}
+      else{ui.textVal=(ui._m||model()).texts.filter(function(t,i){return true;}).filter(function(t){return !(globalCfg.mlock&&t==='/mlock')&&!(globalCfg.merrorOff&&t==='/merror off');}).join('\n');ui.textMode=true;renderSide();var ta2=$('mx-ta');if(ta2)ta2.focus();}
+      break;
+    case 'text-apply':{var ta3=$('mx-ta'),ls=parseText(ta3?ta3.value:'');
+      if(!ls.length&&lines.length&&!window.confirm('文字是空的，套用會清空所有行，確認？'))break;
+      lines=ls;ui.sel=null;ui.textMode=false;ui.page=0;render();break;}
+    case 'text-cancel':ui.textMode=false;renderSide();break;
+    case 'share':{
+      var url=window.location.origin+window.location.pathname+window.location.search+'#page=macro&m='+b64enc(JSON.stringify(snapshotData()));
+      copyText(url,{textContent:'',classList:{add:function(){},remove:function(){}}},'');
+      el.innerHTML='<i class="ph ph-check"></i>';setTimeout(function(){el.innerHTML='<i class="ph ph-share-network"></i>';},1800);break;}
+    case 'lib':openPop(el,libHTML());break;
+    case 'more':openPop(el,moreHTML());break;
+    case 'lib-save':{var lib=getLib(),nm=(macroName||'').trim()||('巨集 '+(lib.length+1));
+      var ex=lib.filter(function(x){return x.name===nm;})[0];
+      if(ex&&!window.confirm('已有同名的「'+nm+'」，要覆蓋嗎？'))break;
+      var rec={name:nm,t:Date.now(),data:snapshotData()};
+      if(ex)lib[lib.indexOf(ex)]=rec;else lib.push(rec);
+      if(setLib(lib)){macroName=nm;renderSide();var p=$('mx-pop');if(p&&!p.hidden)p.innerHTML=libHTML();}break;}
+    case 'lib-load':{var x=getLib()[+a.i];if(!x)break;
+      if(lines.length&&!window.confirm('載入「'+x.name+'」會取代目前編輯中的內容（可用復原還原），確認？'))break;
+      if(loadData(x.data)){commit();closePop();renderAll();}break;}
+    case 'lib-del':{var l2=getLib(),y=l2[+a.i];if(!y||!window.confirm('刪除「'+y.name+'」？'))break;l2.splice(+a.i,1);setLib(l2);$('mx-pop').innerHTML=libHTML();break;}
+    case 'lib-export':{var blob=new Blob([JSON.stringify(getLib(),null,1)],{type:'application/json'}),u=URL.createObjectURL(blob),an=document.createElement('a');
+      an.href=u;an.download='ffxiv-macros.json';document.body.appendChild(an);an.click();an.remove();setTimeout(function(){URL.revokeObjectURL(u);},1000);break;}
+    case 'lib-import':{var f=$('mx-file');if(f)f.click();break;}
+    case 'all-ch':{var v=$('mx-allch').value;lines.forEach(function(l){
+        if(l.type==='chat'||l.type==='chatcountdown')l.params.channel=v;
+        if(l.params&&l.params.msgs)l.params.msgs.forEach(function(m){if(m.channel)m.channel=v;});});
+      render();closePop();break;}
+    case 'clear-all':if(lines.length&&window.confirm('確定清空所有行？（可用復原還原）')){lines=[];ui.sel=null;render();closePop();}break;
   }
-  // Split button
-  var sa=document.getElementById('mt-split-area');
-  if(sa){
-    if(out.length>MAX){
-      splitData=doSplit(out);
-      var overflowNote=splitData.overflow>0
-        ?'<div class="mt-split-note mt-split-error">⛔ 內容過長，即使分割成兩個巨集仍放不下，巨集 2 已被截斷，少了 '+splitData.overflow+' 行（未包含在下方輸出中）！請先刪減部分內容，或將巨集2的內容再拆成更多自訂行/巨集。</div>'
-        :'';
-      sa.innerHTML='<div class="mt-split-note">⚠ 此巨集超過 '+MAX+' 行，已自動分割成兩個巨集。兩個都需分別複製使用，請依序執行巨集1 → 巨集2。</div>'
-        +overflowNote
-        +'<div class="mt-dual">'
-          +'<div class="mt-dual-col"><div class="mt-dual-hdr">巨集 1（'+splitData.m1.length+'/'+MAX+' 行）</div><pre class="mt-split-pre">'+esc(splitData.m1.join('\n'))+'</pre><button class="mt-split-copy" data-which="1">複製巨集 1</button></div>'
-          +'<div class="mt-dual-col"><div class="mt-dual-hdr">巨集 2（'+splitData.m2.length+'/'+MAX+' 行'+(splitData.overflow>0?'，另有 '+splitData.overflow+' 行被截斷':'')+'）</div><pre class="mt-split-pre">'+esc(splitData.m2.join('\n'))+'</pre><button class="mt-split-copy" data-which="2">複製巨集 2</button></div>'
-        +'</div>';
-      document.getElementById('mt-copybtn').style.display='none';
-    } else {
-      splitData=null;sa.innerHTML='';
-      var cb=document.getElementById('mt-copybtn');if(cb)cb.style.display='';
-    }
-  }
 }
-
-function updateRow(id){
-  var line=lines.find(function(l){return l.id===id;});if(!line)return;
-  var row=document.querySelector('.ml-row[data-id="'+id+'"]');if(!row)return;
-  var cmds=buildLines(line);var hdr_chars=cc(cmds[0]||'');
-  var cc_class=hdr_chars>MAX_C?' ml-chars-over':hdr_chars>WARN_C?' ml-chars-warn':'';
-  var charEl=row.querySelector('.ml-chars');if(charEl){charEl.textContent=hdr_chars+'/180';charEl.className='ml-chars'+cc_class;}
-  var sumEl=row.querySelector('.ml-summary');if(sumEl)sumEl.innerHTML=lineSummary(line);
-  var cmdEl=row.querySelector('.ml-cmd-preview');if(cmdEl)cmdEl.innerHTML=cmds.map(function(s){return esc(s);}).join('<br>');
-  mt3Snap();mt3Fly(id);stripUI(id);
-}
-
-/* ── Split logic ── */
-function doSplit(allLines){
-  var header=[];
-  if(globalCfg.mlock) header.push('/mlock');
-  if(globalCfg.merrorOff) header.push('/merror off');
-  // Separate micon lines from the rest (already at end from getAllOutput)
-  var miconLines=allLines.filter(function(s){return s.startsWith('/micon');});
-  var bodyLines=allLines.filter(function(s){return !s.startsWith('/micon');});
-  // m1: header lines at start, micon at end, body fills the middle
-  var m1Max=MAX-header.length-(miconLines.length?1:0);
-  var m1Body=bodyLines.slice(0,m1Max);
-  var m1=header.concat(m1Body);
-  if(miconLines.length) m1.push(miconLines[0]); // first micon at end of m1
-  // m2: remaining body lines, header again, micon at end
-  var rawM2=bodyLines.slice(m1Max);
-  var m2header=header.slice();
-  var m2body=rawM2;
-  var m2=m2header.concat(m2body);
-  if(miconLines.length) m2.push(miconLines[0]); // micon at end of m2 too
-  var overflow=Math.max(0,m2.length-MAX);
-  m2=m2.slice(0,MAX);
-  return{m1:m1,m2:m2,overflow:overflow};
-}
-
-/* ── Force exit preview edit mode (call before any major content replacement) ── */
-function exitPreviewEdit(){
-  if(!previewEditable) return;
-  previewEditable=false;
-  var etBtn=document.getElementById('mt-edit-toggle');
-  if(etBtn){etBtn.textContent='切換編輯';etBtn.classList.remove('active');}
-  var wrap=document.getElementById('mt-preview-wrap');
-  if(wrap) wrap.innerHTML='<pre class="mt-preview" id="mt-preview"></pre>';
-}
-
-/* ════════════════════════════════════════════════
-   EVENTS
-════════════════════════════════════════════════ */
+function focusSearch(){var q=$('mx-q');if(q){q.focus();}}
 function bindRoot(){
-  // Global settings
-  var gm=document.getElementById('g-mlock');
-  if(gm)gm.addEventListener('change',function(){globalCfg.mlock=gm.checked;render();});
-  var ge=document.getElementById('g-merror');
-  if(ge)ge.addEventListener('change',function(){globalCfg.merrorOff=ge.checked;render();});
-  // Templates
-  var tr=document.querySelector('.mt-tpl-row');
-  if(tr)tr.addEventListener('click',function(e){
-    var card=e.target.closest('.mt-tpl-card');if(!card)return;
-    var tpl=TEMPLATES.filter(function(t){return t.id===card.dataset.tpl;})[0];if(!tpl)return;
-    if(lines.length>0&&!confirm('套用「'+tpl.label+'」模板將取代現有所有行，確認？'))return;
-    exitPreviewEdit();
-    lines=tpl.lines.map(function(l){return Object.assign({},l,{id:nextId++,params:dc(l.params),expanded:false});});
-    render();
-  });
-  // Add line button
-  var ab=document.getElementById('mt-addbtn');
-  if(ab)ab.addEventListener('click',function(){
-    var pw=document.getElementById('mt-picker-wrap');
-    if(!pw) return;
-    if(pw.dataset.open){delete pw.dataset.open;pw.innerHTML='';pickerCat=null;pickerSearch='';return;}
-    pw.dataset.open='1';pickerCat=null;pickerSearch='';pw.innerHTML=pickerHTML();
-    bindPickerEvents();
-  });
-  // Clear all
-  var ca=document.getElementById('mt-clearall');
-  if(ca)ca.addEventListener('click',function(){
-    if(!lines.length)return;if(!confirm('確定清空所有行？'))return;
-    exitPreviewEdit();
-    lines=[];render();
-  });
-  // Copy button
-  // Split copy buttons: use event delegation — updatePreview() rebuilds sa.innerHTML
-  // every time, so direct per-button listeners added in bindLineEvents() are lost.
-  // Delegating to the static #mt-split-area container survives all innerHTML rebuilds.
-  var splitSa=document.getElementById('mt-split-area');
-  if(splitSa)splitSa.addEventListener('click',function(e){
-    var btn=e.target.closest('.mt-split-copy');
-    if(!btn||!splitData)return;
-    var which=btn.dataset.which;
-    var out=(which==='1'?splitData.m1:splitData.m2).join('\r\n');
-    copyText(out,btn,'複製巨集 '+which);
-  });
-
-  var cb=document.getElementById('mt-copybtn');
-  if(cb)cb.addEventListener('click',function(){
-    var out;
-    if(previewEditable){
-      var ta=document.getElementById('mt-preview-edit');
-      out=ta?ta.value.replace(/\r\n|\r|\n/g,'\r\n'):'';
-    } else {
-      out=getAllOutput().join('\r\n');
+  var root=$('macro-root');
+  root.addEventListener('click',function(e){
+    var pro=e.target.closest('.mx-pro');
+    if(pro){var s=pro.dataset.sym;if(navigator.clipboard)navigator.clipboard.writeText(s).catch(function(){});pro.classList.add('copied');setTimeout(function(){pro.classList.remove('copied');},700);return;}
+    var el=e.target.closest('[data-act]');
+    if(el&&root.contains(el)){
+      /* 巨集視窗的行：點擊（不是點到小按鈕）＝選取該行 */
+      onAct(el.dataset.act,el,e);return;
     }
-    if(!out.trim()){alert('巨集為空，請先新增內容');return;}
-    copyText(out,cb,'複製巨集');
-  });
-  // Edit toggle
-  var etBtn=document.getElementById('mt-edit-toggle');
-  if(etBtn)etBtn.addEventListener('click',function(){
-    previewEditable=!previewEditable;
-    var wrap=document.getElementById('mt-preview-wrap');
-    if(!wrap)return;
-    if(previewEditable){
-      var pre=document.getElementById('mt-preview');
-      var content=pre?pre.textContent:'';
-      var rect=pre?pre.getBoundingClientRect():{width:0,height:0};
-      var w=Math.round(rect.width)||wrap.offsetWidth||0;
-      var h=Math.max(Math.round(rect.height),160);
-      var ta=document.createElement('textarea');
-      ta.id='mt-preview-edit';ta.className='mt-preview-edit';
-      ta.value=content;
-      ta.style.cssText='height:'+h+'px;width:'+w+'px;max-width:100%;box-sizing:border-box;resize:both;';
-      wrap.innerHTML='';wrap.appendChild(ta);
-      etBtn.textContent='鎖定預覽';etBtn.classList.add('active');
-      ta.focus();
-    } else {
-      var ta2=document.getElementById('mt-preview-edit');
-      var editedContent=ta2?ta2.value:'';
-      wrap.innerHTML='<pre class="mt-preview" id="mt-preview"></pre>';
-      etBtn.textContent='切換編輯';etBtn.classList.remove('active');
-      updatePreview();
-      // updatePreview() 會用結構化的 lines 資料重新產生內容，
-      // 蓋掉使用者剛才手動編輯的文字；鎖定後應該保留使用者編輯的結果，
-      // 所以驗證/分割等副作用跑完後，再把顯示內容換回使用者編輯的版本。
-      var pre2=document.getElementById('mt-preview');
-      if(pre2) pre2.textContent=editedContent;
+    var row=e.target.closest('#mx-win .mx-row[data-o]');
+    if(row&&row.dataset.o&&row.dataset.o!=='g'&&!e.target.closest('.mx-act')){
+      ui.sel=+row.dataset.o;ui.replacing=null;
+      if(ui.sheet){ui.sheet=false;}
+      renderAll();
+      var st=$('mx-stage');if(st&&st.getBoundingClientRect().top<0)st.scrollIntoView({block:'start',behavior:'smooth'});
     }
   });
-  // Pronouns
-  document.querySelectorAll('.mt-pro').forEach(function(chip){
-    chip.addEventListener('click',function(){
-      var s=chip.textContent;
-      if(navigator.clipboard)navigator.clipboard.writeText(s).catch(function(){});
-      chip.classList.add('copied');setTimeout(function(){chip.classList.remove('copied');},700);
-    });
+  root.addEventListener('input',function(e){
+    var t=e.target;
+    if(t.id==='mx-q'){ui.query=t.value;var b=$('mx-st-body');if(b)b.innerHTML=browseBody();}
+    else if(t.id==='mx-name'){macroName=t.value;scheduleCommit();}
+    else if(t.id==='mx-ta'){ui.textVal=t.value;}
   });
-  // Inline pronoun insert
+  root.addEventListener('keydown',function(e){
+    if(e.target.id==='mx-q'){
+      if(e.key==='Enter'){
+        var q=ui.query.trim();if(!q)return;
+        var d=document.querySelector('#mx-st-body .mx-chip');
+        if(d){e.preventDefault();d.click();}
+      }else if(e.key==='Escape'){ui.query='';renderStage();focusSearch();}
+    }
+  });
+  /* 拖曳排序 */
+  root.addEventListener('dragstart',function(e){
+    var r=e.target.closest&&e.target.closest('#mx-win .mx-row[data-o]');
+    if(!r||!r.dataset.o||r.dataset.o==='g'){return;}
+    ui.drag=+r.dataset.o;e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',String(ui.drag));}catch(x){}
+  });
+  root.addEventListener('dragover',function(e){
+    var r=e.target.closest&&e.target.closest('#mx-win .mx-row[data-o]');
+    if(ui.drag==null||!r||!r.dataset.o||r.dataset.o==='g')return;
+    e.preventDefault();
+    document.querySelectorAll('#mx-win .dz-up,#mx-win .dz-dn').forEach(function(x){x.classList.remove('dz-up','dz-dn');});
+    var b=r.getBoundingClientRect();r.classList.add(e.clientY<b.top+b.height/2?'dz-up':'dz-dn');
+  });
+  root.addEventListener('drop',function(e){
+    var r=e.target.closest&&e.target.closest('#mx-win .mx-row[data-o]');
+    if(ui.drag==null||!r||!r.dataset.o||r.dataset.o==='g'){ui.drag=null;return;}
+    e.preventDefault();var b=r.getBoundingClientRect(),id=ui.drag;ui.drag=null;
+    moveLine(id,+r.dataset.o,e.clientY>=b.top+b.height/2);
+  });
+  root.addEventListener('dragend',function(){ui.drag=null;document.querySelectorAll('#mx-win .dz-up,#mx-win .dz-dn').forEach(function(x){x.classList.remove('dz-up','dz-dn');});});
+  /* 行號寶石連動：滑過視窗的某一行，同一個邏輯行的所有寶石一起亮；滑過選項時，下一個空格預覽預設輸出 */
+  root.addEventListener('mouseover',function(e){
+    var r=e.target.closest&&e.target.closest('#mx-win .mx-row[data-o]');
+    document.querySelectorAll('#mx-win .hl').forEach(function(x){x.classList.remove('hl');});
+    if(r&&r.dataset.o&&r.dataset.o!=='g')document.querySelectorAll('#mx-win .mx-row[data-o="'+r.dataset.o+'"]').forEach(function(x){x.classList.add('hl');});
+    var chip=e.target.closest&&e.target.closest('.mx-chip[data-type]');
+    var gh=document.querySelector('#mx-win .mx-empty.first .mx-ghost');
+    if(gh){
+      if(chip&&!ui.replacing){gh.innerHTML='<span class="gh">'+colorize(defaultText(chip.dataset.type))+'</span>';gh.parentNode.classList.add('pv');}
+      else if(!chip){gh.innerHTML=gh.dataset.base?'<u>＋</u> '+esc(gh.dataset.base.replace(/^＋ /,'')):'';gh.parentNode.classList.remove('pv');}
+    }
+    var ar=e.target.closest&&e.target.closest('.mx-area'),hint=$('mx-hint');
+    if(hint){hint.textContent=ar?ar.dataset.hint:hint.dataset.base;}
+  });
+  /* 彈出面板的檔案匯入 */
+  root.addEventListener('change',function(e){
+    if(e.target.id==='mx-file'&&e.target.files&&e.target.files[0]){
+      var fr=new FileReader();
+      fr.onload=function(){
+        try{var arr=JSON.parse(fr.result);if(!Array.isArray(arr))throw 0;
+          var lib=getLib();arr.forEach(function(x){if(x&&x.data&&Array.isArray(x.data.l))lib.push({name:x.name||'匯入的巨集',t:Date.now(),data:x.data});});
+          setLib(lib);$('mx-pop').innerHTML=libHTML();
+        }catch(err){window.alert('匯入失敗：不是有效的巨集庫檔案');}
+      };
+      fr.readAsText(e.target.files[0]);
+    }
+  });
   document.addEventListener('click',function(e){
+    if(!e.target.closest('.mx-dd'))closeDDs();
+    if(!e.target.closest('#mx-pop')&&!e.target.closest('[data-pop]'))closePop();
     var chip=e.target.closest('.inline-pro');
-    if(!chip) return;
-    var sym=chip.dataset.sym;if(!sym) return;
-    var wrap=chip.closest('.msg-inp-wrap');
-    var inp=wrap?wrap.querySelector('.msg-inp'):_lastMsgInput;
-    if(inp) insertAtCursor(inp,sym);
+    if(chip){var sym=chip.dataset.sym;if(!sym)return;var wrap=chip.closest('.msg-inp-wrap');var inp=wrap?wrap.querySelector('.msg-inp'):_lastMsgInput;if(inp)insertAtCursor(inp,sym);}
   });
-  document.addEventListener('focusin',function(e){
-    if(e.target&&e.target.classList&&e.target.classList.contains('msg-inp'))
-      _lastMsgInput=e.target;
+  document.addEventListener('focusin',function(e){if(e.target&&e.target.classList&&e.target.classList.contains('msg-inp'))_lastMsgInput=e.target;});
+  document.addEventListener('keydown',function(e){
+    var sc=$('macro');if(!sc||!sc.classList.contains('active'))return;
+    var tag=(e.target.tagName||'').toLowerCase(),typing=tag==='input'||tag==='textarea'||tag==='select'||e.target.isContentEditable;
+    if(e.key==='Escape'){closePop();closeDDs();}
+    if(!typing&&e.key==='/'){e.preventDefault();ui.sel=null;ui.replacing=null;renderStage();focusSearch();}
+    if(!typing&&(e.ctrlKey||e.metaKey)&&!e.shiftKey&&e.key.toLowerCase()==='z'){e.preventDefault();undo();}
+    if(!typing&&(e.ctrlKey||e.metaKey)&&(e.key.toLowerCase()==='y'||(e.shiftKey&&e.key.toLowerCase()==='z'))){e.preventDefault();redo();}
   });
 }
 
-function updatePickerResults(){
-  var results=document.getElementById('mt-picker-results');
-  if(results) results.innerHTML=pickerResultsHTML();
-  var clearBtn=document.getElementById('mt-picker-search-clear');
-  if(clearBtn) clearBtn.style.display=pickerSearch?'':'none';
-  bindPickerResultEvents();
-}
-function bindPickerResultEvents(){
-  var results=document.getElementById('mt-picker-results');if(!results)return;
-  var backBtn=results.querySelector('.mt-picker-back');
-  if(backBtn)backBtn.addEventListener('click',function(){pickerCat=null;updatePickerResults();});
-  results.querySelectorAll('.mt-cat-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){pickerCat=btn.dataset.cat;updatePickerResults();});
-  });
-  results.querySelectorAll('.mt-type-btn').forEach(function(btn){
-    btn.addEventListener('click',function(){
-      if(getTotalLines()>=MAX){alert('已達 '+MAX+' 行上限。');return;}
-      addLine(btn.dataset.type);
-      var pw=document.getElementById('mt-picker-wrap');
-      if(pw){delete pw.dataset.open;pw.innerHTML='';}
-      pickerCat=null;pickerSearch='';
-    });
-  });
-}
-function bindPickerEvents(){
-  var pw=document.getElementById('mt-picker-wrap');if(!pw)return;
-  var searchInp=pw.querySelector('#mt-picker-search');
-  if(searchInp){
-    searchInp.addEventListener('input',function(){
-      pickerSearch=searchInp.value;
-      updatePickerResults();
-    });
-  }
-  var clearBtn=pw.querySelector('#mt-picker-search-clear');
-  if(clearBtn){
-    clearBtn.addEventListener('click',function(){
-      pickerSearch='';
-      if(searchInp){searchInp.value='';searchInp.focus();}
-      updatePickerResults();
-    });
-  }
-  bindPickerResultEvents();
-}
-
-function addLine(type){
-  var newId=nextId;
-  activeLineId=newId;
-  lines.push({id:nextId++,type:type,params:{},note:'',expanded:true,repeat:1});
-  render();
-  setTimeout(function(){
-    var newRow=document.querySelector('.ml-row[data-id="'+newId+'"]');
-    if(newRow){
-      newRow.classList.add('ml-new');
-      newRow.scrollIntoView({behavior:'smooth',block:'nearest'});mt3Fly(newId);
-      setTimeout(function(){newRow.classList.remove('ml-new');},900);
-    }
-  },60);
-}
-
-function bindLineEvents(){
-  var el=document.getElementById('mt-lines');if(!el)return;
-  // Toggle expand — only the clicked line becomes active (bright)
-  el.querySelectorAll('.ml-head[data-toggle-id]').forEach(function(hdr){
-    hdr.addEventListener('click',function(e){
-      if(e.target.closest('.ml-del')||e.target.closest('.ml-mv'))return;
-      var id=+hdr.dataset.toggleId;
-      var line=lines.find(function(l){return l.id===id;});
-      if(!line)return;
-      line.expanded=!line.expanded;
-      activeLineId=line.expanded?id:null;
-      renderKeepScroll();
-    });
-  });
-  // Delete
-  el.querySelectorAll('.ml-del').forEach(function(btn){
-    btn.addEventListener('click',function(e){e.stopPropagation();
-      var id=+btn.dataset.id;lines=lines.filter(function(l){return l.id!==id;});render();
-    });
-  });
-  // Move
-  el.querySelectorAll('.ml-mv').forEach(function(btn){
-    btn.addEventListener('click',function(e){e.stopPropagation();
-      var id=+btn.dataset.id,dir=btn.dataset.dir;
-      var idx=-1;lines.forEach(function(l,i){if(l.id===id)idx=i;});if(idx<0)return;
-      if(dir==='up'&&idx>0){var t=lines[idx-1];lines[idx-1]=lines[idx];lines[idx]=t;}
-      if(dir==='down'&&idx<lines.length-1){var t2=lines[idx+1];lines[idx+1]=lines[idx];lines[idx]=t2;}
-      render();
-    });
-  });
-  // Type selector — searchable combobox
-  el.querySelectorAll('.ml-type-combo-inp').forEach(function(inp){
-    var id=+inp.dataset.id;
-    var wrap=inp.closest('.ml-type-combo');
-    var dd=wrap?wrap.querySelector('.ml-type-combo-dd'):null;
-    if(!dd) return;
-    function openDD(query){
-      var line=lines.find(function(l){return l.id===id;});
-      dd.innerHTML=typeComboDropdownHTML(query,line?line.type:null);
-      dd.style.display='block';
-    }
-    inp.addEventListener('focus',function(){
-      inp.dataset.orig=inp.value;
-      inp.value='';
-      openDD('');
-      inp.select();
-    });
-    inp.addEventListener('input',function(){ openDD(inp.value); });
-    inp.addEventListener('blur',function(){
-      setTimeout(function(){
-        if(!document.body.contains(dd)) return;
-        dd.style.display='none';
-        inp.value=inp.dataset.orig!==undefined?inp.dataset.orig:inp.value;
-      },150);
-    });
-    dd.addEventListener('mousedown',function(e){
-      var item=e.target.closest('.sub-combo-item');
-      if(!item) return;
-      e.preventDefault();
-      var line=lines.find(function(l){return l.id===id;});
-      if(!line) return;
-      line.type=item.dataset.type;line.params={};render();
-    });
-  });
+/* 欄位事件（沿用舊版，容器由參數傳入） */
+function bindFieldEvents(el){
   // Emote combo — searchable typeahead, still supports 自訂輸入 + click-to-select
   el.querySelectorAll('.emote-combo-inp').forEach(function(inp){
     var id=+inp.dataset.id,key=inp.dataset.key;
@@ -3105,300 +1937,28 @@ function copyText(text,btn,originalLabel){
   }
 }
 
+
 /* ════════════════════════════════════════════════
    INIT
 ════════════════════════════════════════════════ */
-
-/* ════════════════════════════════════════════════
-   v3 增強層：標籤篩選、寶石計量、預覽連動＋光點、復原／重做、邀請光
-════════════════════════════════════════════════ */
-var activeTags=[],TAGG=[['對象',['自己','隊友','公會','敵人','畫面']],['效果',['說話','標記','使用','切換','顯示','整理']],['情境',['副本','拍照','生產','PvP','日常']]];
-var CATTAG={chat:'隊友 公會 說話 副本 日常',emote:'自己 畫面 使用 拍照 日常',skill:'自己 敵人 使用 副本 PvP',item:'自己 使用 整理 日常 生產',target:'敵人 隊友 標記 切換 副本',combat:'自己 敵人 切換 副本 PvP',timer:'隊友 說話 顯示 副本',move:'自己 切換 拍照 日常',pet:'自己 使用 切換 日常',camera:'畫面 拍照 切換',party:'隊友 公會 說話 日常',status:'自己 切換 日常',display:'畫面 顯示 切換',hotbar:'自己 切換 畫面 PvP',av:'畫面 切換',magia:'自己 切換',system:'自己 顯示 日常',macro:'自己 切換',custom:''};
-var TAGRX=[[/標記|mk|wmark|mark/i,'標記 隊友 副本'],[/整理|itemsort|sort/i,'整理 自己'],[/fc|部隊|公會|通訊貝|cwl|linkshell/i,'公會 說話'],[/pvp/i,'PvP'],[/製|生產|craft/i,'生產'],[/拍|gpose|camera|鏡頭|視角/i,'拍照 畫面'],[/目標|target|focus|assist|lock/i,'敵人 切換'],[/倒數|countdown|cd|rcheck|ready/i,'隊友 說話 副本'],[/hud|ui|名牌|視窗|window/i,'畫面 顯示'],[/echo|默語|\/e\b/i,'自己 顯示']];
-var _tm={};
-function tagsOf(k){if(_tm[k])return _tm[k];var d=TDEFS[k],set={};(CATTAG[d.cat]||'').split(' ').forEach(function(t){if(t)set[t]=1;});var txt=d.label+' '+k+' '+(d.kw||'');TAGRX.forEach(function(r){if(r[0].test(txt))r[1].split(' ').forEach(function(t){set[t]=1;});});return _tm[k]=set;}
-function tagCount(t){return Object.keys(TDEFS).filter(function(k){return tagsOf(k)[t];}).length;}
-function tagBarHTML(){return TAGG.map(function(g){return '<div class="mt3-tagrow"><span class="mt3-taglbl">'+g[0]+'</span>'+g[1].map(function(t){return '<button type="button" class="mt3-tag'+(activeTags.indexOf(t)>=0?' on':'')+'" data-tag="'+t+'">'+t+'<i>'+tagCount(t)+'</i></button>';}).join('')+'</div>';}).join('')+(activeTags.length?'<button type="button" class="mt3-tagclr" data-tag="">清除標籤</button>':'');}
-function tagResultsHTML(){
-  var rows=Object.keys(TDEFS).map(function(k){var n=0;activeTags.forEach(function(t){if(tagsOf(k)[t])n++;});return{k:k,n:n};}).sort(function(a,b){return b.n-a.n;});
-  return '<div class="mt-picker-types">'+rows.map(function(r){var d=TDEFS[r.k];return '<button class="mt-type-btn'+(r.n?'':' mt3-dim')+'" data-type="'+r.k+'">'+d.icon+' '+d.label+(r.n>1?'<span class="mt-type-cat-tag">'+r.n+'/'+activeTags.length+'</span>':'')+'</button>';}).join('')+'</div>';
-}
-function noMatchHTML(){return '<div class="mt-picker-cats">'+CATS.map(function(c){return '<button class="mt-cat-btn" data-cat="'+c.id+'">'+c.icon+'<span class="mt-cat-lbl">'+c.label+'</span><span class="mt-cat-desc">'+c.desc+'</span></button>';}).join('')+'</div>';}
-function gemsHTML(t){var h='',c=t>MAX?'o':t>12?'w':'';for(var i=0;i<MAX;i++)h+='<i class="mt3-gem'+(i<t?' on':'')+'"></i>';return '<span class="mt3-gems '+c+'">'+h+'</span>';}
-var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-var moteEl=null;
-function mt3Light(a,b,done){
-  if(moteEl){moteEl.remove();moteEl=null;}
-  if(reduce||!document.body.animate){done&&done();return;}
-  var m=document.createElement('i');m.className='mt3-mote';document.body.appendChild(m);moteEl=m;
-  var H=window.innerHeight,cl=function(y){return Math.max(12,Math.min(H-12,y));};
-  var x0=a.left+a.width/2,y0=cl(a.top+a.height/2),x1=b.left+Math.min(14,b.width/2),y1=cl(b.top+b.height/2);
-  var an=m.animate([{transform:'translate('+x0+'px,'+y0+'px) scale(.6)',opacity:0},{opacity:1,offset:.15},{transform:'translate('+x1+'px,'+y1+'px) scale(1)',opacity:1,offset:.9},{transform:'translate('+x1+'px,'+y1+'px) scale(1.6)',opacity:0}],{duration:620,easing:'cubic-bezier(.4,0,.2,1)'});
-  an.onfinish=function(){if(moteEl===m){m.remove();moteEl=null;}done&&done();};
-}
-function hitsFor(line){var pre=document.getElementById('mt-preview'),hit=[];if(!pre)return hit;var spans=[].slice.call(pre.querySelectorAll('.mt3-ln'));buildLines(line).forEach(function(c){for(var i=0;i<spans.length;i++){if(spans[i].textContent===c&&hit.indexOf(spans[i])<0){hit.push(spans[i]);break;}}});return hit;}
-function mt3Fly(id){setTimeout(function(){
-  var line=lines.filter(function(l){return l.id===id;})[0],row=document.querySelector('.ml-row[data-id="'+id+'"]');if(!line||!row)return;
-  var hit=hitsFor(line);if(!hit.length)return;
-  var from=(document.activeElement&&row.contains(document.activeElement)?document.activeElement:row).getBoundingClientRect();
-  mt3Light(from,hit[0].getBoundingClientRect(),function(){hit.forEach(function(h){h.classList.remove('mt3-hit');void h.offsetWidth;h.classList.add('mt3-hit');});});
-},50);}
-var hist=[],hi=-1,snapT=null,gShown={};
-function mt3Snap(now){clearTimeout(snapT);var f=function(){var s=JSON.stringify({l:lines,n:nextId,g:globalCfg,v:gv},function(k,v){return k==='expanded'?undefined:v;});if(hist[hi]===s)return;var prev=hi>=0?JSON.parse(hist[hi]).l.length:lines.length;hist=hist.slice(0,hi+1);hist.push(s);hi++;if(hist.length>60){hist.shift();hi--;}histUI();if(Math.abs(prev-lines.length)>=2)toast('已變更 '+Math.abs(prev-lines.length)+' 行');};if(now)f();else snapT=setTimeout(f,350);}
-function histUI(){var u=document.getElementById('mt3-undo'),r=document.getElementById('mt3-redo');if(u)u.disabled=hi<=0;if(r)r.disabled=hi>=hist.length-1;}
-function mt3Go(d){clearTimeout(snapT);var j=hi+d;if(j<0||j>=hist.length)return;hi=j;var o=JSON.parse(hist[hi]);var ex={};lines.forEach(function(l){ex[l.id]=l.expanded;});lines=o.l;lines.forEach(function(l){l.expanded=!!ex[l.id];});nextId=o.n;globalCfg=o.g;gv=o.v||gv;varBarSync();var a=document.getElementById('g-mlock'),b=document.getElementById('g-merror');if(a)a.checked=!!globalCfg.mlock;if(b)b.checked=!!globalCfg.merrorOff;render();histUI();}
-var toastT=null;
-function toast(msg){var t=document.getElementById('mt3-toast');if(!t){t=document.createElement('div');t.id='mt3-toast';t.className='mt3-toast';document.body.appendChild(t);}t.innerHTML='<span>'+esc(msg)+'</span><button type="button" data-mt3="undo">↶ 還原</button>';t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){t.classList.remove('show');},5000);}
-function mt3Guide(){
-  clearTimeout(window._mt3g);try{if(localStorage.getItem('mt3_guided'))return;}catch(e){}
-  window._mt3g=setTimeout(function(){
-    var sc=document.getElementById('macro');if(!sc||!sc.classList.contains('active'))return;
-    var step=lines.length?1:0;if(gShown[step])return;
-    var t=step?document.getElementById('mt-copybtn'):document.querySelector('.mt-tpl-row');if(!t||t.offsetParent===null)return;
-    var src=document.querySelector('#macro .cr-medal')||t;gShown[step]=1;
-    mt3Light(src.getBoundingClientRect(),t.getBoundingClientRect(),function(){t.classList.remove('mt3-edge');void t.offsetWidth;t.classList.add('mt3-edge');});
-  },4000);
-}
-function mt3After(){modeUI();stripUI();varBarSync();if(adopt()){render();return;}histUI();mt3Snap();mt3Guide();}
-document.addEventListener('click',function(e){
-  var g=e.target.closest&&e.target.closest('[data-tag]');
-  if(g){var t=g.getAttribute('data-tag'),i=activeTags.indexOf(t);if(!t)activeTags=[];else if(i>=0)activeTags.splice(i,1);else activeTags.push(t);var bar=document.getElementById('mt3-tags');if(bar)bar.innerHTML=tagBarHTML();updatePickerResults();return;}
-  if(e.target.closest('#mt3-undo')||(e.target.closest('[data-mt3="undo"]'))){mt3Go(-1);var tt=document.getElementById('mt3-toast');if(tt)tt.classList.remove('show');return;}
-  if(e.target.closest('#mt3-redo')){mt3Go(1);return;}
-  if(e.target.closest('#mt-copybtn')){try{localStorage.setItem('mt3_guided','1');}catch(x){}}
-});
-document.addEventListener('keydown',function(e){
-  var el=document.activeElement,typing=el&&(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)||el.isContentEditable);
-  var sc=document.getElementById('macro');if(typing||!sc||!sc.classList.contains('active'))return;
-  if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();mt3Go(e.shiftKey?1:-1);}
-  else if((e.ctrlKey||e.metaKey)&&e.key==='y'){e.preventDefault();mt3Go(1);}
-});
-document.addEventListener('mouseover',function(e){
-  var row=e.target.closest&&e.target.closest('.ml-row');[].forEach.call(document.querySelectorAll('.mt3-ln.mt3-on'),function(x){x.classList.remove('mt3-on');});
-  if(!row)return;var id=+row.getAttribute('data-id'),line=lines.filter(function(l){return l.id===id;})[0];if(line)hitsFor(line).forEach(function(h){h.classList.add('mt3-on');});
-});
-
-/* ── v3 全局變數：頻道／目標／音效／等待，每行可「跟隨」或「獨立」 ── */
-var gv={channel:'',target:'',se:''};
-var VKIND=[['channel','頻道',CH],['target','目標',TGT.filter(function(t){return t.v!=='custom';})],['se','音效',SE]];
-function kindOf(k){return /channel$/i.test(k)?'channel':/(^se$|Se$)/.test(k)?'se':/(^target$|Target$)/.test(k)?'target':/wait$/i.test(k)?'wait':'';}
-function walk(o,path,fn){if(!o||typeof o!=='object')return;Object.keys(o).forEach(function(k){var v=o[k],q=path?path+'.'+k:k;if(v&&typeof v==='object')walk(v,q,fn);else fn(o,k,q,v);});}
-function setPath(o,path,val){var a=path.split('.'),i;for(i=0;i<a.length-1;i++){o=o[a[i]];if(!o)return;}if(val===null)delete o[a[a.length-1]];else o[a[a.length-1]]=val;}
-function ensureDefaults(line){var p=line.params;if(line.type==='chat'||line.type==='chatcountdown'){if(p.channel===undefined)p.channel='p';if(p.se===undefined)p.se='';}}
-function ownStore(line,kind,q,v){line.own=line.own||{};var m=line.own[kind]=line.own[kind]||{};if(!(q in m))m[q]=(v===undefined?null:v);}
-function kindsIn(line){var r={};ensureDefaults(line);walk(line.params,'',function(o,k,q,v){var kd=kindOf(k);if(kd)r[kd]=1;});return r;}
-function applyKind(line,kind,val,delta){
-  if(line.indep)return;ensureDefaults(line);
-  walk(line.params,'',function(o,k,q,v){if(kindOf(k)!==kind)return;
-    if(kind==='wait'){var n=parseInt(v)||0;if(n<=0)return;ownStore(line,kind,q,v);o[k]=Math.max(0,n+delta);}
-    else{ownStore(line,kind,q,v);o[k]=val;}});
-}
-function restoreLine(line,kinds){var ow=line.own||{};(kinds||Object.keys(ow)).forEach(function(kd){var m=ow[kd];if(!m)return;Object.keys(m).forEach(function(q){setPath(line.params,q,m[q]);});delete ow[kd];});}
-function applyAllVars(line){['channel','target','se'].forEach(function(kd){if(gv[kd])applyKind(line,kd,gv[kd]);});}
-function adopt(){var ch=false;lines.forEach(function(l){if(l.seen)return;l.seen=true;if(gv.channel||gv.target||gv.se){applyAllVars(l);ch=true;}});return ch;}
-function varBarHTML(){
-  return '<div class="mt3-vars" id="mt3-vars"><span class="mt-global-ttl">全局變數（改一個，所有「跟隨」的行一起改；行上的連結圖示可個別獨立）</span><div class="mt3-varrow">'
-   +VKIND.map(function(k){return '<label class="mt3-var"><span>'+k[1]+'</span><select class="mf-sel mt3-sel" data-var="'+k[0]+'"><option value="">（不變更）</option>'+so(k[2].filter(function(o){return o.v;}),gv[k[0]])+'</select></label>';}).join('')
-   +'<span class="mt3-var"><span>等待</span><button type="button" class="mt3-wbtn" data-w="-1">−1 秒</button><button type="button" class="mt3-wbtn" data-w="1">＋1 秒</button></span>'
-   +'<span class="mt3-stat" id="mt3-stat"></span></div></div>';
-}
-function varBarSync(){VKIND.forEach(function(k){var e=document.querySelector('.mt3-sel[data-var="'+k[0]+'"]');if(e)e.value=gv[k[0]]||'';});var f=0,i=0;lines.forEach(function(l){if(Object.keys(kindsIn(l)).length){l.indep?i++:f++;}});var st=document.getElementById('mt3-stat');if(st)st.textContent=f+' 行跟隨'+(i?' · '+i+' 行獨立':'');}
-function linkBtnHTML(line){
-  if(!Object.keys(kindsIn(line)).length)return '';
-  var own=[];Object.keys(line.own||{}).forEach(function(kd){Object.keys(line.own[kd]).forEach(function(q){var v=line.own[kd][q];if(v!==null&&v!==''&&own.length<3)own.push(v);});});
-  var tip=line.indep?'重新跟隨全局變數':'解除連結'+(own.length?'，這一行恢復為：'+own.join(' ')+'':'');
-  return '<button type="button" class="mt3-link'+(line.indep?' off':'')+'" data-id="'+line.id+'" title="'+esc(tip)+'"><i class="ph ph-'+(line.indep?'link-break':'link')+'"></i></button>';
-}
-function sweep(ids){var rows=ids.slice(0,6).map(function(id){return document.querySelector('.ml-row[data-id="'+id+'"]');}).filter(Boolean),bar=document.getElementById('mt3-vars');if(!bar)return;
-  (function go(i,from){if(i>=rows.length)return;var r=rows[i].getBoundingClientRect();mt3Light(from,r,function(){rows[i].classList.remove('mt3-follow');void rows[i].offsetWidth;rows[i].classList.add('mt3-follow');go(i+1,r);});})(0,bar.getBoundingClientRect());}
-function followIds(){return lines.filter(function(l){return !l.indep&&Object.keys(kindsIn(l)).length;}).map(function(l){return l.id;});}
-document.addEventListener('change',function(e){var s=e.target.closest&&e.target.closest('.mt3-sel');if(!s)return;var kd=s.getAttribute('data-var'),v=s.value;gv[kd]=v;
-  lines.forEach(function(l){if(l.indep)return;if(v)applyKind(l,kd,v);else restoreLine(l,[kd]);});
-  render();mt3Snap(true);setTimeout(function(){sweep(followIds());},60);});
-document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.mt3-wbtn');if(!b)return;var d=parseInt(b.getAttribute('data-w'));
-  lines.forEach(function(l){applyKind(l,'wait',null,d);});render();mt3Snap(true);setTimeout(function(){sweep(followIds());},60);});
-document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('.mt3-link');if(!b)return;e.stopPropagation();e.preventDefault();
-  var id=+b.getAttribute('data-id'),l=lines.filter(function(x){return x.id===id;})[0];if(!l)return;
-  if(!l.indep){l.indep=true;restoreLine(l);}else{l.indep=false;applyAllVars(l);}
-  render();mt3Snap(true);mt3Fly(id);},true);
-
-/* ── v3 匯入／檢查：貼上巨集 → 三態判定（✓ 已收錄／⚠ 可能有問題／？ 無法判斷），絕不自動修改 ── */
-var KNOWN=["aaction", "ac", "aerror", "afk", "alarm", "ambientsounds", "apa", "as", "ashathe", "autofacetarget", "autolockon", "automove", "autotarget", "battleeffect", "bgm", "blist", "blueaction", "bluespellbook", "bm", "bt", "busy", "c", "cac", "cd", "chatlog", "chotbar", "chotbardisplay", "chotbartype", "cl", "cth", "decline", "dice", "displayarms", "displayhead", "duelswitch", "e", "em", "emotelog", "facecamera", "fashion", "flist", "focustarget", "follow", "ft", "gaction", "gpose", "gpreset", "groundclick", "gs", "hotbar", "hud", "hudreset", "icam", "instance", "invite", "isearch", "item", "itemsort", "jobhudmode", "join", "kick", "leader", "leave", "levelsync", "lfm", "lfp", "linkline", "lmark", "lo", "logout", "magiaattack", "magiaauto", "magiadefense", "magialeft", "magiaright", "mastervolume", "meldrequest", "merror", "micon", "minion", "mk", "mlock", "mount", "mountbgm", "nameplatedisp", "nameplatetype", "nastatus", "nnetwork", "nnetworkinvitation", "nnetworkleave", "nr", "pac", "patchnote", "pcmd", "performsounds", "petglamour", "petsize", "psort", "ptime", "pvpac", "pvpchotbar", "pvphotbar", "qchat", "r", "random", "rcheck", "rd", "recast", "rerror", "ridepillion", "roleplaying", "scomment", "sea", "shutdown", "soundeffects", "soundeffectsother", "soundeffectsparty", "soundeffectsself", "statusoff", "systemsounds", "systemsoundsspeaker", "t", "targetline", "targetring", "targetself", "tiltcamera", "title", "trade", "uireset", "uiscale", "visor", "voice", "wait", "wmark"];
-var ALIAS={action:'ac',petaction:'pac',companionaction:'cac',echo:'e',say:'s',shout:'sh',yell:'y',reply:'r',alliance:'a',playtime:'ptime',macroicon:'micon',macrolock:'mlock',macroerror:'merror',actionerror:'aerror',targetmode:'tmode',chatmode:'cm'};
-function knownSet(){var m={};KNOWN.forEach(function(c){m[c]=1;});CH.forEach(function(c){m[c.v]=1;});return m;}
-function lev(a,b){var d=[],i,j;for(i=0;i<=a.length;i++){d[i]=[i];}for(j=1;j<=b.length;j++)d[0][j]=j;for(i=1;i<=a.length;i++)for(j=1;j<=b.length;j++)d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return d[a.length][b.length];}
-function checkLine(raw,ks){
-  var r={st:'ok',msgs:[],fix:null},t=raw;
-  if(!t.trim())return null;
-  if(/^\s+\S/.test(t)&&t.trim().charAt(0)==='/'){r.st='warn';r.msgs.push('行首有空白');r.fix={lbl:'移除行首空白',val:t.replace(/^\s+/,'')};t=r.fix.val;}
-  else if(t.charAt(0)==='／'){r.st='warn';r.msgs.push('開頭是全形斜線「／」，遊戲不會當成指令');r.fix={lbl:'改成半形 /',val:'/'+t.slice(1)};t=r.fix.val;}
-  if(t.charAt(0)==='/'){
-    var m=/^\/([A-Za-z0-9_]+)/.exec(t);
-    if(!m){if(r.st==='ok')r.st='warn';r.msgs.push('斜線後缺少指令名稱');}
-    else if(ALIAS[m[1].toLowerCase()]){r.msgs.push('長寫，等同 /'+ALIAS[m[1].toLowerCase()]+'（兩種寫法都可以，不需要修改）');}
-    else if(!ks[m[1].toLowerCase()]){
-      var low=m[1].toLowerCase(),best=null,bd=3;Object.keys(ks).forEach(function(c){var d=lev(low,c);if(d<bd){bd=d;best=c;}});
-      r.st='unk';r.msgs.push('本工具資料庫未收錄 /'+m[1]+'（不代表遊戲一定沒有）');
-      if(best&&low.length>1)r.fix={lbl:'你是不是想打 /'+best+'？',val:'/'+best+t.slice(m[0].length)};
-    }
-  }else r.st=(r.st==='ok'?'unk':r.st),r.msgs.push('不是指令行，工具不檢查內容');
-  var w=/<wait\.(\d+)>/.exec(t);if(w&&+w[1]>60){if(r.st==='ok')r.st='warn';r.msgs.push('<wait.'+w[1]+'> 超過 60，遊戲會當成 60 秒');}else if(w&&+w[1]<1){if(r.st==='ok')r.st='warn';r.msgs.push('<wait.'+w[1]+'> 的秒數需為 1 以上');}
-  var c=cc(t);if(c>MAX_C){r.st='warn';r.msgs.push('超出字元上限（'+c+'/180）');}
-  return r;
-}
-function impCheck(){
-  var ta=document.getElementById('mt3-imp-ta'),box=document.getElementById('mt3-imp-res');if(!ta||!box)return;
-  var ks=knownSet(),rows=ta.value.split(/\r?\n/),n={ok:0,warn:0,unk:0},h='';
-  rows.forEach(function(raw,i){var r=checkLine(raw,ks);if(!r)return;n[r.st]++;
-    h+='<div class="mt3-ck '+r.st+'"><i>'+(r.st==='ok'?'✓':r.st==='warn'?'⚠':'？')+'</i><code>'+esc(raw)+'</code>'+(r.msgs.length?'<span class="mt3-ckm">'+esc(r.msgs.join('；'))+'</span>':'')+(r.fix?'<button type="button" class="mt3-fix" data-fix="'+i+'" data-val="'+esc(r.fix.val)+'">'+esc(r.fix.lbl)+'</button>':'')+'</div>';});
-  var tot=rows.filter(function(x){return x.trim();}).length;
-  box.innerHTML=(h?'<div class="mt3-cksum">✓ '+n.ok+'　⚠ '+n.warn+'　？ '+n.unk+(tot>MAX?'　· 共 '+tot+' 行，超過 '+MAX+' 行上限':'')+'</div>'+h+'<div class="mt3-ckfoot">未檢出問題不代表一定能執行；所有建議都不會自動套用。</div>':'');
-}
-function impParse(txt){
-  var rows=txt.split(/\r?\n/).filter(function(x){return x.trim();}),g={mlock:false,merrorOff:false},out=[];
-  while(rows.length&&/^\s*(\/mlock|\/merror\s+off)\s*$/i.test(rows[0])){if(/mlock/i.test(rows[0]))g.mlock=true;else g.merrorOff=true;rows.shift();}
-  var chs={};CH.forEach(function(c){chs[c.v]=1;});
-  rows.forEach(function(raw){var t=raw.trim(),m=/^\/([A-Za-z0-9]+)\s+([\s\S]*)$/.exec(t);
-    if(m&&chs[m[1].toLowerCase()]){var msg=m[2],wt='',se='',a=/<wait\.(\d+)>\s*$/.exec(msg);if(a){wt=a[1];msg=msg.slice(0,a.index);}var b=/(<se\.\d+>)\s*$/.exec(msg);if(b){se=b[1];msg=msg.slice(0,b.index);}
-      out.push({id:nextId++,type:'chat',params:{channel:m[1].toLowerCase(),message:msg.replace(/\s+$/,''),se:se,inlineWait:wt},note:'',expanded:false,repeat:1});}
-    else out.push({id:nextId++,type:'custom',params:{text:t},note:'',expanded:false,repeat:1});});
-  return{g:g,lines:out};
-}
-function mt3Mount(){
-  var rr=document.getElementById('macro-root');if(rr&&!document.getElementById('mt3-strip')){var st=document.createElement('div');st.id='mt3-strip';st.className='mt3-strip';rr.appendChild(st);}
-  var rt=document.getElementById('macro-root');if(rt)rt.classList.add('mt3-compact');
-  var sec=document.getElementById('mt-preview-sec');if(!sec||document.getElementById('mt3-imp'))return;
-  var cb=document.getElementById('mt-copybtn');
-  if(cb){var b=document.createElement('button');b.className='mt-edit-toggle';b.id='mt3-imp-btn';b.type='button';b.textContent='匯入／檢查';cb.parentNode.insertBefore(b,cb.parentNode.firstChild);}
-  var d=document.createElement('div');d.id='mt3-imp';d.className='mt3-imp';d.hidden=true;
-  d.innerHTML='<div class="mt3-imphd"><span class="mt-sec-lbl">貼上巨集檢查／匯入</span><span class="mt3-impact"><button type="button" class="mt-edit-toggle" id="mt3-load">帶入目前巨集</button><button type="button" class="mt-edit-toggle" id="mt3-imp-close">✕</button></span></div>'
-   +'<textarea id="mt3-imp-ta" class="mt3-ta" rows="6" spellcheck="false" placeholder="把巨集貼在這裡，每行一條指令。對話內容（含全形、符號、圖案）不會被檢查。"></textarea>'
-   +'<div id="mt3-imp-res"></div><div class="mt3-impact"><button type="button" class="mt-edit-toggle" data-imp="append">附加在現有行後面</button><button type="button" class="mt-edit-toggle" data-imp="replace">取代現有行</button></div>';
-  sec.appendChild(d);mt3MountLib();
-}
-var impT=null;
-document.addEventListener('input',function(e){if(e.target&&e.target.id==='mt3-imp-ta'){clearTimeout(impT);impT=setTimeout(impCheck,200);}});
-document.addEventListener('click',function(e){
-  var t=e.target,q=function(x){return t.closest&&t.closest(x);},p=document.getElementById('mt3-imp'),ta=document.getElementById('mt3-imp-ta');
-  if(q('#mt3-imp-btn')&&p){p.hidden=!p.hidden;return;}
-  if(q('#mt3-imp-close')&&p){p.hidden=true;return;}
-  if(q('#mt3-load')&&ta){ta.value=getAllOutput().join('\n');impCheck();return;}
-  var f=q('.mt3-fix');if(f&&ta){var rows=ta.value.split(/\r?\n/);rows[+f.getAttribute('data-fix')]=f.getAttribute('data-val');ta.value=rows.join('\n');impCheck();return;}
-  var im=q('[data-imp]');if(im&&ta&&ta.value.trim()){var r=impParse(ta.value);
-    if(im.getAttribute('data-imp')==='replace'){lines=[];}
-    lines=lines.concat(r.lines);if(r.g.mlock)globalCfg.mlock=true;if(r.g.merrorOff)globalCfg.merrorOff=true;
-    var a1=document.getElementById('g-mlock'),a2=document.getElementById('g-merror');if(a1)a1.checked=!!globalCfg.mlock;if(a2)a2.checked=!!globalCfg.merrorOff;
-    render();mt3Snap(true);toast('已匯入 '+r.lines.length+' 行');}
-});
-
-/* ── v3 我的巨集庫（localStorage）＋ 匯出入 ＋ 分享連結（#page=macro&m=…，沿用站上既有的 hash 路由） ── */
-function serial(){return{l:lines.map(function(x){return{t:x.type,p:x.params,r:x.repeat,n:x.note,i:x.indep,o:x.own};}),g:globalCfg,v:gv};}
-function loadData(d){
-  if(!d||!d.l)return false;
-  lines=d.l.map(function(x){return{id:nextId++,type:TDEFS[x.t]?x.t:'custom',params:TDEFS[x.t]?(x.p||{}):{text:'（未知行類型 '+x.t+'）'},repeat:x.r||1,note:x.n||'',indep:!!x.i,own:x.o||undefined,expanded:false,seen:true};});
-  globalCfg={merrorOff:!!(d.g&&d.g.merrorOff),mlock:!!(d.g&&d.g.mlock)};gv=d.v||{channel:'',target:'',se:''};
-  var a=document.getElementById('g-mlock'),b=document.getElementById('g-merror');if(a)a.checked=globalCfg.mlock;if(b)b.checked=globalCfg.merrorOff;
-  render();mt3Snap(true);return true;
-}
-function libGet(){try{return JSON.parse(localStorage.getItem('mt3_lib')||'[]');}catch(e){return [];}}
-function libSet(a){try{localStorage.setItem('mt3_lib',JSON.stringify(a));return true;}catch(e){toast('無法寫入瀏覽器儲存空間，請改用「匯出」備份');return false;}}
-function b64e(o){return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
-function b64d(t){t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';return JSON.parse(decodeURIComponent(escape(atob(t))));}
-function mt3FromHash(){
-  var m=/[#&]m=([^&]+)/.exec(location.hash);if(!m||lines.length)return;
-  try{if(loadData(b64d(m[1]))){toast('已載入分享的巨集');try{history.replaceState(null,'',location.href.replace(/&m=[^&]+/,'').replace(/#m=[^&]+&?/,'#'));}catch(e){}}}catch(e){toast('分享連結內容無法讀取');}
-}
-function libHTML(){
-  var a=libGet();
-  return '<div class="mt3-imphd"><span class="mt-sec-lbl">我的巨集（存在這個瀏覽器）</span><span class="mt3-impact"><button type="button" class="mt-edit-toggle" id="mt3-lib-share">複製分享連結</button><button type="button" class="mt-edit-toggle" id="mt3-lib-export">匯出備份</button><label class="mt-edit-toggle" style="cursor:pointer">匯入備份<input type="file" id="mt3-lib-file" accept=".json,application/json" hidden></label><button type="button" class="mt-edit-toggle" id="mt3-lib-close">✕</button></span></div>'
-   +'<div class="mt3-impact"><input class="mt3-ta mt3-name" id="mt3-lib-name" maxlength="30" placeholder="為目前的巨集命名" style="width:14em;margin:0"><button type="button" class="mt-edit-toggle" id="mt3-lib-save">儲存目前巨集</button></div>'
-   +(a.length?a.map(function(x){return '<div class="mt3-ck ok mt3-lib-row"><code>'+esc(x.name)+'</code><span class="mt3-ckm">'+x.d.l.length+' 行 · '+new Date(x.ts).toLocaleDateString()+'</span><button type="button" class="mt3-fix" data-lib="load" data-id="'+x.id+'">載入</button><button type="button" class="mt3-fix" data-lib="over" data-id="'+x.id+'">以目前內容覆寫</button><button type="button" class="mt3-fix" data-lib="del" data-id="'+x.id+'">刪除</button></div>';}).join(''):'<div class="mt3-ckfoot">還沒有儲存的巨集。清除瀏覽器資料會讓它們消失，重要的請用「匯出備份」。</div>');
-}
-function libRender(){var p=document.getElementById('mt3-lib');if(p){var keep=(document.getElementById('mt3-lib-name')||{}).value||'';p.innerHTML=libHTML();var n=document.getElementById('mt3-lib-name');if(n)n.value=keep;}}
-function mt3MountLib(){
-  var sec=document.getElementById('mt-preview-sec');if(!sec||document.getElementById('mt3-lib'))return;
-  var ib=document.getElementById('mt3-imp-btn');
-  if(ib){var b=document.createElement('button');b.className='mt-edit-toggle';b.id='mt3-lib-btn';b.type='button';b.textContent='我的巨集';ib.parentNode.insertBefore(b,ib);}
-  var d=document.createElement('div');d.id='mt3-lib';d.className='mt3-imp';d.hidden=true;d.innerHTML=libHTML();sec.appendChild(d);
-}
-document.addEventListener('click',function(e){
-  var t=e.target,q=function(x){return t.closest&&t.closest(x);},p=document.getElementById('mt3-lib');if(!p)return;
-  if(q('#mt3-lib-btn')){p.hidden=!p.hidden;if(!p.hidden)libRender();return;}
-  if(q('#mt3-lib-close')){p.hidden=true;return;}
-  if(q('#mt3-lib-save')){var a=libGet(),nm=((document.getElementById('mt3-lib-name')||{}).value||'').trim()||'巨集 '+(a.length+1);a.unshift({id:'m'+Date.now().toString(36),name:nm,ts:Date.now(),d:serial()});if(libSet(a)){libRender();toast('已儲存「'+nm+'」');}return;}
-  var lb=q('[data-lib]');if(lb){var id=lb.getAttribute('data-id'),op=lb.getAttribute('data-lib'),arr=libGet(),it=arr.filter(function(x){return x.id===id;})[0];if(!it)return;
-    if(op==='load')loadData(it.d);else if(op==='over'){it.d=serial();it.ts=Date.now();libSet(arr);toast('已覆寫「'+it.name+'」');}else{libSet(arr.filter(function(x){return x.id!==id;}));}
-    libRender();return;}
-  if(q('#mt3-lib-share')){var u=location.href.replace(/#.*$/,'')+'#page=macro&m='+b64e(serial());
-    if(u.length>6000)toast('巨集較長，連結可能無法在部分程式中開啟，建議改用「匯出備份」');
-    (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(function(){toast('分享連結已複製');},function(){window.prompt('複製此連結：',u);});return;}
-  if(q('#mt3-lib-export')){var blob=new Blob([JSON.stringify({v:1,items:libGet()})],{type:'application/json'}),a2=document.createElement('a');a2.href=URL.createObjectURL(blob);a2.download='ffxiv-macro-library.json';document.body.appendChild(a2);a2.click();a2.remove();setTimeout(function(){URL.revokeObjectURL(a2.href);},1000);return;}
-});
-document.addEventListener('change',function(e){
-  if(!e.target||e.target.id!=='mt3-lib-file'||!e.target.files[0])return;
-  var fr=new FileReader();fr.onload=function(){try{var o=JSON.parse(fr.result),a=libGet(),n=0;(o.items||[]).forEach(function(x){if(x&&x.d&&x.d.l){x.id='m'+Date.now().toString(36)+n;a.push(x);n++;}});if(libSet(a)){libRender();toast('已匯入 '+n+' 個巨集');}}catch(x){toast('檔案格式不正確');}};
-  fr.readAsText(e.target.files[0]);e.target.value='';
-});
-
-/* ── v3 編輯模式：全展開（預設，電腦）／聚焦（預設，手機）；排版為緊湊的句子式 ── */
-var edMode=(function(){try{var m=localStorage.getItem('mt3_mode');if(m==='all'||m==='focus')return m;}catch(e){}return window.innerWidth<=700?'focus':'all';})();
-var prevEx={};
-function mt3Mode(){
-  if(edMode!=='focus'){return;}
-  var ex=lines.filter(function(l){return l.expanded;});
-  if(ex.length>1){
-    var keep=ex.filter(function(l){return !prevEx[l.id];})[0]||ex.filter(function(l){return l.id===activeLineId;})[0]||ex[ex.length-1];
-    lines.forEach(function(l){l.expanded=(l===keep);});
-  }
-  prevEx={};lines.forEach(function(l){if(l.expanded)prevEx[l.id]=1;});
-}
-function modeUI(){var b=document.getElementById('mt3-mode');if(b)b.textContent=edMode==='all'?'全展開':'聚焦';}
-document.addEventListener('click',function(e){
-  if(!(e.target.closest&&e.target.closest('#mt3-mode')))return;
-  edMode=edMode==='all'?'focus':'all';try{localStorage.setItem('mt3_mode',edMode);}catch(x){}
-  if(edMode==='all')lines.forEach(function(l){l.expanded=true;});
-  else{var k=lines.filter(function(l){return l.id===activeLineId;})[0]||lines[0];lines.forEach(function(l){l.expanded=(l===k);});prevEx={};}
-  render();
-});
-
-/* ── v3 頻道名稱變數 {頻道}：輸出時替換成該行頻道的官方名稱（取自頻道清單） ── */
-function chName(v){var c=CH.filter(function(x){return x.v===v;})[0];return c?c.l.split(/[ （]/)[0]:v;}
-function mt3Sub(out,line){
-  var has=false;for(var i=0;i<out.length;i++){if(out[i].indexOf('{頻道}')>=0){has=true;break;}}if(!has)return out;
-  var p=line.params||{},nm=chName(p.channel||p.notifyChannel||gv.channel||'p');
-  return out.map(function(x){return x.split('{頻道}').join(nm);});
-}
-/* ── v3 手機底部窄條：目前這一行的輸出 ── */
-function stripUI(id){
-  var el=document.getElementById('mt3-strip');if(!el)return;
-  var i=-1;if(id!=null)i=lines.findIndex(function(l){return l.id===id;});
-  if(i<0)i=lines.findIndex(function(l){return l.id===activeLineId;});
-  if(i<0)i=lines.findIndex(function(l){return l.expanded;});
-  if(i<0){el.innerHTML='';return;}
-  el.innerHTML='<span class="mt3-sn">第 '+(i+1)+' 行</span><code>'+esc(buildLines(lines[i]).join(' │ '))+'</code>';
-}
-/* ── v3 拖曳排序（電腦；觸控裝置沿用 ▲▼ 按鈕） ── */
-var dragId=null;
-function clearDrag(){[].forEach.call(document.querySelectorAll('.mt3-dt,.mt3-db,.mt3-dragging'),function(x){x.classList.remove('mt3-dt','mt3-db','mt3-dragging');});}
-document.addEventListener('click',function(e){if(e.target.closest&&e.target.closest('.mt3-grip')){e.stopPropagation();e.preventDefault();}},true);
-document.addEventListener('dragstart',function(e){var g=e.target.closest&&e.target.closest('.mt3-grip');if(!g)return;dragId=+g.getAttribute('data-id');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain',String(dragId));}catch(x){}var r=g.closest('.ml-row');if(r){try{e.dataTransfer.setDragImage(r,20,20);}catch(x){}setTimeout(function(){r.classList.add('mt3-dragging');},0);}});
-document.addEventListener('dragover',function(e){if(dragId==null)return;var r=e.target.closest&&e.target.closest('.ml-row');if(!r)return;e.preventDefault();[].forEach.call(document.querySelectorAll('.mt3-dt,.mt3-db'),function(x){x.classList.remove('mt3-dt','mt3-db');});var b=r.getBoundingClientRect();r.classList.add(e.clientY<b.top+b.height/2?'mt3-dt':'mt3-db');});
-document.addEventListener('drop',function(e){if(dragId==null)return;var r=e.target.closest&&e.target.closest('.ml-row');if(!r)return;e.preventDefault();
-  var tid=+r.getAttribute('data-id'),b=r.getBoundingClientRect(),after=e.clientY>=b.top+b.height/2,from=dragId;dragId=null;clearDrag();if(tid===from)return;
-  var mv=lines.filter(function(l){return l.id===from;})[0];if(!mv)return;lines=lines.filter(function(l){return l!==mv;});
-  var ti=lines.findIndex(function(l){return l.id===tid;});lines.splice(ti+(after?1:0),0,mv);render();mt3Snap(true);mt3Fly(from);});
-document.addEventListener('dragend',function(){dragId=null;clearDrag();});
 var initialized=false;
 function init(){
-  var root=document.getElementById('macro-root');if(!root)return;
-  root.innerHTML=toolHTML();bindRoot();render();mt3Snap(true);mt3Mount();mt3FromHash();mt3Guide();
+  var root=$('macro-root');if(!root)return;
+  try{var s=localStorage.getItem(LS_DRAFT);if(s)restore(s);}catch(e){lines=[];}
+  lastSnap=snap();hist=[lastSnap];hi=0;
+  root.innerHTML=toolHTML();bindRoot();
+  checkSharedOnLoad();
+  ui.area=lines.length?'talk':'__tpl';
+  renderAll();
 }
 function tryInit(){
-  var sc=document.getElementById('macro');if(!sc)return;
+  var sc=$('macro');if(!sc)return;
   if(!initialized&&sc.classList.contains('active')){initialized=true;init();}
 }
 document.addEventListener('DOMContentLoaded',function(){
-  var sc=document.getElementById('macro');if(!sc)return;
+  var sc=$('macro');if(!sc)return;
   tryInit();new MutationObserver(tryInit).observe(sc,{attributes:true,attributeFilter:['class']});
 });
+window.__macroTool={get lines(){return lines;},ui:ui,init:init,renderFields:renderFields,addLine:addLine,model:model,onAct:onAct,
+  setLines:function(l){lines=l;},refresh:function(){renderAll();}};
 })();

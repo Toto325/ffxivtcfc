@@ -1,0 +1,399 @@
+{
+ "note": "草案 v3：12 個區域（4 字短名稱），區域內依類型分小標題。每種類型恰好屬於一個區域與一個小標題。",
+ "areas": [
+  {
+   "id": "talk",
+   "label": "聊天通報",
+   "count": 15,
+   "groups": [
+    {
+     "name": "發言",
+     "types": [
+      "chat",
+      "echo",
+      "tell",
+      "reply",
+      "qchat",
+      "chatcountdown"
+     ]
+    },
+    {
+     "name": "清除記錄",
+     "types": [
+      "cl",
+      "cth"
+     ]
+    },
+    {
+     "name": "準備與倒數",
+     "types": [
+      "countdown_sys",
+      "readycheck",
+      "ready",
+      "notready"
+     ]
+    },
+    {
+     "name": "隨機與提醒",
+     "types": [
+      "random",
+      "dice",
+      "alarm"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "act",
+   "label": "技能道具",
+   "count": 14,
+   "groups": [
+    {
+     "name": "施放技能",
+     "types": [
+      "skill",
+      "generalskill",
+      "blueaction",
+      "pvpaction",
+      "petaction",
+      "companionaction",
+      "aaction",
+      "apa",
+      "bluespellbook"
+     ]
+    },
+    {
+     "name": "輪換與複唱",
+     "types": [
+      "abilityrotation",
+      "recast"
+     ]
+    },
+    {
+     "name": "道具",
+     "types": [
+      "item",
+      "itemsort",
+      "itemsearch"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "target",
+   "label": "目標標記",
+   "count": 7,
+   "groups": [
+    {
+     "name": "目標操作",
+     "types": [
+      "targeting",
+      "assist",
+      "focustarget",
+      "facetarget",
+      "lockon"
+     ]
+    },
+    {
+     "name": "標記",
+     "types": [
+      "marking",
+      "waymark"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "combat",
+   "label": "戰鬥設定",
+   "count": 15,
+   "groups": [
+    {
+     "name": "目標設定",
+     "types": [
+      "autolockon",
+      "autofacetarget",
+      "autotarget",
+      "targetself",
+      "groundclick"
+     ]
+    },
+    {
+     "name": "戰鬥",
+     "types": [
+      "levelsync",
+      "statusoff",
+      "duelswitch"
+     ]
+    },
+    {
+     "name": "錯誤提示",
+     "types": [
+      "actionerror",
+      "recasterror"
+     ]
+    },
+    {
+     "name": "魔素板",
+     "types": [
+      "magiaright",
+      "magialeft",
+      "magiaattack",
+      "magiadefense",
+      "magiaauto"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "char",
+   "label": "角色坐騎",
+   "count": 11,
+   "groups": [
+    {
+     "name": "移動與姿態",
+     "types": [
+      "automove",
+      "follow",
+      "battlemode"
+     ]
+    },
+    {
+     "name": "裝備",
+     "types": [
+      "gearset",
+      "visor",
+      "fashion"
+     ]
+    },
+    {
+     "name": "坐騎與寵物",
+     "types": [
+      "mount",
+      "minion",
+      "petsize",
+      "petmirage",
+      "ridepillion"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "emote",
+   "label": "情感動作",
+   "count": 7,
+   "groups": [
+    {
+     "name": "情感動作",
+     "types": [
+      "emote",
+      "em",
+      "emotelog"
+     ]
+    },
+    {
+     "name": "拍照",
+     "types": [
+      "gpose",
+      "facecamera",
+      "idlingcamera",
+      "tiltcamera"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "party",
+   "label": "小隊組隊",
+   "count": 9,
+   "groups": [
+    {
+     "name": "組隊",
+     "types": [
+      "partycmd",
+      "join",
+      "decline",
+      "invite",
+      "kick",
+      "leader",
+      "leave",
+      "psort",
+      "lfp"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "social",
+   "label": "玩家互動",
+   "count": 10,
+   "groups": [
+    {
+     "name": "交易與查看",
+     "types": [
+      "trade",
+      "check"
+     ]
+    },
+    {
+     "name": "搜尋與好友",
+     "types": [
+      "search",
+      "friendlist",
+      "blacklist"
+     ]
+    },
+    {
+     "name": "鑲嵌",
+     "types": [
+      "lfm",
+      "meldrequest"
+     ]
+    },
+    {
+     "name": "新人頻道",
+     "types": [
+      "nnetwork",
+      "nnetworkinvitation",
+      "nnetworkleave"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "status",
+   "label": "個人狀態",
+   "count": 6,
+   "groups": [
+    {
+     "name": "狀態",
+     "types": [
+      "busy",
+      "away",
+      "roleplaying",
+      "scomment",
+      "bstatus",
+      "title"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ui",
+   "label": "介面熱鍵",
+   "count": 23,
+   "groups": [
+    {
+     "name": "視窗",
+     "types": [
+      "openwindow",
+      "hud",
+      "chatlog",
+      "uiscale",
+      "hudreset",
+      "uireset"
+     ]
+    },
+    {
+     "name": "名牌與目標線",
+     "types": [
+      "nameplatedisp",
+      "nameplatetype",
+      "targetring",
+      "targetline",
+      "linkline",
+      "legacymark"
+     ]
+    },
+    {
+     "name": "角色顯示",
+     "types": [
+      "displayhead",
+      "displayarms",
+      "autosheathe",
+      "battleeffect",
+      "jobhudmode"
+     ]
+    },
+    {
+     "name": "熱鍵欄",
+     "types": [
+      "hotbar",
+      "pvphotbar",
+      "chotbar",
+      "pvpchotbar",
+      "chotbardisplay",
+      "chotbartype"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "av",
+   "label": "畫面音效",
+   "count": 13,
+   "groups": [
+    {
+     "name": "圖像",
+     "types": [
+      "gpreset"
+     ]
+    },
+    {
+     "name": "音量與音樂",
+     "types": [
+      "mastervolume",
+      "bgm",
+      "mountbgm",
+      "voice",
+      "performsounds"
+     ]
+    },
+    {
+     "name": "音效",
+     "types": [
+      "soundeffects",
+      "soundeffectsself",
+      "soundeffectsparty",
+      "soundeffectsother",
+      "systemsounds",
+      "systemsoundsspeaker",
+      "ambientsounds"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "sys",
+   "label": "巨集系統",
+   "count": 10,
+   "groups": [
+    {
+     "name": "巨集控制",
+     "types": [
+      "micon",
+      "mlock",
+      "merror_line",
+      "wait_line"
+     ]
+    },
+    {
+     "name": "系統",
+     "types": [
+      "playtime",
+      "logout",
+      "shutdown",
+      "instance",
+      "patchnote"
+     ]
+    },
+    {
+     "name": "自訂",
+     "types": [
+      "custom"
+     ]
+    }
+   ]
+  }
+ ]
+}

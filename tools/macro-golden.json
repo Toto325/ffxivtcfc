@@ -1,0 +1,12397 @@
+{
+ "cases": [
+  {
+   "type": "chat",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p"
+   },
+   "repeat": 1,
+   "out": [
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "s"
+   },
+   "repeat": 1,
+   "out": [
+    "/s "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "l6"
+   },
+   "repeat": 1,
+   "out": [
+    "/l6 "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "e"
+   },
+   "repeat": 1,
+   "out": [
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "message": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "se": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "se": "&lt;se.1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/p  &lt;se.1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "se": "&lt;se.8&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/p  &lt;se.8&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "se": "&lt;se.16&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/p  &lt;se.16&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/p <wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "s",
+    "message": "文字x",
+    "se": "&lt;se.1&gt;",
+    "inlineWait": "7"
+   },
+   "repeat": 1,
+   "out": [
+    "/s 文字x &lt;se.1&gt;<wait.7>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/p ",
+    "/p ",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "chatcountdown",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "chatcountdown",
+   "params": {
+    "channel": "p"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "chatcountdown",
+   "params": {
+    "channel": "s"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "chatcountdown",
+   "params": {
+    "channel": "l6"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "chatcountdown",
+   "params": {
+    "channel": "e"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "chatcountdown",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "",
+    "",
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {
+    "message": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/e 測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {
+    "se": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {
+    "se": "&lt;se.1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/e  &lt;se.1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {
+    "se": "&lt;se.8&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/e  &lt;se.8&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {
+    "se": "&lt;se.16&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/e  &lt;se.16&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {
+    "message": "文字x",
+    "se": "&lt;se.1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/e 文字x &lt;se.1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "echo",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/e ",
+    "/e ",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/t  "
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/t  "
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/t &lt;t&gt; "
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/t &lt;attack1&gt; "
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/t custom "
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {
+    "message": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/t  測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {
+    "target": "&lt;t&gt;",
+    "message": "文字x"
+   },
+   "repeat": 1,
+   "out": [
+    "/t &lt;t&gt; 文字x"
+   ],
+   "err": null
+  },
+  {
+   "type": "tell",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/t  ",
+    "/t  ",
+    "/t  "
+   ],
+   "err": null
+  },
+  {
+   "type": "reply",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/r "
+   ],
+   "err": null
+  },
+  {
+   "type": "reply",
+   "params": {
+    "message": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/r 測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "reply",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/r ",
+    "/r ",
+    "/r "
+   ],
+   "err": null
+  },
+  {
+   "type": "em",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/em "
+   ],
+   "err": null
+  },
+  {
+   "type": "em",
+   "params": {
+    "text": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/em 測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "em",
+   "params": {
+    "addMotion": true
+   },
+   "repeat": 1,
+   "out": [
+    "/em "
+   ],
+   "err": null
+  },
+  {
+   "type": "em",
+   "params": {
+    "text": "文字x",
+    "addMotion": true
+   },
+   "repeat": 1,
+   "out": [
+    "/em 文字x"
+   ],
+   "err": null
+  },
+  {
+   "type": "em",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/em ",
+    "/em ",
+    "/em "
+   ],
+   "err": null
+  },
+  {
+   "type": "cl",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/cl"
+   ],
+   "err": null
+  },
+  {
+   "type": "cl",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/cl",
+    "/cl",
+    "/cl"
+   ],
+   "err": null
+  },
+  {
+   "type": "emotelog",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/emotelog"
+   ],
+   "err": null
+  },
+  {
+   "type": "emotelog",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/emotelog on"
+   ],
+   "err": null
+  },
+  {
+   "type": "emotelog",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/emotelog off"
+   ],
+   "err": null
+  },
+  {
+   "type": "emotelog",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/emotelog"
+   ],
+   "err": null
+  },
+  {
+   "type": "emotelog",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/emotelog",
+    "/emotelog",
+    "/emotelog"
+   ],
+   "err": null
+  },
+  {
+   "type": "cth",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/cth"
+   ],
+   "err": null
+  },
+  {
+   "type": "cth",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/cth",
+    "/cth",
+    "/cth"
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/qchat \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {
+    "name": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/qchat \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/qchat \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/qchat \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/qchat \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/qchat \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {
+    "name": "文字x",
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/qchat \"文字x\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "qchat",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/qchat \"\"",
+    "/qchat \"\"",
+    "/qchat \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/ac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"測試abc\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "groundOff": true
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" gtoff"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" <wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "preAnnounce": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/ac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "postNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" ",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" ",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" ",
+    "/e 【技能】剩餘冷卻：<recast.\"\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "skillName": "文字x",
+    "target": "&lt;t&gt;",
+    "groundOff": true,
+    "inlineWait": "7",
+    "preAnnounce": true,
+    "postNotify": true,
+    "postEcho": true,
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/ac \"文字x\" gtoff<wait.7>",
+    "/p ",
+    "/e ",
+    "/e 【文字x】剩餘冷卻：<recast.\"文字x\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/ac \"\" ",
+    "/ac \"\" ",
+    "/ac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"測試abc\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "groundOff": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" gtoff"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" <wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "preAnnounce": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/gaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "postNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" ",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" ",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gaction \"\" ",
+    "/e 【技能】剩餘冷卻：<recast.\"\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {
+    "skillName": "文字x",
+    "target": "&lt;t&gt;",
+    "groundOff": true,
+    "inlineWait": "7",
+    "preAnnounce": true,
+    "postNotify": true,
+    "postEcho": true,
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/gaction \"文字x\" gtoff<wait.7>",
+    "/p ",
+    "/e ",
+    "/e 【文字x】剩餘冷卻：<recast.\"文字x\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "generalskill",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/gaction \"\" ",
+    "/gaction \"\" ",
+    "/gaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"測試abc\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "groundOff": true
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" gtoff"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" <wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "preAnnounce": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/blueaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "postNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" ",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" ",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/blueaction \"\" ",
+    "/e 【技能】剩餘冷卻：<recast.\"\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {
+    "skillName": "文字x",
+    "target": "&lt;t&gt;",
+    "groundOff": true,
+    "inlineWait": "7",
+    "preAnnounce": true,
+    "postNotify": true,
+    "postEcho": true,
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/blueaction \"文字x\" gtoff<wait.7>",
+    "/p ",
+    "/e ",
+    "/e 【文字x】剩餘冷卻：<recast.\"文字x\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "blueaction",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/blueaction \"\" ",
+    "/blueaction \"\" ",
+    "/blueaction \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"測試abc\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "groundOff": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" gtoff"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" <wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "preAnnounce": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/pvpac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "postNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" ",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" ",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpac \"\" ",
+    "/e 【技能】剩餘冷卻：<recast.\"\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {
+    "skillName": "文字x",
+    "target": "&lt;t&gt;",
+    "groundOff": true,
+    "inlineWait": "7",
+    "preAnnounce": true,
+    "postNotify": true,
+    "postEcho": true,
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/pvpac \"文字x\" gtoff<wait.7>",
+    "/p ",
+    "/e ",
+    "/e 【文字x】剩餘冷卻：<recast.\"文字x\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpaction",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/pvpac \"\" ",
+    "/pvpac \"\" ",
+    "/pvpac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/pac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"測試abc\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "groundOff": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" gtoff"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" <wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "preAnnounce": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/pac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "postNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" ",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" ",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/pac \"\" ",
+    "/e 【技能】剩餘冷卻：<recast.\"\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {
+    "skillName": "文字x",
+    "target": "&lt;t&gt;",
+    "groundOff": true,
+    "inlineWait": "7",
+    "preAnnounce": true,
+    "postNotify": true,
+    "postEcho": true,
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/pac \"文字x\" gtoff<wait.7>",
+    "/p ",
+    "/e ",
+    "/e 【文字x】剩餘冷卻：<recast.\"文字x\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "petaction",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/pac \"\" ",
+    "/pac \"\" ",
+    "/pac \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/cac \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/cac \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/cac \"\"<wait.10>"
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/cac \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "preAnnounce": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/cac \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "postNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/cac \"\"",
+    "/p "
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/cac \"\"",
+    "/e "
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/cac \"\"",
+    "/e 【技能】剩餘冷卻：<recast.\"\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {
+    "skillName": "文字x",
+    "inlineWait": "7",
+    "preAnnounce": true,
+    "postNotify": true,
+    "postEcho": true,
+    "recastNotify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/p ",
+    "/cac \"文字x\"<wait.7>",
+    "/p ",
+    "/e ",
+    "/e 【文字x】剩餘冷卻：<recast.\"文字x\"> 秒"
+   ],
+   "err": null
+  },
+  {
+   "type": "companionaction",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/cac \"\"",
+    "/cac \"\"",
+    "/cac \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/item \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "itemName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"測試abc\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"\" &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"\" &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"\" ",
+    "/e 已使用道具"
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {
+    "itemName": "文字x",
+    "target": "&lt;t&gt;",
+    "postEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/item \"文字x\" &lt;t&gt;",
+    "/e 已使用道具"
+   ],
+   "err": null
+  },
+  {
+   "type": "item",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/item \"\" ",
+    "/item \"\" ",
+    "/item \"\" "
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/undefined"
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {
+    "emoteName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {
+    "motionOnly": true
+   },
+   "repeat": 1,
+   "out": [
+    "/undefined motion"
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {
+    "addEm": true
+   },
+   "repeat": 1,
+   "out": [
+    "/undefined",
+    "/em "
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {
+    "emoteName": "文字x",
+    "motionOnly": true,
+    "addEm": true
+   },
+   "repeat": 1,
+   "out": [
+    "/文字x motion",
+    "/em "
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/undefined",
+    "/undefined",
+    "/undefined"
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "inlineWait": "10"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "inlineWait": "0"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "target": "&lt;t&gt;",
+    "inlineWait": "7"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "",
+    "",
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "useClear": true
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "echoMsg": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/e 測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "echoSe": ""
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "echoSe": "&lt;se.1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "echoSe": "&lt;se.8&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "echoSe": "&lt;se.16&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "useClear": true,
+    "echoMsg": "文字x",
+    "echoSe": "&lt;se.1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/e 文字x &lt;se.1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "",
+    "",
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsearch",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/isearch \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsearch",
+   "params": {
+    "itemName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/isearch \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsearch",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/isearch \"\"",
+    "/isearch \"\"",
+    "/isearch \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "recast",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/recast \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "recast",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/recast \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "recast",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/recast \"\"",
+    "/recast \"\"",
+    "/recast \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/aaction \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {
+    "skillName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/aaction \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/aaction \"\" on"
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/aaction \"\" off"
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/aaction \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {
+    "skillName": "文字x",
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/aaction \"文字x\" off"
+   ],
+   "err": null
+  },
+  {
+   "type": "aaction",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/aaction \"\"",
+    "/aaction \"\"",
+    "/aaction \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "bluespellbook",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/bluespellbook"
+   ],
+   "err": null
+  },
+  {
+   "type": "bluespellbook",
+   "params": {
+    "sub": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/bluespellbook"
+   ],
+   "err": null
+  },
+  {
+   "type": "bluespellbook",
+   "params": {
+    "sub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/bluespellbook set \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "bluespellbook",
+   "params": {
+    "sub": "preset"
+   },
+   "repeat": 1,
+   "out": [
+    "/bluespellbook preset 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "bluespellbook",
+   "params": {
+    "sub": "clear"
+   },
+   "repeat": 1,
+   "out": [
+    "/bluespellbook clear"
+   ],
+   "err": null
+  },
+  {
+   "type": "bluespellbook",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/bluespellbook",
+    "/bluespellbook",
+    "/bluespellbook"
+   ],
+   "err": null
+  },
+  {
+   "type": "apa",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/apa \"\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "apa",
+   "params": {
+    "skill1": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/apa \"測試abc\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "apa",
+   "params": {
+    "skill2": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/apa \"\" \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "apa",
+   "params": {
+    "skill1": "文字x",
+    "skill2": "文字x"
+   },
+   "repeat": 1,
+   "out": [
+    "/apa \"文字x\" \"文字x\""
+   ],
+   "err": null
+  },
+  {
+   "type": "apa",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/apa \"\" \"\"",
+    "/apa \"\" \"\"",
+    "/apa \"\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "openwindow",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/bag"
+   ],
+   "err": null
+  },
+  {
+   "type": "openwindow",
+   "params": {
+    "winCmd": "alist"
+   },
+   "repeat": 1,
+   "out": [
+    "/alist"
+   ],
+   "err": null
+  },
+  {
+   "type": "openwindow",
+   "params": {
+    "winCmd": "gear"
+   },
+   "repeat": 1,
+   "out": [
+    "/gear"
+   ],
+   "err": null
+  },
+  {
+   "type": "openwindow",
+   "params": {
+    "winCmd": "fg"
+   },
+   "repeat": 1,
+   "out": [
+    "/fg"
+   ],
+   "err": null
+  },
+  {
+   "type": "openwindow",
+   "params": {
+    "winCmd": "lcolor"
+   },
+   "repeat": 1,
+   "out": [
+    "/lcolor"
+   ],
+   "err": null
+  },
+  {
+   "type": "openwindow",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/bag",
+    "/bag",
+    "/bag"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/bt"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetCmd": "/bt"
+   },
+   "repeat": 1,
+   "out": [
+    "/bt"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetCmd": "/ta"
+   },
+   "repeat": 1,
+   "out": [
+    "/ta"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetCmd": "/tenemy"
+   },
+   "repeat": 1,
+   "out": [
+    "/tenemy"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetCmd": "/tle"
+   },
+   "repeat": 1,
+   "out": [
+    "/tle"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetParam": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/bt"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetParam": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/bt &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetParam": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/bt &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetParam": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/bt <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {
+    "targetCmd": "/ta",
+    "targetParam": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/ta &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "targeting",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/bt",
+    "/bt",
+    "/bt"
+   ],
+   "err": null
+  },
+  {
+   "type": "check",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/c"
+   ],
+   "err": null
+  },
+  {
+   "type": "check",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/c"
+   ],
+   "err": null
+  },
+  {
+   "type": "check",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/c &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "check",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/c &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "check",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/c <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "check",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/c",
+    "/c",
+    "/c"
+   ],
+   "err": null
+  },
+  {
+   "type": "trade",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/trade"
+   ],
+   "err": null
+  },
+  {
+   "type": "trade",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/trade"
+   ],
+   "err": null
+  },
+  {
+   "type": "trade",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/trade &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "trade",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/trade &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "trade",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/trade <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "trade",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/trade",
+    "/trade",
+    "/trade"
+   ],
+   "err": null
+  },
+  {
+   "type": "assist",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/as "
+   ],
+   "err": null
+  },
+  {
+   "type": "assist",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/as "
+   ],
+   "err": null
+  },
+  {
+   "type": "assist",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/as &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "assist",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/as &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "assist",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/as <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "assist",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/as ",
+    "/as ",
+    "/as "
+   ],
+   "err": null
+  },
+  {
+   "type": "focustarget",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/focustarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "focustarget",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/focustarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "focustarget",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/focustarget &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "focustarget",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/focustarget &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "focustarget",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/focustarget <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "focustarget",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/focustarget",
+    "/focustarget",
+    "/focustarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "facetarget",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/ft"
+   ],
+   "err": null
+  },
+  {
+   "type": "facetarget",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/ft",
+    "/ft",
+    "/ft"
+   ],
+   "err": null
+  },
+  {
+   "type": "lockon",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/lo"
+   ],
+   "err": null
+  },
+  {
+   "type": "lockon",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/lo"
+   ],
+   "err": null
+  },
+  {
+   "type": "lockon",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/lo &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "lockon",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/lo &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "lockon",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/lo <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "lockon",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/lo",
+    "/lo",
+    "/lo"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mk attack1 "
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "attack"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack "
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "attack1"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 "
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "bind3"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk bind3 "
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "clear"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk clear"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markTarget": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 "
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markTarget": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markTarget": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markTarget": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "notify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 ",
+    "/p 標記已設定！"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "attack1",
+    "markTarget": "&lt;t&gt;",
+    "notify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 &lt;t&gt;",
+    "/p 標記已設定！"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/mk attack1 ",
+    "/mk attack1 ",
+    "/mk attack1 "
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/wmark A"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkAction": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark A"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkAction": "target"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark A <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkAction": "clear"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark clear"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkAction": "preset"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark preset 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkName": "A"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark A"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkName": "B"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark B"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkName": "1"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkName": "4"
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark 4"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "notify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark A",
+    "/p 場景標記已設置！"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {
+    "waymarkAction": "target",
+    "waymarkName": "B",
+    "notify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/wmark B <t>",
+    "/p 場景標記已設置！"
+   ],
+   "err": null
+  },
+  {
+   "type": "waymark",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/wmark A",
+    "/wmark A",
+    "/wmark A"
+   ],
+   "err": null
+  },
+  {
+   "type": "countdown_sys",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/cd"
+   ],
+   "err": null
+  },
+  {
+   "type": "countdown_sys",
+   "params": {
+    "secs": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/cd 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "countdown_sys",
+   "params": {
+    "secs": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/cd 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "countdown_sys",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/cd",
+    "/cd",
+    "/cd"
+   ],
+   "err": null
+  },
+  {
+   "type": "readycheck",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/rcheck"
+   ],
+   "err": null
+  },
+  {
+   "type": "readycheck",
+   "params": {
+    "notify": true
+   },
+   "repeat": 1,
+   "out": [
+    "/rcheck",
+    "/p 準備確認！"
+   ],
+   "err": null
+  },
+  {
+   "type": "readycheck",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/rcheck",
+    "/rcheck",
+    "/rcheck"
+   ],
+   "err": null
+  },
+  {
+   "type": "ready",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/rd"
+   ],
+   "err": null
+  },
+  {
+   "type": "ready",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/rd",
+    "/rd",
+    "/rd"
+   ],
+   "err": null
+  },
+  {
+   "type": "notready",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nr"
+   ],
+   "err": null
+  },
+  {
+   "type": "notready",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nr",
+    "/nr",
+    "/nr"
+   ],
+   "err": null
+  },
+  {
+   "type": "random",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/random"
+   ],
+   "err": null
+  },
+  {
+   "type": "random",
+   "params": {
+    "max": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/random 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "random",
+   "params": {
+    "max": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/random 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "random",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/random",
+    "/random",
+    "/random"
+   ],
+   "err": null
+  },
+  {
+   "type": "alarm",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/alarm"
+   ],
+   "err": null
+  },
+  {
+   "type": "alarm",
+   "params": {
+    "alarmSub": "open"
+   },
+   "repeat": 1,
+   "out": [
+    "/alarm"
+   ],
+   "err": null
+  },
+  {
+   "type": "alarm",
+   "params": {
+    "alarmSub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/alarm \"\" lt 0000"
+   ],
+   "err": null
+  },
+  {
+   "type": "alarm",
+   "params": {
+    "alarmSub": "clear"
+   },
+   "repeat": 1,
+   "out": [
+    "/alarm clear"
+   ],
+   "err": null
+  },
+  {
+   "type": "alarm",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/alarm",
+    "/alarm",
+    "/alarm"
+   ],
+   "err": null
+  },
+  {
+   "type": "dice",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/dice"
+   ],
+   "err": null
+  },
+  {
+   "type": "dice",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/dice",
+    "/dice",
+    "/dice"
+   ],
+   "err": null
+  },
+  {
+   "type": "automove",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/automove"
+   ],
+   "err": null
+  },
+  {
+   "type": "automove",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/automove",
+    "/automove",
+    "/automove"
+   ],
+   "err": null
+  },
+  {
+   "type": "follow",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/follow"
+   ],
+   "err": null
+  },
+  {
+   "type": "follow",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/follow"
+   ],
+   "err": null
+  },
+  {
+   "type": "follow",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/follow &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "follow",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/follow &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "follow",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/follow <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "follow",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/follow",
+    "/follow",
+    "/follow"
+   ],
+   "err": null
+  },
+  {
+   "type": "battlemode",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/bm"
+   ],
+   "err": null
+  },
+  {
+   "type": "battlemode",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/bm"
+   ],
+   "err": null
+  },
+  {
+   "type": "battlemode",
+   "params": {
+    "toggle": "draw"
+   },
+   "repeat": 1,
+   "out": [
+    "/bm draw"
+   ],
+   "err": null
+  },
+  {
+   "type": "battlemode",
+   "params": {
+    "toggle": "sheathe"
+   },
+   "repeat": 1,
+   "out": [
+    "/bm sheathe"
+   ],
+   "err": null
+  },
+  {
+   "type": "battlemode",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/bm",
+    "/bm",
+    "/bm"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/gs change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsAction": "change"
+   },
+   "repeat": 1,
+   "out": [
+    "/gs change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsAction": "save"
+   },
+   "repeat": 1,
+   "out": [
+    "/gs save 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsAction": "view"
+   },
+   "repeat": 1,
+   "out": [
+    "/gs view 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsAction": "delete"
+   },
+   "repeat": 1,
+   "out": [
+    "/gs delete 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsNumber": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/gs change 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsNumber": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/gs change 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "addMicon": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gs change 1",
+    "/micon 1 gearset"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "addEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gs change 1",
+    "/e 已切換套裝"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsAction": "save",
+    "gsNumber": "7",
+    "addMicon": true,
+    "addEcho": true
+   },
+   "repeat": 1,
+   "out": [
+    "/gs save 7",
+    "/e 已切換套裝",
+    "/micon 7 gearset"
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/gs change 1",
+    "/gs change 1",
+    "/gs change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "visor",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/visor"
+   ],
+   "err": null
+  },
+  {
+   "type": "visor",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/visor",
+    "/visor",
+    "/visor"
+   ],
+   "err": null
+  },
+  {
+   "type": "fashion",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/fashion \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "fashion",
+   "params": {
+    "itemName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/fashion \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "fashion",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/fashion \"\"",
+    "/fashion \"\"",
+    "/fashion \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "mount",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mount"
+   ],
+   "err": null
+  },
+  {
+   "type": "mount",
+   "params": {
+    "mountName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/mount \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "mount",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/mount",
+    "/mount",
+    "/mount"
+   ],
+   "err": null
+  },
+  {
+   "type": "minion",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/minion"
+   ],
+   "err": null
+  },
+  {
+   "type": "minion",
+   "params": {
+    "minionName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/minion \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "minion",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/minion",
+    "/minion",
+    "/minion"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/petsize all"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "petName": "Demi-Bahamut"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize Demi-Bahamut"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "petName": "Demi-Phoenix"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize Demi-Phoenix"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "petName": "Titan-Egi"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize Titan-Egi"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "petName": "all"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize all"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "size": "large"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize all large"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "size": "medium"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize all medium"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "size": "small"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize all small"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "size": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize all"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {
+    "petName": "Demi-Phoenix",
+    "size": "medium"
+   },
+   "repeat": 1,
+   "out": [
+    "/petsize Demi-Phoenix medium"
+   ],
+   "err": null
+  },
+  {
+   "type": "petsize",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/petsize all",
+    "/petsize all",
+    "/petsize all"
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "petName": "carbuncle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "petName": "garuda-egi"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"garuda-egi\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "petName": "titan-egi"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"titan-egi\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "petName": "eos"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"eos\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "clear": true
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "appearance": "carbuncle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\" \"carbuncle\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "appearance": "emerald-carbuncle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\" \"emerald-carbuncle\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "appearance": "topaz-carbuncle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\" \"topaz-carbuncle\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "appearance": "ruby-carbuncle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"carbuncle\" \"ruby-carbuncle\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {
+    "petName": "garuda-egi",
+    "clear": true,
+    "appearance": "emerald-carbuncle"
+   },
+   "repeat": 1,
+   "out": [
+    "/petglamour \"garuda-egi\""
+   ],
+   "err": null
+  },
+  {
+   "type": "petmirage",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/petglamour \"carbuncle\" \"\"",
+    "/petglamour \"carbuncle\" \"\"",
+    "/petglamour \"carbuncle\" \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/ridepillion <2> 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion <2> 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion &lt;t&gt; 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion &lt;attack1&gt; 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion <t> 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "seat": "1"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion <2> 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "seat": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion <2> 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "seat": "4"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion <2> 4"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "seat": "7"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion <2> 7"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {
+    "target": "&lt;t&gt;",
+    "seat": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/ridepillion &lt;t&gt; 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "ridepillion",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/ridepillion <2> 1",
+    "/ridepillion <2> 1",
+    "/ridepillion <2> 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpose",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/gpose"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpose",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/gpose",
+    "/gpose",
+    "/gpose"
+   ],
+   "err": null
+  },
+  {
+   "type": "facecamera",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/facecamera"
+   ],
+   "err": null
+  },
+  {
+   "type": "facecamera",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/facecamera",
+    "/facecamera",
+    "/facecamera"
+   ],
+   "err": null
+  },
+  {
+   "type": "idlingcamera",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/icam"
+   ],
+   "err": null
+  },
+  {
+   "type": "idlingcamera",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/icam"
+   ],
+   "err": null
+  },
+  {
+   "type": "idlingcamera",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/icam &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "idlingcamera",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/icam &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "idlingcamera",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/icam <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "idlingcamera",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/icam",
+    "/icam",
+    "/icam"
+   ],
+   "err": null
+  },
+  {
+   "type": "tiltcamera",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/tiltcamera 50"
+   ],
+   "err": null
+  },
+  {
+   "type": "tiltcamera",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/tiltcamera 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "tiltcamera",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/tiltcamera 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "tiltcamera",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/tiltcamera 50",
+    "/tiltcamera 50",
+    "/tiltcamera 50"
+   ],
+   "err": null
+  },
+  {
+   "type": "busy",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/busy"
+   ],
+   "err": null
+  },
+  {
+   "type": "busy",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/busy on"
+   ],
+   "err": null
+  },
+  {
+   "type": "busy",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/busy off"
+   ],
+   "err": null
+  },
+  {
+   "type": "busy",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/busy"
+   ],
+   "err": null
+  },
+  {
+   "type": "busy",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/busy",
+    "/busy",
+    "/busy"
+   ],
+   "err": null
+  },
+  {
+   "type": "away",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/afk"
+   ],
+   "err": null
+  },
+  {
+   "type": "away",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/afk on"
+   ],
+   "err": null
+  },
+  {
+   "type": "away",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/afk off"
+   ],
+   "err": null
+  },
+  {
+   "type": "away",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/afk"
+   ],
+   "err": null
+  },
+  {
+   "type": "away",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/afk",
+    "/afk",
+    "/afk"
+   ],
+   "err": null
+  },
+  {
+   "type": "roleplaying",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/roleplaying"
+   ],
+   "err": null
+  },
+  {
+   "type": "roleplaying",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/roleplaying on"
+   ],
+   "err": null
+  },
+  {
+   "type": "roleplaying",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/roleplaying off"
+   ],
+   "err": null
+  },
+  {
+   "type": "roleplaying",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/roleplaying"
+   ],
+   "err": null
+  },
+  {
+   "type": "roleplaying",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/roleplaying",
+    "/roleplaying",
+    "/roleplaying"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp on"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp off"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {
+    "toggle": "off",
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/lfp off"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfp",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/lfp",
+    "/lfp",
+    "/lfp"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfm",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/lfm"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfm",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/lfm on"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfm",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/lfm off"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfm",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/lfm"
+   ],
+   "err": null
+  },
+  {
+   "type": "lfm",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/lfm",
+    "/lfm",
+    "/lfm"
+   ],
+   "err": null
+  },
+  {
+   "type": "scomment",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/scomment "
+   ],
+   "err": null
+  },
+  {
+   "type": "scomment",
+   "params": {
+    "text": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/scomment 測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "scomment",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/scomment ",
+    "/scomment ",
+    "/scomment "
+   ],
+   "err": null
+  },
+  {
+   "type": "bstatus",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nastatus"
+   ],
+   "err": null
+  },
+  {
+   "type": "bstatus",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/nastatus on"
+   ],
+   "err": null
+  },
+  {
+   "type": "bstatus",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/nastatus off"
+   ],
+   "err": null
+  },
+  {
+   "type": "bstatus",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/nastatus"
+   ],
+   "err": null
+  },
+  {
+   "type": "bstatus",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nastatus",
+    "/nastatus",
+    "/nastatus"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetwork",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nnetwork"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetwork",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/nnetwork on"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetwork",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/nnetwork off"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetwork",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/nnetwork"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetwork",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nnetwork",
+    "/nnetwork",
+    "/nnetwork"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkinvitation",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nnetworkinvitation"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkinvitation",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/nnetworkinvitation on"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkinvitation",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/nnetworkinvitation off"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkinvitation",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/nnetworkinvitation"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkinvitation",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nnetworkinvitation",
+    "/nnetworkinvitation",
+    "/nnetworkinvitation"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkleave",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nnetworkleave"
+   ],
+   "err": null
+  },
+  {
+   "type": "nnetworkleave",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nnetworkleave",
+    "/nnetworkleave",
+    "/nnetworkleave"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "nameMode": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "nameMode": "forename"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "nameMode": "surname"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "status": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "status": "leader"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea leader"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "status": "lookingtomeld"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea lookingtomeld"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "status": "returner"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea returner"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "jobs": [
+     null
+    ]
+   },
+   "repeat": 1,
+   "out": [
+    "/sea "
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lvMin": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lvMin": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lvMax": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lvMax": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "gc": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "gc": "Maelstrom"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea \"Maelstrom\""
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "gc": "Order of the Twin Adder"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea \"Order of the Twin Adder\""
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "gc": "Immortal Flames"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea \"Immortal Flames\""
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "location": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "location": "Limsa Lominsa"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea \"Limsa Lominsa\""
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "location": "Coerthas"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea \"Coerthas\""
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "location": "Norvrandt"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea \"Norvrandt\""
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lang": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lang": "JA"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea JA"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lang": "EN"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea EN"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "lang": "DE"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea DE"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {
+    "nameMode": "forename",
+    "status": "leader",
+    "jobs": [
+     null
+    ],
+    "lvMin": "7",
+    "lvMax": "7",
+    "gc": "Maelstrom",
+    "location": "Limsa Lominsa",
+    "lang": "JA"
+   },
+   "repeat": 1,
+   "out": [
+    "/sea leader  7 \"Maelstrom\" \"Limsa Lominsa\" JA"
+   ],
+   "err": null
+  },
+  {
+   "type": "search",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/sea",
+    "/sea",
+    "/sea"
+   ],
+   "err": null
+  },
+  {
+   "type": "title",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/title"
+   ],
+   "err": null
+  },
+  {
+   "type": "title",
+   "params": {
+    "sub": "random"
+   },
+   "repeat": 1,
+   "out": [
+    "/title"
+   ],
+   "err": null
+  },
+  {
+   "type": "title",
+   "params": {
+    "sub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/title set \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "title",
+   "params": {
+    "sub": "clear"
+   },
+   "repeat": 1,
+   "out": [
+    "/title clear"
+   ],
+   "err": null
+  },
+  {
+   "type": "title",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/title",
+    "/title",
+    "/title"
+   ],
+   "err": null
+  },
+  {
+   "type": "partycmd",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/pcmd"
+   ],
+   "err": null
+  },
+  {
+   "type": "partycmd",
+   "params": {
+    "sub": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/pcmd"
+   ],
+   "err": null
+  },
+  {
+   "type": "partycmd",
+   "params": {
+    "sub": "add"
+   },
+   "repeat": 1,
+   "out": [
+    "/pcmd add"
+   ],
+   "err": null
+  },
+  {
+   "type": "partycmd",
+   "params": {
+    "sub": "leader"
+   },
+   "repeat": 1,
+   "out": [
+    "/pcmd leader"
+   ],
+   "err": null
+  },
+  {
+   "type": "partycmd",
+   "params": {
+    "sub": "breakup"
+   },
+   "repeat": 1,
+   "out": [
+    "/pcmd breakup"
+   ],
+   "err": null
+  },
+  {
+   "type": "partycmd",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/pcmd",
+    "/pcmd",
+    "/pcmd"
+   ],
+   "err": null
+  },
+  {
+   "type": "join",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/join"
+   ],
+   "err": null
+  },
+  {
+   "type": "join",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/join",
+    "/join",
+    "/join"
+   ],
+   "err": null
+  },
+  {
+   "type": "decline",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/decline"
+   ],
+   "err": null
+  },
+  {
+   "type": "decline",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/decline",
+    "/decline",
+    "/decline"
+   ],
+   "err": null
+  },
+  {
+   "type": "invite",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/invite"
+   ],
+   "err": null
+  },
+  {
+   "type": "invite",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/invite"
+   ],
+   "err": null
+  },
+  {
+   "type": "invite",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/invite &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "invite",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/invite &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "invite",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/invite <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "invite",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/invite",
+    "/invite",
+    "/invite"
+   ],
+   "err": null
+  },
+  {
+   "type": "kick",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/kick"
+   ],
+   "err": null
+  },
+  {
+   "type": "kick",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/kick"
+   ],
+   "err": null
+  },
+  {
+   "type": "kick",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/kick &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "kick",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/kick &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "kick",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/kick <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "kick",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/kick",
+    "/kick",
+    "/kick"
+   ],
+   "err": null
+  },
+  {
+   "type": "leader",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/leader"
+   ],
+   "err": null
+  },
+  {
+   "type": "leader",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/leader"
+   ],
+   "err": null
+  },
+  {
+   "type": "leader",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/leader &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "leader",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/leader &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "leader",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/leader <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "leader",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/leader",
+    "/leader",
+    "/leader"
+   ],
+   "err": null
+  },
+  {
+   "type": "leave",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/leave"
+   ],
+   "err": null
+  },
+  {
+   "type": "leave",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/leave",
+    "/leave",
+    "/leave"
+   ],
+   "err": null
+  },
+  {
+   "type": "psort",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/psort"
+   ],
+   "err": null
+  },
+  {
+   "type": "psort",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/psort",
+    "/psort",
+    "/psort"
+   ],
+   "err": null
+  },
+  {
+   "type": "meldrequest",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/meldrequest"
+   ],
+   "err": null
+  },
+  {
+   "type": "meldrequest",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/meldrequest"
+   ],
+   "err": null
+  },
+  {
+   "type": "meldrequest",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/meldrequest &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "meldrequest",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/meldrequest &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "meldrequest",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/meldrequest <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "meldrequest",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/meldrequest",
+    "/meldrequest",
+    "/meldrequest"
+   ],
+   "err": null
+  },
+  {
+   "type": "friendlist",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/flist"
+   ],
+   "err": null
+  },
+  {
+   "type": "friendlist",
+   "params": {
+    "sub": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/flist"
+   ],
+   "err": null
+  },
+  {
+   "type": "friendlist",
+   "params": {
+    "sub": "add"
+   },
+   "repeat": 1,
+   "out": [
+    "/flist add"
+   ],
+   "err": null
+  },
+  {
+   "type": "friendlist",
+   "params": {
+    "sub": "accept"
+   },
+   "repeat": 1,
+   "out": [
+    "/flist accept"
+   ],
+   "err": null
+  },
+  {
+   "type": "friendlist",
+   "params": {
+    "sub": "remove"
+   },
+   "repeat": 1,
+   "out": [
+    "/flist remove"
+   ],
+   "err": null
+  },
+  {
+   "type": "friendlist",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/flist",
+    "/flist",
+    "/flist"
+   ],
+   "err": null
+  },
+  {
+   "type": "blacklist",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/blist"
+   ],
+   "err": null
+  },
+  {
+   "type": "blacklist",
+   "params": {
+    "sub": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/blist"
+   ],
+   "err": null
+  },
+  {
+   "type": "blacklist",
+   "params": {
+    "sub": "add"
+   },
+   "repeat": 1,
+   "out": [
+    "/blist add"
+   ],
+   "err": null
+  },
+  {
+   "type": "blacklist",
+   "params": {
+    "sub": "remove"
+   },
+   "repeat": 1,
+   "out": [
+    "/blist remove"
+   ],
+   "err": null
+  },
+  {
+   "type": "blacklist",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/blist",
+    "/blist",
+    "/blist"
+   ],
+   "err": null
+  },
+  {
+   "type": "levelsync",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/levelsync"
+   ],
+   "err": null
+  },
+  {
+   "type": "levelsync",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/levelsync",
+    "/levelsync",
+    "/levelsync"
+   ],
+   "err": null
+  },
+  {
+   "type": "statusoff",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/statusoff \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "statusoff",
+   "params": {
+    "statusName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/statusoff \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "statusoff",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/statusoff \"\"",
+    "/statusoff \"\"",
+    "/statusoff \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "autolockon",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/autolockon"
+   ],
+   "err": null
+  },
+  {
+   "type": "autolockon",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/autolockon on"
+   ],
+   "err": null
+  },
+  {
+   "type": "autolockon",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/autolockon off"
+   ],
+   "err": null
+  },
+  {
+   "type": "autolockon",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/autolockon"
+   ],
+   "err": null
+  },
+  {
+   "type": "autolockon",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/autolockon",
+    "/autolockon",
+    "/autolockon"
+   ],
+   "err": null
+  },
+  {
+   "type": "autofacetarget",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/autofacetarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "autofacetarget",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/autofacetarget on"
+   ],
+   "err": null
+  },
+  {
+   "type": "autofacetarget",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/autofacetarget off"
+   ],
+   "err": null
+  },
+  {
+   "type": "autofacetarget",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/autofacetarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "autofacetarget",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/autofacetarget",
+    "/autofacetarget",
+    "/autofacetarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "autotarget",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/autotarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "autotarget",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/autotarget on"
+   ],
+   "err": null
+  },
+  {
+   "type": "autotarget",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/autotarget off"
+   ],
+   "err": null
+  },
+  {
+   "type": "autotarget",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/autotarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "autotarget",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/autotarget",
+    "/autotarget",
+    "/autotarget"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetself",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/targetself"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetself",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetself on"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetself",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetself off"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetself",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetself"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetself",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/targetself",
+    "/targetself",
+    "/targetself"
+   ],
+   "err": null
+  },
+  {
+   "type": "groundclick",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/groundclick"
+   ],
+   "err": null
+  },
+  {
+   "type": "groundclick",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/groundclick on"
+   ],
+   "err": null
+  },
+  {
+   "type": "groundclick",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/groundclick off"
+   ],
+   "err": null
+  },
+  {
+   "type": "groundclick",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/groundclick"
+   ],
+   "err": null
+  },
+  {
+   "type": "groundclick",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/groundclick",
+    "/groundclick",
+    "/groundclick"
+   ],
+   "err": null
+  },
+  {
+   "type": "duelswitch",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/duelswitch"
+   ],
+   "err": null
+  },
+  {
+   "type": "duelswitch",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/duelswitch on"
+   ],
+   "err": null
+  },
+  {
+   "type": "duelswitch",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/duelswitch off"
+   ],
+   "err": null
+  },
+  {
+   "type": "duelswitch",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/duelswitch"
+   ],
+   "err": null
+  },
+  {
+   "type": "duelswitch",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/duelswitch",
+    "/duelswitch",
+    "/duelswitch"
+   ],
+   "err": null
+  },
+  {
+   "type": "actionerror",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/aerror"
+   ],
+   "err": null
+  },
+  {
+   "type": "actionerror",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/aerror on"
+   ],
+   "err": null
+  },
+  {
+   "type": "actionerror",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/aerror off"
+   ],
+   "err": null
+  },
+  {
+   "type": "actionerror",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/aerror"
+   ],
+   "err": null
+  },
+  {
+   "type": "actionerror",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/aerror",
+    "/aerror",
+    "/aerror"
+   ],
+   "err": null
+  },
+  {
+   "type": "recasterror",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/rerror"
+   ],
+   "err": null
+  },
+  {
+   "type": "recasterror",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/rerror on"
+   ],
+   "err": null
+  },
+  {
+   "type": "recasterror",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/rerror off"
+   ],
+   "err": null
+  },
+  {
+   "type": "recasterror",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/rerror"
+   ],
+   "err": null
+  },
+  {
+   "type": "recasterror",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/rerror",
+    "/rerror",
+    "/rerror"
+   ],
+   "err": null
+  },
+  {
+   "type": "hud",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/hud"
+   ],
+   "err": null
+  },
+  {
+   "type": "hud",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/hud"
+   ],
+   "err": null
+  },
+  {
+   "type": "hud",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/hud"
+   ],
+   "err": null
+  },
+  {
+   "type": "hud",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/hud"
+   ],
+   "err": null
+  },
+  {
+   "type": "hud",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/hud",
+    "/hud",
+    "/hud"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/battleeffect self all"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effTarget": "self"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect self all"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effTarget": "party"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect party all"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effTarget": "other"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect other all"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effTarget": "enemypc"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect enemypc all"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effType": "all"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect self all"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effType": "simple"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect self simple"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effType": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect self off"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {
+    "effTarget": "party",
+    "effType": "simple"
+   },
+   "repeat": 1,
+   "out": [
+    "/battleeffect party simple"
+   ],
+   "err": null
+  },
+  {
+   "type": "battleeffect",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/battleeffect self all",
+    "/battleeffect self all",
+    "/battleeffect self all"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "target": "all"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "target": "self"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp self 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "target": "alliance"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp alliance 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "target": "feast"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp feast 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "setting": "1"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "setting": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp all 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "setting": "3"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp all 3"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "setting": "4"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp all 4"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {
+    "target": "self",
+    "setting": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatedisp self 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatedisp",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nameplatedisp all 1",
+    "/nameplatedisp all 1",
+    "/nameplatedisp all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/nameplatetype all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "target": "all"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "target": "self"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype self 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "target": "alliance"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype alliance 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "target": "feast"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype feast 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "setting": "1"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "setting": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype all 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "setting": "3"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype all 3"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "setting": "4"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype all 4"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {
+    "target": "self",
+    "setting": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/nameplatetype self 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "nameplatetype",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/nameplatetype all 1",
+    "/nameplatetype all 1",
+    "/nameplatetype all 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "legacymark",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/lmark"
+   ],
+   "err": null
+  },
+  {
+   "type": "legacymark",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/lmark on"
+   ],
+   "err": null
+  },
+  {
+   "type": "legacymark",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/lmark off"
+   ],
+   "err": null
+  },
+  {
+   "type": "legacymark",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/lmark"
+   ],
+   "err": null
+  },
+  {
+   "type": "legacymark",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/lmark",
+    "/lmark",
+    "/lmark"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayhead",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/displayhead"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayhead",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/displayhead on"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayhead",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/displayhead off"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayhead",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/displayhead"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayhead",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/displayhead",
+    "/displayhead",
+    "/displayhead"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayarms",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/displayarms"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayarms",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/displayarms on"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayarms",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/displayarms off"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayarms",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/displayarms"
+   ],
+   "err": null
+  },
+  {
+   "type": "displayarms",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/displayarms",
+    "/displayarms",
+    "/displayarms"
+   ],
+   "err": null
+  },
+  {
+   "type": "autosheathe",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/ashathe"
+   ],
+   "err": null
+  },
+  {
+   "type": "autosheathe",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/ashathe on"
+   ],
+   "err": null
+  },
+  {
+   "type": "autosheathe",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/ashathe off"
+   ],
+   "err": null
+  },
+  {
+   "type": "autosheathe",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/ashathe"
+   ],
+   "err": null
+  },
+  {
+   "type": "autosheathe",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/ashathe",
+    "/ashathe",
+    "/ashathe"
+   ],
+   "err": null
+  },
+  {
+   "type": "jobhudmode",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/jobhudmode"
+   ],
+   "err": null
+  },
+  {
+   "type": "jobhudmode",
+   "params": {
+    "num": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/jobhudmode"
+   ],
+   "err": null
+  },
+  {
+   "type": "jobhudmode",
+   "params": {
+    "num": "1"
+   },
+   "repeat": 1,
+   "out": [
+    "/jobhudmode 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "jobhudmode",
+   "params": {
+    "num": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/jobhudmode 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "jobhudmode",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/jobhudmode",
+    "/jobhudmode",
+    "/jobhudmode"
+   ],
+   "err": null
+  },
+  {
+   "type": "hudreset",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/hudreset"
+   ],
+   "err": null
+  },
+  {
+   "type": "hudreset",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/hudreset",
+    "/hudreset",
+    "/hudreset"
+   ],
+   "err": null
+  },
+  {
+   "type": "uireset",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/uireset"
+   ],
+   "err": null
+  },
+  {
+   "type": "uireset",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/uireset",
+    "/uireset",
+    "/uireset"
+   ],
+   "err": null
+  },
+  {
+   "type": "uiscale",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/uiscale"
+   ],
+   "err": null
+  },
+  {
+   "type": "uiscale",
+   "params": {
+    "value": "reset"
+   },
+   "repeat": 1,
+   "out": [
+    "/uiscale reset"
+   ],
+   "err": null
+  },
+  {
+   "type": "uiscale",
+   "params": {
+    "value": "60"
+   },
+   "repeat": 1,
+   "out": [
+    "/uiscale 60"
+   ],
+   "err": null
+  },
+  {
+   "type": "uiscale",
+   "params": {
+    "value": "100"
+   },
+   "repeat": 1,
+   "out": [
+    "/uiscale 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "uiscale",
+   "params": {
+    "value": "140"
+   },
+   "repeat": 1,
+   "out": [
+    "/uiscale 140"
+   ],
+   "err": null
+  },
+  {
+   "type": "uiscale",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/uiscale",
+    "/uiscale",
+    "/uiscale"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/chatlog fontsize 12"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "sub": "fontsize"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog fontsize 12"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "sub": "time_onoff"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog time on"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "sub": "time_format"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog time 24"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "sub": "call"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog call on"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "tabNum": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog fontsize 10 12"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "tabNum": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog fontsize 0 12"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "fontSize": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog fontsize 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "fontSize": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog fontsize 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {
+    "sub": "time_onoff",
+    "tabNum": "7",
+    "fontSize": "7"
+   },
+   "repeat": 1,
+   "out": [
+    "/chatlog time 7 on"
+   ],
+   "err": null
+  },
+  {
+   "type": "chatlog",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/chatlog fontsize 12",
+    "/chatlog fontsize 12",
+    "/chatlog fontsize 12"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetring",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/targetring"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetring",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetring on"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetring",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetring off"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetring",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetring"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetring",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/targetring",
+    "/targetring",
+    "/targetring"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetline",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/targetline"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetline",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetline on"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetline",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetline off"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetline",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/targetline"
+   ],
+   "err": null
+  },
+  {
+   "type": "targetline",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/targetline",
+    "/targetline",
+    "/targetline"
+   ],
+   "err": null
+  },
+  {
+   "type": "linkline",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/linkline"
+   ],
+   "err": null
+  },
+  {
+   "type": "linkline",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/linkline on"
+   ],
+   "err": null
+  },
+  {
+   "type": "linkline",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/linkline off"
+   ],
+   "err": null
+  },
+  {
+   "type": "linkline",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/linkline"
+   ],
+   "err": null
+  },
+  {
+   "type": "linkline",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/linkline",
+    "/linkline",
+    "/linkline"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "zone": "normal"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "zone": "pvp"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "sub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "sub": "change"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "sub": "display"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar display 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "sub": "remove"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar remove 1 all"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "setType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "setType": "blueaction"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar blueaction \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "setType": "buddy"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar buddy \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "setType": "waymark"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar waymark \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "setName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "num": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\" 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "num": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\" 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "slot2": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\" 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "slot2": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/hotbar action \"\" 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {
+    "zone": "pvp",
+    "sub": "change",
+    "setType": "blueaction",
+    "setName": "文字x",
+    "num": "7",
+    "slot2": "7"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar change 7"
+   ],
+   "err": null
+  },
+  {
+   "type": "hotbar",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/hotbar action \"\"",
+    "/hotbar action \"\"",
+    "/hotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "sub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "sub": "change"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "sub": "display"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar display 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "sub": "remove"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar remove 1 all"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "setType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "setType": "general"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar general \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "setType": "pet"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar pet \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "setType": "waymark"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar waymark \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "setName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "num": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\" 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "num": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\" 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "slot2": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\" 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "slot2": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar action \"\" 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {
+    "sub": "change",
+    "setType": "general",
+    "setName": "文字x",
+    "num": "7",
+    "slot2": "7"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvphotbar change 7"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvphotbar",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/pvphotbar action \"\"",
+    "/pvphotbar action \"\"",
+    "/pvphotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "zone": "normal"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "zone": "pvp"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "sub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "sub": "change"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "sub": "copy"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar copy current 1 current 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "sub": "remove"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar remove 1 all"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "setType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "setType": "blueaction"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar blueaction \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "setType": "buddy"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar buddy \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "setType": "waymark"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar waymark \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "setName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "num": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\" 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "num": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\" 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "pos": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "pos": "LD1"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\" LD1"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "pos": "LA4"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\" LA4"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "pos": "RA4"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbar action \"\" RA4"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {
+    "zone": "pvp",
+    "sub": "change",
+    "setType": "blueaction",
+    "setName": "文字x",
+    "num": "7",
+    "pos": "LD1"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar change 7"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbar",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/chotbar action \"\"",
+    "/chotbar action \"\"",
+    "/chotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "sub": "set"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "sub": "change"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar change 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "sub": "copy"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar copy current 1 current 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "sub": "remove"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar remove 1 all"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "setType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "setType": "general"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar general \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "setType": "pet"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar pet \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "setType": "waymark"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar waymark \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "setName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"測試abc\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "num": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\" 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "num": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\" 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "pos": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "pos": "LD1"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\" LD1"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "pos": "LA4"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\" LA4"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "pos": "RA4"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar action \"\" RA4"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {
+    "sub": "change",
+    "setType": "general",
+    "setName": "文字x",
+    "num": "7",
+    "pos": "LD1"
+   },
+   "repeat": 1,
+   "out": [
+    "/pvpchotbar change 7"
+   ],
+   "err": null
+  },
+  {
+   "type": "pvpchotbar",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/pvpchotbar action \"\"",
+    "/pvpchotbar action \"\"",
+    "/pvpchotbar action \"\""
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbardisplay",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/chotbardisplay"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbardisplay",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbardisplay on"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbardisplay",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbardisplay off"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbardisplay",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbardisplay"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbardisplay",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/chotbardisplay",
+    "/chotbardisplay",
+    "/chotbardisplay"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbartype",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/chotbartype hold"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbartype",
+   "params": {
+    "type": "hold"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbartype hold"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbartype",
+   "params": {
+    "type": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbartype toggle"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbartype",
+   "params": {
+    "type": "mix"
+   },
+   "repeat": 1,
+   "out": [
+    "/chotbartype mix"
+   ],
+   "err": null
+  },
+  {
+   "type": "chotbartype",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/chotbartype hold",
+    "/chotbartype hold",
+    "/chotbartype hold"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpreset",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/gpreset 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpreset",
+   "params": {
+    "num": "1"
+   },
+   "repeat": 1,
+   "out": [
+    "/gpreset 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpreset",
+   "params": {
+    "num": "2"
+   },
+   "repeat": 1,
+   "out": [
+    "/gpreset 2"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpreset",
+   "params": {
+    "num": "3"
+   },
+   "repeat": 1,
+   "out": [
+    "/gpreset 3"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpreset",
+   "params": {
+    "num": "5"
+   },
+   "repeat": 1,
+   "out": [
+    "/gpreset 5"
+   ],
+   "err": null
+  },
+  {
+   "type": "gpreset",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/gpreset 1",
+    "/gpreset 1",
+    "/gpreset 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "mastervolume",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mastervolume"
+   ],
+   "err": null
+  },
+  {
+   "type": "mastervolume",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/mastervolume 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "mastervolume",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/mastervolume 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "mastervolume",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/mastervolume",
+    "/mastervolume",
+    "/mastervolume"
+   ],
+   "err": null
+  },
+  {
+   "type": "bgm",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/bgm"
+   ],
+   "err": null
+  },
+  {
+   "type": "bgm",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/bgm 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "bgm",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/bgm 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "bgm",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/bgm",
+    "/bgm",
+    "/bgm"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffects",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/soundeffects"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffects",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffects 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffects",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffects 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffects",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/soundeffects",
+    "/soundeffects",
+    "/soundeffects"
+   ],
+   "err": null
+  },
+  {
+   "type": "voice",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/voice"
+   ],
+   "err": null
+  },
+  {
+   "type": "voice",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/voice 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "voice",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/voice 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "voice",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/voice",
+    "/voice",
+    "/voice"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsounds",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/systemsounds"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsounds",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/systemsounds 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsounds",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/systemsounds 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsounds",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/systemsounds",
+    "/systemsounds",
+    "/systemsounds"
+   ],
+   "err": null
+  },
+  {
+   "type": "ambientsounds",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/ambientsounds"
+   ],
+   "err": null
+  },
+  {
+   "type": "ambientsounds",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/ambientsounds 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "ambientsounds",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/ambientsounds 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "ambientsounds",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/ambientsounds",
+    "/ambientsounds",
+    "/ambientsounds"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsself",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/soundeffectsself 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsself",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffectsself 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsself",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffectsself 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsself",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/soundeffectsself 100",
+    "/soundeffectsself 100",
+    "/soundeffectsself 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsparty",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/soundeffectsparty 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsparty",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffectsparty 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsparty",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffectsparty 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsparty",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/soundeffectsparty 100",
+    "/soundeffectsparty 100",
+    "/soundeffectsparty 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsother",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/soundeffectsother 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsother",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffectsother 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsother",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/soundeffectsother 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "soundeffectsother",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/soundeffectsother 100",
+    "/soundeffectsother 100",
+    "/soundeffectsother 100"
+   ],
+   "err": null
+  },
+  {
+   "type": "performsounds",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/performsounds"
+   ],
+   "err": null
+  },
+  {
+   "type": "performsounds",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/performsounds 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "performsounds",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/performsounds 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "performsounds",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/performsounds",
+    "/performsounds",
+    "/performsounds"
+   ],
+   "err": null
+  },
+  {
+   "type": "mountbgm",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mountbgm"
+   ],
+   "err": null
+  },
+  {
+   "type": "mountbgm",
+   "params": {
+    "toggle": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/mountbgm on"
+   ],
+   "err": null
+  },
+  {
+   "type": "mountbgm",
+   "params": {
+    "toggle": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/mountbgm off"
+   ],
+   "err": null
+  },
+  {
+   "type": "mountbgm",
+   "params": {
+    "toggle": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/mountbgm"
+   ],
+   "err": null
+  },
+  {
+   "type": "mountbgm",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/mountbgm",
+    "/mountbgm",
+    "/mountbgm"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsoundsspeaker",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/systemsoundsspeaker"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsoundsspeaker",
+   "params": {
+    "value": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/systemsoundsspeaker 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsoundsspeaker",
+   "params": {
+    "value": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/systemsoundsspeaker 0"
+   ],
+   "err": null
+  },
+  {
+   "type": "systemsoundsspeaker",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/systemsoundsspeaker",
+    "/systemsoundsspeaker",
+    "/systemsoundsspeaker"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaright",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/magiaright"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaright",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/magiaright",
+    "/magiaright",
+    "/magiaright"
+   ],
+   "err": null
+  },
+  {
+   "type": "magialeft",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/magialeft"
+   ],
+   "err": null
+  },
+  {
+   "type": "magialeft",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/magialeft",
+    "/magialeft",
+    "/magialeft"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaattack",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/magiaattack"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaattack",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaattack"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaattack",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaattack &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaattack",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaattack &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaattack",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaattack <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaattack",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/magiaattack",
+    "/magiaattack",
+    "/magiaattack"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiadefense",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/magiadefense"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiadefense",
+   "params": {
+    "target": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/magiadefense"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiadefense",
+   "params": {
+    "target": "&lt;t&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiadefense &lt;t&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiadefense",
+   "params": {
+    "target": "&lt;attack1&gt;"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiadefense &lt;attack1&gt;"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiadefense",
+   "params": {
+    "target": "custom"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiadefense <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiadefense",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/magiadefense",
+    "/magiadefense",
+    "/magiadefense"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaauto",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/magiaauto off"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaauto",
+   "params": {
+    "mode": "atk"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaauto atk"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaauto",
+   "params": {
+    "mode": "def"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaauto def"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaauto",
+   "params": {
+    "mode": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/magiaauto off"
+   ],
+   "err": null
+  },
+  {
+   "type": "magiaauto",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/magiaauto off",
+    "/magiaauto off",
+    "/magiaauto off"
+   ],
+   "err": null
+  },
+  {
+   "type": "playtime",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/ptime"
+   ],
+   "err": null
+  },
+  {
+   "type": "playtime",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/ptime",
+    "/ptime",
+    "/ptime"
+   ],
+   "err": null
+  },
+  {
+   "type": "logout",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/logout"
+   ],
+   "err": null
+  },
+  {
+   "type": "logout",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/logout",
+    "/logout",
+    "/logout"
+   ],
+   "err": null
+  },
+  {
+   "type": "shutdown",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/shutdown"
+   ],
+   "err": null
+  },
+  {
+   "type": "shutdown",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/shutdown",
+    "/shutdown",
+    "/shutdown"
+   ],
+   "err": null
+  },
+  {
+   "type": "instance",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/instance"
+   ],
+   "err": null
+  },
+  {
+   "type": "instance",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/instance",
+    "/instance",
+    "/instance"
+   ],
+   "err": null
+  },
+  {
+   "type": "patchnote",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/patchnote"
+   ],
+   "err": null
+  },
+  {
+   "type": "patchnote",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/patchnote",
+    "/patchnote",
+    "/patchnote"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/micon \"\" action"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"\" action"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconType": "general"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"\" general"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconType": "mount"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"\" mount"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconType": "waymark"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"\" waymark"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconName": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"測試abc\" action"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconType": "general",
+    "miconName": "文字x"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"文字x\" general"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/micon \"\" action",
+    "/micon \"\" action",
+    "/micon \"\" action"
+   ],
+   "err": null
+  },
+  {
+   "type": "mlock",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mlock"
+   ],
+   "err": null
+  },
+  {
+   "type": "mlock",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/mlock",
+    "/mlock",
+    "/mlock"
+   ],
+   "err": null
+  },
+  {
+   "type": "merror_line",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/merror off"
+   ],
+   "err": null
+  },
+  {
+   "type": "merror_line",
+   "params": {
+    "onOff": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/merror off"
+   ],
+   "err": null
+  },
+  {
+   "type": "merror_line",
+   "params": {
+    "onOff": "on"
+   },
+   "repeat": 1,
+   "out": [
+    "/merror on"
+   ],
+   "err": null
+  },
+  {
+   "type": "merror_line",
+   "params": {
+    "onOff": "toggle"
+   },
+   "repeat": 1,
+   "out": [
+    "/merror toggle"
+   ],
+   "err": null
+  },
+  {
+   "type": "merror_line",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/merror off",
+    "/merror off",
+    "/merror off"
+   ],
+   "err": null
+  },
+  {
+   "type": "wait_line",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/wait 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "wait_line",
+   "params": {
+    "secs": "10"
+   },
+   "repeat": 1,
+   "out": [
+    "/wait 10"
+   ],
+   "err": null
+  },
+  {
+   "type": "wait_line",
+   "params": {
+    "secs": "0"
+   },
+   "repeat": 1,
+   "out": [
+    "/wait 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "wait_line",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "/wait 1",
+    "/wait 1",
+    "/wait 1"
+   ],
+   "err": null
+  },
+  {
+   "type": "custom",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "custom",
+   "params": {
+    "text": "測試abc"
+   },
+   "repeat": 1,
+   "out": [
+    "測試abc"
+   ],
+   "err": null
+  },
+  {
+   "type": "custom",
+   "params": {},
+   "repeat": 3,
+   "out": [
+    "",
+    "",
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "mlock",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mlock"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "準備好了嗎？",
+    "inlineWait": 1
+   },
+   "repeat": 1,
+   "out": [
+    "/p 準備好了嗎？<wait.1>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "3...",
+    "inlineWait": 1
+   },
+   "repeat": 1,
+   "out": [
+    "/p 3...<wait.1>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "2...",
+    "inlineWait": 1
+   },
+   "repeat": 1,
+   "out": [
+    "/p 2...<wait.1>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "1...",
+    "inlineWait": 1
+   },
+   "repeat": 1,
+   "out": [
+    "/p 1...<wait.1>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "出發！"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 出發！"
+   ],
+   "err": null
+  },
+  {
+   "type": "mlock",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mlock"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "你好！歡迎使用人工智能坦克系統",
+    "se": "<se.1>"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 你好！歡迎使用人工智能坦克系統 <se.1>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "請選擇您的坦克"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 請選擇您的坦克"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "1.疾跑狂衝，一波到底。"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 1.疾跑狂衝，一波到底。"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "2.穩扎穩打，兩波一停。"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 2.穩扎穩打，兩波一停。"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "3.新手奶媽，一波就行。"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 3.新手奶媽，一波就行。"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "不選擇默認為2，很高興見到你。"
+   },
+   "repeat": 1,
+   "out": [
+    "/p 不選擇默認為2，很高興見到你。"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconName": "",
+    "miconType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"\" action"
+   ],
+   "err": null
+  },
+  {
+   "type": "skill",
+   "params": {
+    "skillName": "",
+    "target": "<t>",
+    "inlineWait": 0,
+    "preAnnounce": false,
+    "preAnnounceMsg": "即將施放技能！",
+    "preAnnounceChannel": "p",
+    "preAnnounceWait": 2,
+    "preAnnounceSe": "",
+    "postNotify": false,
+    "postNotifyMsg": "技能已施放！",
+    "postNotifyChannel": "p",
+    "postNotifySe": "",
+    "postEcho": false,
+    "postEchoMsg": "技能使用完畢",
+    "postEchoSe": "",
+    "recastNotify": false,
+    "recastPrefix": "",
+    "recastSuffix": " 秒",
+    "recastChannel": "e",
+    "recastSe": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/ac \"\" <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "merror_line",
+   "params": {
+    "onOff": "off"
+   },
+   "repeat": 1,
+   "out": [
+    "/merror off"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconName": "",
+    "miconType": "action"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"\" action"
+   ],
+   "err": null
+  },
+  {
+   "type": "abilityrotation",
+   "params": {
+    "skills": [
+     "",
+     "",
+     ""
+    ],
+    "target": "<t>",
+    "inlineWait": 0
+   },
+   "repeat": 1,
+   "out": [
+    ""
+   ],
+   "err": null
+  },
+  {
+   "type": "gearset",
+   "params": {
+    "gsAction": "change",
+    "gsNumber": "1",
+    "addMicon": true,
+    "miconType": "gearset",
+    "addEcho": true,
+    "echoMsg": "已切換至套裝 1",
+    "echoSe": ""
+   },
+   "repeat": 1,
+   "out": [
+    "/gs change 1",
+    "/e 已切換至套裝 1",
+    "/micon 1 gearset"
+   ],
+   "err": null
+  },
+  {
+   "type": "itemsort",
+   "params": {
+    "areas": [
+     "inventory",
+     "armoury"
+    ],
+    "conditions": [
+     {
+      "criterion": "ilv",
+      "order": "des"
+     },
+     {
+      "criterion": "category",
+      "order": "asc"
+     }
+    ],
+    "useClear": true,
+    "echoMsg": "整理完成！",
+    "echoSe": "<se.1>"
+   },
+   "repeat": 1,
+   "out": [
+    "/itemsort clear inventory",
+    "/itemsort condition inventory ilv des",
+    "/itemsort condition inventory category asc",
+    "/itemsort execute inventory",
+    "/itemsort clear armoury",
+    "/itemsort condition armoury ilv des",
+    "/itemsort condition armoury category asc",
+    "/itemsort execute armoury",
+    "/e 整理完成！ <se.1>"
+   ],
+   "err": null
+  },
+  {
+   "type": "mlock",
+   "params": {},
+   "repeat": 1,
+   "out": [
+    "/mlock"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "attack1",
+    "markTarget": "<t>",
+    "notify": false
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack1 <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "attack2",
+    "markTarget": "<t>",
+    "notify": false
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack2 <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "marking",
+   "params": {
+    "markType": "attack3",
+    "markTarget": "<t>",
+    "notify": false
+   },
+   "repeat": 1,
+   "out": [
+    "/mk attack3 <t>"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "                           ●"
+   },
+   "repeat": 1,
+   "out": [
+    "/p                            ●"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "                    /\\__\\__/\\"
+   },
+   "repeat": 1,
+   "out": [
+    "/p                     /\\__\\__/\\"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "                  /                   \\"
+   },
+   "repeat": 1,
+   "out": [
+    "/p                   /                   \\"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "               \\( ＿  ⋯ ● ⋯ ＿)/"
+   },
+   "repeat": 1,
+   "out": [
+    "/p                \\( ＿  ⋯ ● ⋯ ＿)/"
+   ],
+   "err": null
+  },
+  {
+   "type": "micon",
+   "params": {
+    "miconName": "bow",
+    "miconType": "emote"
+   },
+   "repeat": 1,
+   "out": [
+    "/micon \"bow\" emote"
+   ],
+   "err": null
+  },
+  {
+   "type": "emote",
+   "params": {
+    "emoteName": "bow",
+    "motionOnly": false,
+    "addEm": false,
+    "emText": "向 <t> 深深一鞠躬。"
+   },
+   "repeat": 1,
+   "out": [
+    "/bow"
+   ],
+   "err": null
+  },
+  {
+   "type": "em",
+   "params": {
+    "text": "向 <t> 深深一鞠躬。",
+    "addMotion": true,
+    "motionEmote": "bow"
+   },
+   "repeat": 1,
+   "out": [
+    "/bow motion",
+    "/em 向 <t> 深深一鞠躬。"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "s",
+    "message": "乘風而起 / 展翅高飛 / 翱翔天際 / 不屈之翼 / 追夢無限 / 大鯰魚保佑 / 啦哩吼 / 啦嘿 / 夢想加倍 / 超級小可愛"
+   },
+   "repeat": 1,
+   "out": [
+    "/s 乘風而起 / 展翅高飛 / 翱翔天際 / 不屈之翼 / 追夢無限 / 大鯰魚保佑 / 啦哩吼 / 啦嘿 / 夢想加倍 / 超級小可愛"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "s",
+    "message": "河狸 / 咖啡時間 / 我就是人趣諸神 / 線軸 / 烏姆·阿拉 / 有咕波果哦 / 燉菜做好了 / 新鮮蔬菜上架了"
+   },
+   "repeat": 1,
+   "out": [
+    "/s 河狸 / 咖啡時間 / 我就是人趣諸神 / 線軸 / 烏姆·阿拉 / 有咕波果哦 / 燉菜做好了 / 新鮮蔬菜上架了"
+   ],
+   "err": null
+  },
+  {
+   "type": "chat",
+   "params": {
+    "channel": "p",
+    "message": "<t> 【HP：<targethpp>】 <pos>"
+   },
+   "repeat": 1,
+   "out": [
+    "/p <t> 【HP：<targethpp>】 <pos>"
+   ],
+   "err": null
+  }
+ ],
+ "macros": [
+  {
+   "tpl": "chat",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/mlock",
+    "/p 準備好了嗎？<wait.1>",
+    "/p 3...<wait.1>",
+    "/p 2...<wait.1>",
+    "/p 1...<wait.1>",
+    "/p 出發！"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "chat",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/mlock",
+    "/p 準備好了嗎？<wait.1>",
+    "/p 3...<wait.1>",
+    "/p 2...<wait.1>",
+    "/p 1...<wait.1>",
+    "/p 出發！"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "chat",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/mlock",
+    "/p 準備好了嗎？<wait.1>",
+    "/p 3...<wait.1>",
+    "/p 2...<wait.1>",
+    "/p 1...<wait.1>",
+    "/p 出發！"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "aitank",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/mlock",
+    "/p 你好！歡迎使用人工智能坦克系統 <se.1>",
+    "/p 請選擇您的坦克",
+    "/p 1.疾跑狂衝，一波到底。",
+    "/p 2.穩扎穩打，兩波一停。",
+    "/p 3.新手奶媽，一波就行。",
+    "/p 不選擇默認為2，很高興見到你。"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "aitank",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/mlock",
+    "/p 你好！歡迎使用人工智能坦克系統 <se.1>",
+    "/p 請選擇您的坦克",
+    "/p 1.疾跑狂衝，一波到底。",
+    "/p 2.穩扎穩打，兩波一停。",
+    "/p 3.新手奶媽，一波就行。",
+    "/p 不選擇默認為2，很高興見到你。"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "aitank",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/mlock",
+    "/p 你好！歡迎使用人工智能坦克系統 <se.1>",
+    "/p 請選擇您的坦克",
+    "/p 1.疾跑狂衝，一波到底。",
+    "/p 2.穩扎穩打，兩波一停。",
+    "/p 3.新手奶媽，一波就行。",
+    "/p 不選擇默認為2，很高興見到你。"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "skill",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/ac \"\" <t>",
+    "/micon \"\" action"
+   ],
+   "warn": [
+    {
+     "lv": "error",
+     "msg": "第 1 行：/micon 的技能名稱尚未填寫。"
+    },
+    {
+     "lv": "error",
+     "msg": "第 2 行：技能／動作名稱尚未填寫。"
+    },
+    {
+     "lv": "info",
+     "msg": "技能巨集提示：巨集無法配合 GCD 時機，可能打斷技能循環。建議只用於低頻或非高強度戰鬥場景。"
+    }
+   ],
+   "err": null
+  },
+  {
+   "tpl": "skill",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/ac \"\" <t>",
+    "/micon \"\" action"
+   ],
+   "warn": [
+    {
+     "lv": "error",
+     "msg": "第 1 行：/micon 的技能名稱尚未填寫。"
+    },
+    {
+     "lv": "error",
+     "msg": "第 2 行：技能／動作名稱尚未填寫。"
+    },
+    {
+     "lv": "info",
+     "msg": "技能巨集提示：巨集無法配合 GCD 時機，可能打斷技能循環。建議只用於低頻或非高強度戰鬥場景。"
+    }
+   ],
+   "err": null
+  },
+  {
+   "tpl": "skill",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/ac \"\" <t>",
+    "/micon \"\" action"
+   ],
+   "warn": [
+    {
+     "lv": "error",
+     "msg": "第 1 行：/micon 的技能名稱尚未填寫。"
+    },
+    {
+     "lv": "error",
+     "msg": "第 2 行：技能／動作名稱尚未填寫。"
+    },
+    {
+     "lv": "info",
+     "msg": "技能巨集提示：巨集無法配合 GCD 時機，可能打斷技能循環。建議只用於低頻或非高強度戰鬥場景。"
+    }
+   ],
+   "err": null
+  },
+  {
+   "tpl": "abilityrotation",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/merror off",
+    "",
+    "/micon \"\" action"
+   ],
+   "warn": [
+    {
+     "lv": "error",
+     "msg": "第 2 行：/micon 的技能名稱尚未填寫。"
+    }
+   ],
+   "err": null
+  },
+  {
+   "tpl": "abilityrotation",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "",
+    "/micon \"\" action"
+   ],
+   "warn": [
+    {
+     "lv": "error",
+     "msg": "第 2 行：/micon 的技能名稱尚未填寫。"
+    }
+   ],
+   "err": null
+  },
+  {
+   "tpl": "abilityrotation",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/merror off",
+    "",
+    "/micon \"\" action"
+   ],
+   "warn": [
+    {
+     "lv": "error",
+     "msg": "第 2 行：/micon 的技能名稱尚未填寫。"
+    }
+   ],
+   "err": null
+  },
+  {
+   "tpl": "gearset",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/gs change 1",
+    "/e 已切換至套裝 1",
+    "/micon 1 gearset"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "gearset",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/gs change 1",
+    "/e 已切換至套裝 1",
+    "/micon 1 gearset"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "gearset",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/gs change 1",
+    "/e 已切換至套裝 1",
+    "/micon 1 gearset"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "itemsort",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/itemsort clear inventory",
+    "/itemsort condition inventory ilv des",
+    "/itemsort condition inventory category asc",
+    "/itemsort execute inventory",
+    "/itemsort clear armoury",
+    "/itemsort condition armoury ilv des",
+    "/itemsort condition armoury category asc",
+    "/itemsort execute armoury",
+    "/e 整理完成！ <se.1>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "itemsort",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/itemsort clear inventory",
+    "/itemsort condition inventory ilv des",
+    "/itemsort condition inventory category asc",
+    "/itemsort execute inventory",
+    "/itemsort clear armoury",
+    "/itemsort condition armoury ilv des",
+    "/itemsort condition armoury category asc",
+    "/itemsort execute armoury",
+    "/e 整理完成！ <se.1>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "itemsort",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/itemsort clear inventory",
+    "/itemsort condition inventory ilv des",
+    "/itemsort condition inventory category asc",
+    "/itemsort execute inventory",
+    "/itemsort clear armoury",
+    "/itemsort condition armoury ilv des",
+    "/itemsort condition armoury category asc",
+    "/itemsort execute armoury",
+    "/e 整理完成！ <se.1>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "marking",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/mlock",
+    "/mk attack1 <t>",
+    "/mk attack2 <t>",
+    "/mk attack3 <t>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "marking",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/mlock",
+    "/mk attack1 <t>",
+    "/mk attack2 <t>",
+    "/mk attack3 <t>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "marking",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/mlock",
+    "/mk attack1 <t>",
+    "/mk attack2 <t>",
+    "/mk attack3 <t>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "kaomoji",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/p                            ●",
+    "/p                     /\\__\\__/\\",
+    "/p                   /                   \\",
+    "/p                \\( ＿  ⋯ ● ⋯ ＿)/"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "kaomoji",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/p                            ●",
+    "/p                     /\\__\\__/\\",
+    "/p                   /                   \\",
+    "/p                \\( ＿  ⋯ ● ⋯ ＿)/"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "kaomoji",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/p                            ●",
+    "/p                     /\\__\\__/\\",
+    "/p                   /                   \\",
+    "/p                \\( ＿  ⋯ ● ⋯ ＿)/"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "emote",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/bow",
+    "/micon \"bow\" emote"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "emote",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/bow",
+    "/micon \"bow\" emote"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "emote",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/bow",
+    "/micon \"bow\" emote"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "em",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/bow motion",
+    "/em 向 <t> 深深一鞠躬。"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "em",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/bow motion",
+    "/em 向 <t> 深深一鞠躬。"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "em",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/bow motion",
+    "/em 向 <t> 深深一鞠躬。"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "buzu",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/s 乘風而起 / 展翅高飛 / 翱翔天際 / 不屈之翼 / 追夢無限 / 大鯰魚保佑 / 啦哩吼 / 啦嘿 / 夢想加倍 / 超級小可愛",
+    "/s 河狸 / 咖啡時間 / 我就是人趣諸神 / 線軸 / 烏姆·阿拉 / 有咕波果哦 / 燉菜做好了 / 新鮮蔬菜上架了"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "buzu",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/s 乘風而起 / 展翅高飛 / 翱翔天際 / 不屈之翼 / 追夢無限 / 大鯰魚保佑 / 啦哩吼 / 啦嘿 / 夢想加倍 / 超級小可愛",
+    "/s 河狸 / 咖啡時間 / 我就是人趣諸神 / 線軸 / 烏姆·阿拉 / 有咕波果哦 / 燉菜做好了 / 新鮮蔬菜上架了"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "buzu",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/s 乘風而起 / 展翅高飛 / 翱翔天際 / 不屈之翼 / 追夢無限 / 大鯰魚保佑 / 啦哩吼 / 啦嘿 / 夢想加倍 / 超級小可愛",
+    "/s 河狸 / 咖啡時間 / 我就是人趣諸神 / 線軸 / 烏姆·阿拉 / 有咕波果哦 / 燉菜做好了 / 新鮮蔬菜上架了"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "blank",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "blank",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "blank",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "target_report",
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": [
+    "/p <t> 【HP：<targethpp>】 <pos>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "target_report",
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/p <t> 【HP：<targethpp>】 <pos>"
+   ],
+   "warn": [],
+   "err": null
+  },
+  {
+   "tpl": "target_report",
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": [
+    "/mlock",
+    "/merror off",
+    "/p <t> 【HP：<targethpp>】 <pos>"
+   ],
+   "warn": [],
+   "err": null
+  }
+ ],
+ "splits": [
+  {
+   "n": 0,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 0,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 0,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 5,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5"
+    ],
+    "m2": [],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 5,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5"
+    ],
+    "m2": [
+     "/mlock"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 5,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 14,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 14,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 14,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行13",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 15,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15"
+    ],
+    "m2": [],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 15,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行15"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 15,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行14",
+     "/p 行15"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 16,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/p 行15",
+     "/p 行16",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 16,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 16,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 22,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 22,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 22,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/micon \"x\" action"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 29,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15"
+    ],
+    "m2": [
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27",
+     "/p 行28",
+     "/p 行29"
+    ],
+    "overflow": 0
+   }
+  },
+  {
+   "n": 29,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27",
+     "/p 行28"
+    ],
+    "overflow": 1
+   }
+  },
+  {
+   "n": 29,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26"
+    ],
+    "overflow": 3
+   }
+  },
+  {
+   "n": 30,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27",
+     "/p 行28",
+     "/p 行29"
+    ],
+    "overflow": 2
+   }
+  },
+  {
+   "n": 30,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27"
+    ],
+    "overflow": 4
+   }
+  },
+  {
+   "n": 30,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25"
+    ],
+    "overflow": 6
+   }
+  },
+  {
+   "n": 31,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15"
+    ],
+    "m2": [
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27",
+     "/p 行28",
+     "/p 行29",
+     "/p 行30"
+    ],
+    "overflow": 1
+   }
+  },
+  {
+   "n": 31,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27",
+     "/p 行28"
+    ],
+    "overflow": 3
+   }
+  },
+  {
+   "n": 31,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26"
+    ],
+    "overflow": 5
+   }
+  },
+  {
+   "n": 40,
+   "g": {
+    "merrorOff": false,
+    "mlock": false
+   },
+   "out": {
+    "m1": [
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/p 行14",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27",
+     "/p 行28",
+     "/p 行29"
+    ],
+    "overflow": 12
+   }
+  },
+  {
+   "n": 40,
+   "g": {
+    "merrorOff": false,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/p 行13",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25",
+     "/p 行26",
+     "/p 行27"
+    ],
+    "overflow": 14
+   }
+  },
+  {
+   "n": 40,
+   "g": {
+    "merrorOff": true,
+    "mlock": true
+   },
+   "out": {
+    "m1": [
+     "/mlock",
+     "/merror off",
+     "/p 行1",
+     "/p 行2",
+     "/p 行3",
+     "/p 行4",
+     "/p 行5",
+     "/p 行6",
+     "/p 行7",
+     "/p 行8",
+     "/p 行9",
+     "/p 行10",
+     "/p 行11",
+     "/p 行12",
+     "/micon \"x\" action"
+    ],
+    "m2": [
+     "/mlock",
+     "/merror off",
+     "/p 行13",
+     "/p 行14",
+     "/p 行15",
+     "/p 行16",
+     "/p 行17",
+     "/p 行18",
+     "/p 行19",
+     "/p 行20",
+     "/p 行21",
+     "/p 行22",
+     "/p 行23",
+     "/p 行24",
+     "/p 行25"
+    ],
+    "overflow": 16
+   }
+  }
+ ]
+}

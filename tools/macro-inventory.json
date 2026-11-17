@@ -1,0 +1,5114 @@
+{
+ "chat": {
+  "cat": "chat",
+  "label": "聊天訊息",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "channel",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "p",
+     "s",
+     "y",
+     "sh",
+     "a",
+     "fc",
+     "pt",
+     "l1",
+     "l2",
+     "l3",
+     "l4",
+     "l5",
+     "l6",
+     "l7",
+     "l8",
+     "cwl1",
+     "cwl2",
+     "cwl3",
+     "cwl4",
+     "cwl5",
+     "cwl6",
+     "cwl7",
+     "cwl8",
+     "b",
+     "e"
+    ]
+   },
+   {
+    "key": "message",
+    "tag": "input",
+    "type": null,
+    "val": ""
+   },
+   {
+    "key": "se",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;se.1&gt;",
+     "&lt;se.2&gt;",
+     "&lt;se.3&gt;",
+     "&lt;se.4&gt;",
+     "&lt;se.5&gt;",
+     "&lt;se.6&gt;",
+     "&lt;se.7&gt;",
+     "&lt;se.8&gt;",
+     "&lt;se.9&gt;",
+     "&lt;se.10&gt;",
+     "&lt;se.11&gt;",
+     "&lt;se.12&gt;",
+     "&lt;se.13&gt;",
+     "&lt;se.14&gt;",
+     "&lt;se.15&gt;",
+     "&lt;se.16&gt;"
+    ]
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/p "
+  ],
+  "err": null,
+  "htmlLen": 4710
+ },
+ "chatcountdown": {
+  "cat": "chat",
+  "label": "聊天倒數（建構器）",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "channel",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "p",
+     "s",
+     "y",
+     "sh",
+     "a",
+     "fc",
+     "pt",
+     "l1",
+     "l2",
+     "l3",
+     "l4",
+     "l5",
+     "l6",
+     "l7",
+     "l8",
+     "cwl1",
+     "cwl2",
+     "cwl3",
+     "cwl4",
+     "cwl5",
+     "cwl6",
+     "cwl7",
+     "cwl8",
+     "b",
+     "e"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/p "
+  ],
+  "err": null,
+  "htmlLen": 5903
+ },
+ "echo": {
+  "cat": "chat",
+  "label": "默語（僅自己）/e",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "message",
+    "tag": "input",
+    "type": null,
+    "val": ""
+   },
+   {
+    "key": "se",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;se.1&gt;",
+     "&lt;se.2&gt;",
+     "&lt;se.3&gt;",
+     "&lt;se.4&gt;",
+     "&lt;se.5&gt;",
+     "&lt;se.6&gt;",
+     "&lt;se.7&gt;",
+     "&lt;se.8&gt;",
+     "&lt;se.9&gt;",
+     "&lt;se.10&gt;",
+     "&lt;se.11&gt;",
+     "&lt;se.12&gt;",
+     "&lt;se.13&gt;",
+     "&lt;se.14&gt;",
+     "&lt;se.15&gt;",
+     "&lt;se.16&gt;"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/e "
+  ],
+  "err": null,
+  "htmlLen": 3271
+ },
+ "tell": {
+  "cat": "chat",
+  "label": "悄悄話 /t",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "message",
+    "tag": "input",
+    "type": null,
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/t  "
+  ],
+  "err": null,
+  "htmlLen": 4721
+ },
+ "reply": {
+  "cat": "chat",
+  "label": "回覆悄悄話 /r",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "message",
+    "tag": "input",
+    "type": null,
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/r "
+  ],
+  "err": null,
+  "htmlLen": 2355
+ },
+ "em": {
+  "cat": "emote",
+  "label": "感情表現（自訂文字）/em",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "text",
+    "tag": "input",
+    "type": null,
+    "val": ""
+   },
+   {
+    "key": "addMotion",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/em "
+  ],
+  "err": null,
+  "htmlLen": 2585
+ },
+ "cl": {
+  "cat": "chat",
+  "label": "清除訊息記錄 /cl",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/cl"
+  ],
+  "err": null,
+  "htmlLen": 48
+ },
+ "emotelog": {
+  "cat": "emote",
+  "label": "情感動作記錄顯示 /emotelog",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/emotelog"
+  ],
+  "err": null,
+  "htmlLen": 359
+ },
+ "cth": {
+  "cat": "chat",
+  "label": "清除悄悄話記錄 /cth",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/cth"
+  ],
+  "err": null,
+  "htmlLen": 65
+ },
+ "qchat": {
+  "cat": "chat",
+  "label": "快捷發言 /qchat（群狼盛宴）",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "name",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/qchat \"\""
+  ],
+  "err": null,
+  "htmlLen": 2626
+ },
+ "skill": {
+  "cat": "skill",
+  "label": "職業技能 /ac",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "groundOff",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "preAnnounce",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postNotify",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "recastNotify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/ac \"\" "
+  ],
+  "err": null,
+  "htmlLen": 4249
+ },
+ "generalskill": {
+  "cat": "skill",
+  "label": "通用技能 /gaction",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "groundOff",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "preAnnounce",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postNotify",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "recastNotify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/gaction \"\" "
+  ],
+  "err": null,
+  "htmlLen": 4182
+ },
+ "blueaction": {
+  "cat": "skill",
+  "label": "青魔法技能 /blueaction",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "groundOff",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "preAnnounce",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postNotify",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "recastNotify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/blueaction \"\" "
+  ],
+  "err": null,
+  "htmlLen": 4177
+ },
+ "pvpaction": {
+  "cat": "skill",
+  "label": "PvP技能 /pvpac",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "groundOff",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "preAnnounce",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postNotify",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "recastNotify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/pvpac \"\" "
+  ],
+  "err": null,
+  "htmlLen": 4169
+ },
+ "petaction": {
+  "cat": "skill",
+  "label": "召喚獸技能 /pac",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "groundOff",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "preAnnounce",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postNotify",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "recastNotify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/pac \"\" "
+  ],
+  "err": null,
+  "htmlLen": 4171
+ },
+ "companionaction": {
+  "cat": "skill",
+  "label": "搭擋技能 /cac",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "preAnnounce",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postNotify",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "recastNotify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/cac \"\""
+  ],
+  "err": null,
+  "htmlLen": 1513
+ },
+ "item": {
+  "cat": "item",
+  "label": "使用道具 /item",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "itemName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "postEcho",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/item \"\" "
+  ],
+  "err": null,
+  "htmlLen": 2899
+ },
+ "emote": {
+  "cat": "emote",
+  "label": "情感動作 /emote",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "emoteName",
+    "tag": "input",
+    "type": "text",
+    "val": "行禮（bow）"
+   },
+   {
+    "key": "motionOnly",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "addEm",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/undefined"
+  ],
+  "err": null,
+  "htmlLen": 1037
+ },
+ "abilityrotation": {
+  "cat": "skill",
+  "label": "能力技輪換（建構器）",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "inlineWait",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   ""
+  ],
+  "err": null,
+  "htmlLen": 3620
+ },
+ "itemsort": {
+  "cat": "item",
+  "label": "道具整理（建構器）",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "useClear",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "echoMsg",
+    "tag": "input",
+    "type": null,
+    "val": ""
+   },
+   {
+    "key": "echoSe",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;se.1&gt;",
+     "&lt;se.2&gt;",
+     "&lt;se.3&gt;",
+     "&lt;se.4&gt;",
+     "&lt;se.5&gt;",
+     "&lt;se.6&gt;",
+     "&lt;se.7&gt;",
+     "&lt;se.8&gt;",
+     "&lt;se.9&gt;",
+     "&lt;se.10&gt;",
+     "&lt;se.11&gt;",
+     "&lt;se.12&gt;",
+     "&lt;se.13&gt;",
+     "&lt;se.14&gt;",
+     "&lt;se.15&gt;",
+     "&lt;se.16&gt;"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   ""
+  ],
+  "err": null,
+  "htmlLen": 6061
+ },
+ "itemsearch": {
+  "cat": "item",
+  "label": "道具檢索 /isearch",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "itemName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/isearch \"\""
+  ],
+  "err": null,
+  "htmlLen": 339
+ },
+ "recast": {
+  "cat": "skill",
+  "label": "複唱時間 /recast",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/recast \"\""
+  ],
+  "err": null,
+  "htmlLen": 292
+ },
+ "aaction": {
+  "cat": "skill",
+  "label": "額外技能 /aaction",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "skillName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/aaction \"\""
+  ],
+  "err": null,
+  "htmlLen": 621
+ },
+ "bluespellbook": {
+  "cat": "skill",
+  "label": "青魔法書 /bluespellbook",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "toggle",
+     "set",
+     "preset",
+     "clear"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/bluespellbook"
+  ],
+  "err": null,
+  "htmlLen": 413
+ },
+ "apa": {
+  "cat": "skill",
+  "label": "對戰額外技能 /apa",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "skill1",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "skill2",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/apa \"\" \"\""
+  ],
+  "err": null,
+  "htmlLen": 536
+ },
+ "openwindow": {
+  "cat": "display",
+  "label": "開啟選單視窗",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "winCmd",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "alist",
+     "gear",
+     "armoury",
+     "bag",
+     "saddlebag",
+     "comp",
+     "mountguide",
+     "minionguide",
+     "fashionguide",
+     "pvpp",
+     "achievements",
+     "currency",
+     "recommended",
+     "coll",
+     "kitem",
+     "journal",
+     "finder",
+     "timers",
+     "rfinder",
+     "record",
+     "ng+",
+     "gdutykey",
+     "hlog",
+     "sightseeinglog",
+     "clog",
+     "glog",
+     "flog",
+     "fg",
+     "orchestrion",
+     "challengelog",
+     "map",
+     "teleport",
+     "return",
+     "acurrent",
+     "mountspeed",
+     "pfinder",
+     "fsfinder",
+     "elist",
+     "fccmd",
+     "hou",
+     "pvpteamcmd",
+     "lcmd",
+     "cwlcmd",
+     "fs",
+     "contactlist",
+     "support",
+     "officialsite",
+     "pguide",
+     "activehelp",
+     "cconfig",
+     "sconfig",
+     "hudlayout",
+     "macros",
+     "keyconfig",
+     "lcolor"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/bag"
+  ],
+  "err": null,
+  "htmlLen": 2782
+ },
+ "targeting": {
+  "cat": "target",
+  "label": "選中目標",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "targetCmd",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "/bt",
+     "/ta",
+     "/tpc",
+     "/tnpc",
+     "/tenemy",
+     "/nt",
+     "/previoustarget",
+     "/tlt",
+     "/tle"
+    ]
+   },
+   {
+    "key": "targetParam",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/bt"
+  ],
+  "err": null,
+  "htmlLen": 3030
+ },
+ "check": {
+  "cat": "target",
+  "label": "查看目標情報 /c",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/c"
+  ],
+  "err": null,
+  "htmlLen": 2417
+ },
+ "trade": {
+  "cat": "target",
+  "label": "交易 /trade",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/trade"
+  ],
+  "err": null,
+  "htmlLen": 2423
+ },
+ "assist": {
+  "cat": "target",
+  "label": "目標的目標 /as",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/as "
+  ],
+  "err": null,
+  "htmlLen": 2395
+ },
+ "focustarget": {
+  "cat": "target",
+  "label": "焦點目標 /focustarget",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/focustarget"
+  ],
+  "err": null,
+  "htmlLen": 2424
+ },
+ "facetarget": {
+  "cat": "target",
+  "label": "轉向目標 /ft",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/ft"
+  ],
+  "err": null,
+  "htmlLen": 48
+ },
+ "lockon": {
+  "cat": "target",
+  "label": "鎖定目標 /lo",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/lo"
+  ],
+  "err": null,
+  "htmlLen": 2410
+ },
+ "marking": {
+  "cat": "target",
+  "label": "目標標記 /mk",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "markType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "attack",
+     "attack1",
+     "attack2",
+     "attack3",
+     "attack4",
+     "attack5",
+     "bind",
+     "bind1",
+     "bind2",
+     "bind3",
+     "stop",
+     "stop1",
+     "stop2",
+     "square",
+     "circle",
+     "cross",
+     "triangle",
+     "clear"
+    ]
+   },
+   {
+    "key": "markTarget",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "notify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/mk attack1 "
+  ],
+  "err": null,
+  "htmlLen": 3509
+ },
+ "waymark": {
+  "cat": "target",
+  "label": "場景標記 /wmark",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "waymarkAction",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "toggle",
+     "target",
+     "clear",
+     "save",
+     "preset"
+    ]
+   },
+   {
+    "key": "waymarkName",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   },
+   {
+    "key": "notify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/wmark A"
+  ],
+  "err": null,
+  "htmlLen": 1214
+ },
+ "countdown_sys": {
+  "cat": "timer",
+  "label": "倒計時 /cd",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "secs",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/cd"
+  ],
+  "err": null,
+  "htmlLen": 309
+ },
+ "readycheck": {
+  "cat": "timer",
+  "label": "準備確認 /rcheck",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "notify",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/rcheck"
+  ],
+  "err": null,
+  "htmlLen": 259
+ },
+ "ready": {
+  "cat": "timer",
+  "label": "準備完畢 /rd",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/rd"
+  ],
+  "err": null,
+  "htmlLen": 45
+ },
+ "notready": {
+  "cat": "timer",
+  "label": "未準備好 /nr",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/nr"
+  ],
+  "err": null,
+  "htmlLen": 46
+ },
+ "random": {
+  "cat": "timer",
+  "label": "隨機數字 /random",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "max",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/random"
+  ],
+  "err": null,
+  "htmlLen": 332
+ },
+ "alarm": {
+  "cat": "timer",
+  "label": "鬧鐘 /alarm",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "alarmSub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "open",
+     "set",
+     "clear"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/alarm"
+  ],
+  "err": null,
+  "htmlLen": 386
+ },
+ "dice": {
+  "cat": "timer",
+  "label": "骰子 /dice",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": false,
+  "built": [
+   "/dice"
+  ],
+  "err": "render:CH_OPTS is not defined",
+  "htmlLen": 0
+ },
+ "automove": {
+  "cat": "move",
+  "label": "自動前進 /automove",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/automove"
+  ],
+  "err": null,
+  "htmlLen": 60
+ },
+ "follow": {
+  "cat": "move",
+  "label": "跟隨 /follow",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/follow"
+  ],
+  "err": null,
+  "htmlLen": 2416
+ },
+ "battlemode": {
+  "cat": "move",
+  "label": "拔刀/收刀 /bm",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "toggle",
+     "draw",
+     "sheathe"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/bm"
+  ],
+  "err": null,
+  "htmlLen": 371
+ },
+ "gearset": {
+  "cat": "move",
+  "label": "裝備套裝 /gs",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "gsAction",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "change",
+     "save",
+     "view",
+     "delete"
+    ]
+   },
+   {
+    "key": "gsNumber",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "addMicon",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "addEcho",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/gs change 1"
+  ],
+  "err": null,
+  "htmlLen": 1213
+ },
+ "visor": {
+  "cat": "move",
+  "label": "頭部裝備 /visor",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/visor"
+  ],
+  "err": null,
+  "htmlLen": 59
+ },
+ "fashion": {
+  "cat": "move",
+  "label": "時尚配件 /fashion",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "itemName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/fashion \"\""
+  ],
+  "err": null,
+  "htmlLen": 300
+ },
+ "mount": {
+  "cat": "pet",
+  "label": "乘坐坐騎 /mount",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "mountName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/mount"
+  ],
+  "err": null,
+  "htmlLen": 326
+ },
+ "minion": {
+  "cat": "pet",
+  "label": "召喚寵物 /minion",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "minionName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/minion"
+  ],
+  "err": null,
+  "htmlLen": 306
+ },
+ "petsize": {
+  "cat": "pet",
+  "label": "召喚獸尺寸 /petsize",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "petName",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "Demi-Bahamut",
+     "Demi-Phoenix",
+     "Ifrit-Egi",
+     "Titan-Egi",
+     "Garuda-Egi",
+     "Bahamut",
+     "all"
+    ]
+   },
+   {
+    "key": "size",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "large",
+     "medium",
+     "small",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/petsize all"
+  ],
+  "err": null,
+  "htmlLen": 893
+ },
+ "petmirage": {
+  "cat": "pet",
+  "label": "召喚獸投影 /petglamour",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "petName",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "carbuncle",
+     "garuda-egi",
+     "titan-egi",
+     "ifrit-egi",
+     "eos"
+    ]
+   },
+   {
+    "key": "clear",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "appearance",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "carbuncle",
+     "emerald-carbuncle",
+     "topaz-carbuncle",
+     "ruby-carbuncle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/petglamour \"carbuncle\" \"\""
+  ],
+  "err": null,
+  "htmlLen": 1225
+ },
+ "ridepillion": {
+  "cat": "pet",
+  "label": "共同騎乘 /ridepillion",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   },
+   {
+    "key": "seat",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "1",
+     "2",
+     "3",
+     "4",
+     "5",
+     "6",
+     "7"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/ridepillion <2> 1"
+  ],
+  "err": null,
+  "htmlLen": 2819
+ },
+ "gpose": {
+  "cat": "camera",
+  "label": "集體動作 /gpose",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/gpose"
+  ],
+  "err": null,
+  "htmlLen": 56
+ },
+ "facecamera": {
+  "cat": "camera",
+  "label": "面向鏡頭 /facecamera",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/facecamera"
+  ],
+  "err": null,
+  "htmlLen": 47
+ },
+ "idlingcamera": {
+  "cat": "camera",
+  "label": "觀景視角 /icam",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/icam"
+  ],
+  "err": null,
+  "htmlLen": 2411
+ },
+ "tiltcamera": {
+  "cat": "camera",
+  "label": "第三人稱俯視角度 /tiltcamera",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/tiltcamera 50"
+  ],
+  "err": null,
+  "htmlLen": 302
+ },
+ "busy": {
+  "cat": "status",
+  "label": "忙碌狀態 /busy",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/busy"
+  ],
+  "err": null,
+  "htmlLen": 363
+ },
+ "away": {
+  "cat": "status",
+  "label": "離開狀態 /afk",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/afk"
+  ],
+  "err": null,
+  "htmlLen": 368
+ },
+ "roleplaying": {
+  "cat": "status",
+  "label": "角色扮演中 /roleplaying",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/roleplaying"
+  ],
+  "err": null,
+  "htmlLen": 353
+ },
+ "lfp": {
+  "cat": "status",
+  "label": "希望組隊 /lfp",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/lfp"
+  ],
+  "err": null,
+  "htmlLen": 6998
+ },
+ "lfm": {
+  "cat": "status",
+  "label": "接受鑲嵌請求 /lfm",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/lfm"
+  ],
+  "err": null,
+  "htmlLen": 347
+ },
+ "scomment": {
+  "cat": "status",
+  "label": "個性簽名 /scomment",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "text",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/scomment "
+  ],
+  "err": null,
+  "htmlLen": 262
+ },
+ "bstatus": {
+  "cat": "status",
+  "label": "新人狀態 /nastatus",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/nastatus"
+  ],
+  "err": null,
+  "htmlLen": 445
+ },
+ "nnetwork": {
+  "cat": "status",
+  "label": "自動加入新人頻道 /nnetwork",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/nnetwork"
+  ],
+  "err": null,
+  "htmlLen": 401
+ },
+ "nnetworkinvitation": {
+  "cat": "status",
+  "label": "接受新人頻道邀請 /nnetworkinvitation",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/nnetworkinvitation"
+  ],
+  "err": null,
+  "htmlLen": 406
+ },
+ "nnetworkleave": {
+  "cat": "status",
+  "label": "退出新人頻道 /nnetworkleave",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/nnetworkleave"
+  ],
+  "err": null,
+  "htmlLen": 83
+ },
+ "search": {
+  "cat": "party",
+  "label": "搜尋玩家 /sea",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "nameMode",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "forename",
+     "surname"
+    ]
+   },
+   {
+    "key": "status",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "leader",
+     "away",
+     "busy",
+     "duty",
+     "event",
+     "lookingforparty",
+     "recruit",
+     "lookingtomeld",
+     "newadventurer",
+     "mentor",
+     "tradementor",
+     "pvementor",
+     "pvpmentor",
+     "roleplay",
+     "returner"
+    ]
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "jobs",
+    "tag": "input",
+    "type": "checkbox"
+   },
+   {
+    "key": "lvMin",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "lvMax",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "gc",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "Maelstrom",
+     "Order of the Twin Adder",
+     "Immortal Flames"
+    ]
+   },
+   {
+    "key": "location",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "Limsa Lominsa",
+     "Gridania",
+     "Ul'dah",
+     "Ishgard",
+     "The Black Shroud",
+     "Thanalan",
+     "La Noscea",
+     "Mor Dhona",
+     "Coerthas",
+     "Dravania",
+     "Abalathia's Spine",
+     "Kugane",
+     "Gyr Abania",
+     "Othard",
+     "The Crystarium",
+     "Eulmore",
+     "Norvrandt"
+    ]
+   },
+   {
+    "key": "lang",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "JA",
+     "EN",
+     "FR",
+     "DE"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/sea"
+  ],
+  "err": null,
+  "htmlLen": 10304
+ },
+ "title": {
+  "cat": "status",
+  "label": "稱號 /title",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "random",
+     "set",
+     "clear"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/title"
+  ],
+  "err": null,
+  "htmlLen": 360
+ },
+ "partycmd": {
+  "cat": "party",
+  "label": "小隊指令 /pcmd",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "add",
+     "accept",
+     "deny",
+     "leader",
+     "leave",
+     "kick",
+     "breakup"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/pcmd"
+  ],
+  "err": null,
+  "htmlLen": 531
+ },
+ "join": {
+  "cat": "party",
+  "label": "接受組隊邀請 /join",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/join"
+  ],
+  "err": null,
+  "htmlLen": 36
+ },
+ "decline": {
+  "cat": "party",
+  "label": "拒絕組隊邀請 /decline",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/decline"
+  ],
+  "err": null,
+  "htmlLen": 36
+ },
+ "invite": {
+  "cat": "party",
+  "label": "邀請玩家 /invite",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/invite"
+  ],
+  "err": null,
+  "htmlLen": 2401
+ },
+ "kick": {
+  "cat": "party",
+  "label": "移除隊員 /kick",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/kick"
+  ],
+  "err": null,
+  "htmlLen": 2401
+ },
+ "leader": {
+  "cat": "party",
+  "label": "轉讓隊長 /leader",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/leader"
+  ],
+  "err": null,
+  "htmlLen": 2402
+ },
+ "leave": {
+  "cat": "party",
+  "label": "退隊 /leave",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/leave"
+  ],
+  "err": null,
+  "htmlLen": 37
+ },
+ "psort": {
+  "cat": "party",
+  "label": "小隊排序 /psort",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/psort"
+  ],
+  "err": null,
+  "htmlLen": 42
+ },
+ "meldrequest": {
+  "cat": "party",
+  "label": "委託鑲嵌 /meldrequest",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/meldrequest"
+  ],
+  "err": null,
+  "htmlLen": 2406
+ },
+ "friendlist": {
+  "cat": "party",
+  "label": "好友命令 /flist",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "add",
+     "accept",
+     "deny",
+     "remove"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/flist"
+  ],
+  "err": null,
+  "htmlLen": 473
+ },
+ "blacklist": {
+  "cat": "party",
+  "label": "黑名單命令 /blist",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "add",
+     "remove"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/blist"
+  ],
+  "err": null,
+  "htmlLen": 371
+ },
+ "levelsync": {
+  "cat": "combat",
+  "label": "等級同步 /levelsync",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/levelsync"
+  ],
+  "err": null,
+  "htmlLen": 62
+ },
+ "statusoff": {
+  "cat": "combat",
+  "label": "解除強化狀態 /statusoff",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "statusName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/statusoff \"\""
+  ],
+  "err": null,
+  "htmlLen": 337
+ },
+ "autolockon": {
+  "cat": "combat",
+  "label": "自動鎖定 /autolockon",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/autolockon"
+  ],
+  "err": null,
+  "htmlLen": 351
+ },
+ "autofacetarget": {
+  "cat": "combat",
+  "label": "自動轉向目標 /autofacetarget",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/autofacetarget"
+  ],
+  "err": null,
+  "htmlLen": 353
+ },
+ "autotarget": {
+  "cat": "combat",
+  "label": "自動選中 /autotarget",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/autotarget"
+  ],
+  "err": null,
+  "htmlLen": 352
+ },
+ "targetself": {
+  "cat": "combat",
+  "label": "選中自己 /targetself",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/targetself"
+  ],
+  "err": null,
+  "htmlLen": 347
+ },
+ "groundclick": {
+  "cat": "combat",
+  "label": "場景點擊取消選中 /groundclick",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/groundclick"
+  ],
+  "err": null,
+  "htmlLen": 354
+ },
+ "duelswitch": {
+  "cat": "combat",
+  "label": "決鬥申請攔截 /duelswitch",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/duelswitch"
+  ],
+  "err": null,
+  "htmlLen": 350
+ },
+ "actionerror": {
+  "cat": "combat",
+  "label": "技能錯誤提示 /aerror",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/aerror"
+  ],
+  "err": null,
+  "htmlLen": 368
+ },
+ "recasterror": {
+  "cat": "combat",
+  "label": "複唱錯誤提示 /rerror",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/rerror"
+  ],
+  "err": null,
+  "htmlLen": 361
+ },
+ "hud": {
+  "cat": "display",
+  "label": "UI視窗開關 /hud",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "toggle",
+     "on",
+     "off"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/hud"
+  ],
+  "err": null,
+  "htmlLen": 7013
+ },
+ "battleeffect": {
+  "cat": "display",
+  "label": "戰鬥特效 /battleeffect",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "effTarget",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "self",
+     "party",
+     "other",
+     "enemypc"
+    ]
+   },
+   {
+    "key": "effType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "all",
+     "simple",
+     "off"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/battleeffect self all"
+  ],
+  "err": null,
+  "htmlLen": 728
+ },
+ "nameplatedisp": {
+  "cat": "display",
+  "label": "名牌顯示時機 /nameplatedisp",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "all",
+     "self",
+     "party",
+     "alliance",
+     "other",
+     "friend",
+     "feast"
+    ]
+   },
+   {
+    "key": "setting",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/nameplatedisp all 1"
+  ],
+  "err": null,
+  "htmlLen": 904
+ },
+ "nameplatetype": {
+  "cat": "display",
+  "label": "名牌顯示格式 /nameplatetype",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "all",
+     "self",
+     "party",
+     "alliance",
+     "other",
+     "friend",
+     "feast"
+    ]
+   },
+   {
+    "key": "setting",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "1",
+     "2",
+     "3",
+     "4"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/nameplatetype all 1"
+  ],
+  "err": null,
+  "htmlLen": 920
+ },
+ "legacymark": {
+  "cat": "display",
+  "label": "十二神印記 /lmark",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/lmark"
+  ],
+  "err": null,
+  "htmlLen": 357
+ },
+ "displayhead": {
+  "cat": "display",
+  "label": "顯示頭部裝備 /displayhead",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/displayhead"
+  ],
+  "err": null,
+  "htmlLen": 350
+ },
+ "displayarms": {
+  "cat": "display",
+  "label": "顯示武器 /displayarms",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/displayarms"
+  ],
+  "err": null,
+  "htmlLen": 358
+ },
+ "autosheathe": {
+  "cat": "display",
+  "label": "自動收回武器 /ashathe",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/ashathe"
+  ],
+  "err": null,
+  "htmlLen": 350
+ },
+ "jobhudmode": {
+  "cat": "display",
+  "label": "職業量譜模式 /jobhudmode",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "num",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "1",
+     "2"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/jobhudmode"
+  ],
+  "err": null,
+  "htmlLen": 367
+ },
+ "hudreset": {
+  "cat": "display",
+  "label": "重置介面 /hudreset",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/hudreset"
+  ],
+  "err": null,
+  "htmlLen": 51
+ },
+ "uireset": {
+  "cat": "display",
+  "label": "重置介面窗口 /uireset",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/uireset"
+  ],
+  "err": null,
+  "htmlLen": 80
+ },
+ "uiscale": {
+  "cat": "display",
+  "label": "介面縮放 /uiscale",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "reset",
+     "60",
+     "80",
+     "90",
+     "100",
+     "110",
+     "120",
+     "140"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/uiscale"
+  ],
+  "err": null,
+  "htmlLen": 523
+ },
+ "chatlog": {
+  "cat": "display",
+  "label": "消息視窗設定 /chatlog",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "fontsize",
+     "time_onoff",
+     "time_format",
+     "time_base",
+     "call"
+    ]
+   },
+   {
+    "key": "tabNum",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "fontSize",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/chatlog fontsize 12"
+  ],
+  "err": null,
+  "htmlLen": 984
+ },
+ "targetring": {
+  "cat": "display",
+  "label": "目標環 /targetring",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/targetring"
+  ],
+  "err": null,
+  "htmlLen": 356
+ },
+ "targetline": {
+  "cat": "display",
+  "label": "目標線 /targetline",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/targetline"
+  ],
+  "err": null,
+  "htmlLen": 356
+ },
+ "linkline": {
+  "cat": "display",
+  "label": "聯繫線 /linkline",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/linkline"
+  ],
+  "err": null,
+  "htmlLen": 359
+ },
+ "hotbar": {
+  "cat": "hotbar",
+  "label": "熱鍵欄 /hotbar",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "zone",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "normal",
+     "pvp"
+    ]
+   },
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "set",
+     "change",
+     "copy",
+     "display",
+     "share",
+     "remove"
+    ]
+   },
+   {
+    "key": "setType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "action",
+     "blueaction",
+     "general",
+     "item",
+     "emote",
+     "buddy",
+     "pet",
+     "minion",
+     "mount",
+     "marking",
+     "waymark"
+    ]
+   },
+   {
+    "key": "setName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "num",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "slot2",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/hotbar action \"\""
+  ],
+  "err": null,
+  "htmlLen": 2265
+ },
+ "pvphotbar": {
+  "cat": "hotbar",
+  "label": "對戰熱鍵欄 /pvphotbar",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "set",
+     "change",
+     "copy",
+     "display",
+     "share",
+     "remove"
+    ]
+   },
+   {
+    "key": "setType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "action",
+     "general",
+     "item",
+     "emote",
+     "buddy",
+     "pet",
+     "minion",
+     "mount",
+     "marking",
+     "waymark"
+    ]
+   },
+   {
+    "key": "setName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "num",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "slot2",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/pvphotbar action \"\""
+  ],
+  "err": null,
+  "htmlLen": 1934
+ },
+ "chotbar": {
+  "cat": "hotbar",
+  "label": "十字熱鍵欄 /chotbar",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "zone",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "normal",
+     "pvp"
+    ]
+   },
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "set",
+     "change",
+     "copy",
+     "share",
+     "remove"
+    ]
+   },
+   {
+    "key": "setType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "action",
+     "blueaction",
+     "general",
+     "item",
+     "emote",
+     "buddy",
+     "pet",
+     "minion",
+     "mount",
+     "marking",
+     "waymark"
+    ]
+   },
+   {
+    "key": "setName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "num",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "pos",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "LD1",
+     "LD2",
+     "LD3",
+     "LD4",
+     "LA1",
+     "LA2",
+     "LA3",
+     "LA4",
+     "RD1",
+     "RD2",
+     "RD3",
+     "RD4",
+     "RA1",
+     "RA2",
+     "RA3",
+     "RA4"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/chotbar action \"\""
+  ],
+  "err": null,
+  "htmlLen": 2728
+ },
+ "pvpchotbar": {
+  "cat": "hotbar",
+  "label": "對戰十字熱鍵欄 /pvpchotbar",
+  "isBlock": true,
+  "fields": [
+   {
+    "key": "sub",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "set",
+     "change",
+     "copy",
+     "share",
+     "remove"
+    ]
+   },
+   {
+    "key": "setType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "action",
+     "general",
+     "item",
+     "emote",
+     "buddy",
+     "pet",
+     "minion",
+     "mount",
+     "marking",
+     "waymark"
+    ]
+   },
+   {
+    "key": "setName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   },
+   {
+    "key": "num",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   },
+   {
+    "key": "pos",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "LD1",
+     "LD2",
+     "LD3",
+     "LD4",
+     "LA1",
+     "LA2",
+     "LA3",
+     "LA4",
+     "RD1",
+     "RD2",
+     "RD3",
+     "RD4",
+     "RA1",
+     "RA2",
+     "RA3",
+     "RA4"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/pvpchotbar action \"\""
+  ],
+  "err": null,
+  "htmlLen": 2398
+ },
+ "chotbardisplay": {
+  "cat": "hotbar",
+  "label": "一直顯示十字熱鍵欄 /chotbardisplay",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/chotbardisplay"
+  ],
+  "err": null,
+  "htmlLen": 371
+ },
+ "chotbartype": {
+  "cat": "hotbar",
+  "label": "十字熱鍵欄操作類型 /chotbartype",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "type",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "hold",
+     "toggle",
+     "mix"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/chotbartype hold"
+  ],
+  "err": null,
+  "htmlLen": 385
+ },
+ "gpreset": {
+  "cat": "av",
+  "label": "圖像設定預設 /gpreset",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "num",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "1",
+     "2",
+     "3",
+     "4",
+     "5"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/gpreset 1"
+  ],
+  "err": null,
+  "htmlLen": 434
+ },
+ "mastervolume": {
+  "cat": "av",
+  "label": "整體音量 /mastervolume",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/mastervolume"
+  ],
+  "err": null,
+  "htmlLen": 311
+ },
+ "bgm": {
+  "cat": "av",
+  "label": "背景音樂 /bgm",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/bgm"
+  ],
+  "err": null,
+  "htmlLen": 311
+ },
+ "soundeffects": {
+  "cat": "av",
+  "label": "音效 /soundeffects",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/soundeffects"
+  ],
+  "err": null,
+  "htmlLen": 311
+ },
+ "voice": {
+  "cat": "av",
+  "label": "語音 /voice",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/voice"
+  ],
+  "err": null,
+  "htmlLen": 309
+ },
+ "systemsounds": {
+  "cat": "av",
+  "label": "系統音 /systemsounds",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/systemsounds"
+  ],
+  "err": null,
+  "htmlLen": 311
+ },
+ "ambientsounds": {
+  "cat": "av",
+  "label": "環境音 /ambientsounds",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/ambientsounds"
+  ],
+  "err": null,
+  "htmlLen": 311
+ },
+ "soundeffectsself": {
+  "cat": "av",
+  "label": "自身音效 /soundeffectsself",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/soundeffectsself 100"
+  ],
+  "err": null,
+  "htmlLen": 285
+ },
+ "soundeffectsparty": {
+  "cat": "av",
+  "label": "小隊音效 /soundeffectsparty",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/soundeffectsparty 100"
+  ],
+  "err": null,
+  "htmlLen": 285
+ },
+ "soundeffectsother": {
+  "cat": "av",
+  "label": "他人音效 /soundeffectsother",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/soundeffectsother 100"
+  ],
+  "err": null,
+  "htmlLen": 285
+ },
+ "performsounds": {
+  "cat": "av",
+  "label": "演奏音量 /performsounds",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/performsounds"
+  ],
+  "err": null,
+  "htmlLen": 312
+ },
+ "mountbgm": {
+  "cat": "av",
+  "label": "坐騎音樂 /mountbgm",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "toggle",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "on",
+     "off",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/mountbgm"
+  ],
+  "err": null,
+  "htmlLen": 356
+ },
+ "systemsoundsspeaker": {
+  "cat": "av",
+  "label": "揚聲器系統音 /systemsoundsspeaker",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "value",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/systemsoundsspeaker"
+  ],
+  "err": null,
+  "htmlLen": 341
+ },
+ "magiaright": {
+  "cat": "magia",
+  "label": "魔素板順時旋轉 /magiaright",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/magiaright"
+  ],
+  "err": null,
+  "htmlLen": 48
+ },
+ "magialeft": {
+  "cat": "magia",
+  "label": "魔素板逆時旋轉 /magialeft",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/magialeft"
+  ],
+  "err": null,
+  "htmlLen": 48
+ },
+ "magiaattack": {
+  "cat": "magia",
+  "label": "魔素板攻勢 /magiaattack",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/magiaattack"
+  ],
+  "err": null,
+  "htmlLen": 2412
+ },
+ "magiadefense": {
+  "cat": "magia",
+  "label": "魔素板守勢 /magiadefense",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "target",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "",
+     "&lt;t&gt;",
+     "&lt;me&gt;",
+     "&lt;f&gt;",
+     "&lt;tt&gt;",
+     "&lt;lt&gt;",
+     "&lt;mo&gt;",
+     "&lt;r&gt;",
+     "&lt;le&gt;",
+     "&lt;la&gt;",
+     "&lt;c&gt;",
+     "&lt;p&gt;",
+     "&lt;1&gt;",
+     "&lt;2&gt;",
+     "&lt;3&gt;",
+     "&lt;4&gt;",
+     "&lt;5&gt;",
+     "&lt;6&gt;",
+     "&lt;7&gt;",
+     "&lt;8&gt;",
+     "&lt;attack1&gt;",
+     "&lt;attack2&gt;",
+     "&lt;attack3&gt;",
+     "&lt;attack4&gt;",
+     "&lt;attack5&gt;",
+     "&lt;bind1&gt;",
+     "&lt;bind2&gt;",
+     "&lt;bind3&gt;",
+     "&lt;stop1&gt;",
+     "&lt;stop2&gt;",
+     "&lt;square&gt;",
+     "&lt;circle&gt;",
+     "&lt;cross&gt;",
+     "&lt;triangle&gt;",
+     "&lt;e1&gt;",
+     "&lt;e2&gt;",
+     "&lt;e3&gt;",
+     "&lt;e4&gt;",
+     "&lt;e5&gt;",
+     "custom"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/magiadefense"
+  ],
+  "err": null,
+  "htmlLen": 2416
+ },
+ "magiaauto": {
+  "cat": "magia",
+  "label": "魔素板自動 /magiaauto",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "mode",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "atk",
+     "def",
+     "off"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/magiaauto off"
+  ],
+  "err": null,
+  "htmlLen": 360
+ },
+ "playtime": {
+  "cat": "system",
+  "label": "遊戲時間 /ptime",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/ptime"
+  ],
+  "err": null,
+  "htmlLen": 45
+ },
+ "logout": {
+  "cat": "system",
+  "label": "標題畫面 /logout",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/logout"
+  ],
+  "err": null,
+  "htmlLen": 39
+ },
+ "shutdown": {
+  "cat": "system",
+  "label": "關閉遊戲 /shutdown",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/shutdown"
+  ],
+  "err": null,
+  "htmlLen": 39
+ },
+ "instance": {
+  "cat": "system",
+  "label": "副本區檢查 /instance",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/instance"
+  ],
+  "err": null,
+  "htmlLen": 53
+ },
+ "patchnote": {
+  "cat": "system",
+  "label": "版本更新筆記 /patchnote",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/patchnote"
+  ],
+  "err": null,
+  "htmlLen": 49
+ },
+ "micon": {
+  "cat": "macro",
+  "label": "巨集圖示 /micon",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "miconType",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "action",
+     "general",
+     "blueaction",
+     "pvpaction",
+     "item",
+     "emote",
+     "mount",
+     "minion",
+     "gearset",
+     "classjob",
+     "marking",
+     "waymark"
+    ]
+   },
+   {
+    "key": "miconName",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/micon \"\" action"
+  ],
+  "err": null,
+  "htmlLen": 1072
+ },
+ "mlock": {
+  "cat": "macro",
+  "label": "巨集鎖定 /mlock",
+  "isBlock": false,
+  "fields": [],
+  "hintOnly": true,
+  "built": [
+   "/mlock"
+  ],
+  "err": null,
+  "htmlLen": 82
+ },
+ "merror_line": {
+  "cat": "macro",
+  "label": "錯誤提示設定 /merror",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "onOff",
+    "tag": "select",
+    "type": null,
+    "opts": [
+     "off",
+     "on",
+     "toggle"
+    ]
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/merror off"
+  ],
+  "err": null,
+  "htmlLen": 376
+ },
+ "wait_line": {
+  "cat": "macro",
+  "label": "等待（獨立行）/wait",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "secs",
+    "tag": "input",
+    "type": "number",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   "/wait 1"
+  ],
+  "err": null,
+  "htmlLen": 297
+ },
+ "custom": {
+  "cat": "custom",
+  "label": "自訂行（自由輸入）",
+  "isBlock": false,
+  "fields": [
+   {
+    "key": "text",
+    "tag": "input",
+    "type": "text",
+    "val": ""
+   }
+  ],
+  "hintOnly": false,
+  "built": [
+   ""
+  ],
+  "err": null,
+  "htmlLen": 300
+ }
+}
