@@ -1,28 +1,29 @@
-# 產生／更新「手法庫」data/craft-rotation-library.json（手動觸發）
-# 每種配方形狀分片平行搜尋，最後合併提交。可重複執行：已有的手法會保留，並以它們當種子繼續改進。
+# 產生／更新「手法庫」（data/craft-rotation-library.json）。這是離線的靜態資料，網站只讀取它。
+#
+# 使用方式（只有一個選項）：
+#   GitHub → Actions → build-rotation-library → Run workflow → 選「模式」→ Run
+#
+#   快速測試  約 10～20 分鐘。每個分片只做 1 個形狀，確認整個流程（產生、合併、存回）沒問題。第一次請先跑這個。
+#   高等級    90 級以上（201 種形狀）。每個分片最多跑 5 小時 20 分，沒跑完的下次再跑會接著做。
+#   低等級    90 級以下（446 種形狀）。同上。
+#
+# 跑完會自動把結果存回 data/craft-rotation-library.json（已經做好的形狀不會被覆蓋、會累積）。
 name: build-rotation-library
 on:
   workflow_dispatch:
     inputs:
-      min_rlvl:
-        description: '只處理配方等級（rlvl）不小於這個值的形狀（580＝90 級以上）'
-        default: '580'
-      max_rlvl:
-        description: '只處理配方等級（rlvl）不大於這個值的形狀（預設不限）。低等級（1～579 共 446 種形狀）建議另外分批跑：min_rlvl=0、max_rlvl=579'
-        default: '99999'
-      budget_ms:
-        description: '每一次（遺傳演算法）搜尋的時間（毫秒），越大越接近最佳，但越久'
-        default: '8000'
-      beam_budget:
-        description: '集束搜尋的運算量（展開的節點數；6000 萬約 25 秒）。越大越接近最佳；0＝關閉。低等級可以用 20000000'
-        default: '40000000'
-      beam_widths:
-        description: '集束寬度（由窄到寬，逗號分隔）'
-        default: '4000,12000,30000'
+      mode:
+        description: '模式'
+        type: choice
+        default: 快速測試
+        options:
+          - 快速測試
+          - 高等級
+          - 低等級
 jobs:
   shard:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
@@ -30,26 +31,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - run: mkdir -p out && node tools/build-rotation-library.js --min-rlvl ${{ inputs.min_rlvl }} --max-rlvl ${{ inputs.max_rlvl }} --beam-budget ${{ inputs.beam_budget }} --beam-widths ${{ inputs.beam_widths }} --budget ${{ inputs.budget_ms }} --shard ${{ matrix.shard }}/8 --out out/lib-${{ matrix.shard }}.json
-      - uses: actions/upload-artifact@v4
+        with:
+          node-version: 22
+      - name: 產生這個分片的手法庫
+        run: |
+          mkdir -p out
+          case "${{ inputs.mode }}" in
+            "高等級") ARGS="--min-rlvl 580 --budget 8000 --beam-budget 40000000 --beam-widths 4000,12000,30000 --max-minutes 320" ;;
+            "低等級") ARGS="--min-rlvl 0 --max-rlvl 579 --budget 3000 --beam-budget 15000000 --beam-widths 3000,8000 --max-minutes 320" ;;
+            *)        ARGS="--min-rlvl 580 --budget 1500 --beam-budget 6000000 --beam-widths 2500,6000 --limit 1" ;;
+          esac
+          echo "參數：$ARGS"
+          node tools/build-rotation-library.js $ARGS --shard ${{ matrix.shard }}/8 --out out/lib-${{ matrix.shard }}.json
+      - name: 上傳這個分片的結果
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: lib-${{ matrix.shard }}
           path: out/lib-${{ matrix.shard }}.json
+          if-no-files-found: ignore
   merge:
     needs: shard
+    if: always()
     runs-on: ubuntu-latest
-    permissions: { contents: write }
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with:
+          node-version: 22
       - uses: actions/download-artifact@v4
-        with: { path: shards }
-      - run: node tools/build-rotation-library.js --merge $(find shards -name '*.json') --out data/craft-rotation-library.json
-      - run: |
+        with:
+          path: shards
+      - name: 合併並存回
+        run: |
+          FILES=$(find shards -name '*.json')
+          if [ -z "$FILES" ]; then echo "沒有任何分片產生結果"; exit 1; fi
+          node tools/build-rotation-library.js --merge $FILES --out data/craft-rotation-library.json
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add data/craft-rotation-library.json
-          git commit -m "update rotation library" || echo "no changes"
+          git commit -m "update rotation library" || echo "沒有變更"
           git push
