@@ -1,0 +1,309 @@
+/* ══════════════════════════════════════════════════════════════
+   市場頁統一樣式（載入順序必須在 ui-refine.css 之後）
+   目標：製作商機／熱度排行／代幣兌換等列表，與「在售價格列表」同一套外框、表頭、hover。
+   圓角一律 6px（圓形 50% 與 3~4px 微標籤除外）。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 一、圓角統一為 6px（容器、面板、晶片、按鈕、小卡、彈窗） ─────────── */
+.market-settings-btn,
+.craft-search-results,
+.market-history-btn,
+.market-modal-box,
+.market-tabs-mini,
+.market-stat-bar,
+.mws-cell,
+.market-table-scroll,
+.market-obtain-type,
+.market-obtain-cur,
+.market-detail-cost-badge,
+.market-fullchain-btn,
+.market-usedin-cell,
+.market-craft-modal-box,
+.ob-card,
+.ob-chip,
+.ob-npc,
+.ob-more,
+.ob-map-box,
+.ob-zoom button,
+.ob-locrow,
+.market-untradable,
+.pp-seg,
+.market-fold-btn,
+.market-calc-pop,
+.wl-dd-btn,
+.wl-dd-list,
+.wl-tile,
+.wl-card,
+.wl-card .market-item-icon,
+.wl-toast { border-radius: 6px; }
+#mk-tab-head:not(:empty)          { border-radius: 6px 6px 0 0; }
+#mk-listing-table-slot:not(:empty) { border-radius: 0 0 6px 6px; }
+
+/* ── 二、共用表頭：暖金漸變底＋金色底線＋雙線陰影（同 .market-flexrow-head） ── */
+.market-hot-head,
+.market-token-group-title {
+  background:
+    linear-gradient(90deg, rgba(197,160,89,.18), rgba(197,160,89,.07) 85%, rgba(197,160,89,.02)),
+    #0d0a07;
+  color: rgba(234,208,146,.94);
+  border-bottom: 1px solid rgba(214,180,106,.62);
+  box-shadow: 0 2px 0 #060505, 0 3px 0 rgba(197,160,89,.2);
+}
+
+/* ── 三、製作商機：表頭金色底線被覆蓋，補回與價格列表一致的線與陰影；列 hover 改回光柱 ── */
+.market-radar-scroll > .market-price-table > thead > tr > th {
+  border-bottom: none;
+  box-shadow: 0 1px 0 rgba(214,180,106,.62), 0 2px 0 #060505, 0 3px 0 rgba(197,160,89,.2);
+}
+tr.market-hot-item:hover td,
+.market-radar-mat-row.is-expandable:hover td { background: transparent; }
+.market-radar-scroll .market-price-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── 四、熱度排行：一個大外框＋列間細線＋表頭＋光柱 hover ────────────── */
+.market-hot-list {
+  gap: 0;
+  border: 1px solid var(--tb, rgba(197,160,89,.25));
+  border-radius: 6px;
+  overflow: hidden;
+}
+.market-hot-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px;
+  font-size: 12px; font-weight: 700;
+}
+.market-hot-head .mhh-rank { width: 22px; flex-shrink: 0; text-align: center; }
+.market-hot-head .mhh-icon { width: 30px; flex-shrink: 0; }
+.market-hot-head .mhh-name { width: 150px; flex-shrink: 0; }
+.market-hot-head .mhh-bar  { flex: 1; min-width: 60px; }
+.market-hot-head .mhh-val  { width: 110px; flex-shrink: 0; text-align: right; }
+@media (max-width: 560px) {
+  .market-hot-list:has(.market-hot-item) .market-hot-head .mhh-name { width: 110px; }
+}
+.market-hot-list > .market-hot-item,
+.market-hot-list > .market-hot-row {
+  border-radius: 0;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.market-hot-list > .market-hot-item:last-child,
+.market-hot-list > .market-hot-row:last-child { border-bottom: none; }
+.market-hot-list > .market-hot-item:hover,
+.market-hot-list > .market-hot-row:hover {
+  background: linear-gradient(90deg, rgba(var(--acc),.12), rgba(var(--acc),.02) 70%, transparent);
+  box-shadow: inset 2px 0 0 rgba(var(--acc),.8);
+}
+
+/* ── 五、代幣兌換：每個分類一個有框面板，群組標題＝表頭，點選列＝光柱 hover ── */
+.market-token-panel {
+  border: 1px solid var(--tb, rgba(197,160,89,.25));
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.market-token-panel > .market-token-group-title {
+  margin: 0; padding: 6px 10px;
+  font-size: 13px; font-weight: 700;
+}
+.market-token-panel > .market-token-more { display: block; width: 100%; padding: 8px 10px; text-align: left; }
+.market-token-panel > .market-token-fold-links { padding: 8px 10px; }
+.market-token-panel .market-token-row:last-child { border-bottom: none; }
+.market-token-head:hover {
+  background: linear-gradient(90deg, rgba(var(--acc),.12), rgba(var(--acc),.02) 70%, transparent);
+  box-shadow: inset 2px 0 0 rgba(var(--acc),.8);
+}
+
+@media (prefers-reduced-motion: reduce) { .market-hot-item, .market-hot-row, .market-token-head { transition: none; } }
+
+
+/* ══════════════════════════════════════════════════════════════
+   字級分級（市場頁）：依「資訊角色」決定字級，不依所在分頁。
+   想整體調大或調小，只改下面四個變數即可。
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --fs-main: 14px;   /* 主要結果：物品名稱、結果列、價格與數值 */
+  --fs-head: 13px;   /* 表頭、分頁、篩選按鈕、一般內文 */
+  --fs-sub:  12px;   /* 次要說明、來源、副標 */
+  --fs-tiny: 11px;   /* 微標籤、單位、徽章（任何文字都不低於此值） */
+}
+
+/* 主要結果（名稱、結果列、數值） */
+.craft-search-item,
+.market-watch-row,
+.market-flexrow,
+.market-stat-tile-muted .mst-val,
+.market-price-table,
+.market-token-head,
+.mtr-row,
+.market-obtain-best-name,
+.market-obtain-best-value,
+.market-fc-row,
+.market-fc-price,
+.market-hot-name,
+.market-hot-value,
+.mws-lb, .mws-none,
+.wl-cell,
+.wl-card .wl-name-line { font-size: var(--fs-main); }
+
+/* 表頭、分頁、篩選、一般內文 */
+.market-recent-chip,
+.craft-tab-btn,
+.market-tab-mini,
+.market-stat-line,
+.market-supply-gear,
+.market-supply-headrow .market-history-btn,
+.market-token-cats .craft-job-filter-btn,
+.market-token-group-title,
+.mtr-head,
+.market-obtain-cur-name,
+.market-supply-crystal-tag,
+.market-detail-panel-crumb-btn,
+.market-detail-sub-name,
+.market-fullchain-btn,
+.market-usedin-cell,
+.market-fc-amount,
+.market-hot-rank,
+.market-trend-table,
+#mk-hot-filters .craft-job-filter-btn,#mk-radar-filters .craft-job-filter-btn,
+.market-calc-out,
+.wl-seg button,
+.wl-dd-btn,
+.wl-dd-opt,
+.wl-chip,
+.wl-btn,
+.wl-thead,
+.wl-chg,
+.wl-ago,
+.wl-tile.multi .wl-tile-v,
+.wl-input,
+.wl-toast,
+.wl-toast button,
+.mav-row { font-size: var(--fs-head); }
+
+/* 次要說明 */
+.market-history-btn,
+.mst-label,
+.mws-name,
+.mav-title,
+.market-stat-foot,
+.market-radar-breakdown,
+.market-supply-legend,
+.market-supply-key,
+.market-token-group-title .craft-muted,
+.market-token-hidebar,
+.market-token-hidebtn,
+.mtr-rank,
+.mtr-foot,
+.market-obtain-best-rank,
+.market-hot-price,
+.market-hot-sub,
+.market-trend-status,
+.market-trend-tip,
+.market-hot-subline,
+.market-trend-legend,
+.market-more-info-btn,
+.market-more-info-list,
+.mav-chg,
+.pp-btn,
+.mk-ref,
+.market-sig-chip,
+.market-supply-settings-row .pp-btn,
+.market-supply-settings-row .pp-lead,
+.mk-live,
+.wl-seg.sm button,
+.wl-status,
+.wl-hint,
+.wl-pill,
+.wl-pmeta,
+.wl-pmeta .wl-cell, .wl-pmeta .wl-chg, .wl-pmeta .wl-ago,
+.wl-world,
+.wl-stack small,
+.wl-tile-l,
+.wl-wpill,
+.wl-edit-l,
+.wl-gauge span,
+.wl-xrow { font-size: var(--fs-sub); }
+
+/* 微標籤、單位、徽章（下限） */
+.market-recent-nav,
+.mst-label .ph,
+.mst-val small,
+.mst-q,
+.market-stat-bar[data-fit="1"] .mst-label,
+.market-stat-bar[data-fit="2"] .mst-label,.market-stat-bar[data-fit="3"] .mst-label,
+.mws-age,
+.mav-help,
+.mav-row small,
+.market-hq-tag,
+.market-token-count,
+.market-token-gtag,
+.market-token-cat-n,
+.market-token-nocmp,
+.mtr-unit,
+.mtr-sort.active::after,
+.market-token-chain-tag,
+.market-obtain-type,
+.market-obtain-plus,
+.market-crystal-label,
+.market-crystal-delta,
+.market-hq-btn,
+.market-detail-panel-crumb-sep,
+.market-fc-toggle,
+.wl-fab-badge,
+.wl-dd-btn .ph,
+.wl-dd-opt.on::after,
+.wl-th small,
+.wl-xrow span small,
+.wl-q,
+.wl-tile-v small,
+.wl-input.tiny { font-size: var(--fs-tiny); }
+
+/* 同一元素有兩種角色時的補充：表頭要比同列的結果小一級 */
+.market-flexrow-head,
+.market-price-table th,
+.market-hot-head { font-size: var(--fs-head); }
+
+/* 熱度排行數值欄：字級加大後要多留一點寬度，避免「xxx 金/天」被截斷 */
+.market-hot-value { width: 124px; }
+.market-hot-head .mhh-val { width: 124px; }
+
+/* ══════════════════════════════════════════════════════════════
+   統一的「物品引用」（js 的 itemRefHtml）：一律可點、一律同樣的視覺提示
+   平常：名稱下方有淡淡的點狀底線（手機沒有 hover，靠這個知道是連結）
+   滑過：底線變實線、名稱變亮、圖示變亮；鍵盤聚焦有外框
+   ══════════════════════════════════════════════════════════════ */
+.mk-itemref { color: inherit; text-decoration: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 4px; min-width: 0; }
+.mtr-label .mk-itemref { display: inline; }
+.mk-itemref-name { border-bottom: 1px dotted rgba(var(--acc), .5); }
+.mk-itemref:hover .mk-itemref-name,
+.mk-itemref:focus-visible .mk-itemref-name { color: #eed48f; border-bottom: 1px solid currentColor; }
+.mk-itemref .market-item-icon { transition: filter .12s; }
+.mk-itemref:hover .market-item-icon { filter: brightness(1.3); }
+.mk-itemref:focus-visible { outline: 2px solid rgba(var(--acc), .8); outline-offset: 1px; }
+
+/* 代幣兌換排行：🔗→[圖示] 名稱。名稱欄夠寬才顯示名稱，不夠就只剩圖示（名稱仍在提示裡），不擠壞數值欄 */
+.mtr-name { container-type: inline-size; }
+.market-token-chain-tag { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.mk-itemref-chain .mk-itemref-name { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@container (max-width: 250px) { .mk-itemref-chain .mk-itemref-name { display: none; } }
+
+/* 整列（<div role="button">）的鍵盤聚焦外框 */
+.mtr-row:focus-visible { outline: 2px solid rgba(var(--acc), .8); outline-offset: -2px; }
+.mtr-row:hover { background: linear-gradient(90deg, rgba(var(--acc),.12), rgba(var(--acc),.02) 70%, transparent); box-shadow: inset 2px 0 0 rgba(var(--acc),.8); }
+
+/* ══════════════════════════════════════════════════════════════
+   物品頁的「‹ 返回 〇〇」：只有從別處跳進來才出現，獨立一行放在最上面，不擠壓原本的標題列
+   ══════════════════════════════════════════════════════════════ */
+.mk-back-row { margin: 0 0 8px; flex-shrink: 0; }
+.mk-back-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  max-width: min(14em, 100%);
+  padding: 3px 10px 3px 6px;
+  font: inherit; font-size: var(--fs-sub);
+  color: rgba(234,208,146,.92);
+  background: rgba(197,160,89,.08);
+  border: 1px solid rgba(197,160,89,.3);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mk-back-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-back-btn:hover { background: rgba(197,160,89,.18); border-color: rgba(214,180,106,.62); color: #f3dfa6; }
+.mk-back-btn:focus-visible { outline: 2px solid rgba(var(--acc), .8); outline-offset: 1px; }
