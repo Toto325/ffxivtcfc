@@ -1,0 +1,53 @@
+# 產生／更新「手法庫」data/craft-rotation-library.json（手動觸發）
+# 每種配方形狀分片平行搜尋，最後合併提交。可重複執行：已有的手法會保留，並以它們當種子繼續改進。
+name: build-rotation-library
+on:
+  workflow_dispatch:
+    inputs:
+      min_rlvl:
+        description: '只處理配方等級（rlvl）不小於這個值的形狀（580＝90 級以上）'
+        default: '580'
+      max_rlvl:
+        description: '只處理配方等級（rlvl）不大於這個值的形狀（預設不限）。低等級（1～579 共 446 種形狀）建議另外分批跑：min_rlvl=0、max_rlvl=579'
+        default: '99999'
+      budget_ms:
+        description: '每一次（遺傳演算法）搜尋的時間（毫秒），越大越接近最佳，但越久'
+        default: '8000'
+      beam_budget:
+        description: '集束搜尋的運算量（展開的節點數；6000 萬約 25 秒）。越大越接近最佳；0＝關閉。低等級可以用 20000000'
+        default: '40000000'
+      beam_widths:
+        description: '集束寬度（由窄到寬，逗號分隔）'
+        default: '4000,12000,30000'
+jobs:
+  shard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: mkdir -p out && node tools/build-rotation-library.js --min-rlvl ${{ inputs.min_rlvl }} --max-rlvl ${{ inputs.max_rlvl }} --beam-budget ${{ inputs.beam_budget }} --beam-widths ${{ inputs.beam_widths }} --budget ${{ inputs.budget_ms }} --shard ${{ matrix.shard }}/8 --out out/lib-${{ matrix.shard }}.json
+      - uses: actions/upload-artifact@v4
+        with: { name: lib-${{ matrix.shard }}, path: out/lib-${{ matrix.shard }}.json }
+  merge:
+    needs: shard
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: actions/download-artifact@v4
+        with: { path: shards }
+      - run: node tools/build-rotation-library.js --merge $(find shards -name '*.json') --out data/craft-rotation-library.json
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/craft-rotation-library.json
+          git commit -m "update rotation library" || echo "no changes"
+          git push
