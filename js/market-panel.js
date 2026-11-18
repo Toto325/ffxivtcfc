@@ -2663,18 +2663,19 @@
       if (!r) return null;
       return { itemId: r.itemId, rid: urid, name: ITEM_NAMES_TW_ALL[r.itemId] || r.itemId };
     }).filter(Boolean);
-    // ── v4：HTML 版面。舊版是一張固定座標的 SVG，欄位一窄整張等比例縮小、字跟著縮到看不清楚，
-    //   高度又靠縮放硬壓。現在卡片全部是真實的網頁元素，字級固定（名稱14／價格15，跟站內主要文字同級），
-    //   版面密度改成「畫出來→量右欄實際寬高→不夠就降一級」自動適應（fitChain，做法同統計列的 fitStatBar）。
-    //   同一層的材料／用途合成一條面板（格子之間只有細線），中心物品是橫跨整個欄寬的主條，
-    //   所以上下兩排每一格都能直接垂直連到主條，連接線只需要一小段間距。 ──
+    // ── v4：HTML 版面（取代舊的縮放 SVG）──────────────────────────────────────────
+    // 舊版是一張固定座標的 SVG，欄位一窄整張等比例縮小、字跟著縮到看不清楚。現在卡片全是真實的網頁元素，
+    // 字級固定（名稱14／價格15，跟站內主要文字同級）；造型沿用原本與站內其他元件一致的語彙：
+    // 圓角方框（6～8px，沒有膠囊形）、1.2px 金邊、半透明深底、圓形圖示、圓角轉折的發光匯流線＋菱形光點。
+    // 版面密度改成「畫出來→量右欄實際寬高→放不下才降一級」（fitChain，做法同統計列的 fitStatBar）：
+    // 空間夠就跟原本一樣寬鬆（直式卡片、長連接線），不為了省高度把它壓扁。
     const hasUp = useNodesFull.length > 0;
     const hasDown = matNodes.length > 0;
-    const useNodes = useNodesFull.slice(0, SUPPLY_NODE_LIMIT); // 上限；實際顯示幾張由 fitChain 依空間往下調，其餘收進「還有N種」
+    const useNodes = useNodesFull.slice(0, SUPPLY_NODE_LIMIT); // 上限；實際顯示幾張由 fitChain 依空間往下調，其餘收進最後那張「還有N種」
 
     /* 差額徽章：「圖示＋▼＋金額」，▼＝省下。🔨▼＝建議自己做、🛒▼＝建議直接買，數字都是建議的做法能省多少。
      * negl＝這項自己的「相近」門檻，差距小於它就顯示「≈」，不特別標方向。徽章本身可以點（開明細面板），
-     * 跟格子本體的「點了跳轉」是分開的兩個互動區域（見下面的 click 綁定）。 */
+     * 跟卡片本體的「點了跳轉」是分開的兩個互動區域（見下面的 click 綁定）。 */
     function deltaBadgeHtml(delta, badgeItemId, negl) {
       if (delta == null) return '';
       const limit = negl != null ? negl : NEGL_MIN;
@@ -2685,8 +2686,7 @@
         : (delta > 0 ? '這項自己做比買省 ' + Math.round(delta).toLocaleString() + ' 金' : '這項直接買比做省 ' + Math.round(-delta).toLocaleString() + ' 金');
       return '<span class="market-delta-badge msc-badge ' + cls + '" role="button" tabindex="0" data-mk-detail-item="' + badgeItemId + '" title="' + tipTxt + '">' + label + '</span>';
     }
-    // 一格：圖示在左；右邊上面是名稱、下面是「×數量　單價＝總價　徽章」。
-    // 左側細色帶＝這項該買還是該做（綠＝自己做比較省，金＝照原樣買），掃一眼就看得出，不用先讀文字。
+    // 一張卡片。邊框顏色＝這項該買還是該做（綠＝自己做比較省，金＝照原樣買）；徽章跨在上緣右側。
     function cellHtml(n, o) {
       o = o || {};
       const attrs = n.rid
@@ -2697,31 +2697,31 @@
       const delta = crystalOff ? null : deltaByItem[n.itemId];
       const titleTxt = n.name + (crystalOff ? '（水晶未計入成本，可在 ⚙ 設定調整）' : '');
       return '<div class="msc-cell' + (decision === 'craft' ? ' is-craft' : '') + (crystalOff ? ' is-dim' : '') + '" role="button" tabindex="0" title="' + escHtml(titleTxt) + '"' + attrs + '>' +
-        '<span class="msc-ico">' + itemIconHtml(n.itemId, 30) + (crystalOff ? '<i class="msc-gem">💎</i>' : '') + '</span>' +
+        '<span class="msc-ico">' + itemIconHtml(n.itemId, 34) + (crystalOff ? '<i class="msc-gem">💎</i>' : '') + '</span>' +
         '<span class="msc-body">' +
           '<span class="msc-name">' + escHtml(n.name) + '</span>' +
           '<span class="msc-nums">' +
             (n.amount != null ? '<b class="msc-qty">×' + n.amount + '</b>' : '') +
             '<span class="msc-price" data-price-item="' + n.itemId + '"' + (n.amount > 1 ? ' data-amount="' + n.amount + '"' : '') + '></span>' +
-            deltaBadgeHtml(delta, n.itemId, neglByItem[n.itemId]) +
           '</span>' +
-        '</span></div>';
+        '</span>' +
+        deltaBadgeHtml(delta, n.itemId, neglByItem[n.itemId]) +
+      '</div>';
     }
+    // 「還有N種」：跟原本一樣是用途那排的最後一張卡片（灰色邊框），點了看全部用途清單
+    const moreCellHtml = '<div class="msc-cell msc-more" role="button" tabindex="0" data-mk-usedin-more="1" title="看全部用途清單" hidden><span class="msc-more-t">還有</span><b class="msc-more-n">0種</b></div>';
     const upHtml = hasUp
-      ? '<div class="msc-band msc-band-up">' +
-          '<button type="button" class="msc-more" data-mk-usedin-more="1" hidden title="看全部用途清單">還有 <b>0</b> 種 <i class="ph ph-caret-right"></i></button>' +
-          '<div class="msc-strip msc-strip-up">' + useNodes.map(function (n) { return cellHtml(n); }).join('') + '</div>' +
-        '</div>'
+      ? '<div class="msc-row msc-row-up">' + useNodes.map(function (n) { return cellHtml(n); }).join('') + moreCellHtml + '</div>'
       : '';
     const downHtml = hasDown
-      ? '<div class="msc-band msc-band-down"><div class="msc-strip msc-strip-down">' + matNodes.map(function (n) {
+      ? '<div class="msc-row msc-row-down">' + matNodes.map(function (n) {
           const isCrystalMat = typeof CRYSTAL_ITEM_IDS !== 'undefined' && CRYSTAL_ITEM_IDS.has(Number(n.itemId));
           return cellHtml(n, { crystalOff: isCrystalMat && settings.includeCrystal === false }); // 水晶未計入成本：變暗，不顯示買/做徽章
-        }).join('') + '</div></div>'
+        }).join('') + '</div>'
       : '';
 
-    // 主條（中心物品）：買／做兩個小標籤，較便宜的亮起（做較省＝綠）、另一個變暗加刪除線。
-    // 差距小到可以忽略（tie）時一律建議直接買，所以亮的是「買」，而且不出現省多少的徽章。
+    // 主條（中心物品）：橫跨整個欄寬。買／做用跟站內統計列同款的「標籤＋數值」方框，較便宜的亮起（做較省＝綠）、
+    // 另一個變暗加刪除線。差距小到可以忽略（tie）時一律建議直接買，所以亮的是「買」，而且不出現省多少的徽章。
     let heroCmps = '', centerTitle = '';
     if (centerCmp) {
       const c = centerCmp;
@@ -2729,8 +2729,8 @@
       const craftWins = c.winner === 'craft';
       const both = c.buyT != null && c.craftT != null;
       heroCmps =
-        '<span class="msc-cmp ' + (buyWins ? 'is-win' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
-        '<span class="msc-cmp ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>做</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b></span>' +
+        '<span class="msc-tile ' + (buyWins ? 'is-win' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
+        '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>做</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b></span>' +
         ((c.winner === 'craft' || c.winner === 'buy') ? deltaBadgeHtml(c.save, itemId, 0) : '');
       const verdict = c.save == null ? ''
         : (c.winner === 'craft' ? '自己做省 ' + Math.round(c.save).toLocaleString() + ' 金'
@@ -2747,23 +2747,20 @@
       ? '<span class="msc-yield" title="每次製作產出 ' + yields + ' 個；下方材料是做一次的用量，「做」的價格已經除以產出數">產×' + yields + '</span>' : '';
     const stepHtml = rid
       ? '<span class="msc-step">' +
-          '<button type="button" class="msc-step-btn" data-mk-qty-step="-1" aria-label="減少數量"' + (craftMultiplier > 1 ? '' : ' disabled') + '>−</button>' +
+          '<button type="button" class="msc-round" data-mk-qty-step="-1" aria-label="減少數量"' + (craftMultiplier > 1 ? '' : ' disabled') + '>−</button>' +
           '<span class="msc-step-n">×' + craftMultiplier + '</span>' +
-          '<button type="button" class="msc-step-btn" data-mk-qty-step="1" aria-label="增加數量">＋</button>' +
+          '<button type="button" class="msc-round" data-mk-qty-step="1" aria-label="增加數量">＋</button>' +
         '</span>'
       : '';
     const heroHtml =
       '<div class="msc-hero"' + (centerTitle ? ' title="' + escHtml(centerTitle) + '"' : '') + '>' +
-        '<div class="msc-hero-id">' +
-          '<span class="msc-hero-ico">' + itemIconHtml(itemId, 44) + '</span>' +
-          '<span class="msc-hero-txt">' +
-            '<span class="msc-hero-name">' + escHtml(ITEM_NAMES_TW_ALL[itemId] || itemId) + yieldHtml + '</span>' +
-            '<span class="msc-hero-cmps">' + heroCmps + '</span>' +
-          '</span>' +
-        '</div>' +
-        '<div class="msc-hero-ctl">' + stepHtml +
+        '<span class="msc-hero-ico">' + itemIconHtml(itemId, 48) + '</span>' +
+        '<span class="msc-hero-name">' + escHtml(ITEM_NAMES_TW_ALL[itemId] || itemId) + yieldHtml + '</span>' +
+        '<div class="msc-hero-cmps">' + heroCmps + '</div>' +
+        '<div class="msc-hero-step">' + stepHtml + '</div>' +
+        '<div class="msc-hero-btns">' +
           '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
-          '<button type="button" class="market-fullchain-btn msc-list-btn" data-mk-open-fullchain="1" title="查看完整供應鏈清單"><i class="ph ph-tree-structure"></i>完整清單</button>' +
+          '<button type="button" class="market-history-btn market-fullchain-btn msc-list-btn" data-mk-open-fullchain="1" title="查看完整供應鏈清單"><i class="ph ph-tree-structure"></i>完整清單</button>' +
         '</div>' +
       '</div>';
 
@@ -2822,86 +2819,121 @@
         openMaterialDetailPanel(el.dataset.mkDetailItem, dcData, settings);
       });
     });
-    // 鍵盤：格子與徽章都是 role=button，Enter／空白鍵等同點擊（只處理自己，不處理從徽章冒泡上來的事件）
+    // 鍵盤：卡片與徽章都是 role=button，Enter／空白鍵等同點擊（只處理自己，不處理從徽章冒泡上來的事件）
     box.querySelectorAll('.msc-cell, .msc-badge').forEach(function (el) {
       el.addEventListener('keydown', function (e) {
         if (e.target !== el) return;
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
       });
     });
-    const moreBtn = box.querySelector('[data-mk-usedin-more]');
-    if (moreBtn) {
-      moreBtn.addEventListener('click', function () { renderUsedInList(itemId); });
+    const moreCell = box.querySelector('[data-mk-usedin-more]');
+    if (moreCell) {
+      moreCell.addEventListener('click', function () { renderUsedInList(itemId); });
     }
 
     /* ── 自動適應：實際畫出來再量，不用估算 ──
-     * 先依欄寬把每一條面板的格子「平均分到每一排」（5格寫成3＋2，最後一排的格子撐滿整排，不留空洞），
-     * 再量右欄放不放得下（scrollHeight ≤ clientHeight）。放不下就依序：
-     *   密度 0（名稱兩行、間距寬鬆）→ 1（名稱一行、間距收緊）→ 2（連接線與主條壓到最小）→
-     *   密度 2 還放不下，才減少「用途」的顯示張數（最少2張，其餘收進「還有N種」）。
-     * 字級三級都不變。全部放不下的極端情況，才讓右欄自己捲動。手機版整頁本來就往下捲，沒有高度限制，固定密度0。 */
+     * 密度 0～5（data-lv），越小越寬鬆：
+     *   0：直式卡片（圖示在上）、連接線最長（跟原本一樣）；1、2：同樣直式，連接線與間距逐級收緊；
+     *   3：改成橫式卡片（圖示在左）；4：名稱改單行；5：極限壓縮。
+     * 用途那排永遠只排一行：放得下幾張就顯示幾張（最後一張換成「還有N種」），不換行；材料排放不下才換行。
+     * 從密度 0 開始試，量右欄放不放得下（scrollHeight ≤ clientHeight），放不下才降一級。
+     * 字級每一級都不變。全部放不下的極端情況，才讓右欄自己捲動。手機整頁本來就往下捲，沒有高度限制，固定密度 0。 */
     const root = box.querySelector('.msc-root');
     const heroEl = root.querySelector('.msc-hero');
-    const upStrip = root.querySelector('.msc-strip-up');
-    const downStrip = root.querySelector('.msc-strip-down');
-    const upCells = upStrip ? Array.prototype.slice.call(upStrip.children) : [];
-    const MIN_CELL_W = [150, 138, 138, 130]; // 各密度的格子最小寬度：單行名稱的層級也要留夠寬，至少看得到5～6個字
-    function layoutStrip(strip, lv) {
-      const cells = Array.prototype.filter.call(strip.children, function (c) { return !c.hidden; });
-      const n = cells.length;
-      if (!n) return;
-      const w = strip.clientWidth || 0;
-      let cols = w > 0 ? Math.max(1, Math.min(n, Math.floor(w / MIN_CELL_W[lv]))) : n;
-      const rows = Math.ceil(n / cols);
-      cols = Math.ceil(n / rows);
-      strip.style.setProperty('--msc-cols', String(cols));
-      const lastCount = n - (rows - 1) * cols;
-      const base = Math.floor(cols / lastCount), extra = cols % lastCount;
-      cells.forEach(function (c, i) {
-        const r = Math.floor(i / cols), k = i % cols;
-        const isLast = r === rows - 1;
-        c.classList.toggle('rs', k === 0);
-        c.classList.toggle('lr', isLast);
-        c.style.gridColumn = (isLast && lastCount < cols) ? 'span ' + (base + (k < extra ? 1 : 0)) : '';
-      });
+    const upRow = root.querySelector('.msc-row-up');
+    const downRow = root.querySelector('.msc-row-down');
+    const upCells = upRow ? Array.prototype.filter.call(upRow.children, function (c) { return !c.classList.contains('msc-more'); }) : [];
+    const MIN_CELL_W = [112, 112, 108, 140, 136, 130]; // 各密度的卡片最小寬度（直式卡片名稱可兩行，所以較窄；橫式要放圖示，較寬）
+    const COL_GAP = 8;                                  // 卡片左右間距：以前是16，縮到8省出寬度
+    function visibleCells(row) { return Array.prototype.filter.call(row.children, function (c) { return !c.hidden; }); }
+    function colsFor(lv, row, n) {
+      const w = row.clientWidth || 0;
+      return w > 0 ? Math.max(1, Math.floor((w + COL_GAP) / (MIN_CELL_W[lv] + COL_GAP))) : n;
     }
-    // 連接線：每一格從自己靠近主條的那條邊，垂直連到主條（主條橫跨整個欄寬，所以不需要轉角）。
-    // 箭頭一律往上；光點沿用原本的接力動畫（材料→主條→用途）。
+    function layoutRow(row, lv) {
+      const n = visibleCells(row).length;
+      if (!n) return;
+      let cols = Math.min(colsFor(lv, row, n), n);
+      const rows = Math.ceil(n / cols);
+      cols = Math.ceil(n / rows);                 // 5張寫成3＋2，不寫成4＋1
+      row.style.setProperty('--msc-cols', String(cols));
+    }
+    // 在這個密度下，用途那排「一行」放得下幾張：全部放得下就全顯示；放不下，最後一格留給「還有N種」
+    function shownFor(lv, mobile) {
+      const total = useNodesFull.length, maxShown = upCells.length;
+      if (!maxShown) return 0;
+      if (mobile) return total > 3 ? 3 : maxShown;  // 手機一次攤太多讀不完：3張＋「還有」，剛好排成兩列
+      const cols = colsFor(lv, upRow, maxShown + 1);
+      if (total <= cols) return Math.min(maxShown, total);
+      return Math.max(Math.min(2, maxShown), Math.min(maxShown, cols - 1));
+    }
+    // 連接線：沿用原本的畫法——從出發點垂直走到中段、橫向轉彎（圓角）、再垂直走到終點，全部匯到主條中心；
+    // 箭頭一律往上；光點沿用原本的接力動畫（材料→主條→用途）。換行時，外排的卡片用一小段淡線掛在內排卡片下面。
     function drawLinks() {
       const svg = root.querySelector('.msc-links');
       if (!svg) return;
-      const rr = root.getBoundingClientRect();
+      const rr = root.getBoundingClientRect(), hr = heroEl.getBoundingClientRect();
       svg.setAttribute('width', rr.width); svg.setAttribute('height', rr.height);
       svg.setAttribute('viewBox', '0 0 ' + rr.width + ' ' + rr.height);
-      const hr = heroEl.getBoundingClientRect();
+      const cx = hr.left + hr.width / 2 - rr.left;
       let defs = '', parts = '', gn = 0;
-      function link(x, yFrom, yTo, phase) {
-        if (Math.abs(yFrom - yTo) < 4) return;
+      function elbow(a, b, bendY, r) {
+        if (Math.abs(a.x - b.x) < 1) return 'M' + a.x + ',' + a.y + ' L' + b.x + ',' + b.y;
+        const sy = bendY >= a.y ? 1 : -1, sx = b.x >= a.x ? 1 : -1;
+        return 'M' + a.x + ',' + a.y + ' L' + a.x + ',' + (bendY - sy * r) + ' Q' + a.x + ',' + bendY + ' ' + (a.x + sx * r) + ',' + bendY +
+          ' L' + (b.x - sx * r) + ',' + bendY + ' Q' + b.x + ',' + bendY + ' ' + b.x + ',' + (bendY + sy * r) + ' L' + b.x + ',' + b.y;
+      }
+      function link(a, b, phase) {
+        const len = Math.abs(a.y - b.y);
+        if (len < 8) return;
         gn++;
-        const gid = 'mscg' + gn, d = 'M' + x + ',' + yFrom + ' L' + x + ',' + yTo;
-        defs += '<linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="' + x + '" y1="' + yFrom + '" x2="' + x + '" y2="' + yTo + '">' +
+        const gid = 'mscg' + gn, bendY = (a.y + b.y) / 2, r = Math.max(3, Math.min(7, len / 2 - 2)), d = elbow(a, b, bendY, r);
+        const k = Math.max(.45, Math.min(1, len / 44)); // 光點大小跟著連接線長度縮放，短線不會被光點塞滿
+        defs += '<linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '">' +
           '<stop offset="0%" stop-color="#c5a059" stop-opacity="0.7"/><stop offset="100%" stop-color="#fcf6ba" stop-opacity="1"/></linearGradient>';
         parts += '<path class="cyc-arc-line" stroke="url(#' + gid + ')" d="' + d + '"/>' +
-          '<path class="cyc-arc-tip" d="M' + (x - 5) + ',' + (yTo + 5) + ' L' + x + ',' + yTo + ' L' + (x + 5) + ',' + (yTo + 5) + '"/>' +
-          '<circle cx="' + x + '" cy="' + yFrom + '" r="2.4" fill="#c5a059"/>' +
+          '<path class="cyc-arc-tip" d="M' + (b.x - 5) + ',' + (b.y + 5) + ' L' + b.x + ',' + b.y + ' L' + (b.x + 5) + ',' + (b.y + 5) + '"/>' +
           '<g class="mk-spark mk-spark-' + phase + '" style="offset-path:path(\'' + d + '\');offset-rotate:auto 90deg">' +
-            '<path class="cyc-spark-outer" d="M0,-9 L4,0 L0,9 L-4,0 Z"/><path class="cyc-spark-mid" d="M0,-6 L2.6,0 L0,6 L-2.6,0 Z"/><path class="cyc-spark-core" d="M0,-3.4 L1.2,0 L0,3.4 L-1.2,0 Z"/>' +
+            '<path class="cyc-spark-outer" d="M0,' + (-26 * k) + ' L' + (10 * k) + ',0 L0,' + (26 * k) + ' L' + (-10 * k) + ',0 Z"/>' +
+            '<path class="cyc-spark-mid" d="M0,' + (-17 * k) + ' L' + (6 * k) + ',0 L0,' + (17 * k) + ' L' + (-6 * k) + ',0 Z"/>' +
+            '<path class="cyc-spark-core" d="M0,' + (-8 * k) + ' L' + (2.4 * k) + ',0 L0,' + (8 * k) + ' L' + (-2.4 * k) + ',0 Z"/>' +
           '</g>';
       }
-      function edgeCells(strip, wantLast) {
-        const cells = Array.prototype.filter.call(strip.children, function (c) { return !c.hidden; });
-        if (!cells.length) return [];
-        const tops = cells.map(function (c) { return c.getBoundingClientRect().top; });
-        const key = wantLast ? Math.max.apply(null, tops) : Math.min.apply(null, tops);
-        return cells.filter(function (c, i) { return Math.abs(tops[i] - key) < 3; });
+      function stub(x, y1, y2) { // 外排卡片掛在內排卡片下面的淡線
+        if (Math.abs(y1 - y2) < 4) return;
+        parts += '<path d="M' + x + ',' + y1 + ' L' + x + ',' + y2 + '" stroke="rgba(197,160,89,.5)" stroke-width="1.2" fill="none" stroke-dasharray="2 3"/>';
       }
-      if (upStrip) {
-        const sb = upStrip.getBoundingClientRect().bottom - rr.top;
-        edgeCells(upStrip, true).forEach(function (c) { const r = c.getBoundingClientRect(); link(r.left + r.width / 2 - rr.left, hr.top - rr.top, sb, 'up'); });
+      function port(y) { // 主條邊緣上的匯流點（菱形）
+        parts += '<path d="M' + cx + ',' + (y - 4.5) + ' L' + (cx + 4.5) + ',' + y + ' L' + cx + ',' + (y + 4.5) + ' L' + (cx - 4.5) + ',' + y + ' Z" fill="#fcf6ba" opacity=".9"/>';
       }
-      if (downStrip) {
-        const st = downStrip.getBoundingClientRect().top - rr.top;
-        edgeCells(downStrip, false).forEach(function (c) { const r = c.getBoundingClientRect(); link(r.left + r.width / 2 - rr.left, st, hr.bottom - rr.top, 'down'); });
+      function rowsOf(row) { // 依上緣位置分排，由上到下
+        const cells = visibleCells(row).map(function (c) { const r = c.getBoundingClientRect(); return { l: r.left - rr.left, r: r.right - rr.left, t: r.top - rr.top, b: r.bottom - rr.top }; });
+        const groups = [];
+        cells.forEach(function (c) { let g = groups.find(function (x) { return Math.abs(x.t - c.t) < 3; }); if (!g) { g = { t: c.t, cells: [] }; groups.push(g); } g.cells.push(c); });
+        return groups.sort(function (a, b) { return a.t - b.t; });
+      }
+      function overlapX(a, b) { const l = Math.max(a.l, b.l), r = Math.min(a.r, b.r); return r - l > 8 ? (l + r) / 2 : null; }
+      if (upRow) {
+        const g = rowsOf(upRow), near = g[g.length - 1], hy = hr.top - rr.top;
+        if (near) {
+          near.cells.forEach(function (c) { link({ x: cx, y: hy }, { x: (c.l + c.r) / 2, y: c.b }, 'up'); });
+          port(hy);
+          for (let i = g.length - 2; i >= 0; i--) g[i].cells.forEach(function (c) { // 上方外排：卡片下緣 → 下一排卡片上緣
+            let best = null; g[i + 1].cells.forEach(function (n) { const x = overlapX(c, n); if (x != null && best == null) best = x; });
+            if (best != null) stub(best, c.b, g[i + 1].t);
+          });
+        }
+      }
+      if (downRow) {
+        const g = rowsOf(downRow), near = g[0], hy = hr.bottom - rr.top;
+        if (near) {
+          near.cells.forEach(function (c) { link({ x: (c.l + c.r) / 2, y: c.t }, { x: cx, y: hy }, 'down'); });
+          port(hy);
+          for (let i = 1; i < g.length; i++) g[i].cells.forEach(function (c) { // 下方外排：卡片上緣 → 上一排卡片下緣
+            let best = null; g[i - 1].cells.forEach(function (n) { const x = overlapX(c, n); if (x != null && best == null) best = x; });
+            if (best != null) stub(best, c.t, g[i - 1].cells[0].b);
+          });
+        }
       }
       svg.innerHTML = '<defs>' + defs + '</defs>' + parts;
     }
@@ -2909,32 +2941,22 @@
       if (!root.isConnected) return;
       const colEl = box.closest('.market-col-supply');
       const mobile = !!(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
-      const total = useNodesFull.length, maxShown = upCells.length;
+      const total = useNodesFull.length;
       function apply(lv, shown) {
         root.dataset.lv = String(lv);
         upCells.forEach(function (c, i) { c.hidden = i >= shown; });
-        if (moreBtn) {
-          moreBtn.hidden = shown >= total;
-          const b = moreBtn.querySelector('b'); if (b) b.textContent = String(total - shown);
-          if (upStrip) upStrip.parentNode.classList.toggle('has-more', shown < total);
+        if (moreCell) {
+          moreCell.hidden = shown >= total;
+          const b = moreCell.querySelector('.msc-more-n'); if (b) b.textContent = (total - shown) + '種';
         }
-        if (upStrip) layoutStrip(upStrip, lv);
-        if (downStrip) layoutStrip(downStrip, lv);
+        if (upRow) layoutRow(upRow, lv);
+        if (downRow) layoutRow(downRow, lv);
       }
       function fits() { return mobile || !colEl || colEl.scrollHeight <= colEl.clientHeight; }
-      // 嘗試順序（越前面越好看）：密度0 → 密度1（名稱仍可兩行、只收緊間距）→ 保持密度1、逐步減少用途張數（最少3張）
-      // → 密度2（名稱改單行，過長用「…」）→ 再減到2張 → 密度3（極限壓縮）。
-      // 名稱被截斷比少看到幾個次要的用途更傷閱讀，所以「減張數」排在「名稱單行」前面。
-      const states = [[0, maxShown], [1, maxShown]];
-      const min3 = Math.min(3, maxShown), min2 = Math.min(2, maxShown);
-      for (let k = maxShown - 1; k >= min3; k--) states.push([1, k]);
-      states.push([2, min3]);
-      for (let k = min3 - 1; k >= min2; k--) states.push([2, k]);
-      states.push([3, min2]);
+      if (mobile) { apply(0, shownFor(0, true)); drawLinks(); return; }
       let done = false;
-      // 手機整頁往下捲、沒有高度限制，但用途一次攤太多會讓人讀不完：只顯示前4張（兩排），其餘收進「還有N種」
-      if (mobile) { apply(0, Math.min(maxShown, 4)); done = true; }
-      for (let i = 0; i < states.length && !done; i++) { apply(states[i][0], states[i][1]); if (fits()) done = true; }
+      for (let lv = 0; lv <= 5 && !done; lv++) { apply(lv, shownFor(lv, false)); if (fits()) done = true; }
+      if (!done && upCells.length > 2) { apply(5, 2); }
       drawLinks();
     }
     box.__mscFit = fitChain; // 之後價格填完、視窗縮放、欄高改變都從這裡重算（最新一次繪製的版本）
