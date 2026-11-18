@@ -1041,3 +1041,75 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
   .msc-hero{animation:none}
   .msc-links .mk-spark{display:none}
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 供應鏈／決策列重排
+ * 版面檔位看「供應鏈欄自己的寬度」（JS 在 .msc-root 上標 data-w：l／m／s／xs），不看視窗寬度。
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/* 決策列：橫跨兩欄，放「一眼要比較」的項目（在售最低／成交均價／賣速／成交頻率＋買 vs 做結論） */
+.market-decision-band{display:flex;align-items:stretch;flex-wrap:wrap;gap:6px 14px;margin:0 0 10px;padding:6px 8px;box-sizing:border-box;flex-shrink:0;
+  border:1px solid var(--gold);border-radius:8px;background:linear-gradient(180deg,rgba(197,160,89,.12),rgba(197,160,89,.04));box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}
+.market-decision-band[hidden]{display:none}
+.mdb-stats{flex:1 1 auto;min-width:0;display:flex}
+.mdb-stats .market-stat-bar{flex:1 1 auto;margin:0;border:0;border-radius:0;background:none}
+.mdb-stats .market-stat-tile{padding:4px 14px}
+.mdb-stats .mst-val{font-size:19px}
+.mdb-stats .mst-label{font-size:12.5px}
+.mdb-verdict{flex:0 1 auto;display:flex;align-items:center;gap:8px;min-width:0;padding:0 6px 0 14px;border-left:1px solid var(--tb)}
+.mdb-verdict:empty{display:none}
+.mdb-vlabel{font-size:12.5px;color:var(--dim);white-space:nowrap}
+.mdb-vtxt{font-size:17px;font-weight:700;color:var(--gold-bright)}
+.mdb-vtxt.is-craft{color:#4ade80}
+.mdb-vtxt.is-buy{color:#e0a05a}
+.mdb-vtxt.is-tie{font-size:15px;font-weight:600;color:#a39c8f}
+@media (max-width:720px){
+  .mdb-verdict{flex:1 1 100%;padding:6px 4px 0;border-left:0;border-top:1px solid var(--tb)}
+}
+
+/* 置中／不偏左：欄內元素不准撐出欄寬 */
+#mk-detail-supply{width:100%;min-width:0}
+.market-col-supply{overflow-x:hidden}
+.msc-root{width:100%;min-width:0;box-sizing:border-box}
+.msc-hero-btns{flex-wrap:wrap}
+
+/* 左欄保底：掛單清單至少留約 6 列高；固定區塊再多也只會讓左欄自己可捲，不會再被直接裁掉 */
+@media (min-width:721px){
+  .market-col-market{overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(197,160,89,.35) transparent}
+  #mk-listing-table-slot{min-height:200px}
+}
+
+/* − ×N ＋：沿用潛艇／飛空艇頁 sub-stepper 的方角金漸層左右式樣；觸控裝置放大到 40px */
+.msc-step{display:inline-flex;align-items:stretch;gap:0;vertical-align:middle}
+.msc-step-btn{width:34px;min-width:34px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  background:linear-gradient(180deg,rgba(197,160,89,.22),rgba(197,160,89,.07));border:1px solid var(--tb);color:var(--gold);
+  font-family:"Cinzel Decorative","Noto Serif TC",serif;font-size:1.1rem;line-height:1;cursor:pointer;user-select:none;touch-action:manipulation;
+  transition:background .18s,color .18s,box-shadow .18s}
+.msc-step-btn:hover:not(:disabled){background:rgba(197,160,89,.38);color:var(--gold-bright);box-shadow:0 0 8px rgba(197,160,89,.4)}
+.msc-step-btn:active:not(:disabled){background:rgba(197,160,89,.55)}
+.msc-step-btn:disabled{opacity:.35;cursor:default}
+.msc-step-dn{border-radius:3px 0 0 3px;border-right:none}
+.msc-step-up{border-radius:0 3px 3px 0;border-left:none}
+.msc-step .msc-step-n{display:flex;align-items:center;justify-content:center;min-width:48px;padding:0 6px;box-sizing:border-box;
+  border:1px solid var(--tb);background:rgba(0,0,0,.45);color:var(--gold-bright);font-size:16px;font-weight:700}
+.msc-hero-btns .market-history-btn{height:34px}
+@media (pointer:coarse){
+  .msc-step-btn{width:40px;min-width:40px;height:40px}
+  .msc-hero-btns .market-history-btn{height:40px}
+}
+
+/* 主條：欄寬 <600 時改成「名稱／買做／數量＋按鈕」三層，不再把名稱擠成一字一行 */
+.msc-root[data-w="m"] .msc-hero,.msc-root[data-w="s"] .msc-hero,.msc-root[data-w="xs"] .msc-hero{
+  grid-template-columns:auto auto minmax(0,1fr);grid-template-areas:"ico name name" "cmps cmps cmps" "step step btns"}
+.msc-root[data-w="m"] .msc-hero-step,.msc-root[data-w="s"] .msc-hero-step,.msc-root[data-w="xs"] .msc-hero-step{justify-self:start}
+.msc-root[data-w="m"] .msc-hero-btns,.msc-root[data-w="s"] .msc-hero-btns{justify-self:end}
+.msc-root[data-w="xs"] .msc-hero{grid-template-areas:"ico name name" "cmps cmps cmps" "step step step" "btns btns btns"}
+.msc-root[data-w="xs"] .msc-hero-btns{justify-self:start}
+
+/* 窄欄（s／xs）：單欄＋左側脊柱，卡片與主條往右縮排，讓出左邊給金色主幹 */
+.msc-root[data-w="s"],.msc-root[data-w="xs"]{--msc-gap:22px;--msc-rowgap:10px;--msc-pad:4px}
+.msc-root[data-w="s"] .msc-row,.msc-root[data-w="xs"] .msc-row,
+.msc-root[data-w="s"] .msc-hero,.msc-root[data-w="xs"] .msc-hero,
+.msc-root[data-w="s"] .msc-key,.msc-root[data-w="xs"] .msc-key{margin-left:30px}
+.msc-root[data-w="s"] .msc-cell,.msc-root[data-w="xs"] .msc-cell{--msc-maxw:100%}
