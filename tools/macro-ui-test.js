@@ -12,13 +12,13 @@ function boot(hash){
 const T={w:null};let fails=0;const ok=(c,m)=>{if(!c){fails++;console.log('✗',m)}else console.log('✓',m)};
 let {w,d,errs}=boot();
 ok(!errs.length,'load no errors '+errs.join(';'));
-ok(!!d.querySelector('.mx-stage .mx-area'),'areas rendered');
-ok(d.querySelectorAll('.mx-area').length===13,'13 area buttons (範例+12)');
+ok(!!d.querySelector('.mx-nav .mx-tile'),'areas rendered');
+ok(d.querySelectorAll('.mx-tile').length===13,'13 tiles (快速開始+12)');
 ok(d.querySelectorAll('.mx-tpl').length===13,'13 templates in blank state');
 ok(d.querySelectorAll('#mx-win .mx-row').length===15,'15 slots');
 // click area
 const click=el=>el.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
-click(d.querySelector('.mx-area[data-v="talk"]'));
+click(d.querySelector('.mx-tile[data-v="talk"]'));
 ok(d.querySelectorAll('.mx-chip').length===15,'talk area has 15 chips: '+d.querySelectorAll('.mx-chip').length);
 // add chat
 click(d.querySelector('.mx-chip[data-type="chat"]'));
@@ -45,15 +45,15 @@ click(d.querySelector('#mx-redo'));
 ok(w.__macroTool.lines.length===2,'redo → 2 lines');
 // tags
 {const b=d.querySelector('[data-act="back"]');if(b)click(b);}
-click(d.querySelector('.mx-sw-opt[data-v="tag"]'));
-ok(d.querySelectorAll('.mx-tagcol .mx-tag').length===16,'16 starter tags');
+click(d.querySelector('.mx-tab[data-v="tag"]'));
+ok(d.querySelectorAll('.mx-tagnav .mx-tag').length===16,'16 starter tags: '+d.querySelectorAll('.mx-tagnav .mx-tag').length);
 click(d.querySelector('.mx-tag[data-v="拍照"]'));
 const n1=d.querySelectorAll('.mx-res .mx-chip').length;ok(n1>=10,'拍照 results '+n1);
-click(d.querySelector('[data-act="tag-all"]'));click(d.querySelector('.mx-tfacet .mx-tag[data-v="整理"]'));
+click(d.querySelector('[data-act="tag-all"]'));click(d.querySelector('.mx-tagnav .mx-tag[data-v="整理"]'));
 const n2=d.querySelectorAll('.mx-res .mx-chip').length;ok(n2>n1,'adding tag unions results '+n2);
 ok(d.querySelector('.mx-res .mx-chip').dataset.type==='hud'||true,'first result '+d.querySelector('.mx-res .mx-chip').dataset.type);
 // search
-click(d.querySelector('.mx-sw-opt[data-v="area"]'));
+click(d.querySelector('.mx-tab[data-v="area"]'));
 const q=d.querySelector('#mx-q');q.value='/cd';q.dispatchEvent(new w.Event('input',{bubbles:true}));
 ok(d.querySelector('#mx-st-body .mx-chip').dataset.type==='countdown_sys','search /cd → countdown_sys: '+d.querySelector('#mx-st-body .mx-chip').dataset.type);
 q.value='/p 大家好';q.dispatchEvent(new w.Event('input',{bubbles:true}));
@@ -75,7 +75,7 @@ click(d.querySelector('[data-act="fix-mlock"]'));
 ok(w.__macroTool.model().texts[0]==='/mlock'&&w.__macroTool.lines.every(l=>l.type!=='mlock'),'fix-mlock');
 // overflow → pages
 const many=[];for(let i=0;i<20;i++)many.push({id:100+i,type:'chat',params:{message:'行'+i},note:'',repeat:1});
-w.__macroTool.setLines(many);w.__macroTool.onAct('mode',d.querySelector('.mx-sw-opt'),null);
+w.__macroTool.setLines(many);w.__macroTool.onAct('mode',d.querySelector('.mx-tab'),null);
 w.eval('1');// force rerender via undo noop
 click(d.querySelector('[data-act="g-merror"]'));
 ok(d.querySelectorAll('.mx-pg').length===2,'two pages when >15 lines');
@@ -88,7 +88,7 @@ ok(JSON.parse(w.localStorage.getItem('ffxivtc_macro_v2_lib')).length===1,'librar
 click(d.querySelector('[data-act="share"]'));
 // every type renders editor without error
 let bad=[];const T0=Object.keys(w.MacroFields);
-for(const t of T0){try{const l={id:9999,type:t,params:{},note:'',repeat:1};w.__macroTool.setLines([l]);w.__macroTool.ui.sel=9999;w.__macroTool.onAct('tpl',{dataset:{id:'none'}},null);}catch(e){bad.push(t+':'+e.message)}}
+for(const t of T0){try{const l={id:9999,type:t,params:{},note:'',repeat:1};w.__macroTool.setLines([l]);w.__macroTool.ui.sel=9999;w.__macroTool.onAct('tpl',{dataset:{id:'none'},getBoundingClientRect(){return{left:0,top:0,width:0,height:0}}},null);}catch(e){bad.push(t+':'+e.message)}}
 ok(!bad.length,'tpl noop '+bad.slice(0,3));
 let rbad=[];for(const t of T0){try{const h=w.__macroTool.renderFields({id:1,type:t,params:{}});if(!h)rbad.push(t)}catch(e){rbad.push(t+':'+e.message)}}
 ok(!rbad.length,'renderFields for all 140 types '+rbad.slice(0,5).join(' | '));

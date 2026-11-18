@@ -60,7 +60,8 @@ function build(E,inv){
         var pattern='^'+re.split('\u0000').join('(.*?)')+'$';
         var key=type+'|'+pattern+'|'+caps.join(',');
         if(seenKey[key])return;seenKey[key]=1;
-        list.push({type:type,re:new RegExp(pattern),caps:caps,fixed:Object.assign({},base),nfixed:Object.keys(base).length,lit:lit,free:free.length,used:caps.length});
+        var cm=/^\/[^\s<]+/.exec(s);
+        list.push({type:type,re:new RegExp(pattern),caps:caps,fixed:Object.assign({},base),nfixed:Object.keys(base).length,lit:lit,free:free.length,used:caps.length,cmd:cm?cm[0].toLowerCase():''});
       });
     });
   });
@@ -85,6 +86,23 @@ function parseLine(E,inv,text){
   }
   return null;
 }
+/* 指令命中：輸入 /p 時，先給「指令剛好是 /p」的，再給「/p 開頭」的（如 /pvpac）。同一類型同一指令只留設定最少的那一個。 */
+function hits(E,inv,q){
+  if(!index)index=build(E,inv);
+  q=String(q||'').trim().toLowerCase();if(!q)return{exact:[],prefix:[]};
+  if(q.charAt(0)!=='/')q='/'+q;
+  var ex=[],pf=[],seenE={},seenP={},ord=index.slice().sort(function(a,b){return ne(a)-ne(b)||a.nfixed-b.nfixed;});
+  function ne(t){var n=0;for(var k in t.fixed){var v=t.fixed[k];if(v!==''&&v!==false)n++;}return n;}
+  function clean(f){var o={};for(var k in f){if(f[k]!==''&&f[k]!==false)o[k]=f[k];}return o;}
+  ord.forEach(function(t){
+    if(!t.cmd)return;
+    var k=t.type+'|'+t.cmd;
+    if(t.cmd===q){if(!seenE[k]){seenE[k]=1;ex.push({type:t.type,params:clean(t.fixed),cmd:t.cmd});}}
+    else if(t.cmd.indexOf(q)===0){if(!seenP[k]){seenP[k]=1;pf.push({type:t.type,params:clean(t.fixed),cmd:t.cmd});}}
+  });
+  pf.sort(function(a,b){return a.cmd.length-b.cmd.length||(a.cmd<b.cmd?-1:1);});
+  return{exact:ex,prefix:pf};
+}
 function reset(){index=null;}
-return{parseLine:parseLine,reset:reset,_build:build};
+return{parseLine:parseLine,hits:hits,reset:reset,_build:build};
 });

@@ -16,7 +16,7 @@ let {w,d,errs}=boot({anim:true});
 const click=el=>el.dispatchEvent(new w.MouseEvent('click',{bubbles:true}));
 const T=w.__macroTool;
 // chatcountdown block editor
-T.setLines([]);T.refresh();click(d.querySelector('.mx-area[data-v="talk"]'));
+T.setLines([]);T.refresh();click(d.querySelector('.mx-tile[data-v="talk"]'));
 click(d.querySelector('.mx-chip[data-type="chatcountdown"]'));
 await sleep(30);
 const before=d.querySelectorAll('#mx-ed .ccd-msg-block').length;
@@ -28,7 +28,7 @@ ok(T.model().texts.some(t=>t.includes('開始倒數')),'ccd text reaches output'
 // relay: ring + focus hop
 ok(!!d.querySelector('.mx-gem.mx-ring')||true,'relay gem ring (async)');
 // skill w/ announce → multiple rows and expand
-click(d.querySelector('[data-act="back"]'));click(d.querySelector('.mx-area[data-v="act"]'));
+click(d.querySelector('[data-act="back"]'));click(d.querySelector('.mx-tile[data-v="act"]'));
 click(d.querySelector('.mx-chip[data-type="skill"]'));await sleep(700);
 ok(!!d.querySelector('.mx-rr'),'field ring after relay (focus hop)');
 const nm=d.querySelector('#mx-ed .mf-inp[data-key="skillName"]');nm.value='治癒';nm.dispatchEvent(new w.Event('input',{bubbles:true}));
@@ -43,7 +43,7 @@ click(d.querySelector('#mx-win .mx-row[data-o="50"]'));
 const rp=d.querySelector('.ml-repeat-inp');rp.value='3';rp.dispatchEvent(new w.Event('input',{bubbles:true}));rp.dispatchEvent(new w.Event('change',{bubbles:true}));
 ok(T.model().texts.length===3,'repeat 3 → '+T.model().texts.length);
 // job checkboxes (lfp)
-T.setLines([{id:60,type:'lfp',params:{},note:'',repeat:1}]);T.refresh();click(d.querySelector('#mx-win .mx-row[data-o="60"]')||d.querySelector('.mx-area[data-v="party"]'));
+T.setLines([{id:60,type:'lfp',params:{},note:'',repeat:1}]);T.refresh();click(d.querySelector('#mx-win .mx-row[data-o="60"]')||d.querySelector('.mx-tile[data-v="party"]'));
 T.ui.sel=60;T.onAct('back',{dataset:{}},null);T.ui.sel=60;T.onAct('mode',{dataset:{v:'area'}},null);
 const lf=d.querySelector('#mx-ed .job-chk-lbl input');ok(!!lf,'lfp job checkboxes');
 if(lf){lf.checked=true;lf.dispatchEvent(new w.Event('change',{bubbles:true}));ok(T.model().texts.join('').length>0,'lfp output: '+T.model().texts.join('|'));}
@@ -59,7 +59,7 @@ click(d.querySelector('#mx-win [data-act="up"][data-o="1"]'));ok(T.lines.map(l=>
 click(d.querySelector('#mx-win [data-act="del"][data-o="2"]'));ok(T.lines.length===2,'delete');
 // insert gap
 click(d.querySelector('#mx-win .mx-gap'));ok(T.ui.insertAt!=null&&d.querySelector('.mx-note'),'gap sets insert note');
-click(d.querySelector('.mx-area[data-v="talk"]'));click(d.querySelector('.mx-chip[data-type="cl"]'));
+click(d.querySelector('.mx-tile[data-v="talk"]'));click(d.querySelector('.mx-chip[data-type="cl"]'));
 ok(T.lines[1].type==='cl'||T.lines[T.ui.insertAt||1].type==='cl'||T.lines.some((l,i)=>l.type==='cl'&&i<T.lines.length-1),'insert in middle: '+T.lines.map(l=>l.type).join(','));
 // replace type
 const selId=T.ui.sel;click(d.querySelector('[data-act="replace"]'));ok(!!d.querySelector('.mx-note'),'replace mode note');
@@ -78,7 +78,31 @@ ok(b3.w.location.hash==='','hash cleared after import');
 ok(b3.w.__macroTool.model().texts[0]==='/mlock','shared cfg mlock applied');
 // reduced motion: no mote / rr
 let b4=boot({reduced:true});const c4=el=>el.dispatchEvent(new b4.w.MouseEvent('click',{bubbles:true}));
-c4(b4.d.querySelector('.mx-area[data-v="talk"]'));c4(b4.d.querySelector('.mx-chip[data-type="chat"]'));await sleep(50);
+c4(b4.d.querySelector('.mx-tile[data-v="talk"]'));c4(b4.d.querySelector('.mx-chip[data-type="chat"]'));await sleep(50);
 ok(!b4.d.querySelector('.mx-mote')&&!b4.d.querySelector('.mx-rr'),'reduced motion: no flight / ring');
+
+// --- 本輪修正的回歸測試 ---
+{
+let {w:w5,d:d5,errs:e5}=boot({anim:true});const c5=el=>el.dispatchEvent(new w5.MouseEvent('click',{bubbles:true}));const T5=w5.__macroTool;
+// 搜尋 /p：第一個結果必須是「聊天 · 小隊 /p」，不是 /pvpac
+const q=d5.querySelector('#mx-q');q.value='/p';q.dispatchEvent(new w5.Event('input',{bubbles:true}));
+const first=d5.querySelector('#mx-st-body .mx-chip');
+ok(first&&first.dataset.type==='chat'&&/"channel":"p"/.test(first.dataset.params||''),'search /p → chat(channel p) first: '+(first&&first.dataset.type)+' '+(first&&first.dataset.params));
+ok(![...d5.querySelectorAll('#mx-st-body .mx-chip')].slice(0,1).some(x=>x.dataset.type==='pvpaction'),'/pvpac not first');
+c5(first);ok(T5.lines.length===1&&T5.lines[0].type==='chat'&&T5.lines[0].params.channel==='p','click adds chat with channel p');
+await sleep(20);
+// 代名詞：更多 → 選單 → 插入
+const inp=d5.querySelector('#mx-ed .msg-inp');inp.focus();
+c5(d5.querySelector('.inline-pro.more'));ok(!d5.getElementById('mx-pop').hidden,'pronoun popover opens (not closed by outside-click handler)');
+ok(d5.querySelectorAll('#mx-pop .mx-pi').length>=30,'pronoun picker has grouped items: '+d5.querySelectorAll('#mx-pop .mx-pi').length);
+const pi=[...d5.querySelectorAll('#mx-pop .mx-pi')].find(x=>x.dataset.sym==='<tt>');ok(/目標的目標/.test(pi.textContent),'item shows Chinese meaning: '+pi.textContent);
+c5(pi);ok(inp.value.includes('<tt>'),'inserted into message input: '+inp.value);ok(d5.getElementById('mx-pop').hidden,'popover closes after insert');
+// 範例：套用後出現邀請（第一行寶石轉圈 / 視窗脈動）
+c5(d5.querySelector('[data-act="back"]'));c5(d5.querySelector('.mx-tile[data-v="__tpl"]'));
+c5(d5.querySelector('.mx-tpl[data-id="chat"]'));await sleep(700);
+ok(!!d5.querySelector('#mx-win .mx-gem.mx-ring')||!!d5.querySelector('#mx-win.mx-pulse'),'template apply invites (ring / pulse)');
+ok(T5.lines.length>=5,'template applied: '+T5.lines.length);
+ok(d5.querySelectorAll('.mx-tpl code').length>=10,'template cards show preview line');
+}
 console.log(fails?fails+' FAIL':'ALL PASS');console.log('errs',errs.concat(b2.errs,b3.errs,b4.errs).slice(0,5));
 })();
