@@ -322,13 +322,6 @@ tr.market-hot-item:hover td,
 /* 代幣兌換：賣給 NPC 的列，賣速／成交頻率欄顯示「即賣」（固定價格、不需要買家、必定成交） */
 .mk-instant { color: #8fd19e; font-weight: 600; cursor: help; }
 
-/* ══════════════════════════════════════════════════════════════
-   供應鏈圖：縮放下限 85%（svg 的 min-width 由 js 依圖寬算出），再窄就在這個容器內橫向捲動，
-   不讓圖無限縮小、字跟著縮到看不清楚。overflow-y 設 hidden：徽章跨在卡片上緣，PAD 已預留空間。
-   ══════════════════════════════════════════════════════════════ */
-.market-supply-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
-.market-supply-scroll .market-supply-svg { margin: 0 auto; }
-
 /* 代幣兌換展開後的排行列：列與列之間加細線（同熱度排行、在售列表），最後一列不畫 */
 .mtr-wrap > .mtr-row { border-bottom: 1px solid rgba(255,255,255,.06); }
 .mtr-wrap > .mtr-row:last-of-type { border-bottom: none; }
@@ -351,25 +344,48 @@ tr.market-hot-item:hover td,
 .mk-npc-open:hover { background: rgba(143,209,158,.18); border-color: rgba(143,209,158,.65); }
 @container (max-width: 200px) { .mk-npc-open-l { display: none; } }
 
-/* NPC 即賣排行：從按鈕往上彈出的小浮層，只有一層外框（列表自己不再畫邊框） */
+/* 設定列：「已隱藏 N 個…」與「排除明顯滯銷物品」同一行，放不下自動換行 */
+.market-token-filterrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; margin: 0 0 6px; }
+.market-token-filterrow .market-token-hidebar { margin: 0; flex-wrap: wrap; }
+.market-token-filterrow .market-hot-median { margin: 0; }
+
+/* NPC 即賣排行：從按鈕往上彈出的小視窗。外框只有一層（視窗本身），裡面的清單不再另外加框 */
 .mk-npc-pop {
-  position: fixed; z-index: 3000; display: none; flex-direction: column;
-  width: min(460px, calc(100vw - 16px)); box-sizing: border-box;
-  background: #0d0a07; border: 1px solid rgba(197,160,89,.6); border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(0,0,0,.65);
+  position: fixed; z-index: 1300; display: flex; flex-direction: column;
+  background: #0d0a07; border: 1px solid rgba(214,180,106,.55); border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.6); overflow: hidden;
 }
-.mk-npc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px 6px; border-bottom: 1px solid rgba(197,160,89,.25); flex: none; }
-.mk-npc-head h4 { margin: 0; font-size: var(--fs-head); font-weight: 700; color: var(--gold-bright, #fcf6ba); display: flex; align-items: center; flex-wrap: wrap; gap: 2px 0; }
-.mk-npc-close { flex: none; width: 24px; height: 24px; border: 0; border-radius: 4px; background: none; color: var(--dim, rgba(255,255,255,.5)); cursor: pointer; font-size: 14px; }
-.mk-npc-close:hover { color: var(--gold-bright, #fcf6ba); background: rgba(197,160,89,.14); }
-.mk-npc-body { padding: 6px 10px 8px; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.35) transparent; }
-.mk-npc-title-sub { margin-left: 10px; font-size: var(--fs-sub); font-weight: 400; color: var(--dim, rgba(255,255,255,.5)); display: inline-flex; align-items: center; gap: 4px; }
-.mk-npc-sub { margin: 0 0 4px; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
-.mk-npc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 10px; padding: 4px 4px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: var(--fs-main); }
+.mk-npc-pophead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; font-size: var(--fs-head); font-weight: 700; color: rgba(234,208,146,.95); border-bottom: 1px solid rgba(255,255,255,.08); flex-shrink: 0; }
+.mk-npc-title-sub { margin-left: 8px; font-size: var(--fs-sub); font-weight: 400; color: var(--dim, rgba(255,255,255,.5)); display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
+.mk-npc-close { flex-shrink: 0; background: none; border: none; color: var(--dim, rgba(255,255,255,.6)); font-size: 16px; line-height: 1; padding: 2px 4px; cursor: pointer; border-radius: 4px; }
+.mk-npc-close:hover { color: #fff; background: rgba(255,255,255,.1); }
+.mk-npc-popbody { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.mk-npc-sub { margin: 0; padding: 6px 10px; display: flex; align-items: center; flex-wrap: wrap; gap: 3px; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); }
+.mk-npc-list { border: none; }
+.mk-npc-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 10px; padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: var(--fs-main); }
 .mk-npc-row:last-child { border-bottom: none; }
-.mk-npc-row:hover { background: linear-gradient(90deg, rgba(var(--acc, 196,210,92),.12), rgba(var(--acc, 196,210,92),.02) 70%, transparent); box-shadow: inset 2px 0 0 rgba(var(--acc, 196,210,92),.8); }
-.mk-npc-rank { flex: 0 0 22px; text-align: center; color: var(--dim, rgba(255,255,255,.5)); font-size: var(--fs-head); }
-.mk-npc-name { flex: 1 1 150px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-npc-row:not(.mk-npc-headrow):hover { background: linear-gradient(90deg, rgba(var(--acc, 196,210,92),.12), rgba(var(--acc, 196,210,92),.02) 70%, transparent); box-shadow: inset 2px 0 0 rgba(var(--acc, 196,210,92),.8); }
+.mk-npc-headrow {
+  padding: 4px 10px; font-size: var(--fs-head); font-weight: 700; align-items: center;
+  background: linear-gradient(90deg, rgba(197,160,89,.18), rgba(197,160,89,.07) 85%, rgba(197,160,89,.02)), #0d0a07;
+  color: rgba(234,208,146,.94); border-bottom: 1px solid rgba(214,180,106,.62);
+  box-shadow: 0 2px 0 #060505, 0 3px 0 rgba(197,160,89,.2);
+}
+.mk-npc-rank { width: 20px; flex: 0 0 20px; text-align: center; color: var(--dim, rgba(255,255,255,.5)); font-size: var(--fs-sub); }
+.mk-npc-name { flex: 1 1 120px; min-width: 0; display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .mk-npc-mkt { flex: 0 1 auto; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); white-space: nowrap; }
-.mk-npc-per { flex: 0 0 auto; min-width: 70px; text-align: right; margin-left: auto; }
-.mk-npc-per b { font-size: var(--fs-main); font-weight: 700; color: rgba(234,208,146,.95); font-variant-numeric: tabular-nums; }
+.mk-npc-val { margin-left: auto; white-space: nowrap; display: inline-flex; align-items: baseline; gap: 3px; }
+.mk-npc-val b { font-size: var(--fs-main); font-weight: 700; color: rgba(234,208,146,.95); font-variant-numeric: tabular-nums; }
+.mk-npc-total { font-size: var(--fs-tiny); color: var(--dim, rgba(255,255,255,.5)); }
+.mk-npc-pop .market-token-more { display: block; width: 100%; padding: 6px 10px; text-align: left; }
+.mtr-head .mk-npc-open { margin-left: 0; }
+
+/* ══════════════════════════════════════════════════════════════
+   供應鏈圖（合併面板版）：圖寬＝容器寬、永不縮放，所以不需要捲動容器
+   ══════════════════════════════════════════════════════════════ */
+.market-supply-svg { width: 100%; max-width: none; height: auto; }
+/* 連線與光點在列的上面，不能吃掉列的點擊 */
+.mk-spark, .cyc-arc-line, .cyc-arc-tip { pointer-events: none; }
+/* 列的 hover：左側金光柱＋由左向右淡出的底（同在售列表） */
+.mk-supply-node .mk-row-bg, .mk-supply-node .mk-row-bar { opacity: 0; transition: opacity .12s; }
+.mk-supply-node:hover .mk-row-bg, .mk-supply-node:hover .mk-row-bar { opacity: 1; }
