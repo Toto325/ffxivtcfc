@@ -351,27 +351,25 @@ tr.market-hot-item:hover td,
 .mk-npc-open:hover { background: rgba(143,209,158,.18); border-color: rgba(143,209,158,.65); }
 @container (max-width: 200px) { .mk-npc-open-l { display: none; } }
 
-.mk-npc-title-sub { margin-left: 10px; font-size: var(--fs-sub); font-weight: 400; color: var(--dim, rgba(255,255,255,.5)); display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
-.mk-npc-sub { margin: 0 0 8px; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); }
-.mk-npc-list { border: 1px solid var(--tb, rgba(197,160,89,.25)); border-radius: 6px; overflow: hidden; }
-.mk-npc-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: var(--fs-main); }
+/* NPC 即賣排行：從按鈕往上彈出的小浮層，只有一層外框（列表自己不再畫邊框） */
+.mk-npc-pop {
+  position: fixed; z-index: 3000; display: none; flex-direction: column;
+  width: min(460px, calc(100vw - 16px)); box-sizing: border-box;
+  background: #0d0a07; border: 1px solid rgba(197,160,89,.6); border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.65);
+}
+.mk-npc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px 6px; border-bottom: 1px solid rgba(197,160,89,.25); flex: none; }
+.mk-npc-head h4 { margin: 0; font-size: var(--fs-head); font-weight: 700; color: var(--gold-bright, #fcf6ba); display: flex; align-items: center; flex-wrap: wrap; gap: 2px 0; }
+.mk-npc-close { flex: none; width: 24px; height: 24px; border: 0; border-radius: 4px; background: none; color: var(--dim, rgba(255,255,255,.5)); cursor: pointer; font-size: 14px; }
+.mk-npc-close:hover { color: var(--gold-bright, #fcf6ba); background: rgba(197,160,89,.14); }
+.mk-npc-body { padding: 6px 10px 8px; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.35) transparent; }
+.mk-npc-title-sub { margin-left: 10px; font-size: var(--fs-sub); font-weight: 400; color: var(--dim, rgba(255,255,255,.5)); display: inline-flex; align-items: center; gap: 4px; }
+.mk-npc-sub { margin: 0 0 4px; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); display: flex; align-items: center; flex-wrap: wrap; gap: 3px; }
+.mk-npc-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1px 10px; padding: 4px 4px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: var(--fs-main); }
 .mk-npc-row:last-child { border-bottom: none; }
-.mk-npc-row:not(.mk-npc-headrow):hover { background: linear-gradient(90deg, rgba(var(--acc, 196,210,92),.12), rgba(var(--acc, 196,210,92),.02) 70%, transparent); box-shadow: inset 2px 0 0 rgba(var(--acc, 196,210,92),.8); }
-.mk-npc-headrow {
-  padding: 6px 10px; font-size: var(--fs-head); font-weight: 700;
-  background: linear-gradient(90deg, rgba(197,160,89,.18), rgba(197,160,89,.07) 85%, rgba(197,160,89,.02)), #0d0a07;
-  color: rgba(234,208,146,.94); border-bottom: 1px solid rgba(214,180,106,.62);
-  box-shadow: 0 2px 0 #060505, 0 3px 0 rgba(197,160,89,.2);
-}
-.mk-npc-headrow > :last-child { text-align: right; }
-.mk-npc-rank { text-align: center; color: var(--dim, rgba(255,255,255,.5)); font-size: var(--fs-head); }
-.mk-npc-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.mk-npc-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mk-npc-mkt { font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); }
-.mk-npc-val { display: flex; flex-direction: column; align-items: flex-end; }
+.mk-npc-row:hover { background: linear-gradient(90deg, rgba(var(--acc, 196,210,92),.12), rgba(var(--acc, 196,210,92),.02) 70%, transparent); box-shadow: inset 2px 0 0 rgba(var(--acc, 196,210,92),.8); }
+.mk-npc-rank { flex: 0 0 22px; text-align: center; color: var(--dim, rgba(255,255,255,.5)); font-size: var(--fs-head); }
+.mk-npc-name { flex: 1 1 150px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-npc-mkt { flex: 0 1 auto; font-size: var(--fs-sub); color: var(--dim, rgba(255,255,255,.5)); white-space: nowrap; }
+.mk-npc-per { flex: 0 0 auto; min-width: 70px; text-align: right; margin-left: auto; }
 .mk-npc-per b { font-size: var(--fs-main); font-weight: 700; color: rgba(234,208,146,.95); font-variant-numeric: tabular-nums; }
-.mk-npc-total { font-size: var(--fs-tiny); color: var(--dim, rgba(255,255,255,.5)); }
-@media (max-width: 720px) {
-  .mk-npc-backdrop { align-items: flex-end; }
-  .mk-npc-box { width: 100%; max-width: none; max-height: 85vh; border-radius: 6px 6px 0 0; }
-}

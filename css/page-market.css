@@ -382,7 +382,10 @@
 .market-token-group-title:first-child{margin-top:2px}
 .market-token-group-title .craft-muted{font-size:11px;font-weight:400}
 .market-token-fold-links{display:flex;flex-wrap:wrap;gap:6px;padding:6px 0}
-.market-token-hidebar{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:11px;color:var(--dim)}
+/* 「已隱藏 N 個…」與「排除明顯滯銷物品」同一行，放不下自動換行 */
+.market-token-hiderow{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0 0 6px}
+.market-token-hiderow .market-hot-median{margin-top:0}
+.market-token-hidebar{display:flex;align-items:center;gap:8px;margin:0;font-size:11px;color:var(--dim)}
 .market-token-hidebar:empty{display:none}
 .market-token-hidebtn{padding:0 9px;border:1px solid var(--tb);border-radius:4px;background:none;color:var(--gold);font-family:inherit;font-size:11px;line-height:18px;cursor:pointer}
 .market-token-hidebtn:hover{border-color:var(--gold)}
@@ -920,3 +923,112 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .mk-live { margin-left: 10px; color: var(--dim); font-size: 11.5px; }
 /* 生產頁：取價切換列跟下面的統計框之間留出間距，不要貼在一起 */
 #cf-recipe-sell-ref .cw-scope { margin-bottom: 8px; }
+
+/* ══════════════════════════════════════════════════════════════
+   供應鏈圖 v4（HTML 版面，取代舊的縮放 SVG）
+   ・字級固定：名稱 --fs-main(14)、價格 15、徽章 --fs-sub(12)，電腦／手機一樣，不再隨欄寬縮放。
+   ・同一層的材料／用途合成一條面板，格子之間只有細線；中心物品是橫跨整個欄寬的「主條」。
+   ・密度分三級（data-lv 0/1/2，由 js 的 fitChain 依右欄實際寬高決定），只改間距與名稱行數，字級不變。
+   ══════════════════════════════════════════════════════════════ */
+.msc-root{--msc-gap:16px;--msc-pad:6px;--msc-py:10px;--msc-px:12px;position:relative;display:flex;flex-direction:column;gap:var(--msc-gap);padding:var(--msc-pad) 2px 2px;color:var(--main)}
+.msc-root[data-lv="1"]{--msc-gap:14px;--msc-pad:4px;--msc-py:7px;--msc-px:10px}
+.msc-root[data-lv="2"]{--msc-gap:12px;--msc-pad:2px;--msc-py:5px;--msc-px:9px}
+.msc-root[data-lv="3"]{--msc-gap:9px;--msc-pad:2px;--msc-py:3px;--msc-px:8px}
+.msc-links{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
+.msc-band,.msc-hero,.msc-key{position:relative;z-index:1}
+
+/* 面板：一條金邊的合體卡片 */
+.msc-strip{display:grid;grid-template-columns:repeat(var(--msc-cols,1),minmax(0,1fr));border:1px solid rgba(197,160,89,.55);border-radius:12px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(197,160,89,.09),rgba(12,10,8,.74));box-shadow:inset 0 1px 0 rgba(252,246,186,.08),0 0 16px rgba(197,160,89,.07)}
+.msc-cell{--acc:rgba(197,160,89,.38);position:relative;display:flex;align-items:flex-start;gap:9px;min-width:0;cursor:pointer;outline:none;
+  padding:var(--msc-py) var(--msc-px) var(--msc-py) calc(var(--msc-px) + 3px);box-shadow:inset 3px 0 0 var(--acc);transition:background .18s,box-shadow .18s}
+.msc-cell[hidden]{display:none}
+.msc-cell:not(.rs){border-left:1px solid rgba(197,160,89,.22)}
+.msc-cell:not(.lr){border-bottom:1px solid rgba(197,160,89,.22)}
+.msc-cell:hover,.msc-cell:focus-visible{--acc:var(--gold-bright);background:linear-gradient(90deg,rgba(197,160,89,.17),rgba(197,160,89,.03))}
+.msc-cell.is-craft{--acc:#4ade80;background:linear-gradient(90deg,rgba(74,222,128,.11),rgba(74,222,128,0) 72%)}
+.msc-cell.is-craft:hover,.msc-cell.is-craft:focus-visible{background:linear-gradient(90deg,rgba(74,222,128,.2),rgba(74,222,128,.02))}
+.msc-cell.is-dim{opacity:.55}
+.msc-ico{position:relative;flex:none;display:block;width:30px;height:30px;margin-top:1px}
+.msc-ico .market-item-icon{display:block;width:30px;height:30px;border-radius:8px;box-shadow:0 0 0 1px rgba(197,160,89,.45)}
+.msc-gem{position:absolute;left:-5px;top:-6px;font-size:12px;font-style:normal;line-height:1}
+.msc-body{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.msc-name{font-size:var(--fs-main);line-height:1.3;color:#f1ebdd;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.msc-root[data-lv="2"] .msc-name,.msc-root[data-lv="3"] .msc-name{-webkit-line-clamp:1}
+.msc-nums{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;line-height:1.35}
+.msc-qty{font-size:var(--fs-main);font-weight:700;color:var(--gold-bright)}
+.msc-price{font-size:15px;color:#d6ffe0;white-space:nowrap}
+.msc-price .msc-tot{font-weight:700}
+.msc-unit,.msc-eq,.msc-mult{font-size:var(--fs-sub);color:#9fd9b0}
+.msc-eq{margin:0 2px}
+.msc-mult{margin-left:6px;color:var(--gold-bright);font-weight:700;font-size:var(--fs-main)}
+.msc-price.is-none{font-size:var(--fs-head);color:#8b8578}
+
+/* 差額徽章（🔨▼ 做較省／🛒▼ 買較省／≈ 相近），放在數字那一行最右邊，不另占高度；放不下才在格內換行 */
+.msc-badge{margin-left:auto;display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:10px;border:1px solid currentColor;
+  font-size:var(--fs-sub);font-weight:700;line-height:1;white-space:nowrap;cursor:pointer}
+.msc-badge.is-craft{color:#4ade80;background:#16301f}
+.msc-badge.is-buy{color:#e0a05a;background:#33261a}
+.msc-badge.is-neutral{color:#a39c8f;background:#2b2822}
+.msc-badge:hover,.msc-badge:focus-visible{filter:brightness(1.3);outline:none}
+
+/* 「還有 N 種」：用途面板右上角的小標籤。獨立一小列放在面板上方（不蓋到格子文字），只有真的有收合時才占這一列 */
+.msc-band-up.has-more{padding-top:22px}
+.msc-more{position:absolute;right:0;top:0;z-index:2;display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 10px;border-radius:10px;
+  background:#14110d;border:1px solid var(--gold);color:var(--gold-bright);font:inherit;font-size:var(--fs-sub);font-weight:700;cursor:pointer}
+.msc-more[hidden]{display:none}
+.msc-more:hover{background:#2a2216}
+
+/* 主條：中心物品。橫跨整個欄寬，買／做、數量、設定、完整清單都在這一條裡 */
+.msc-hero{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 14px;border-radius:14px;border:1px solid var(--gold);
+  background:radial-gradient(120% 150% at 0% 0%,rgba(197,160,89,.24),rgba(197,160,89,.06) 55%,rgba(12,10,8,.72));
+  box-shadow:inset 0 0 0 1px rgba(252,246,186,.12),0 0 18px rgba(197,160,89,.16);animation:mscHeroPulse 3.2s linear infinite}
+@keyframes mscHeroPulse{
+  0%,42%,58%,100%{box-shadow:inset 0 0 0 1px rgba(252,246,186,.12),0 0 18px rgba(197,160,89,.16)}
+  48%,52%{box-shadow:inset 0 0 0 1px rgba(252,246,186,.5),0 0 26px rgba(252,246,186,.5)}
+}
+.msc-root[data-lv="1"] .msc-hero{padding:8px 12px}
+.msc-root[data-lv="2"] .msc-hero{padding:6px 10px}
+.msc-root[data-lv="3"] .msc-hero{padding:4px 10px}
+.msc-hero-id{display:flex;align-items:center;gap:11px;flex:1 1 240px;min-width:0}
+.msc-hero-ico{flex:none;display:block}
+.msc-hero-ico .market-item-icon{display:block;width:44px;height:44px;border-radius:10px;box-shadow:0 0 0 2px rgba(252,246,186,.5),0 0 12px rgba(197,160,89,.4)}
+.msc-root[data-lv="2"] .msc-hero-ico .market-item-icon{width:36px;height:36px}
+.msc-root[data-lv="3"] .msc-hero-ico .market-item-icon{width:32px;height:32px}
+.msc-root[data-lv="3"] .msc-hero-name{font-size:16px}
+.msc-root[data-lv="3"] .msc-cmp{padding:0 8px}
+.msc-root[data-lv="3"] .msc-badge{height:17px}
+.msc-root[data-lv="3"] .msc-step-btn{width:26px;height:26px}
+.msc-root[data-lv="3"] .msc-hero-ctl .market-supply-gear,.msc-root[data-lv="3"] .msc-list-btn{height:28px}
+.msc-root[data-lv="3"] .msc-band-up.has-more{padding-top:20px}
+.msc-hero-txt{display:flex;flex-direction:column;gap:5px;min-width:0}
+.msc-root[data-lv="2"] .msc-hero-txt{gap:3px}
+.msc-hero-name{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:17px;font-weight:600;line-height:1.25;color:var(--gold-bright)}
+.msc-yield{padding:0 8px;height:19px;display:inline-flex;align-items:center;border-radius:10px;border:1px solid var(--gold);background:#14110d;font-size:var(--fs-sub);font-weight:700;color:var(--gold-bright)}
+.msc-hero-cmps{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.msc-cmp{display:inline-flex;align-items:baseline;gap:6px;padding:2px 10px;border-radius:8px;border:1px solid rgba(197,160,89,.3);background:rgba(0,0,0,.35);font-size:var(--fs-main)}
+.msc-cmp em{font-style:normal;font-size:var(--fs-head);color:var(--dim)}
+.msc-cmp b{font-size:15px}
+.msc-cmp.is-win{border-color:rgba(252,246,186,.6);color:var(--gold-bright)}
+.msc-cmp.is-win em{color:inherit}
+.msc-cmp.is-win b{font-weight:700}
+.msc-cmp.is-green{border-color:#4ade80;color:#4ade80;background:rgba(74,222,128,.1)}
+.msc-cmp.is-lose{color:#a39c8f}
+.msc-cmp.is-lose b{font-weight:400}
+.msc-cmp.is-strike b{text-decoration:line-through}
+.msc-hero-cmps .msc-badge{margin-left:0}
+.msc-hero-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:auto}
+.msc-step{display:inline-flex;align-items:center;gap:2px;padding:2px;border:1px solid var(--gold);border-radius:999px;background:rgba(0,0,0,.3)}
+.msc-step-btn{width:28px;height:28px;border:0;border-radius:50%;background:rgba(197,160,89,.14);color:var(--gold-bright);font:inherit;font-size:16px;line-height:1;cursor:pointer}
+.msc-step-btn:hover:not(:disabled){background:rgba(197,160,89,.32)}
+.msc-step-btn:disabled{opacity:.35;cursor:default}
+.msc-step-n{min-width:34px;text-align:center;font-size:var(--fs-main);font-weight:700;color:var(--gold-bright)}
+.msc-hero-ctl .market-supply-gear{height:32px;padding:0 10px}
+.msc-list-btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 12px;white-space:nowrap}
+.msc-key{margin:0;text-align:center;font-size:var(--fs-sub);color:var(--dim)}
+.msc-root[data-lv="2"] .msc-key,.msc-root[data-lv="3"] .msc-key{display:none}
+
+@media (prefers-reduced-motion:reduce){
+  .msc-hero{animation:none}
+  .msc-links .mk-spark{display:none}
+}
