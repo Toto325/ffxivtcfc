@@ -1,0 +1,139 @@
+/* ══════════════════════════════════════════════════════════════
+   市場頁「物品查詢」重排（v2）——載入順序：放在所有 css 的最後面
+   ‧ 版型依「市場頁自己的容器寬度」切換（container query），不看視窗寬度：
+       容器 ≥ 760px → 左：物品名稱＋資訊　右：價格表（50:50），價格表獨立捲動
+       容器 <  760px → 單欄縱向：資訊 → 價格表 → 稅後／更新／訊號（整區可捲）
+   ‧ 供應鏈圖改為彈窗（#mk-chain-modal）；平常畫在看不見的 .mk-chain-host 裡
+   ‧ 字級：內文 13、數值 14、在售最低 15（最大）。變數只在 #market-root 內有效，不影響其他頁面。
+   ══════════════════════════════════════════════════════════════ */
+#market-root { --fs-main: 14px; --fs-head: 13px; --fs-sub: 12px; --fs-tiny: 11px; }
+#mk-pane-item { container: mkpane / inline-size; position: relative; }
+
+/* ── 兩欄骨架 ── */
+#mk-pane-item .mk-v2 { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; overflow-y: auto; align-items: stretch;
+  scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.35) transparent; }
+#mk-pane-item .mk-col-info { display: contents; }
+#mk-pane-item .market-decision-band:not([hidden]) { display: contents; }
+#mk-pane-item .mk-col-info > .market-detail-header { order: 0; margin: 0; }
+#mk-pane-item .mdb-stats { order: 1; } #mk-pane-item .mdb-verdict { order: 2; }
+#mk-pane-item .mk-info-world { order: 3; } #mk-pane-item #mk-detail-market { order: 4; } #mk-pane-item .mk-info-notes { order: 5; }
+#mk-pane-item .mk-v2 > * { min-width: 0; flex-shrink: 0; }
+#mk-pane-item #mk-detail-market { overflow: visible; padding: 0; margin: 0; }
+#mk-pane-item #mk-listing-table-slot { flex: none; overflow: visible; max-height: none; min-height: 0; }
+@container mkpane (min-width: 760px) {
+  #mk-pane-item .mk-v2 { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; overflow: hidden; align-items: stretch; }
+  #mk-pane-item .mk-col-info { display: flex; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; overflow-y: auto; padding-right: 4px; gap: 8px;
+    scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.35) transparent; }
+  #mk-pane-item .mk-col-info > * { order: 0 !important; flex-shrink: 0; }
+  #mk-pane-item .mk-col-info .mdb-stats { order: 1 !important; } #mk-pane-item .mk-col-info .mdb-verdict { order: 2 !important; }
+  #mk-pane-item .mk-col-info .mk-info-world { order: 3 !important; } #mk-pane-item .mk-col-info .mk-info-notes { order: 4 !important; }
+  #mk-pane-item #mk-detail-market { order: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  #mk-pane-item #mk-detail-market > * { flex-shrink: 0; }
+  #mk-pane-item #mk-listing-table-slot { flex: 1; min-height: 0; overflow-y: auto; }
+}
+/* 視窗 ≤720px（手機）：沿用原本整頁往下捲的做法 */
+@media (max-width: 720px) { #mk-pane-item .mk-v2 { overflow: visible; flex: none; } }
+
+/* ── 左欄：物品名稱列 ── */
+#mk-pane-item .market-detail-header { gap: 6px 8px; align-items: center; }
+#mk-pane-item .market-detail-header h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 8px; font-size: 15px; line-height: 1.3; flex: 1 1 140px; min-width: 0; }
+#mk-pane-item .market-detail-header h3 .mk-npc { font-size: 12px; font-weight: 400; color: var(--dim); }
+#mk-pane-item .market-detail-header h3 .mk-npc b { font-size: 12px; font-weight: 600; color: var(--main); }
+#mk-pane-item .market-detail-header .market-solve-btn, #mk-pane-item .market-detail-header .market-history-btn { font-size: 12px; }
+
+/* ── 左欄：核心數字（框內一行一項，最低價最大） ── */
+#mk-pane-item .mdb-stats { display: block; padding: 8px 12px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
+#mk-pane-item .mdb-stats .market-stat-bar, #mk-pane-item .mdb-stats .market-stat-bar[data-fit] { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; border: 0; background: none; border-radius: 0; }
+#mk-pane-item .mdb-stats .market-stat-tile { display: flex; flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: 5px 0; border: 0; border-bottom: 1px solid var(--tb); background: none; }
+#mk-pane-item .mdb-stats .market-stat-tile:first-child { padding-top: 0; }
+#mk-pane-item .mdb-stats .market-stat-tile:last-child { border-bottom: 0; padding-bottom: 0; }
+#mk-pane-item .mdb-stats .market-stat-tile-strong { background: none; }
+#mk-pane-item .mdb-stats .mst-label { font-size: var(--fs-head); color: var(--dim); }
+#mk-pane-item .mdb-stats .mst-val { font-size: var(--fs-main); font-weight: 700; color: var(--gold-bright); text-align: right; }
+#mk-pane-item .mdb-stats .market-stat-tile-strong .mst-val { font-size: 15px; color: #4ade80; }
+#mk-pane-item .mdb-stats .mst-val small { font-size: var(--fs-sub); }
+#mk-pane-item .mdb-stats .mst-q { font-size: var(--fs-tiny); }
+
+/* ── 左欄：買／製作結論 ── */
+#mk-pane-item .mdb-verdict:not(:empty) { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 12px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
+#mk-pane-item .mdb-v-tiles { display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+#mk-pane-item .mdb-v-tiles .msc-tile { flex: 1 1 130px; display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 2px 6px; padding: 4px 8px; border-radius: 6px; font-size: var(--fs-head); }
+#mk-pane-item .mdb-v-tiles .msc-tile em { font-size: var(--fs-head); }
+#mk-pane-item .mdb-v-tiles .msc-tile b { font-size: var(--fs-main); }
+#mk-pane-item .mdb-v-tiles .msc-badge { position: static; height: auto; padding: 0; border: 0; background: none; font-size: var(--fs-sub); }
+#mk-pane-item .mdb-v-mult { align-self: center; font-size: var(--fs-sub); color: var(--dim); }
+#mk-pane-item .mdb-v-mats { display: flex; align-items: flex-start; gap: 8px; }
+#mk-pane-item .mdb-v-text { flex: 1 1 auto; min-width: 0; font-size: var(--fs-head); line-height: 1.55; }
+#mk-pane-item .mdb-v-lead { color: var(--dim); }
+#mk-pane-item .mdb-mat.is-craft { color: #4ade80; }
+#mk-pane-item .mdb-chain-btn { flex: none; white-space: nowrap; font-size: var(--fs-sub); }
+#mk-pane-item .mdb-v-loading { margin: 0; font-size: var(--fs-sub); }
+
+/* ── 左欄：世界列（永遠顯示完整格子；原本「視窗太矮改下拉」的做法停用） ── */
+#mk-pane-item .mk-info-world:not(:empty) { padding: 6px 8px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
+#mk-pane-item .mk-info-world .market-world-strip { display: grid !important; gap: 5px; margin: 0; }
+#mk-pane-item .mk-world-dd { display: none !important; }
+#mk-pane-item .mws-cell { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: baseline; gap: 0 6px; flex: none; min-width: 0; padding: 4px 8px; text-align: left; justify-items: start; border-radius: 6px; }
+#mk-pane-item .mws-name { font-size: var(--fs-sub); color: var(--dim); }
+#mk-pane-item .mws-age { justify-self: end; font-size: var(--fs-tiny); }
+#mk-pane-item .mws-price { grid-column: 1 / -1; justify-content: flex-start; font-size: var(--fs-head); font-weight: 700; }
+
+/* ── 左欄：寄售稅後／更新時間／賣出訊號 ── */
+#mk-pane-item .mk-info-notes:not(:empty) { display: flex; flex-direction: column; gap: 2px; padding: 6px 12px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
+#mk-pane-item .mk-info-notes .market-stat-foot { margin: 0; font-size: var(--fs-sub); line-height: 1.6; }
+#mk-pane-item .mk-notes-sig { min-height: 0; font-size: var(--fs-sub); }
+#mk-pane-item .mk-notes-sig:has(.market-sig[style*="none"]) { display: none; }
+
+/* ── 右欄：價格表上方工具列（一行：在售｜成交｜走勢　HQ　……　買方稅5%） ── */
+#mk-pane-item .market-listing-bar { flex-wrap: wrap; gap: 6px; font-size: var(--fs-sub); }
+#mk-pane-item .market-listing-bar-r { margin-left: auto; white-space: nowrap; }
+#mk-pane-item .market-fee-toggle-inline { font-size: var(--fs-sub); }
+
+/* ── 供應鏈容器：平常在畫面外、看不見，但照常排版（結論要靠它算） ── */
+.mk-chain-host:not(.is-in-modal) { position: absolute; left: -99999px; top: 0; width: 760px; visibility: hidden; pointer-events: none; }
+.mk-chain-host.is-in-modal { position: static; width: auto; visibility: visible; pointer-events: auto; }
+
+/* ── 供應鏈彈窗（層級 10035，比其他彈窗 10040 低：圖上再開的彈窗一定疊在上面） ── */
+.mk-chain-modal { z-index: 10035; }
+.mk-chain-modal .mk-chain-panel { width: min(820px, 94vw); max-height: 92vh; }
+.mk-chain-modal .mk-chain-body { padding: 0 16px 16px; }
+.mk-chain-modal .msc-head { position: sticky; top: 0; z-index: 6; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--tb); margin: 0 -4px calc(14px - var(--msc-gap, 52px)); }
+.mk-chain-modal .msc-head-title { justify-self: start; color: var(--gold-bright); font-size: var(--fs-main); font-weight: 700; padding-left: 4px; }
+.mk-chain-modal .msc-head-btns { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.mk-chain-modal .msc-head-btns .market-history-btn { font-size: var(--fs-sub); }
+.mk-chain-modal .msc-head-close { justify-self: end; padding: 4px 6px; }
+.msc-head { display: none; }
+.mk-chain-modal .msc-head { display: grid; }
+
+/* ── 供應鏈圖：沿用原本全部美術（卡片框、徽章、連線、光點、脈衝），只修排版 ── */
+.mk-chain-modal .msc-root[data-lv] { --msc-gap: 52px; --msc-rowgap: 26px; padding: 4px 0 0; gap: var(--msc-gap); }
+.mk-chain-modal .msc-root[data-lv] .msc-row { gap: var(--msc-rowgap) 12px; }
+.mk-chain-modal .msc-root[data-lv] .msc-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; grid-template-areas: "ico name step" "cmps cmps cmps";
+  align-items: center; column-gap: 12px; row-gap: 8px; width: 100%; max-width: 540px; margin: 0 auto; padding: 10px 14px; box-sizing: border-box; }
+.mk-chain-modal .msc-hero-ico { grid-area: ico; }
+.mk-chain-modal .msc-hero-name { grid-area: name; justify-content: flex-start; text-align: left; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+.mk-chain-modal .msc-hero-step { grid-area: step; justify-self: end; }
+.mk-chain-modal .msc-hero-cmps { grid-area: cmps; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mk-chain-modal .msc-hero .msc-tile { padding: 3px 10px; } .mk-chain-modal .msc-hero .msc-tile em { font-size: var(--fs-head); } .mk-chain-modal .msc-hero .msc-tile b { font-size: 15px; }
+.mk-chain-modal .msc-root[data-lv] .msc-cell { --msc-maxw: 172px; flex: 0 0 min(var(--msc-maxw), calc((100% - (var(--msc-cols,1) - 1) * 12px) / var(--msc-cols,1)));
+  flex-direction: row; justify-content: center; align-items: center; gap: 8px; padding: 12px 9px 7px; text-align: center; }
+.mk-chain-modal .msc-cell .msc-ico { flex: none; }
+.mk-chain-modal .msc-cell .msc-body { align-items: center; text-align: center; min-width: 0; }
+.mk-chain-modal .msc-cell .msc-name { font-size: var(--fs-main); }
+.mk-chain-modal .msc-cell .msc-qty { font-size: var(--fs-main); }
+.mk-chain-modal .msc-cell .msc-price { font-size: 15px; }
+.mk-chain-modal .msc-cell.msc-more { flex-direction: column; }
+.mk-chain-modal .msc-key { font-size: var(--fs-sub); }
+@media (max-width: 480px) {
+  .mk-chain-modal .mk-chain-panel { width: 96vw; }
+  .mk-chain-modal .mk-chain-body { padding: 0 10px 12px; }
+}
+
+/* ── 手機：頂部搜尋列／分頁不再被擠變形（搜尋框整行、設定按鈕整行、四個分頁平均分、不換行） ── */
+@media (max-width: 560px) {
+  #market-root .market-searchbar { flex-wrap: wrap; gap: 6px; }
+  #market-root .market-search-box { flex: 1 1 100%; }
+  #market-root .market-settings-btn { flex: 1 1 100%; }
+  #market-root .market-tabs { gap: 2px; }
+  #market-root .market-tabs .craft-tab-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; padding-left: 2px; padding-right: 2px; font-size: var(--fs-head); }
+}

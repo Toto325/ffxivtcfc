@@ -36,18 +36,17 @@
 <link rel="stylesheet" href="css/base.css?v=13">
 <link rel="stylesheet" href="css/page-content.css?v=24">
 <link rel="stylesheet" href="css/page-sub-air.css?v=13">
-<link rel="stylesheet" href="css/page-macro.css?v=14">
+<link rel="stylesheet" href="css/page-macro.css?v=13">
 <link rel="stylesheet" href="css/page-craft.css?v=13">
-<link rel="stylesheet" href="css/craft-guide.css?v=1">
-<link rel="stylesheet" href="css/page-market.css?v=13">
+<link rel="stylesheet" href="css/page-market.css?v=14">
 <link rel="stylesheet" href="css/page-market-watchlist.css?v=13">
 <link rel="stylesheet" href="css/nav-royal.css?v=9">
 <link rel="stylesheet" href="css/nav-unify.css?v=4">
 <link rel="stylesheet" href="css/content-royal.css?v=1">
 <link rel="stylesheet" href="css/content-royal-v2.css?v=1">
 <link rel="stylesheet" href="css/ui-refine.css?v=3">
-<link rel="stylesheet" href="css/market-unify.css?v=5">
 <link rel="stylesheet" href="css/touch-fixes.css?v=1">
+<link rel="stylesheet" href="css/market-detail-v2.css?v=1">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
 </head>
@@ -210,7 +209,7 @@
      4) app.js                  定義全站共用的 app 物件骨架（必須先於下面兩個面板載入，
                                  因為它們啟動時就會對 app 物件賦值）
      5) sub-panel.js / air-panel.js  潛水艇／飛空艇 UI 面板，掛在 app 物件上
-     6) macro-engine.js → macro-meta.js → macro-parse.js → macro-tool.js   巨集工具（引擎、區域與標籤資料、貼上解析、介面；依序載入），獨立運作，不依賴 app 物件
+     6) macro-tool.js           巨集工具，獨立運作，不依賴 app 物件
      7) nav.js                  左側/頂部選單切換，完全獨立 -->
 <script src="js/items.js"></script>
 <script src="js/sub-data.js"></script>
@@ -223,15 +222,11 @@
 <script src="js/sub-panel.js"></script>
 <script src="js/air-panel.js"></script>
 <script src="js/craft-panel.js"></script>
-<script src="js/craft-guide-light.js?v=1"></script>
 <script src="js/obtain-ui.js"></script>
 <script src="js/lunar-ui.js"></script>
 <script src="js/market-watchlist.js"></script>
 <script src="js/market-panel.js"></script>
-<script src="js/macro-engine.js?v=1"></script>
-<script src="js/macro-meta.js?v=1"></script>
-<script src="js/macro-parse.js?v=1"></script>
-<script src="js/macro-tool.js?v=14"></script>
+<script src="js/macro-tool.js"></script>
 <script src="js/nav.js?v=13"></script>
 <script src="js/nav-royal.js?v=13"></script>
 <script src="js/content-royal-v2.js?v=2"></script>
