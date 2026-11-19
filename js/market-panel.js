@@ -705,8 +705,8 @@
     recordRecentlyViewed(itemId, name);
     renderRecentlyViewed();
     document.querySelector('[data-mk-tab="item"]').click();
-    $('mk-pane-item').innerHTML = backRowHtml() +
-      '<div class="market-detail-header">' + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '<span class="mk-npc" id="mk-npc"></span></h3>' +
+    $('mk-pane-item').innerHTML =
+      '<div class="market-detail-header">' + backRowHtml() + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '<span class="mk-npc" id="mk-npc"></span></h3>' +
         '<button type="button" class="market-history-btn market-watch-btn-header" id="mk-watch-btn"></button>' +
         '<button type="button" class="market-solve-btn" id="mk-solve-btn" disabled><i class="ph ph-flask"></i> 查詢是否可製作⋯</button>' +
         '<button type="button" class="market-solve-btn" id="mk-obtain-btn"><i class="ph ph-swap"></i> 取得方式</button>' +
@@ -1238,7 +1238,7 @@
         '<select id="mk-world-filter" class="craft-select" style="display:none" aria-hidden="true" tabindex="-1">' +
           // optgroup 的標題列看起來像分類、不能被選取，只當說明用；預設選中的仍是裡面第一個「所有世界」（標題的配色見 page-market.css）
           '<optgroup label="顯示範圍・最低價' + (hasWorldTimes ? '・資料更新' : '') + '">' +
-            '<option value="ALL">所有世界</option>' +
+            '<option value="ALL">所有世界' + (overview.minPrice ? '　' + overview.minPrice.toLocaleString() : '') + '</option>' +
             dcWorlds.map(function (w) {
               const parts = [w];
               if (worldMinPrice[w] != null) parts.push(worldMinPrice[w].toLocaleString());
@@ -1462,6 +1462,14 @@
       sel.dispatchEvent(new Event('change')); // 隱藏的下拉仍然是「目前範圍」的唯一來源，邏輯照舊
     });
     renderWorldStrip();
+    // 視窗不夠高時，世界列改用站內樣式的下拉（CSS 決定顯示哪一個）；選項文字已含最低價與更新時間，資訊一樣完整
+    (function () {
+      const ws = $('mk-world-filter');
+      if (ws && window.MarketData && MarketData.enhanceSelect) {
+        MarketData.enhanceSelect(ws);
+        if (ws.nextSibling && ws.nextSibling.classList) ws.nextSibling.classList.add('mk-world-dd');
+      }
+    })();
     /* 寄售稅後：跟著下方選的世界走（選「所有世界」＝全服最低價，選某個世界＝那個世界自己的最低價），
      * NQ 跟 HQ 是不同的東西，各算各的，不混在一起。賣出只能在自己的世界，所以選「所有世界」時提示去點自己的世界看更準。 */
     function updateTaxNote(loading) {
@@ -2865,9 +2873,10 @@
     const MIN_CELL_W = [112, 112, 108, 140, 136, 130]; // 各密度的卡片最小寬度（直式卡片名稱可兩行，所以較窄；橫式要放圖示，較寬）
     const COL_GAP = 8;                                  // 卡片左右間距：以前是16，縮到8省出寬度
     function visibleCells(row) { return Array.prototype.filter.call(row.children, function (c) { return !c.hidden; }); }
+    let minWOverride = 0; // 手機：每排最多 2 張，名稱才讀得舒服
     function colsFor(lv, row, n) {
       const w = row.clientWidth || 0;
-      return w > 0 ? Math.max(1, Math.floor((w + COL_GAP) / (MIN_CELL_W[lv] + COL_GAP))) : n;
+      return w > 0 ? Math.max(1, Math.floor((w + COL_GAP) / ((minWOverride || MIN_CELL_W[lv]) + COL_GAP))) : n;
     }
     function layoutRow(row, lv) {
       const n = visibleCells(row).length;
@@ -2932,18 +2941,52 @@
         return groups.sort(function (a, b) { return a.t - b.t; });
       }
       function overlapX(a, b) { const l = Math.max(a.l, b.l), r = Math.min(a.r, b.r); return r - l > 8 ? (l + r) / 2 : null; }
-      if (root.dataset.w === 's' || root.dataset.w === 'xs') {
-        // 窄欄：左側一條垂直金色主幹貫穿全圖（材料在下、主條在中、用途在上），每張卡片用一小段橫線接到主幹；
-        // 光點沿主幹往上接力（材料→主條→用途），箭頭永遠向上，語意跟寬版一樣。
-        const X = 12;
-        const mid = function (el) { const r = el.getBoundingClientRect(); return { l: r.left - rr.left, y: (r.top + r.bottom) / 2 - rr.top }; };
-        const hy = mid(heroEl).y;
-        const ups = upRow ? visibleCells(upRow).map(mid) : [], downs = downRow ? visibleCells(downRow).map(mid) : [];
-        const dot = function (y) { parts += '<path d="M' + X + ',' + (y - 4.5) + ' L' + (X + 4.5) + ',' + y + ' L' + X + ',' + (y + 4.5) + ' L' + (X - 4.5) + ',' + y + ' Z" fill="#fcf6ba" opacity=".9"/>'; };
-        const arm = function (y, x2) { parts += '<path d="M' + X + ',' + y + ' L' + (x2 - 2) + ',' + y + '" stroke="rgba(197,160,89,.75)" stroke-width="1.4" fill="none"/>'; };
-        if (downs.length) { link({ x: X, y: downs[downs.length - 1].y }, { x: X, y: hy }, 'down'); downs.forEach(function (c) { arm(c.y, c.l); dot(c.y); }); }
-        if (ups.length) { link({ x: X, y: hy }, { x: X, y: ups[0].y }, 'up'); ups.forEach(function (c) { arm(c.y, c.l); dot(c.y); }); }
-        arm(hy, mid(heroEl).l); dot(hy);
+      if (root.dataset.o === 'h') {
+        // 橫向流向（材料在左 → 主條在中 → 用途在右）：畫法與直向完全相同（圓角肘線、金色漸層、箭頭、菱形匯流點、三層光點），
+        // 只是把「垂直走、水平轉」換成「水平走、垂直轉」。每側若有兩欄卡片，外欄用一小段淡虛線掛在內欄卡片旁邊。
+        const hl = hr.left - rr.left, hrt = hr.right - rr.left, hcy = (hr.top + hr.bottom) / 2 - rr.top;
+        const elbowH = function (a, b, bendX, r) {
+          if (Math.abs(a.y - b.y) < 1) return 'M' + a.x + ',' + a.y + ' L' + b.x + ',' + b.y;
+          const sx = bendX >= a.x ? 1 : -1, sy = b.y >= a.y ? 1 : -1;
+          return 'M' + a.x + ',' + a.y + ' L' + (bendX - sx * r) + ',' + a.y + ' Q' + bendX + ',' + a.y + ' ' + bendX + ',' + (a.y + sy * r) +
+            ' L' + bendX + ',' + (b.y - sy * r) + ' Q' + bendX + ',' + b.y + ' ' + (bendX + sx * r) + ',' + b.y + ' L' + b.x + ',' + b.y;
+        };
+        const linkH = function (a, b, phase) {
+          const len = Math.abs(b.x - a.x);
+          if (len < 8) return;
+          gn++;
+          const gid = 'mscg' + gn, dy = Math.abs(a.y - b.y), bendX = (a.x + b.x) / 2;
+          const r = Math.max(2, Math.min(7, dy / 2 - 1, len / 4)), d = elbowH(a, b, bendX, r);
+          const k = Math.max(.45, Math.min(1, len / 44));
+          defs += '<linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="' + a.x + '" y1="' + a.y + '" x2="' + b.x + '" y2="' + b.y + '">' +
+            '<stop offset="0%" stop-color="#c5a059" stop-opacity="0.7"/><stop offset="100%" stop-color="#fcf6ba" stop-opacity="1"/></linearGradient>';
+          parts += '<path class="cyc-arc-line" stroke="url(#' + gid + ')" d="' + d + '"/>' +
+            '<path class="cyc-arc-tip" d="M' + (b.x - 5) + ',' + (b.y - 5) + ' L' + b.x + ',' + b.y + ' L' + (b.x - 5) + ',' + (b.y + 5) + '"/>' +
+            '<g class="mk-spark mk-spark-' + phase + '" style="offset-path:path(\'' + d + '\');offset-rotate:auto 90deg">' +
+              '<path class="cyc-spark-outer" d="M0,' + (-26 * k) + ' L' + (10 * k) + ',0 L0,' + (26 * k) + ' L' + (-10 * k) + ',0 Z"/>' +
+              '<path class="cyc-spark-mid" d="M0,' + (-17 * k) + ' L' + (6 * k) + ',0 L0,' + (17 * k) + ' L' + (-6 * k) + ',0 Z"/>' +
+              '<path class="cyc-spark-core" d="M0,' + (-8 * k) + ' L' + (2.4 * k) + ',0 L0,' + (8 * k) + ' L' + (-2.4 * k) + ',0 Z"/>' +
+            '</g>';
+        };
+        const portH = function (x) { parts += '<path d="M' + x + ',' + (hcy - 4.5) + ' L' + (x + 4.5) + ',' + hcy + ' L' + x + ',' + (hcy + 4.5) + ' L' + (x - 4.5) + ',' + hcy + ' Z" fill="#fcf6ba" opacity=".9"/>'; };
+        const stubH = function (x1, x2, y) { if (Math.abs(x1 - x2) < 4) return; parts += '<path d="M' + x1 + ',' + y + ' L' + x2 + ',' + y + '" stroke="rgba(197,160,89,.5)" stroke-width="1.2" fill="none" stroke-dasharray="2 3"/>'; };
+        const cyOf = function (c) { return (c.t + c.b) / 2; };
+        if (downRow) { // 材料（左）→ 主條左緣；內欄＝最右那欄
+          rowsOf(downRow).forEach(function (g) {
+            const cells = g.cells.slice().sort(function (x, y) { return y.r - x.r; });
+            linkH({ x: cells[0].r, y: cyOf(cells[0]) }, { x: hl, y: hcy }, 'down');
+            for (let i = 1; i < cells.length; i++) stubH(cells[i].r, cells[i - 1].l, cyOf(cells[i]));
+          });
+          portH(hl);
+        }
+        if (upRow) { // 主條右緣 → 用途（右）；內欄＝最左那欄
+          rowsOf(upRow).forEach(function (g) {
+            const cells = g.cells.slice().sort(function (x, y) { return x.l - y.l; });
+            linkH({ x: hrt, y: hcy }, { x: cells[0].l, y: cyOf(cells[0]) }, 'up');
+            for (let i = 1; i < cells.length; i++) stubH(cells[i - 1].r, cells[i].l, cyOf(cells[i]));
+          });
+          portH(hrt);
+        }
         svg.innerHTML = '<defs>' + defs + '</defs>' + parts;
         return;
       }
@@ -2979,7 +3022,6 @@
       const colEl = box.closest('.market-col-supply');
       const W = box.clientWidth || 0;
       const tier = W >= 600 ? 'l' : (W >= 480 ? 'm' : (W >= 360 ? 's' : 'xs'));
-      const spine = tier === 's' || tier === 'xs';
       const stacked = !!(window.matchMedia && window.matchMedia('(max-width: 720px)').matches);
       const total = useNodesFull.length;
       root.dataset.w = tier;
@@ -2992,9 +3034,39 @@
         }
         if (upRow) layoutRow(upRow, lv);
         if (downRow) layoutRow(downRow, lv);
-        if (spine) { if (upRow) upRow.style.setProperty('--msc-cols', '1'); if (downRow) downRow.style.setProperty('--msc-cols', '1'); }
       }
-      if (spine) { apply(3, total > 3 ? Math.min(2, upCells.length) : Math.min(total, upCells.length)); drawLinks(); return; }
+      // 橫向流向：欄位夠寬（≥560）、而且材料與用途兩側都有，就改成「材料 → 主條 → 用途」由左到右。
+      // 欄位通常又寬又矮，橫向才用得到寬度；主條也不會被拉成一條扁長條。
+      const horiz = !stacked && W >= 560 && hasUp && hasDown;
+      const oneSide = !stacked && W >= 560 && (hasUp !== hasDown);
+      if (horiz || oneSide) {
+        root.dataset.o = 'h';
+        root.dataset.hs = (hasDown ? 'd' : '') + (hasUp ? 'u' : '');
+        root.style.setProperty('--msc-hgap', Math.max(34, Math.min(96, Math.round(34 + (W - 560) / 10))) + 'px');
+        root.dataset.hn = W < 700 ? '1' : '0'; // 窄的橫向流向：卡片與主條用緊湊款
+        const setCols = function () { // 每側卡片欄數：側欄夠寬（≥460）排兩欄，否則一欄
+          [upRow, downRow].forEach(function (row) {
+            if (!row) return;
+            row.style.setProperty('--msc-cols', '1');
+            row.style.setProperty('--msc-cols', row.clientWidth >= 460 ? '2' : '1');
+          });
+        };
+        const fitsH = function () { return !colEl || colEl.scrollHeight <= colEl.clientHeight + 1; };
+        const maxShown = Math.min(upCells.length, total);
+        let ok = false;
+        for (let lv = 0; lv <= 1 && !ok; lv++) {
+          for (let shown = maxShown; shown >= Math.min(2, maxShown); shown--) {
+            apply(lv, shown); setCols();
+            if (fitsH()) { ok = true; break; }
+          }
+        }
+        if (!ok) { apply(1, Math.min(2, maxShown)); setCols(); }
+        drawLinks();
+        return;
+      }
+      delete root.dataset.o; delete root.dataset.hs; delete root.dataset.hn; root.style.removeProperty('--msc-hgap');
+      [upRow, downRow].forEach(function (row) { if (row) row.style.removeProperty('--msc-cols'); });
+      minWOverride = stacked ? 150 : 0;
       if (stacked) { apply(0, shownFor(0, true)); drawLinks(); return; }
       function fits() { return !colEl || colEl.scrollHeight <= colEl.clientHeight; }
       for (let lv = 0; lv <= 2; lv++) { apply(lv, shownFor(lv, false)); if (fits()) break; }
