@@ -150,7 +150,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 
 .craft-filter-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:10px}
 .craft-job-filter{display:flex;flex-wrap:wrap;gap:4px}
-.craft-job-filter-btn{padding:3px 10px;font-size:11px;border:1px solid var(--tb);background:transparent;color:var(--dim);border-radius:5px;cursor:pointer;font-family:"Noto Serif TC",serif}
+.craft-job-filter-btn{padding:4px 11px;font-size:13px;border:1px solid var(--tb);background:transparent;color:var(--dim);border-radius:5px;cursor:pointer;font-family:"Noto Serif TC",serif}
 .craft-job-filter-btn:hover{border-color:rgba(197,160,89,.5)}
 .craft-job-filter-btn.active{background:var(--gold-deep);color:var(--gold-bright);border-color:var(--gold-deep)}
 .craft-lvl-filter{display:flex;align-items:center;gap:6px}
@@ -272,7 +272,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-solve-nav-btn span{overflow:hidden;text-overflow:ellipsis}
 .craft-mat-children{display:none;margin-left:22px;border-left:1px solid var(--tb);padding-left:10px}
 .craft-mat-children.open{display:block}
-.craft-mat-sub-label{font-size:10px;color:var(--dim);opacity:0.7;margin:4px 0 2px}
+.craft-mat-sub-label{font-size:11px;color:var(--dim);opacity:0.7;margin:4px 0 2px}
 .craft-mat-cycle{font-size:12px;color:var(--dim);font-style:italic;padding:2px 0}
 .craft-mat-price{font-size:11px;color:var(--dim)}
 .craft-mat-right-col{display:flex;flex-direction:column;align-items:flex-end;gap:3px;margin-left:auto;flex-shrink:0}
@@ -340,7 +340,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
   max-height:70vh;overflow-y:auto;
   background:var(--panel,#1c1c22);border:1px solid var(--line,#333);border-radius:8px;padding:8px 10px 6px;
   box-shadow:0 8px 24px rgba(0,0,0,.45)}
-.craft-mat-worlds-title{font-size:10px;color:var(--dim);margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid var(--line,#333)}
+.craft-mat-worlds-title{font-size:11px;color:var(--dim);margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid var(--line,#333)}
 .craft-mat-world-row{display:flex;align-items:center;gap:10px;font-size:11px;padding:3px 0}
 .craft-mat-world-row .w-name{flex:1;color:var(--text,#e8e8ec);white-space:nowrap}
 .craft-mat-world-row .w-qty{color:var(--dim);white-space:nowrap}
@@ -348,7 +348,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-mat-world-group{border-bottom:1px dashed rgba(255,255,255,.08);padding-bottom:2px;margin-bottom:2px}
 .craft-mat-world-group:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
 .craft-mat-world-group .craft-mat-world-row .w-name{font-weight:600}
-.craft-mat-world-subrow{display:flex;align-items:center;gap:10px;font-size:10px;padding:1px 0 1px 14px;color:var(--dim)}
+.craft-mat-world-subrow{display:flex;align-items:center;gap:10px;font-size:11px;padding:1px 0 1px 14px;color:var(--dim)}
 .craft-mat-world-subrow .w-price{margin-left:auto;min-width:64px;text-align:right}
 
 /* 市場設定彈出卡：欄位直立排列，每個欄位獨立一行＋自己的標籤，select用滿版寬度，
@@ -655,9 +655,9 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-dd .wl-dd-list{left:auto;right:0}
 
 /* 材料清單表頭：欄名＋單位 */
-.craft-mat-head{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:2px 0 4px;font-size:10.5px;color:var(--dim);border-bottom:1px solid var(--tb);margin-bottom:2px}
+.craft-mat-head{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:2px 0 4px;font-size:11px;color:var(--dim);border-bottom:1px solid var(--tb);margin-bottom:2px}
 .craft-mat-head-name{flex:1}
-.craft-mat-head small{display:block;font-size:9.5px;opacity:.72;line-height:1.1}
+.craft-mat-head small{display:block;font-size:11px;opacity:.72;line-height:1.1}
 
 /* 數字摘要格＋小標籤（js: fitCraftBar 依實際寬度設定 data-fit：0 正常→1 縮緊→2 更緊→3 均分格子） */
 .craft-stat-bar{display:flex;flex-wrap:wrap;border:1px solid var(--tb);border-radius:10px;overflow:hidden;background:rgba(0,0,0,.25)}
@@ -1047,12 +1047,12 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-explore-drawer .craft-mat-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;min-height:44px;padding:5px 8px 5px 6px;border-radius:8px}
 .craft-explore-drawer .craft-mat-name{display:flex;align-items:center;gap:8px;min-width:0;overflow:visible;white-space:normal}
 .craft-explore-drawer .craft-mat-name-txt{display:flex;flex-direction:column;min-width:0;line-height:1.3;overflow-wrap:anywhere}
-.craft-explore-drawer .craft-mat-sub{font-size:10.5px;color:var(--dim);font-weight:400}
+.craft-explore-drawer .craft-mat-sub{font-size:11px;color:var(--dim);font-weight:400}
 .craft-explore-drawer .craft-mat-right-col{display:flex;flex-direction:row;align-items:center;gap:10px;margin:0}
 .craft-explore-drawer .craft-mat-node .craft-mat-price{display:flex;flex-direction:column;align-items:flex-end;min-width:92px;line-height:1.25;font-size:13.5px}
 .craft-explore-drawer .craft-mat-node .craft-mat-price .cmp-p{font-weight:700;color:var(--main);font-variant-numeric:tabular-nums}
-.craft-explore-drawer .craft-mat-node .craft-mat-price .cmp-p small{font-size:10px;font-weight:400;color:var(--dim);margin-left:2px}
-.craft-explore-drawer .craft-mat-node .craft-mat-price .cmp-w{font-size:10.5px;color:var(--dim)}
+.craft-explore-drawer .craft-mat-node .craft-mat-price .cmp-p small{font-size:11px;font-weight:400;color:var(--dim);margin-left:2px}
+.craft-explore-drawer .craft-mat-node .craft-mat-price .cmp-w{font-size:11px;color:var(--dim)}
 .craft-explore-drawer .craft-mat-actions{display:grid;grid-template-columns:repeat(3,26px);gap:4px;justify-items:center;align-items:center;min-width:0}
 .craft-explore-drawer .cmp-ph{width:26px;height:26px}
 .craft-explore-drawer .craft-mat-row.is-profit,.craft-explore-drawer .craft-batch-row.is-profit{background:linear-gradient(90deg,rgba(74,222,128,.13),rgba(74,222,128,.04));box-shadow:inset 2px 0 0 rgba(74,222,128,.6)}
