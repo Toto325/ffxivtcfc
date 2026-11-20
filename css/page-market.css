@@ -387,9 +387,8 @@
 .market-token-gear{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;width:34px;padding:0;border:1px solid var(--tb);border-radius:8px;background:rgba(255,255,255,.03);color:var(--dim);font-size:17px;cursor:pointer;transition:border-color .15s,background .15s,color .15s}
 .market-token-gear:hover{border-color:var(--gold);background:rgba(197,160,89,.09);color:var(--gold)}
 .market-token-gear.is-active{border-color:rgba(197,160,89,.6);color:var(--gold)}
-.market-token-gear.is-active::after{content:"";position:absolute;top:4px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--gold)}
-.market-token-popchk{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px}
-.market-token-pophint{margin:3px 0 0 22px;font-size:11px;line-height:1.5}
+.market-token-popchk{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:14.5px}
+.market-token-pophint{margin:3px 0 0 24px;font-size:13px;line-height:1.5}
 /* 顯示隱藏的代幣時：淡色＋小標籤，跟一般代幣區分 */
 .market-token-row.is-nocmp .market-token-head{opacity:.55}
 .market-token-nocmp{font-size:10px;white-space:nowrap;color:var(--dim);padding:0 8px;border:1px dashed var(--tb);border-radius:4px;line-height:17px}
@@ -1189,3 +1188,29 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 /* 窄卡片：差額徽章跨在上緣右側，名稱往下讓開一點，不被徽章蓋到 */
 .msc-root[data-o="h"][data-hn="1"] .msc-cell{padding-top:12px}
 .msc-root[data-o="h"][data-hn="1"][data-lv="1"] .msc-cell{padding-top:11px;padding-bottom:5px}
+
+/* ── 彈出卡字級統一加大 2px（市場設定／代幣兌換設定／供應鏈設定／均價比較／材料世界清單等共用 .craft-mat-worlds-popover 的卡片） ──
+ * 放在載入順序較後面的檔案、並用 .craft-mat-worlds-popover 加一層選擇器，蓋過 page-craft.css／market-unify.css 裡原本的字級。 */
+.craft-settings-popover{width:300px;max-width:calc(100vw - 16px)}
+.craft-mat-worlds-popover{max-width:min(300px,calc(100vw - 16px))}
+.craft-mat-worlds-popover .craft-mat-worlds-title,
+.craft-mat-worlds-popover .mav-title,
+.craft-mat-worlds-popover .craft-settings-field label,
+.craft-mat-worlds-popover .craft-mat-world-row,
+.craft-mat-worlds-popover .craft-mat-world-subrow,
+.craft-mat-worlds-popover .craft-mat-worlds-toggle{font-size:13px}
+.craft-mat-worlds-popover .craft-muted{font-size:13px}
+.craft-mat-worlds-popover .mav-row{font-size:14.5px}
+.craft-mat-worlds-popover .mav-row strong{font-size:16px}
+.craft-mat-worlds-popover .mav-row small{font-size:12px}
+.craft-mat-worlds-popover .mav-chg{font-size:13.5px}
+.craft-mat-worlds-popover .mav-help{font-size:11px;width:16px;height:16px;line-height:16px}
+.craft-mat-worlds-popover .craft-select{font-size:calc(.82rem + 2px)}
+.craft-mat-worlds-popover .craft-dd .wl-dd-btn{font-size:13.5px}
+.craft-mat-worlds-popover .wl-dd-opt{font-size:14px}
+.craft-mat-worlds-popover .pp-lead{font-size:14px}
+.craft-mat-worlds-popover .pp-btn{font-size:14px}
+.craft-mat-worlds-popover .pp-win .pp-btn{font-size:13.5px}
+.craft-mat-worlds-popover .market-supply-settings-row .pp-btn,
+.craft-mat-worlds-popover .market-supply-settings-row .pp-lead{font-size:14px}
+.craft-mat-worlds-popover .market-supply-settings-row{font-size:14px}
