@@ -8,7 +8,8 @@
    ══════════════════════════════════════════════════════════════ */
 #market-root { --fs-main: 14px; --fs-head: 13px; --fs-sub: 12px; --fs-tiny: 11px;
   /* 供應鏈圖自己的一組字級（圖上卡片多、要小一級；只調這兩個就好，不影響全頁） */
-  --fs-chain-name: 13px; --fs-chain-price: 14px; }
+  }
+:root { --fs-chain-name: 13px; --fs-chain-price: 14px; /* 供應鏈彈窗掛在 body 下，不在 #market-root 內，所以變數要放 :root */ }
 #mk-pane-item { container: mkpane / inline-size; position: relative; }
 
 /* ── 兩欄骨架 ── */
@@ -36,12 +37,15 @@
 /* 視窗 ≤720px（手機）：沿用原本整頁往下捲的做法 */
 @media (max-width: 720px) { #mk-pane-item .mk-v2 { overflow: visible; flex: none; } }
 
+/* ── 左欄整體字級：資訊欄文字多又密，比右側價格表小一級會顯得偏小，所以這個範圍內四級字級整體加大 1px ── */
+#mk-pane-item .mk-col-info, #mk-pane-item .mk-back-row { --fs-main: 15px; --fs-head: 14px; --fs-sub: 13px; --fs-tiny: 12px; }
+
 /* ── 左欄：物品名稱列 ── */
 #mk-pane-item .market-detail-header { gap: 6px 8px; align-items: center; }
 #mk-pane-item .market-detail-header h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 8px; font-size: 15px; line-height: 1.3; flex: 1 1 140px; min-width: 0; }
-#mk-pane-item .market-detail-header h3 .mk-npc { font-size: 12px; font-weight: 400; color: var(--dim); }
-#mk-pane-item .market-detail-header h3 .mk-npc b { font-size: 12px; font-weight: 600; color: var(--main); }
-#mk-pane-item .market-detail-header .market-solve-btn, #mk-pane-item .market-detail-header .market-history-btn { font-size: 12px; }
+#mk-pane-item .market-detail-header h3 .mk-npc { font-size: 13px; font-weight: 400; color: var(--dim); }
+#mk-pane-item .market-detail-header h3 .mk-npc b { font-size: 13px; font-weight: 600; color: var(--main); }
+#mk-pane-item .market-detail-header .market-solve-btn, #mk-pane-item .market-detail-header .market-history-btn { font-size: 13px; }
 
 /* ── 左欄：核心數字（框內一行一項，最低價最大） ── */
 #mk-pane-item .mdb-stats { flex: 0 0 auto; display: block; padding: 8px 12px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
@@ -52,7 +56,7 @@
 #mk-pane-item .mdb-stats .market-stat-tile-strong { background: none; }
 #mk-pane-item .mdb-stats .mst-label { font-size: var(--fs-head); color: var(--dim); }
 #mk-pane-item .mdb-stats .mst-val { font-size: var(--fs-main); font-weight: 700; color: var(--gold-bright); text-align: right; }
-#mk-pane-item .mdb-stats .market-stat-tile-strong .mst-val { font-size: 16px; color: #4ade80; }
+#mk-pane-item .mdb-stats .market-stat-tile-strong .mst-val { font-size: 17px; color: #4ade80; }
 #mk-pane-item .mdb-stats .mst-val small { font-size: var(--fs-sub); }
 #mk-pane-item .mdb-stats .mst-q { font-size: var(--fs-tiny); }
 
@@ -140,16 +144,20 @@
   #market-root .market-tabs .craft-tab-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; padding-left: 2px; padding-right: 2px; font-size: var(--fs-head); }
 }
 
-/* ══════════ 返回：獨立一行（放在標題列上方，不擠壓標題列；名稱不截斷，太長就自然換行） ══════════ */
+/* ══════════ 買／製作哪邊便宜都用綠色：差額徽章也跟著綠（只動決策卡與主卡片，材料小卡的徽章不動） ══════════ */
+#mk-pane-item .mdb-v-tiles .msc-badge.is-buy, .mk-chain-modal .msc-hero .msc-badge.is-buy { color: #4ade80; background: #16301f; }
+#mk-pane-item .mdb-vtxt.is-buy { color: #4ade80; }
+
+/* ══════════ 返回：獨立一行的按鈕（放在標題列上方，不擠壓標題列；名稱不截斷，太長就自然換行） ══════════ */
 #mk-pane-item .mk-col-info > .mk-back-row { order: -1 !important; }
 #mk-pane-item .mk-back-row { margin: 0 0 2px; }
-#mk-pane-item .mk-back-btn { max-width: 100%; padding: 2px 0; background: none; border: 0; border-radius: 0; color: rgba(234,208,146,.85); text-align: left; align-items: flex-start; }
+#mk-pane-item .mk-back-btn { max-width: 100%; text-align: left; align-items: flex-start; }
 #mk-pane-item .mk-back-btn span { overflow: visible; text-overflow: clip; white-space: normal; }
-#mk-pane-item .mk-back-btn:hover { background: none; color: #f3dfa6; text-decoration: underline; }
 
-/* ══════════ 標題列按鈕：容器窄時只剩圖示，標題列不再換行 ══════════
-   「容器寬」指物品頁整塊的寬度：單欄時＝整塊寬；兩欄時左欄約只有一半，所以兩欄且整塊 <1060px 也縮 */
-@container mkpane ((max-width: 520px) or ((min-width: 760px) and (max-width: 1060px))) {
+/* ══════════ 標題列按鈕：容器不夠寬時只剩圖示，標題列不再換行 ══════════
+   容器寬＝物品頁整塊的寬度。兩欄時左欄只有一半，要放下「圖示＋名稱＋版本標籤＋三顆文字按鈕」約需 700px，
+   所以整塊 <1500px 就縮成圖示（想改門檻就改下面這個 1500px） */
+@container mkpane (max-width: 1500px) {
   #mk-pane-item .market-detail-header { flex-wrap: nowrap; }
   #mk-pane-item .market-detail-header h3 { flex: 1 1 80px; }
   #mk-pane-item .market-detail-header .mk-btn-l { display: none; }
@@ -168,3 +176,8 @@
   .mtr-head .mtr-freq, .mtr-row .mtr-freq { grid-area: freq; }
   .mtr-row .mtr-label { white-space: normal; overflow: visible; text-overflow: clip; }
 }
+
+/* ══════════ 代幣兌換：「NPC 即賣排行」按鈕固定在每個代幣列的右上角（跟代幣名稱同一行） ══════════ */
+.market-token-row { position: relative; }
+.market-token-row .mk-npc-open-row { position: absolute; top: 6px; right: 6px; margin: 0; z-index: 2; }
+@container mktok (max-width: 560px) { .market-token-row .mk-npc-open-row .mk-npc-open-l { display: none; } }
