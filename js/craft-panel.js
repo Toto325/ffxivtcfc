@@ -4154,16 +4154,18 @@ app._craftReady = function () {
 
       /* ── 設計者比例的射線 ──
        * 玩家提供的參考（大致關係，有小誤差，用來決定建議的方向，不是絕對數值）：
-       *   作業 : 加工 ≈ 1 : 0.89～0.95（大多數集中在 0.90～0.91）　　CP ≈ 17 × 作業^0.35 + 180 */
+       *   作業 : 加工 ≈ 1 : 0.89～0.95（大多數集中在 0.90～0.91）　　CP ≈ 17 × 作業^0.35 + 180
+       * 建議的「最終三項數值」一律落在這條射線上（作業＝S，加工＝比例×S，CP＝公式(S)）：不在射線上的結果不算答案。
+       * 玩家某一項已經比射線高就固定不動（不要求倒退），其餘項目沿射線往上；射線上找不到答案就把 S 繼續往上推。 */
       const DESIGN = { ct: 0.905, cpA: 17, cpP: 0.35, cpB: 180 };
       const cpAt = function (sc, off) { return DESIGN.cpA * Math.pow(Math.max(sc, 0), DESIGN.cpP) + DESIGN.cpB + off; };
       const scForCp = function (cp, off) { const d = cp - DESIGN.cpB - off; return d <= 0 ? 0 : Math.pow(d / DESIGN.cpA, 1 / DESIGN.cpP); };
       const VARIANTS = [{ ct: DESIGN.ct, cpOff: 0 }, { ct: 0.95, cpOff: -10 }, { ct: 0.89, cpOff: 10 }]; // 主方案＋兩個比重略有不同的備選（都在參考的誤差範圍內，不會極端）
-      /* 射線上的目標數值：作業、加工沿比例；CP 取「比例公式的值」與「這套手法實際需要的 CP」中較大者。
-       * CP 公式只是典型配置的關係，不是約束：有些配方（例如專家配方）需要的 CP 遠高於公式值，如果把公式當成條件，
-       * 作業精度會被推到誇張的高度、超過手法能承受的上限，所有候選都變成「不可行」。所以倍率只由作業與加工決定。 */
-      const rayB = function (sc, v, needCp, needCt) {
-        const T = { craftsmanship: sc, control: full ? v.ct * sc : (needCt || 0), cp: Math.max(cpAt(sc, v.cpOff), needCp || 0) };
+      /* 射線上的目標數值：作業、加工、CP 三項全部沿比例（CP 不再取「手法實際需要的 CP」的較大者）。
+       * 手法需要的 CP 比射線高時，不是把 CP 單獨拉高，而是把整條射線往上推（S 變大，三項一起變大），
+       * 直到射線上的 CP 夠用；這樣最終呈現的三項數值永遠符合設計者比例。玩家已經比射線高的項目維持原值。 */
+      const rayB = function (sc, v) {
+        const T = { craftsmanship: sc, control: v.ct * sc, cp: cpAt(sc, v.cpOff) };
         const B = {};
         STAT_KEYS.forEach(function (k) { B[k] = goalKeys.indexOf(k) >= 0 ? Math.max(baseB[k], roundUp(T[k])) : baseB[k]; });
         return B;
@@ -4179,16 +4181,16 @@ app._craftReady = function () {
         });
         return best;
       };
-      const minScale = function (need, v) { // 這套手法在這條射線上最小要多少倍率才做得到（倍率只由作業與加工決定）
-        // 「最低需求」是單調的（越高越容易達到），先忽略上限找出最小倍率；再檢查那個倍率下作業精度有沒有高到讓手法失效
-        let hi = Math.max(need.craftsmanship, full ? need.control / v.ct : 0, 0);
-        hi = roundUp(hi + STEP);
-        if (!comboMeeting(rayB(hi, v, need.cp, need.control), need, true)) return null;
+      const minScale = function (need, v) { // 這套手法在這條射線上最小要多少 S 才做得到（三項一起決定：作業、加工÷比例、CP 反推公式）
+        // 「最低需求」是單調的（越高越容易達到），先忽略上限找出最小的 S；再檢查那個 S 下作業精度有沒有高到讓手法失效
+        let hi = Math.max(need.craftsmanship, need.control / v.ct, scForCp(need.cp, v.cpOff), 0);
+        hi = roundUp(hi + STEP); // 射線上三項都 ≥ 需求，所以這個 S 一定夠
+        if (!comboMeeting(rayB(hi, v), need, true)) return null;
         let lo = 0;
-        if (!comboMeeting(rayB(0, v, need.cp, need.control), need, true)) {
-          while (hi - lo > STEP) { const mid = roundUp((lo + hi) / 2); if (mid >= hi) break; if (comboMeeting(rayB(mid, v, need.cp, need.control), need, true)) hi = mid; else lo = mid; }
+        if (!comboMeeting(rayB(0, v), need, true)) {
+          while (hi - lo > STEP) { const mid = roundUp((lo + hi) / 2); if (mid >= hi) break; if (comboMeeting(rayB(mid, v), need, true)) hi = mid; else lo = mid; }
         } else hi = 0;
-        const B = rayB(hi, v, need.cp, need.control);
+        const B = rayB(hi, v);
         return comboMeeting(B, need) ? { sc: hi, B: B } : null;
       };
       const rayRoutes = async function (raw, final) {
@@ -4254,22 +4256,10 @@ app._craftReady = function () {
           if (frows.length) { report(g, frows); return { done: true, items: items }; }
         }
         /* 3. 需要提升裝備數值。
-         * 「設計者比例」：每套新裝備帶來的三項總能力值，作業：加工 ≈ 1：0.9，CP ≈ 0.0293 × 作業 + 410（玩家提供的參考）。
-         * 建議目標＝沿這個比例找出「做得到的最小倍率」；玩家某一項已經比目標高就固定不動（不會要求他倒退，也不會硬要他補平），其餘項目沿比例往上。
-         * 這樣目標數值本身就貼近設計者的配置，不看「提升多少」，也就不會把某一項拉到誇張的高度。 */
-        let rows3 = await rayRoutes(raw, final);
-        if (!rows3.length) { // 備援：沿比例找不到合用的手法時，改列「每套手法各自最低需求」中提升最小的（卡片不會因此消失）
-          const gear = items.filter(function (x) { return x.t.cost >= 1e-9; });
-          for (let i = 0; i < gear.length && rows3.length < 3; i++) {
-            const x = gear[i], B = x.t.B, c = x.t.c;
-            if (rows3.some(function (r0) { return STAT_KEYS.every(function (k) { return Math.abs(r0._B[k] - B[k]) <= STEP; }); })) continue;
-            const o = await verify(x, finalFor(B, c));
-            if (!o) continue;
-            rows3.push({ grp: g, order: 5 + rows3.length, kind: 'route', route: true, tight: final && rows3.length === 0, key: 't-' + g + '-' + STAT_KEYS.map(function (k) { return B[k]; }).join('-'), icon: 'ph-shield', _B: B,
-              prep: (hqTrial ? chip('ph-star', '全 HQ 材料', false) : '') + comboChips(c),
-              stats: STAT_KEYS.map(function (k) { return { key: k, from: baseB[k], to: B[k], delta: B[k] - baseB[k] }; }), trial: { result: o.result, craft: o.craft } });
-          }
-        }
+         * 「設計者比例」：每套新裝備帶來的三項總能力值，作業：加工 ≈ 1：0.905，CP ≈ 17 × 作業^0.35 + 180（玩家提供的參考，實際常數見 DESIGN）。
+         * 建議目標＝沿這個比例找出「做得到的最小 S」；玩家某一項已經比射線高就固定不動（不會要求他倒退），其餘項目沿比例往上。
+         * 三項最終數值都落在射線上；不在射線上的不算答案，射線上暫時沒有答案就繼續把 S 往上推，不再退回「各項最低需求」。 */
+        const rows3 = await rayRoutes(raw, final);
         if (rows3.length) report(g, rows3);
         return { done: false, items: items, shown: rows3.length, sMin: rows3.length ? rows3[0].sMin : null };
       };
