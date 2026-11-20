@@ -425,8 +425,8 @@ app._craftReady = function () {
           '</div>' +
           '<div id="cf-solve-nav" class="craft-solve-nav" style="display:none">' +
             '<div class="craft-solve-nav-mode-toggle" id="cf-solve-nav-mode">' +
-              '<button type="button" data-mode="history" class="active"><i class="ph ph-clock-counter-clockwise"></i>瀏覽紀錄</button>' +
-              '<button type="button" data-mode="batch"><i class="ph ph-list-numbers"></i>批次順序</button>' +
+              '<button type="button" data-mode="history" class="active" title="目前：瀏覽紀錄（點一下切換成批次順序）"><i class="ph ph-clock-counter-clockwise"></i><span class="cnm-text">瀏覽紀錄</span><i class="ph ph-arrows-left-right cnm-swap"></i></button>' +
+              '<button type="button" data-mode="batch" title="目前：批次順序（點一下切換成瀏覽紀錄）"><i class="ph ph-list-numbers"></i><span class="cnm-text">批次順序</span><span class="cnm-pos" id="cf-solve-nav-pos-mini"></span><i class="ph ph-arrows-left-right cnm-swap"></i></button>' +
             '</div>' +
             '<div class="craft-solve-nav-row">' +
               '<button type="button" id="cf-solve-prev" class="craft-solve-nav-btn"><i class="ph ph-caret-left"></i><span id="cf-solve-prev-label"></span></button>' +
@@ -2137,7 +2137,7 @@ app._craftReady = function () {
   $('cf-solve-next').addEventListener('click', function () { if (solveNavMode === 'batch') stepBatchSeq(1); else stepSolveHistory(1); });
   $('cf-solve-nav-mode').querySelectorAll('button').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      solveNavMode = btn.dataset.mode;
+      solveNavMode = solveNavMode === 'batch' ? 'history' : 'batch'; // 切換式：只看得到目前模式的那顆，點它＝切到另一個
       renderSolveNav();
     });
   });
@@ -2320,6 +2320,7 @@ app._craftReady = function () {
       $('cf-solve-prev-label').textContent = hasPrev ? batchList[batchSeqIndex - 1].name : '';
       $('cf-solve-next-label').textContent = hasNext ? batchList[batchSeqIndex + 1].name : (batchSeqIndex < 0 ? '開始' : '');
       $('cf-solve-nav-pos').textContent = batchSeqIndex >= 0 ? ('第 ' + (batchSeqIndex + 1) + ' / ' + batchList.length + ' 項') : ('共 ' + batchList.length + ' 項');
+      $('cf-solve-nav-pos-mini').textContent = batchSeqIndex >= 0 ? ((batchSeqIndex + 1) + '/' + batchList.length) : ('共' + batchList.length);
       return;
     }
 
@@ -2335,6 +2336,7 @@ app._craftReady = function () {
     $('cf-solve-prev-label').textContent = restoring ? recipeNameById(solveHistory[solveHistoryIndex]) : (hasPrev ? recipeNameById(solveHistory[solveHistoryIndex - 1]) : '');
     $('cf-solve-next-label').textContent = hasNext ? recipeNameById(solveHistory[solveHistoryIndex + 1]) : '';
     $('cf-solve-nav-pos').textContent = '';
+    $('cf-solve-nav-pos-mini').textContent = '';
     $('cf-solve-nav-clear').style.display = solveHistory.length ? '' : 'none';
   }
 
