@@ -65,7 +65,7 @@
  * 改成直接讓每個欄位本身變成一個垂直排列、內容置中的flex容器，不管裡面塞了label／stepper／badge，
  * 都是靠容器自己的align-items:center硬性置中，不會有「繼承没生效」的問題。 */
 .craft-stats-grid>div{min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center}
-.craft-stats-grid label{display:block;font-size:11px;color:var(--dim);margin-bottom:3px}
+.craft-stats-grid label{display:block;font-size:12px;color:var(--dim);margin-bottom:3px}
 /* 原本是inline-flex，跟同一列的.craft-stepper維持在同一行，於是badge文字（如「+118 → 2,340」）
  * 直接從卡片右側整個溢出、疊到旁邊的欄位上。改成block讓它換到新的一行，
  * 並用width:100%+box-sizing把它鎖在跟上面.craft-stepper一樣的欄寬內，超出寬度就自動換行，
@@ -127,7 +127,7 @@
 .craft-profile-card-name{font-size:13px;color:var(--main)}
 .craft-profile-card-specialist{margin:0;font-size:11px;color:var(--dim);flex-shrink:0}
 .craft-profile-card-fields{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.craft-profile-card-fields label{display:flex;flex-direction:column;gap:3px;font-size:10px;color:var(--dim);text-align:center}
+.craft-profile-card-fields label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim);text-align:center}
 .craft-profile-card-fields input[type=number]{
   width:100%;background:rgba(0,0,0,.5);border:1px solid var(--tb);color:var(--main);
   font-family:"Noto Serif TC",serif;font-size:.82rem;padding:5px 2px;border-radius:4px;text-align:center;box-sizing:border-box
@@ -139,13 +139,14 @@
 .craft-link{font-size:11px;color:var(--gold)}
 button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;display:inline-flex;align-items:center;gap:2px;font-family:inherit}
 .craft-muted{color:var(--dim);font-size:11px}
+.craft-col-solve .craft-muted{font-size:12px}
 #cf-skill-chevron{transition:transform .2s;font-size:14px;color:var(--dim)}
 .craft-skill-list{display:none;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:10px;max-height:280px;overflow-y:auto}
 .craft-skill-list.open{display:grid}
 .craft-skill-item{display:flex;flex-direction:column;gap:2px;font-size:12px;padding:3px 0;cursor:pointer}
 .craft-skill-item-main{display:flex;align-items:center;gap:6px}
 .craft-skill-item input{width:13px;height:13px;margin:0;flex-shrink:0}
-.craft-skill-lvl{margin-left:19px;color:var(--dim);font-size:10px;line-height:1.4}
+.craft-skill-lvl{margin-left:19px;color:var(--dim);font-size:11px;line-height:1.4}
 .craft-skill-locked{opacity:0.3;cursor:default}
 
 .craft-filter-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-bottom:10px}
@@ -170,7 +171,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-recipe-item:hover{background:rgba(197,160,89,0.1)}
 .craft-recipe-item-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .craft-recipe-empty{padding:10px;font-size:12px;color:var(--dim)}
-.craft-feasibility{font-size:10px;padding:1px 6px;border-radius:4px;flex-shrink:0;white-space:nowrap}
+.craft-feasibility{font-size:11px;padding:1px 6px;border-radius:4px;flex-shrink:0;white-space:nowrap}
 .craft-feasibility-ok{background:rgba(125,196,138,.15);color:#7dc48a;border:1px solid rgba(125,196,138,.3)}
 .craft-feasibility-no{background:rgba(224,131,122,.15);color:#e0837a;border:1px solid rgba(224,131,122,.3)}
 .craft-recipe-selected{margin-top:8px}
@@ -249,22 +250,29 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-mat-name{color:var(--main);display:inline-flex;align-items:center;gap:5px}
 
 /* 求解對象上一個/下一個導覽列，緊接在「求解目標」提示條下面 */
-.craft-solve-nav{display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.craft-solve-nav{display:flex;flex-direction:row;align-items:center;gap:6px;margin:6px 0;container:cnav / inline-size}
 /* 「瀏覽紀錄」／「批次順序」模式切換鈕：兩個小按鈕像分頁籤，選中的那個用金色標示，
  * 這樣主界面本身就能決定上一個/下一個現在切的是哪一套清單，不用再開抽屜才能用批次的依序求解 */
-.craft-solve-nav-mode-toggle{display:flex;gap:4px}
+.craft-solve-nav-mode-toggle{display:flex;flex:0 0 auto}
 .craft-solve-nav-mode-toggle button{
-  flex:1;display:flex;align-items:center;justify-content:center;gap:4px;
-  padding:4px 6px;font-size:10px;border:1px solid var(--tb);border-radius:5px;background:transparent;color:var(--dim);cursor:pointer
-}
+  flex:0 0 auto;display:none;align-items:center;justify-content:center;gap:5px;white-space:nowrap;
+  padding:6px 10px;font-size:13px;border:1px solid var(--tb);border-radius:6px;background:transparent;color:var(--dim);cursor:pointer;font-family:"Noto Serif TC",serif}
+/* 切換式：只顯示目前的模式，點一下切到另一個 */
+.craft-solve-nav-mode-toggle button.active{display:flex}
+.craft-solve-nav-mode-toggle .cnm-swap{font-size:12px;opacity:.6}
+.craft-solve-nav-mode-toggle .cnm-pos{font-size:12px;color:var(--gold);opacity:.9}
+.craft-solve-nav-mode-toggle .cnm-pos:empty{display:none}
+#cf-solve-nav-pos{display:none}
+/* 導覽列太窄時：切換鈕只留圖示（＋批次進度），把空間讓給求解對象名稱 */
+@container cnav (max-width:420px){ .craft-solve-nav-mode-toggle .cnm-text{display:none} .craft-solve-nav-mode-toggle button{padding:6px 8px} }
 .craft-solve-nav-mode-toggle button.active{background:rgba(197,160,89,.14);border-color:rgba(197,160,89,.5);color:var(--gold-bright)}
 .craft-solve-nav-mode-toggle button:hover:not(.active){border-color:rgba(197,160,89,.35);color:var(--main)}
-.craft-solve-nav-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.craft-solve-nav-label{flex-shrink:0;display:flex;align-items:center;gap:3px;font-size:10px;color:var(--dim);white-space:nowrap}
+.craft-solve-nav-row{display:flex;flex:1 1 0;min-width:0;justify-content:space-between;align-items:center;gap:6px}
+.craft-solve-nav-label{flex-shrink:0;display:flex;align-items:center;gap:3px;font-size:11px;color:var(--dim);white-space:nowrap}
 .craft-solve-nav-btn{
   flex:1 1 0;min-width:0;display:flex;align-items:center;gap:4px;justify-content:center;
   background:rgba(255,255,255,.02);border:1px solid var(--tb);border-radius:6px;color:var(--dim);
-  font-size:12px;padding:6px 8px;cursor:pointer;font-family:"Noto Serif TC",serif;
+  font-size:13px;padding:6px 8px;cursor:pointer;font-family:"Noto Serif TC",serif;
   overflow:hidden;white-space:nowrap;text-overflow:ellipsis
 }
 .craft-solve-nav-btn:hover:not(:disabled){border-color:rgba(197,160,89,.5);color:var(--main)}
@@ -478,7 +486,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 
 .craft-macro-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .craft-macro-block{margin-bottom:4px}
-.craft-macro-seg-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--dim);margin-bottom:3px}
+.craft-macro-seg-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--dim);margin-bottom:3px}
 .craft-copy-btn{padding:4px 10px;font-size:12px;border:1px solid var(--tb);background:transparent;color:var(--main);border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px}
 .craft-copy-btn:hover{border-color:var(--gold)}
 .craft-copy-btn-danger{color:#e0709a;border-color:rgba(224,112,154,.35)}
@@ -1190,7 +1198,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-settings-popover .pp-win{display:flex;width:100%;align-items:center;gap:8px;padding-left:0}
 .craft-settings-popover .pp-win .pp-seg{flex:1 1 auto;min-width:0}
 .craft-settings-popover .pp-win .pp-btn{flex:1 1 0;text-align:center;padding:4px 4px;font-size:11.5px}
-.pp-sync-hint{font-size:10px;margin:6px 0 0}
+.pp-sync-hint{font-size:11px;margin:6px 0 0}
 /* 選「最低價」時整列收起：上面的 display:flex 會蓋掉 [hidden]，這裡補回去 */
 .craft-settings-popover .pp-win[hidden]{display:none}
 
@@ -1237,7 +1245,7 @@ button.craft-link{background:transparent;border:none;cursor:pointer;padding:0;di
 .craft-tip-item{display:inline-flex;align-items:center;gap:3px;padding:0 6px;height:18px;color:var(--main);border:1px solid rgba(197,160,89,.35);border-radius:4px}
 .craft-tip-item em{font-style:normal;font-size:10px;color:var(--gold-bright)}
 .craft-tip-ok{color:#4ade80;font-size:11px}
-.craft-tip-tag{font-size:10px;color:var(--dim);border:1px solid var(--tb);border-radius:4px;padding:0 5px}
+.craft-tip-tag{font-size:11px;color:var(--dim);border:1px solid var(--tb);border-radius:4px;padding:0 5px}
 /* 結果條：起始品質分色、滿品質發光 */
 .craft-bar-track{position:relative}
 .craft-fill-start{position:absolute;left:0;top:0;background:linear-gradient(90deg,#a9741f,#e0a83a);z-index:1}
