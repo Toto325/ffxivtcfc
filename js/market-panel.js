@@ -352,7 +352,7 @@
     } catch (e) { /* 抓不到清單就先不管，畫面照常運作 */ }
     pop.style.display = 'flex';
     const r = anchorBtn.getBoundingClientRect();
-    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 280)) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 316)) + 'px';
     pop.style.top = (r.bottom + 6) + 'px';
   }
 
@@ -908,7 +908,7 @@
     delete pop.dataset.dir; // 剛打開才重新決定往上還是往下開，之後內容變化沿用同一邊（見 placePopover）
     pop.dataset.owner = 'avg';
     pop.classList.add('mav-pop');
-    pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取歷史成交中⋯</p>';
+    pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:13px;margin:0">讀取歷史成交中⋯</p>';
     pop.style.display = 'block';
     placePopover(pop, anchorBtn.getBoundingClientRect());
     try {
@@ -927,7 +927,7 @@
         if (row) { row.querySelector('strong').textContent = (ov2 && ov2.avgPrice) ? Math.round(ov2.avgPrice).toLocaleString() : '—'; if (!(ov2 && ov2.avgPrice)) row.querySelector('small').textContent = '無掛單'; }
       } catch (e) { const row = document.getElementById('mk-avgprice-listing'); if (row) { row.querySelector('strong').textContent = '—'; row.querySelector('small').textContent = '讀取失敗'; } }
     } catch (e) {
-      pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取失敗，請稍後再試。</p>';
+      pop.innerHTML = '<p class="mav-title">均價比較' + scopeLabel + '</p><p class="craft-muted" style="font-size:13px;margin:0">讀取失敗，請稍後再試。</p>';
     }
   }
 
@@ -2446,7 +2446,7 @@
   // 跟物品詳情頁本來就有的5窗口均價彈窗（openAvgPricePopover）是完全獨立的另一份UI，不受影響。
   const AVG_WINDOW_OPTIONS = [['current', '當前'], ['1d', '1天'], ['3d', '3天'], ['7d', '7天']];
   function avgWindowSelectHtml(id, cur) {
-    return '<select id="' + id + '" class="craft-select" style="font-size:11px">' +
+    return '<select id="' + id + '" class="craft-select" style="font-size:13px">' +
       AVG_WINDOW_OPTIONS.map(function (w) { return '<option value="' + w[0] + '"' + (cur === w[0] ? ' selected' : '') + '>' + w[1] + '</option>'; }).join('') +
       '</select>';
   }
@@ -2496,7 +2496,7 @@
       '<div class="market-supply-settings-row">' + MarketData.pricePrefsBarHtml(['buy'], { windows: true, lead: false }) + '</div>' +
         '<p class="craft-muted pp-sync-hint">與生產頁同步</p>' +
             '<div class="market-supply-settings-row"><span>材料品質（全域）</span>' +
-        '<select id="mk-sup-persp" class="craft-select" style="font-size:11px">' +
+        '<select id="mk-sup-persp" class="craft-select" style="font-size:13px">' +
           '<option value="nq"' + (s.matPersp === 'nq' ? ' selected' : '') + '>NQ</option>' +
           '<option value="hq"' + (s.matPersp === 'hq' ? ' selected' : '') + '>HQ</option>' +
           '<option value="auto"' + (s.matPersp === 'auto' ? ' selected' : '') + '>自動（比較NQ/HQ取較低）</option>' +
@@ -2505,7 +2505,7 @@
       '<button type="button" class="market-supply-settings-row market-crystal-toggle" id="mk-sup-crystal" data-on="' + (crystalOn ? '1' : '0') + '">' +
         '<span>忽略水晶成本</span><span class="market-crystal-icon">' + (crystalOn ? '💎' : '◇') + '</span></button>' +
       (graphIds.length ? (
-        '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:11px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
+        '<button type="button" class="market-supply-settings-row market-override-toggle" id="mk-sup-ov-toggle"><span>個別材料品質' + (s.materialsBasis === 'avg' ? '<span class="craft-muted" style="font-size:13px;margin-left:4px">（均價不分品質）</span>' : '') + '</span><i class="ph ph-caret-' + (supplyOverrideSectionOpen ? 'down' : 'right') + '"></i></button>' +
         '<div id="mk-sup-ov-body" style="display:' + (supplyOverrideSectionOpen ? 'block' : 'none') + '">' + overrideRows + '</div>'
       ) : '');
     // 錨點：左右跟著齒輪，上下用「整列操作列」的上緣／下緣。齒輪比旁邊的「查看完整供應鏈清單」按鈕矮，
@@ -4355,7 +4355,8 @@
     return null;
   }
   let tokenCatSel = 'all'; // 目前選的分類，重畫、切換分頁回來都維持
-  let tokenShowHidden = false;
+  const TOKEN_SHOWHIDDEN_KEY = 'ff14fc-token-showhidden';
+  let tokenShowHidden = false; // 「顯示沒有可比價兌換物的代幣」勾選狀態（會記在 localStorage）
   let tokenPopCloser = null; // 齒輪彈出卡的「點外面就收起」監聽器
   let tokenExcludeSlow = false; // 「排除明顯滯銷物品」勾選狀態（會記在 localStorage）
   /* 預設隱藏的代幣：
@@ -4387,6 +4388,7 @@
       if (KEEP_TOKEN_IDS.has(x.id) || !dcData0) return;
       if (!buildCurrencyBestUses(x.id, dcData0, 'listing', 1, 'net').length) hiddenIds[x.id] = true;
     });
+    try { tokenShowHidden = localStorage.getItem(TOKEN_SHOWHIDDEN_KEY) === '1'; } catch (e) { tokenShowHidden = false; }
     const hiddenCount = allList.filter(function (x) { return hiddenIds[x.id]; }).length;
     // 分組：每個代幣歸到一個分類；組內依「可換種類數」多到少。顯示／隱藏切換時要重算，所以包成函式
     const groupOf = {};
@@ -4481,7 +4483,7 @@
     // 齒輪設定（比照上方「市場設定」的彈出卡）：兩個勾選項收在這裡，齒輪放在收合列上，平常就看得到。
     // 「顯示沒有可比價兌換物的代幣」勾選＝顯示、沒勾選＝隱藏（隱藏不是刪除，勾起來就全部看得到，用淡色標出「無可比價」）。
     function syncGear() {
-      const g = $('mk-token-gear'); if (g) g.classList.toggle('is-active', !!(tokenShowHidden || tokenExcludeSlow)); // 有開啟任何一項就亮點提示
+      const g = $('mk-token-gear'); if (g) g.classList.toggle('is-active', !!((hiddenCount && tokenShowHidden) || tokenExcludeSlow)); // 有開啟任何一項就亮點提示
     }
     function closeTokenPop() {
       const old = $('mk-token-popover'); if (old) old.remove();
@@ -4505,7 +4507,9 @@
       document.addEventListener('click', tokenPopCloser);
       const sh = $('mk-token-showhidden');
       if (sh) sh.addEventListener('change', function () {
-        tokenShowHidden = this.checked; rebuild(); renderCats(); renderList(); syncFoldSummary(); syncGear();
+        tokenShowHidden = this.checked;
+        try { localStorage.setItem(TOKEN_SHOWHIDDEN_KEY, tokenShowHidden ? '1' : '0'); } catch (e) { /* 存不了就只對這次有效 */ }
+        rebuild(); renderCats(); renderList(); syncFoldSummary(); syncGear();
       });
       $('mk-token-noslow').addEventListener('change', function () {
         tokenExcludeSlow = this.checked;
