@@ -101,7 +101,7 @@
 
 /* ── 供應鏈彈窗（層級 10035，比其他彈窗 10040 低：圖上再開的彈窗一定疊在上面） ── */
 .mk-chain-modal { z-index: 10035; }
-.mk-chain-modal .mk-chain-panel { width: min(820px, 94vw); max-height: 92vh; }
+.mk-chain-modal .mk-chain-panel { width: min(900px, 96vw); max-height: 92vh; } /* 加寬：5 張 156px 的卡片＋間距約需 830px */
 .mk-chain-modal .mk-chain-body { padding: 0 16px 16px; }
 .mk-chain-modal .msc-head { position: sticky; top: 0; z-index: 6; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--tb); margin: 0 -4px calc(14px - var(--msc-gap, 52px)); }
 .mk-chain-modal .msc-head-title { justify-self: start; color: var(--gold-bright); font-size: var(--fs-main); font-weight: 700; padding-left: 4px; }
@@ -154,16 +154,16 @@
 #mk-pane-item .mk-back-btn { max-width: 100%; text-align: left; align-items: flex-start; }
 #mk-pane-item .mk-back-btn span { overflow: visible; text-overflow: clip; white-space: normal; }
 
-/* ══════════ 標題列按鈕：容器不夠寬時只剩圖示，標題列不再換行 ══════════
-   容器寬＝物品頁整塊的寬度。兩欄時左欄只有一半，要放下「圖示＋名稱＋版本標籤＋三顆文字按鈕」約需 700px，
-   所以整塊 <1500px 就縮成圖示（想改門檻就改下面這個 1500px） */
-@container mkpane (max-width: 1500px) {
-  #mk-pane-item .market-detail-header { flex-wrap: nowrap; }
-  #mk-pane-item .market-detail-header h3 { flex: 1 1 80px; }
-  #mk-pane-item .market-detail-header .mk-btn-l { display: none; }
-  #mk-pane-item .market-detail-header .market-solve-btn,
-  #mk-pane-item .market-detail-header .market-watch-btn-header { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; padding: 0; font-size: 15px; }
-}
+/* ══════════ 標題列按鈕 ══════════
+   「加入關注」永遠只有圖示；「製作求解」「取得方式」預設完整文字，由 JS（fitDetailHeader）實際量過、
+   完整版會讓標題列變高（換行）時才加上 .is-compact 縮成圖示 */
+#mk-pane-item .market-detail-header .mk-btn-l { }
+#mk-pane-item .market-detail-header .market-watch-btn-header .mk-btn-l { display: none; }
+#mk-pane-item .market-detail-header .market-watch-btn-header { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; padding: 0; font-size: 15px; }
+#mk-pane-item .market-detail-header.is-compact { flex-wrap: nowrap; }
+#mk-pane-item .market-detail-header.is-compact h3 { flex: 1 1 80px; }
+#mk-pane-item .market-detail-header.is-compact .mk-btn-l { display: none; }
+#mk-pane-item .market-detail-header.is-compact .market-solve-btn { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; padding: 0; font-size: 15px; }
 
 /* ══════════ 代幣兌換：窄容器時每列改兩行（第一行名次＋完整名稱，第二行三個數字） ══════════ */
 #mk-pane-tokens { container: mktok / inline-size; }
@@ -177,7 +177,15 @@
   .mtr-row .mtr-label { white-space: normal; overflow: visible; text-overflow: clip; }
 }
 
-/* ══════════ 代幣兌換：「NPC 即賣排行」按鈕固定在每個代幣列的右上角（跟代幣名稱同一行） ══════════ */
+/* ══════════ 代幣兌換：「NPC 即賣排行」按鈕 ══════════
+   寬容器：跟代幣名稱同一行，右緣對齊下方排行表的右緣（表寬上限 780px＋左內距 24px＝804px），
+   也就是在「每1價值／賣速／成交頻率」表頭的正上方；窄容器：改成排行表上方獨立一行、靠右，避免壓到名稱。永遠顯示完整文字。 */
 .market-token-row { position: relative; }
-.market-token-row .mk-npc-open-row { position: absolute; top: 6px; right: 6px; margin: 0; z-index: 2; }
-@container mktok (max-width: 560px) { .market-token-row .mk-npc-open-row .mk-npc-open-l { display: none; } }
+.market-token-row .mk-npc-open-row { position: absolute; top: 6px; right: max(6px, calc(100% - 804px)); margin: 0; z-index: 2; }
+.market-token-row .mk-npc-open-row .mk-npc-open-l { display: inline; }
+@container mktok (max-width: 640px) {
+  .market-token-row .mk-npc-open-row { position: static; display: block; width: fit-content; margin: 0 max(0px, calc(100% - 780px)) 6px auto; }
+}
+
+/* ══════════ 掛單訊號跟「寄售稅後／更新時間」同一行：沒有訊號時整段隱藏 ══════════ */
+#mk-pane-item .mk-info-notes .mk-sig-item:has(.market-sig[style*="none"]) { display: none; }
