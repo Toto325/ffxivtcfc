@@ -6,7 +6,9 @@
    ‧ 供應鏈圖改為彈窗（#mk-chain-modal）；平常畫在看不見的 .mk-chain-host 裡
    ‧ 字級：內文 13、數值 14、在售最低 15（最大）。變數只在 #market-root 內有效，不影響其他頁面。
    ══════════════════════════════════════════════════════════════ */
-#market-root { --fs-main: 14px; --fs-head: 13px; --fs-sub: 12px; --fs-tiny: 11px; }
+#market-root { --fs-main: 14px; --fs-head: 13px; --fs-sub: 12px; --fs-tiny: 11px;
+  /* 供應鏈圖自己的一組字級（圖上卡片多、要小一級；只調這兩個就好，不影響全頁） */
+  --fs-chain-name: 13px; --fs-chain-price: 14px; }
 #mk-pane-item { container: mkpane / inline-size; position: relative; }
 
 /* ── 兩欄骨架 ── */
@@ -42,15 +44,15 @@
 #mk-pane-item .market-detail-header .market-solve-btn, #mk-pane-item .market-detail-header .market-history-btn { font-size: 12px; }
 
 /* ── 左欄：核心數字（框內一行一項，最低價最大） ── */
-#mk-pane-item .mdb-stats { display: block; padding: 8px 12px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
-#mk-pane-item .mdb-stats .market-stat-bar, #mk-pane-item .mdb-stats .market-stat-bar[data-fit] { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; border: 0; background: none; border-radius: 0; }
+#mk-pane-item .mdb-stats { flex: 0 0 auto; display: block; padding: 8px 12px; border: 1.2px solid var(--tb); border-radius: 8px; background: rgba(0,0,0,.4); }
+#mk-pane-item .mdb-stats .market-stat-bar, #mk-pane-item .mdb-stats .market-stat-bar[data-fit] { flex: 0 0 auto; display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; border: 0; background: none; border-radius: 0; }
 #mk-pane-item .mdb-stats .market-stat-tile { display: flex; flex-direction: row; justify-content: space-between; align-items: baseline; gap: 8px; padding: 5px 0; border: 0; border-bottom: 1px solid var(--tb); background: none; }
 #mk-pane-item .mdb-stats .market-stat-tile:first-child { padding-top: 0; }
 #mk-pane-item .mdb-stats .market-stat-tile:last-child { border-bottom: 0; padding-bottom: 0; }
 #mk-pane-item .mdb-stats .market-stat-tile-strong { background: none; }
 #mk-pane-item .mdb-stats .mst-label { font-size: var(--fs-head); color: var(--dim); }
 #mk-pane-item .mdb-stats .mst-val { font-size: var(--fs-main); font-weight: 700; color: var(--gold-bright); text-align: right; }
-#mk-pane-item .mdb-stats .market-stat-tile-strong .mst-val { font-size: 15px; color: #4ade80; }
+#mk-pane-item .mdb-stats .market-stat-tile-strong .mst-val { font-size: 16px; color: #4ade80; }
 #mk-pane-item .mdb-stats .mst-val small { font-size: var(--fs-sub); }
 #mk-pane-item .mdb-stats .mst-q { font-size: var(--fs-tiny); }
 
@@ -114,14 +116,14 @@
 .mk-chain-modal .msc-hero-name { grid-area: name; justify-content: flex-start; text-align: left; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
 .mk-chain-modal .msc-hero-step { grid-area: step; justify-self: end; }
 .mk-chain-modal .msc-hero-cmps { grid-area: cmps; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; }
-.mk-chain-modal .msc-hero .msc-tile { padding: 3px 10px; } .mk-chain-modal .msc-hero .msc-tile em { font-size: var(--fs-head); } .mk-chain-modal .msc-hero .msc-tile b { font-size: 15px; }
+.mk-chain-modal .msc-hero .msc-tile { padding: 3px 10px; } .mk-chain-modal .msc-hero .msc-tile em { font-size: var(--fs-head); } .mk-chain-modal .msc-hero .msc-tile b { font-size: var(--fs-chain-price); }
 .mk-chain-modal .msc-root[data-lv] .msc-cell { --msc-maxw: 172px; flex: 0 0 min(var(--msc-maxw), calc((100% - (var(--msc-cols,1) - 1) * 12px) / var(--msc-cols,1)));
   flex-direction: row; justify-content: center; align-items: center; gap: 8px; padding: 12px 9px 7px; text-align: center; }
 .mk-chain-modal .msc-cell .msc-ico { flex: none; }
 .mk-chain-modal .msc-cell .msc-body { align-items: center; text-align: center; min-width: 0; }
-.mk-chain-modal .msc-cell .msc-name { font-size: var(--fs-main); }
-.mk-chain-modal .msc-cell .msc-qty { font-size: var(--fs-main); }
-.mk-chain-modal .msc-cell .msc-price { font-size: 15px; }
+.mk-chain-modal .msc-cell .msc-name { font-size: var(--fs-chain-name); }
+.mk-chain-modal .msc-cell .msc-qty { font-size: var(--fs-chain-name); }
+.mk-chain-modal .msc-cell .msc-price { font-size: var(--fs-chain-price); }
 .mk-chain-modal .msc-cell.msc-more { flex-direction: column; }
 .mk-chain-modal .msc-key { font-size: var(--fs-sub); }
 @media (max-width: 480px) {
@@ -136,4 +138,33 @@
   #market-root .market-settings-btn { flex: 1 1 100%; }
   #market-root .market-tabs { gap: 2px; }
   #market-root .market-tabs .craft-tab-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; padding-left: 2px; padding-right: 2px; font-size: var(--fs-head); }
+}
+
+/* ══════════ 返回：獨立一行（放在標題列上方，不擠壓標題列；名稱不截斷，太長就自然換行） ══════════ */
+#mk-pane-item .mk-col-info > .mk-back-row { order: -1 !important; }
+#mk-pane-item .mk-back-row { margin: 0 0 2px; }
+#mk-pane-item .mk-back-btn { max-width: 100%; padding: 2px 0; background: none; border: 0; border-radius: 0; color: rgba(234,208,146,.85); text-align: left; align-items: flex-start; }
+#mk-pane-item .mk-back-btn span { overflow: visible; text-overflow: clip; white-space: normal; }
+#mk-pane-item .mk-back-btn:hover { background: none; color: #f3dfa6; text-decoration: underline; }
+
+/* ══════════ 標題列按鈕：容器窄時只剩圖示，標題列不再換行 ══════════
+   「容器寬」指物品頁整塊的寬度：單欄時＝整塊寬；兩欄時左欄約只有一半，所以兩欄且整塊 <1060px 也縮 */
+@container mkpane ((max-width: 520px) or ((min-width: 760px) and (max-width: 1060px))) {
+  #mk-pane-item .market-detail-header { flex-wrap: nowrap; }
+  #mk-pane-item .market-detail-header h3 { flex: 1 1 80px; }
+  #mk-pane-item .market-detail-header .mk-btn-l { display: none; }
+  #mk-pane-item .market-detail-header .market-solve-btn,
+  #mk-pane-item .market-detail-header .market-watch-btn-header { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; padding: 0; font-size: 15px; }
+}
+
+/* ══════════ 代幣兌換：窄容器時每列改兩行（第一行名次＋完整名稱，第二行三個數字） ══════════ */
+#mk-pane-tokens { container: mktok / inline-size; }
+@container mktok (max-width: 560px) {
+  .mtr-head, .mtr-row { grid-template-columns: 26px repeat(3, minmax(0, 1fr)); grid-template-areas: "rank name name name" ". val vel freq"; row-gap: 2px; }
+  .mtr-head .mtr-rank, .mtr-row .mtr-rank { grid-area: rank; }
+  .mtr-head .mtr-name, .mtr-row .mtr-name { grid-area: name; }
+  .mtr-head .mtr-val, .mtr-row .mtr-val { grid-area: val; }
+  .mtr-head .mtr-vel, .mtr-row .mtr-vel { grid-area: vel; }
+  .mtr-head .mtr-freq, .mtr-row .mtr-freq { grid-area: freq; }
+  .mtr-row .mtr-label { white-space: normal; overflow: visible; text-overflow: clip; }
 }

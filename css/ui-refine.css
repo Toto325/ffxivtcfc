@@ -273,7 +273,7 @@
 /* ───────── 10. 資料到位 ─────────
    市場：最低價那一列（.market-flexrow-best）出現時閃一道金光，價格數字由 ui-motion.js 滾動到定位。
    潛水艇／飛空艇：結果表出現時表頭掃過一道光（像掃描完成）。 */
-.market-flexrow-best { position: relative; }
+.market-flexrow-best { position: relative; overflow: hidden; }
 .market-flexrow-best::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(100deg, transparent 38%, rgba(255,236,170,.38) 50%, transparent 62%);
