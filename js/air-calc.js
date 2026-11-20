@@ -44,6 +44,21 @@ function airBestOrderFast(ids){
   walk(0,AIR_HOME,0,0);
   return{order:bestOrd,totalDist:survD+bestTD,totalRng:survR+bestTR};
 }
+/* airTripMinutes：飛空艇一趟的實際耗時（分鐘，整數）。
+ * 遊戲是把「每一段航程」與「每一站探索」各自換算成分鐘後「分別無條件捨去」，
+ * 再加上固定 12 小時（720 分）；不是把全部加總後才捨去一次。
+ * 舊寫法 totalDist/spd+720 只在最後捨去，會比遊戲多出 ~(每段 0.5 分)，站數越多差越大。
+ * 驗證：速度 98 時 05→07→08→06 與 07→08→06 兩組玩家實測，舊算法差 4、2 分，
+ * 新算法差 1、0 分。order 為出發順序（航區 id 陣列）。 */
+function airTripMinutes(order,spd){
+  let t=720,prev=AIR_HOME;
+  for(const id of order){
+    const e=(AIR_DIST[prev]||{})[id];const sec=AIR_SECTOR_MAP.get(id);
+    t+=Math.floor((e?e[0]:0)/spd)+Math.floor((sec?sec[6]:0)/spd);
+    prev=id;
+  }
+  return t;
+}
 function airCalcStats(h,r,f,a){const sum=i=>[h,r,f,a].reduce((t,p)=>t+(p?p[i]:0),0);return{fav:sum(3),sur:sum(4),ret:sum(5),spd:sum(6),rng:sum(7)};}
 /* 判斷某個目的地實際「拿得到」的物品，架構比照 subLootAvailableAt
  * （飛空艇探索門檻：達標=sec[9]、最佳=sec[10]）。 */
@@ -78,7 +93,7 @@ function airFindRoutes(rank,stats,mustInc,mustExcl,mustLootIds,desiredMin,useTim
     }
     const totalExp=secs.reduce((s,x)=>s+x[5],0);
     const totalTank=secs.reduce((s,x)=>s+x[13],0);
-    const timeMins=best.totalDist/stats.spd+720;
+    const timeMins=airTripMinutes(best.order,stats.spd);
     if(useTime&&timeMins>desiredMin*1.01)return;
     const epm=Math.floor(totalExp/Math.floor(timeMins));
     const hh=Math.floor(timeMins/60),mm=Math.floor(timeMins%60),dd=Math.floor(hh/24),rh=hh%24;
@@ -130,7 +145,7 @@ function airFindBuilds(sectorIds, ownedRanks, th, rank) {
     if (!secs.every(sec => airMeetsThreshold(st.sur, sec[9], sec[10], th.sur))) continue;
     if (!secs.every(sec => airMeetsThreshold(st.ret, sec[11], sec[12], th.ret))) continue;
     if (!secs.every(sec => airMeetsThreshold(st.fav, sec[8], sec[8], th.fav === 'met' ? 'normal' : th.fav))) continue;
-    const timeMins = best.totalDist / st.spd + 720;
+    const timeMins = airTripMinutes(best.order, st.spd);
     const hh = Math.floor(timeMins / 60), mm = Math.floor(timeMins % 60), dd = Math.floor(hh / 24), rh = hh % 24;
     const timeStr = dd > 0 ? `${dd}天${rh}小時${mm}分` : `${rh}小時${mm}分`;
     results.push({ hull: h, rigging: r, forecastle: f, aftcastle: a, st, cost, cap: maxCap, timeMins, timeStr, tank, secOrder: best.order });
@@ -182,7 +197,7 @@ function airFindBuildsForTiers(sectorTierMap, th, ownedRanks, rank) {
     if (!ok) continue;
     if (!secs.every(sec => airMeetsThreshold(st.ret, sec[11], sec[12], th.ret))) continue;
     if (!secs.every(sec => airMeetsThreshold(st.fav, sec[8], sec[8], th.fav === 'met' ? 'normal' : th.fav))) continue;
-    const timeMins = best.totalDist / st.spd + 720;
+    const timeMins = airTripMinutes(best.order, st.spd);
     const hh = Math.floor(timeMins / 60), mm = Math.floor(timeMins % 60), dd = Math.floor(hh / 24), rh = hh % 24;
     const timeStr = dd > 0 ? `${dd}天${rh}小時${mm}分` : `${rh}小時${mm}分`;
     results.push({ hull: h, rigging: r, forecastle: f, aftcastle: a, st, cost, cap: maxCap, timeMins, timeStr, tank, secOrder: best.order });
@@ -301,7 +316,7 @@ function airEvaluateOwnedCandidates(rank, candidates, ownedRanks, mustLootIds, d
     candidates.forEach(cand => {
       const combo = airBestComboForRng(frontier, cand.totalRng);
       if (!combo) return;
-      const timeMins = cand.totalDist / combo.st.spd + 720;
+      const timeMins = airTripMinutes(cand.secIds, combo.st.spd);
       if (useTime && timeMins > desiredMin * 1.01) return;
       const epm = Math.floor(cand.totalExp / Math.floor(timeMins));
       const hh = Math.floor(timeMins / 60), mm = Math.floor(timeMins % 60), dd = Math.floor(hh / 24), rh = hh % 24;
@@ -336,7 +351,7 @@ function airEvaluateOwnedCandidates(rank, candidates, ownedRanks, mustLootIds, d
           if (!mustLootIds.every(iid => allLootSet.has(iid))) continue;
         }
       }
-      const timeMins = cand.totalDist / combo.st.spd + 720;
+      const timeMins = airTripMinutes(cand.secIds, combo.st.spd);
       if (useTime && timeMins > desiredMin * 1.01) continue;
       if (lootTier && lootTier !== 'none' && !airRouteMeetsTier(cand.secIds, combo.st, lootTier)) continue;
       const epm = Math.floor(cand.totalExp / Math.floor(timeMins));
@@ -373,7 +388,7 @@ function airEvaluateSingleStats(candidates, stats, mustLootIds, desiredMin, useT
         if (!mustLootIds.every(iid => allLootSet.has(iid))) return;
       }
     }
-    const timeMins = cand.totalDist / stats.spd + 720;
+    const timeMins = airTripMinutes(cand.secIds, stats.spd);
     if (useTime && timeMins > desiredMin * 1.01) return;
     const epm = Math.floor(cand.totalExp / Math.floor(timeMins));
     const hh = Math.floor(timeMins / 60), mm = Math.floor(timeMins % 60), dd = Math.floor(hh / 24), rh = hh % 24;
