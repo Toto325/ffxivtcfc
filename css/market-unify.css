@@ -335,7 +335,7 @@ tr.market-hot-item:hover td,
 .mtr-wrap > .mtr-row:last-of-type { border-bottom: none; }
 
 /* ══════════════════════════════════════════════════════════════
-   代幣兌換頁：漏斗收合（比照熱度排行）＋搜尋框同一行；NPC 即賣排行的入口與彈窗
+   代幣兌換頁：漏斗收合（比照熱度排行）＋搜尋框同一行；商店賣價排行的入口與彈窗
    ══════════════════════════════════════════════════════════════ */
 .market-token-topbar { display: flex; align-items: stretch; gap: 8px; margin: 0 0 6px; }
 .market-token-topbar .market-fold-btn { width: auto; flex: 0 1 52%; margin: 0; min-width: 0; }
@@ -350,9 +350,8 @@ tr.market-hot-item:hover td,
   border: 1px solid rgba(143,209,158,.35); border-radius: 6px;
 }
 .mk-npc-open:hover { background: rgba(143,209,158,.18); border-color: rgba(143,209,158,.65); }
-@container (max-width: 200px) { .mk-npc-open-l { display: none; } }
 
-/* NPC 即賣排行：從按鈕往上彈出的小浮層，只有一層外框（列表自己不再畫邊框） */
+/* 商店賣價排行：從按鈕往上彈出的小浮層，只有一層外框（列表自己不再畫邊框） */
 .mk-npc-pop {
   position: fixed; z-index: 3000; display: none; flex-direction: column;
   width: min(460px, calc(100vw - 16px)); box-sizing: border-box;

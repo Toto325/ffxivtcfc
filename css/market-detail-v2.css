@@ -205,15 +205,20 @@
   .mtr-row .mtr-label { white-space: normal; overflow: visible; text-overflow: clip; }
 }
 
-/* ══════════ 代幣兌換：「NPC 即賣排行」按鈕 ══════════
-   寬容器：跟代幣名稱同一行，右緣對齊下方排行表的右緣（表寬上限 780px＋左內距 24px＝804px），
-   也就是在「每1價值／賣速／成交頻率」表頭的正上方；窄容器：改成排行表上方獨立一行、靠右，避免壓到名稱。永遠顯示完整文字。 */
-.market-token-row { position: relative; }
-.market-token-row .mk-npc-open-row { position: absolute; top: 6px; right: max(6px, calc(100% - 804px)); margin: 0; z-index: 2; }
-.market-token-row .mk-npc-open-row .mk-npc-open-l { display: inline; }
-@container mktok (max-width: 640px) {
-  .market-token-row .mk-npc-open-row { position: static; display: block; width: fit-content; margin: 0 max(0px, calc(100% - 780px)) 6px auto; }
-}
+/* ══════════ 代幣兌換：「商店賣價排行」按鈕 ══════════
+   名稱列 = 一個可以換行的橫排：[展開按鈕（箭頭／圖示／名稱／可換N種…）] 　[🏪 商店賣價排行（N） ›]
+   放得下 → 同一行、按鈕靠右；放不下 → 先縮成「商店價」再試（由 market-panel.js 的 fitNpcBtn 實際量過）；
+   還是放不下 → 按鈕自然換到下一行（靠右、恢復完整文字）。右緣對齊下方排行表的右緣（表寬上限 780px＋左內距 24px＝804px）。
+   按鈕只在這一列展開時出現。 */
+.market-token-headrow { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; padding-right: max(6px, calc(100% - 804px)); }
+.market-token-headrow .market-token-head { flex: 1 1 auto; width: auto; min-width: 0; }
+.mk-npc-slot { display: none; flex: none; margin-left: auto; }
+.market-token-row.is-open .mk-npc-slot:not(:empty) { display: block; }
+.market-token-row[data-npc-fit="wrap"] .mk-npc-slot { margin-bottom: 6px; }
+.mk-npc-slot .mk-npc-open { margin: 0; }
+.mk-npc-l-short { display: none; }
+.mk-npc-open.is-short .mk-npc-l-full { display: none; }
+.mk-npc-open.is-short .mk-npc-l-short { display: inline; }
 
 /* ══════════ 掛單訊號跟「寄售稅後／更新時間」同一行：沒有訊號時整段隱藏 ══════════ */
 #mk-pane-item .mk-info-notes .mk-sig-item:has(.market-sig[style*="none"]) { display: none; }
