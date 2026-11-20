@@ -109,7 +109,7 @@
     const top = navStack[navStack.length - 1];
     if (!top) return '';
     const label = top.kind === 'tab' ? top.label : top.name;
-    return '<div class="mk-back-row"><button type="button" class="mk-back-btn" id="mk-back-btn" title="返回「' + escHtml(label) + '」"><i class="ph ph-caret-left"></i><span>返回「' + escHtml(label) + '」</span></button></div>';
+    return '<div class="mk-back-row"><button type="button" class="mk-back-btn" id="mk-back-btn" title="返回「' + escHtml(label) + '」"><i class="ph ph-caret-left"></i><span>返回 ' + escHtml(label) + '</span></button></div>';
   }
   (function () {
     const rawNav = app.nav;
@@ -4658,7 +4658,8 @@
       function sortHead(key, cls, html, tip) {
         return '<button type="button" class="mtr-sort ' + cls + (sortKey === key ? ' active' : '') + '" data-token-sort="' + key + '" title="' + tip + '">' + html + '</button>';
       }
-      const headHtml = '<div class="mtr-head"><span class="mtr-rank"></span><span class="mtr-name">' + (npcCount ? '<button type="button" class="mk-npc-open" data-npc-open="' + id + '" title="只看賣給系統 NPC 的價格排行（固定價格、不需要等買家、必定成交），共 ' + npcCount + ' 種">🏪<span class="mk-npc-open-l"> NPC 即賣排行（' + npcCount + '）</span> ›</button>' : '') + '</span>' +
+      const npcBtnHtml = npcCount ? '<button type="button" class="mk-npc-open mk-npc-open-row" data-npc-open="' + id + '" title="只看賣給系統 NPC 的價格排行（固定價格、不需要等買家、必定成交），共 ' + npcCount + ' 種">🏪<span class="mk-npc-open-l"> NPC 即賣排行（' + npcCount + '）</span> ›</button>' : '';
+      const headHtml = '<div class="mtr-head"><span class="mtr-rank"></span><span class="mtr-name">' + '' + '</span>' +
         sortHead('net', 'mtr-val', '每1' + itemIconHtml(id, 13) + '價值', '用1個這種代幣，大約能換到多少金幣的東西（換成最划算的那一種）') +
         sortHead('vel', 'mtr-vel', '賣速', '最近每天大約賣出幾件') +
         sortHead('txnFreq', 'mtr-freq', '成交頻率', '近30天平均每天成交幾筆；30天內成交不到5筆時算不出來，顯示「<5筆/月」') +
@@ -4674,7 +4675,7 @@
       if (best.some(function (r) { return r.viaChain; })) legendParts.push('🔗→ 再兌換成該物品後的市價');
       if (best.some(function (r) { return r.viaNpc; })) legendParts.push('🏪 以 NPC 收購價估算（不可交易）');
       if (best.some(function (r) { return r.locked; })) legendParts.push('🔒 需先完成任務或成就');
-      body.innerHTML = '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
+      body.innerHTML = npcBtnHtml + '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
         const label = r.resultItems.map(function (x) { return itemRefHtml(x[0], { name: true }) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
         // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
