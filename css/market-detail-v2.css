@@ -29,7 +29,7 @@
   #mk-pane-item .mk-col-info .mk-info-world { order: 3 !important; } #mk-pane-item .mk-col-info .mk-info-notes { order: 4 !important; }
   #mk-pane-item #mk-detail-market { order: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   #mk-pane-item #mk-detail-market > * { flex-shrink: 0; }
-  #mk-pane-item #mk-listing-table-slot { flex: 1; min-height: 0; overflow-y: auto; }
+  #mk-pane-item #mk-listing-table-slot { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; }
 }
 /* 視窗 ≤720px（手機）：沿用原本整頁往下捲的做法 */
 @media (max-width: 720px) { #mk-pane-item .mk-v2 { overflow: visible; flex: none; } }
@@ -108,12 +108,12 @@
 /* ── 供應鏈圖：沿用原本全部美術（卡片框、徽章、連線、光點、脈衝），只修排版 ── */
 .mk-chain-modal .msc-root[data-lv] { --msc-gap: 52px; --msc-rowgap: 26px; padding: 4px 0 0; gap: var(--msc-gap); }
 .mk-chain-modal .msc-root[data-lv] .msc-row { gap: var(--msc-rowgap) 12px; }
-.mk-chain-modal .msc-root[data-lv] .msc-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; grid-template-areas: "ico name step" "cmps cmps cmps";
+.mk-chain-modal .msc-root[data-lv] .msc-hero { display: grid; grid-template-columns: auto minmax(0,1fr) auto; grid-template-areas: "ico name step" "ico cmps cmps";
   align-items: center; column-gap: 12px; row-gap: 8px; width: 100%; max-width: 540px; margin: 0 auto; padding: 10px 14px; box-sizing: border-box; }
 .mk-chain-modal .msc-hero-ico { grid-area: ico; }
 .mk-chain-modal .msc-hero-name { grid-area: name; justify-content: flex-start; text-align: left; font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
 .mk-chain-modal .msc-hero-step { grid-area: step; justify-self: end; }
-.mk-chain-modal .msc-hero-cmps { grid-area: cmps; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mk-chain-modal .msc-hero-cmps { grid-area: cmps; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; min-width: 0; }
 .mk-chain-modal .msc-hero .msc-tile { padding: 3px 10px; } .mk-chain-modal .msc-hero .msc-tile em { font-size: var(--fs-head); } .mk-chain-modal .msc-hero .msc-tile b { font-size: 15px; }
 .mk-chain-modal .msc-root[data-lv] .msc-cell { --msc-maxw: 172px; flex: 0 0 min(var(--msc-maxw), calc((100% - (var(--msc-cols,1) - 1) * 12px) / var(--msc-cols,1)));
   flex-direction: row; justify-content: center; align-items: center; gap: 8px; padding: 12px 9px 7px; text-align: center; }
