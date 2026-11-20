@@ -42,10 +42,22 @@
   const ITEM_PANE_PLACEHOLDER = '<p class="craft-muted">搜尋一個物品開始查詢——即時價格、跨服比價、銷售速度，如果是可製作品還會顯示完整供應鏈。</p>';
   function mainTabName() { const b = document.querySelector('.craft-tab-btn[data-mk-tab].active'); return b ? b.dataset.mkTab : 'item'; }
   function paneScroller(tab) { const p = $('mk-pane-' + tab); return p ? p.querySelector('.market-pane-scrollbody') : null; }
+  // 手機版（≤720px）整頁交給外層容器捲動（#viewport 或 .scene），window.scrollY 永遠是 0，所以要找出真正在捲的那層
+  function hostScroller() {
+    let el = $('market-root') || $('mk-pane-item');
+    while (el && el !== document.body && el !== document.documentElement) {
+      el = el.parentElement;
+      if (!el) break;
+      const oy = getComputedStyle(el).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1) return el;
+    }
+    return null;
+  }
   function captureOrigin(targetId) {
     const tab = mainTabName();
     const sc = paneScroller(tab);
-    const base = { pane: sc ? sc.scrollTop : 0, win: window.scrollY || 0 };
+    const hs = hostScroller();
+    const base = { pane: sc ? sc.scrollTop : 0, win: window.scrollY || 0, host: hs ? hs.scrollTop : 0 };
     if (tab !== 'item') return Object.assign({ kind: 'tab', tab: tab, label: MAIN_TAB_LABELS[tab] || tab }, base);
     if (currentDetailItemId && String(targetId) !== String(currentDetailItemId)) {
       const view = (detailViewState && detailViewState.itemId === String(currentDetailItemId)) ? Object.assign({}, detailViewState) : null;
@@ -54,13 +66,15 @@
     return null;
   }
   // 內容是非同步載入的，捲動位置要等內容撐開後才還原得了：分幾次嘗試，到位就停。
-  function restoreScrollSoon(el, top, winTop) {
+  function restoreScrollSoon(el, top, winTop, hostTop) {
     let n = 0;
     (function tryIt() {
       if (el) el.scrollTop = top;
       if (winTop != null) window.scrollTo(0, winTop);
+      const hs = hostTop != null ? hostScroller() : null;
+      if (hs) hs.scrollTop = hostTop;
       n++;
-      const ok = (!el || Math.abs(el.scrollTop - top) < 3);
+      const ok = (!el || Math.abs(el.scrollTop - top) < 3) && (!hs || Math.abs(hs.scrollTop - hostTop) < 3);
       if (!ok && n < 8) setTimeout(tryIt, 150 * n);
     })();
   }
@@ -73,10 +87,10 @@
     if (og.kind === 'tab') {
       const b = document.querySelector('.craft-tab-btn[data-mk-tab="' + og.tab + '"]');
       if (b) b.click();
-      restoreScrollSoon(paneScroller(og.tab), og.pane, og.win);
+      restoreScrollSoon(paneScroller(og.tab), og.pane, og.win, og.host);
     } else {
       openItemDetail(og.id, { back: true, fromHash: !!fromHash, restoreView: og.view });
-      restoreScrollSoon(paneScroller('item'), og.pane, og.win);
+      restoreScrollSoon(paneScroller('item'), og.pane, og.win, og.host);
     }
   }
   function goBack() {
@@ -95,7 +109,7 @@
     const top = navStack[navStack.length - 1];
     if (!top) return '';
     const label = top.kind === 'tab' ? top.label : top.name;
-    return '<div class="mk-back-row"><button type="button" class="mk-back-btn" id="mk-back-btn" title="返回「' + escHtml(label) + '」"><i class="ph ph-caret-left"></i><span>返回 ' + escHtml(label) + '</span></button></div>';
+    return '<div class="mk-back-row"><button type="button" class="mk-back-btn" id="mk-back-btn" title="返回「' + escHtml(label) + '」"><i class="ph ph-caret-left"></i><span>返回「' + escHtml(label) + '」</span></button></div>';
   }
   (function () {
     const rawNav = app.nav;
@@ -708,10 +722,10 @@
     document.querySelector('[data-mk-tab="item"]').click();
     $('mk-pane-item').innerHTML =
       '<div class="market-detail-columns mk-v2" id="mk-cols"><div class="mk-col-info">' +
-      '<div class="market-detail-header">' + backRowHtml() + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '<span class="mk-npc" id="mk-npc"></span></h3>' +
+      backRowHtml() + '<div class="market-detail-header">' + itemIconHtml(itemId, 40) + '<h3>' + name + itemMetaHtml(itemId) + '<span class="mk-npc" id="mk-npc"></span></h3>' +
         '<button type="button" class="market-history-btn market-watch-btn-header" id="mk-watch-btn"></button>' +
-        '<button type="button" class="market-solve-btn" id="mk-solve-btn" disabled><i class="ph ph-flask"></i> 查詢是否可製作⋯</button>' +
-        '<button type="button" class="market-solve-btn" id="mk-obtain-btn"><i class="ph ph-swap"></i> 取得方式</button>' +
+        '<button type="button" class="market-solve-btn" id="mk-solve-btn" title="製作求解" aria-label="製作求解" disabled><i class="ph ph-flask"></i><span class="mk-btn-l"> 查詢是否可製作⋯</span></button>' +
+        '<button type="button" class="market-solve-btn" id="mk-obtain-btn" title="取得方式" aria-label="取得方式"><i class="ph ph-swap"></i><span class="mk-btn-l"> 取得方式</span></button>' +
       '</div>' +
       '<div class="market-decision-band" id="mk-decision-band" hidden><div class="mdb-stats" id="mk-band-stats"></div><div class="mdb-verdict" id="mk-band-verdict"></div></div>' +
         '<div class="mk-info-world" id="mk-info-world"></div>' +
@@ -784,10 +798,10 @@
     const btn = $('mk-solve-btn');
     if (!btn) return;
     await ensureCraftDataLoaded();
-    if (typeof CRAFT_RECIPES === 'undefined') { btn.innerHTML = '<i class="ph ph-flask"></i> 無法製作'; btn.classList.add('market-solve-btn-disabled'); return; }
+    if (typeof CRAFT_RECIPES === 'undefined') { btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 無法製作</span>'; btn.title = '無法製作'; btn.setAttribute('aria-label', '無法製作'); btn.classList.add('market-solve-btn-disabled'); return; }
     const rid = (buildToRecipesIndex()[itemId] || [])[0];
-    if (!rid) { btn.innerHTML = '<i class="ph ph-flask"></i> 無法製作'; btn.classList.add('market-solve-btn-disabled'); return; }
-    btn.innerHTML = '<i class="ph ph-flask"></i> 製作求解';
+    if (!rid) { btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 無法製作</span>'; btn.title = '無法製作'; btn.setAttribute('aria-label', '無法製作'); btn.classList.add('market-solve-btn-disabled'); return; }
+    btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 製作求解</span>'; btn.title = '製作求解'; btn.setAttribute('aria-label', '製作求解');
     btn.disabled = false;
     btn.addEventListener('click', function () { openCraftSolverModal(rid); });
   }
@@ -1592,7 +1606,8 @@
     function render() {
       const on = MarketWatchlist.has(itemId);
       btn.classList.toggle('is-on', on);
-      btn.innerHTML = on ? '<span aria-hidden="true">★</span> 已關注' : '<span aria-hidden="true">☆</span> 加入關注';
+      btn.innerHTML = on ? '<span aria-hidden="true">★</span><span class="mk-btn-l"> 已關注</span>' : '<span aria-hidden="true">☆</span><span class="mk-btn-l"> 加入關注</span>';
+      btn.setAttribute('aria-label', on ? '已關注（點一下取消）' : '加入關注');
       btn.title = on ? '點一下取消關注' : '加入關注清單（右側「關注清單」可以看所有關注物品的價格）';
     }
     render();
@@ -2714,7 +2729,7 @@
       const craftWins = c.winner === 'craft';
       const both = c.buyT != null && c.craftT != null;
       heroCmps =
-        '<span class="msc-tile ' + (buyWins ? 'is-win' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
+        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
         '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b></span>' +
         ((c.winner === 'craft' || c.winner === 'buy') ? deltaBadgeHtml(c.save, itemId, 0) : '');
       const verdict = c.save == null ? ''
@@ -2770,7 +2785,7 @@
         const buyWins = c.winner === 'buy' || c.winner === 'tie', craftWins = c.winner === 'craft';
         const both = c.buyT != null && c.craftT != null;
         tiles = '<div class="mdb-v-tiles">' +
-          '<span class="msc-tile ' + (buyWins ? 'is-win' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b>' + (c.winner === 'buy' ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
+          '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b>' + (c.winner === 'buy' ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
           '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b>' + (craftWins ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
           (craftMultiplier > 1 ? '<span class="mdb-v-mult" title="供應鏈裡設定的製作數量">×' + craftMultiplier + '</span>' : '') +
         '</div>';
@@ -4551,12 +4566,18 @@
           if (pop.style.display !== 'none' && !pop.contains(e.target) && !e.target.closest('[data-npc-open]')) closeNpcModal();
         });
         window.addEventListener('resize', closeNpcModal);
-        document.addEventListener('scroll', function (e) { // 捲動時錨點位置會變，直接關掉；浮層自己內部捲動不算
-          if (pop.style.display !== 'none' && !pop.contains(e.target)) closeNpcModal();
+        document.addEventListener('scroll', function (e) { // 頁面捲動時不關閉，只跟著錨點重新定位；錨點捲出畫面才關；浮層自己內部捲動不算
+          if (pop.style.display === 'none' || pop.contains(e.target)) return;
+          const a = pop._anchor;
+          if (!a || !a.isConnected) { closeNpcModal(); return; }
+          const r = a.getBoundingClientRect();
+          if (r.bottom < 0 || r.top > window.innerHeight) { closeNpcModal(); return; }
+          if (pop._place) pop._place();
         }, true);
       }
       if (pop.style.display !== 'none' && pop.dataset.for === String(id)) { closeNpcModal(); return; } // 再按一次＝收起
       pop.dataset.for = String(id);
+      pop._anchor = anchor;
       function place() {
         if (pop.style.display === 'none') return;
         const m = 8, gap = 6, CAP = 340, MIN_ABOVE = 180;
@@ -4572,8 +4593,9 @@
         if (wantUp) { pop.style.top = 'auto'; pop.style.bottom = (window.innerHeight - r.top + gap) + 'px'; pop.dataset.dir = 'up'; }
         else { pop.style.bottom = 'auto'; pop.style.top = (r.bottom + gap) + 'px'; pop.dataset.dir = 'down'; }
       }
+      pop._place = place;
       const curName = ITEM_NAMES_TW_ALL[id] || ('#' + id);
-      $('mk-npc-title').innerHTML = '🏪 NPC 即賣排行<span class="mk-npc-title-sub">' + itemIconHtml(id, 18) + escHtml(curName) + '</span>';
+      $('mk-npc-title').innerHTML = '🏪 NPC 即賣排行';
       const nbody = $('mk-npc-body');
       nbody.innerHTML = '<p class="craft-muted">讀取中⋯</p>';
       pop.style.display = 'flex'; place();
