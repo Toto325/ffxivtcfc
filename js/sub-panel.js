@@ -451,6 +451,19 @@ app.buildSub = function (){
      * 跟下面配裝反查的擁有部件勾選格是同一份資料（ownedParts／OWNED_KEY），
      * 這裡只是另外畫一份勾選格 UI（因為兩邊不會同時顯示，不需要即時雙向同步，
      * 每次切換顯示時重新畫一次、讀取當下的 ownedParts 即可）。 */
+    /* 依目前等級標示「等級不足、尚不能裝備」的部件（資料見 sub-data.js 的 SUB_PART_MIN_RANK）。
+     * 只調暗＋提示，不動使用者已勾選的記錄；搜尋時 sub-calc.js 會自動略過等級不足的部件。 */
+    const applyOwnedLock=(scope,rankSel)=>{
+      if(!scope)return;
+      const rk=parseInt(root.querySelector(rankSel)?.value)||1;
+      scope.querySelectorAll('.sub-owned-item input').forEach(chk=>{
+        const lbl=chk.closest('.sub-owned-item');if(!lbl)return;
+        const min=SUB_PART_MIN_RANK[SUB_RANK_CODE[+chk.dataset.rank]]||1;
+        const lock=rk<min;
+        lbl.style.opacity=lock?'.4':'';
+        lbl.title=lock?`需要等級 ${min} 才能裝備（目前 ${rk}），搜尋時會自動略過`:'';
+      });
+    };
     const renderOwnedRouteGrid=()=>{
       const gridEl=root.querySelector('#sub-owned-route-grid');if(!gridEl)return;
       const slotLabel={hull:'船體',stern:'船尾',bow:'船首',bridge:'艦橋'}; const SLOT_ICON={hull:'boat',stern:'fan',bow:'navigation-arrow',bridge:'binoculars'};
@@ -460,12 +473,13 @@ app.buildSub = function (){
         PARTS[slot].forEach(p=>{
           const rankCode=SUB_RANK_CODE_REV[p[0]];
           const checked=(ownedParts[slot]||[]).includes(rankCode)?'checked':'';
-          html+=`<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${rankCode}" ${checked}> ${p[0]} — ${p[1]}</label>`;
+          html+=`<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${rankCode}" ${checked}> ${p[0]} — ${p[1]}${SUB_PART_MIN_RANK[p[0]]>1?` <small style="opacity:.6">Lv.${SUB_PART_MIN_RANK[p[0]]}</small>`:''}</label>`;
         });
         html+='</div>';
       });
       html+='</div>';
       gridEl.innerHTML=html;
+      applyOwnedLock(gridEl,'#sub-rank-inp');
       gridEl.querySelectorAll('input[type="checkbox"]').forEach(chk=>{
         chk.addEventListener('change',()=>{
           const slot=chk.dataset.slot,rk=+chk.dataset.rank;
@@ -916,8 +930,9 @@ app.buildSub = function (){
       if(!owned){
         st=getStats();if(!st){root.querySelector('#sub-results').innerHTML='<div class="sub-empty">請先選擇所有部件</div>';return;}
       }else{
-        const hasAll=['hull','stern','bow','bridge'].every(slot=>(ownedParts[slot]||[]).length>0);
-        if(!hasAll){root.querySelector('#sub-results').innerHTML='<div class="sub-empty">請至少為每個部位（船體／船尾／船首／艦橋）勾選一種擁有的部件</div>';return;}
+        const curRank=parseInt(root.querySelector('#sub-rank-inp')?.value)||1;
+        const hasAll=['hull','stern','bow','bridge'].every(slot=>subUsableParts(slot,ownedParts,curRank).length>0);
+        if(!hasAll){root.querySelector('#sub-results').innerHTML='<div class="sub-empty">請至少為每個部位（船體／船尾／船首／艦橋）勾選一種擁有、且目前等級已可裝備的部件（例如甲鱟級需等級 15、改款需等級 50）</div>';return;}
       }
       letterOnly=root.querySelector('#sub-letter')?.checked||false;
       const lootStrict=root.querySelector('#sub-loot-strict')?.checked||false;
@@ -1427,6 +1442,7 @@ app.buildSub = function (){
     };
 
     root.querySelector('#sub-rank-inp')?.addEventListener('input',updateStats);
+    root.querySelector('#sub-rank-inp')?.addEventListener('input',()=>applyOwnedLock(root.querySelector('#sub-owned-route-grid'),'#sub-rank-inp'));
     ['sub-hull','sub-stern','sub-bow','sub-bridge'].forEach(id=>root.querySelector(`#${id}`)?.addEventListener('change',updateStats));
     const saveFilterState=()=>{
       try{
@@ -1585,7 +1601,7 @@ app.buildSub = function (){
         PARTS[slot].forEach(p=>{
           const rankCode=SUB_RANK_CODE_REV[p[0]];
           const checked=(ownedParts[slot]||[]).includes(rankCode)?'checked':'';
-          ownedHtml+=`<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${rankCode}" ${checked}> ${p[0]} — ${p[1]}</label>`;
+          ownedHtml+=`<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${rankCode}" ${checked}> ${p[0]} — ${p[1]}${SUB_PART_MIN_RANK[p[0]]>1?` <small style="opacity:.6">Lv.${SUB_PART_MIN_RANK[p[0]]}</small>`:''}</label>`;
         });
         ownedHtml+='</div>';
       });
@@ -1893,6 +1909,8 @@ app.buildSub = function (){
       });
     };
     buildReversePanel();
+    applyOwnedLock(revPanel,'#sub-rev-rank');
+    root.querySelector('#sub-rev-rank')?.addEventListener('input',()=>applyOwnedLock(revPanel,'#sub-rev-rank'));
 
     /* 配裝反查的勾選格只在 buildReversePanel() 時畫過一次；如果使用者是在
        「路線搜尋（擁有部件模式）」勾的，切過來時畫面不會自動更新，只更新

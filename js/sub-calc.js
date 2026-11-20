@@ -131,6 +131,13 @@ function subMeetsThreshold(val, normalThr, bestThr, mode) {
 }
 const SUB_RANK_CODE = { 1: 'S', 15: 'U', 25: 'W', 35: 'C', 45: 'SY', '-1': 'SM', '-15': 'UM', '-25': 'WM', '-35': 'CM', '-45': 'SYM' };
 const SUB_RANK_CODE_REV = { S: 1, U: 15, W: 25, C: 35, SY: 45, SM: -1, UM: -15, WM: -25, CM: -35, SYM: -45 };
+/* 依「擁有勾選」＋「潛水艇等級」取得某部位可用的部件。
+ * 等級不足（低於 SUB_PART_MIN_RANK）的部件即使被勾選也不能用，避免建議出還裝不上的配裝。 */
+function subUsableParts(slot, ownedRanks, rank) {
+  return PARTS[slot].filter(p =>
+    (ownedRanks[slot] || []).includes(SUB_RANK_CODE_REV[p[0]]) &&
+    (rank == null || rank >= (SUB_PART_MIN_RANK[p[0]] || 1)));
+}
 function subFindBuilds(sectorIds, ownedRanks, th, rank) {
   const ids = Array.isArray(sectorIds) ? sectorIds : [sectorIds];
   const secs = ids.map(id => SECTOR_MAP.get(id)).filter(Boolean);
@@ -140,7 +147,7 @@ function subFindBuilds(sectorIds, ownedRanks, th, rank) {
   const home = SUB_HOMES[mapId]; if (home == null) return [];
   const best = subBestOrder(home, ids);
   const maxCap = SUB_CAP[rank];
-  const own = slot => PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(SUB_RANK_CODE_REV[p[0]]));
+  const own = slot => subUsableParts(slot, ownedRanks, rank);
   const hulls = own('hull'), sterns = own('stern'), bows = own('bow'), bridges = own('bridge');
   const tank = ids.reduce((s, id) => s + (SUB_TANK[id] || 0), 0);
   const results = [];
@@ -188,7 +195,7 @@ function subFindBuildsForTiers(sectorTierMap, th, ownedRanks, rank) {
   const home = SUB_HOMES[mapId]; if (home == null) return [];
   const best = subBestOrder(home, ids);
   const maxCap = SUB_CAP[rank];
-  const own = slot => PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(SUB_RANK_CODE_REV[p[0]]));
+  const own = slot => subUsableParts(slot, ownedRanks, rank);
   const hulls = own('hull'), sterns = own('stern'), bows = own('bow'), bridges = own('bridge');
   const tank = ids.reduce((s, id) => s + (SUB_TANK[id] || 0), 0);
   const results = [];
@@ -218,7 +225,7 @@ function subFindBuildsForTiers(sectorTierMap, th, ownedRanks, rank) {
 /* ===== 配裝反查：自行輸入數值（不綁定任何航區）===== */
 function subFindBuildsByStats(target, ownedRanks, rank) {
   const maxCap = SUB_CAP[rank];
-  const own = slot => PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(SUB_RANK_CODE_REV[p[0]]));
+  const own = slot => subUsableParts(slot, ownedRanks, rank);
   const hulls = own('hull'), sterns = own('stern'), bows = own('bow'), bridges = own('bridge');
   const results = [];
   for (const h of hulls) for (const s of sterns) for (const b of bows) for (const br of bridges) {
@@ -328,7 +335,7 @@ function subPruneSlotPartsFull(parts) {
 }
 function subOwnedCombos(ownedRanks, rank) {
   const maxCap = SUB_CAP[rank];
-  const own = slot => subPruneSlotPartsFull(PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(SUB_RANK_CODE_REV[p[0]])));
+  const own = slot => subPruneSlotPartsFull(subUsableParts(slot, ownedRanks, rank));
   const hulls = own('hull'), sterns = own('stern'), bows = own('bow'), bridges = own('bridge');
   const combos = [];
   for (const h of hulls) for (const s of sterns) for (const b of bows) for (const br of bridges) {
