@@ -4422,6 +4422,7 @@
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
     function tokenRowHtml(x, showGroup) {
       return '<div class="market-token-row' + (hiddenIds[x.id] ? ' is-nocmp' : '') + '" data-token-id="' + x.id + '">' +
+        '<div class="market-token-headrow">' +
         '<button type="button" class="market-token-head" data-token-toggle="' + x.id + '">' +
           '<i class="ph ph-caret-right"></i>' + itemIconHtml(x.id, 24) +
           '<span class="market-token-name">' + x.name + '</span>' +
@@ -4429,6 +4430,8 @@
           (showGroup ? '<span class="market-token-gtag">' + groupLabel[x.group] + '</span>' : '') +
           (hiddenIds[x.id] ? '<span class="market-token-nocmp" title="換到的東西全部不可交易，或目前市場上沒有行情">無可比價</span>' : '') +
         '</button>' +
+        '<span class="mk-npc-slot"></span>' +
+        '</div>' +
         '<div class="market-token-body" id="mk-token-body-' + x.id + '" data-count="' + x.count + '" style="display:none"></div>' +
       '</div>';
     }
@@ -4521,6 +4524,10 @@
       syncFoldSummary(); refreshOpenTokenBodies();
     });
     renderScope(); renderCats(); renderList(); renderHideBar(); syncFoldSummary();
+    if (typeof ResizeObserver === 'function' && $('mk-token-list')) { // 視窗／欄寬改變時，已展開的列重新決定按鈕要完整、縮寫還是換行
+      let npcFitRaf = 0;
+      new ResizeObserver(function () { cancelAnimationFrame(npcFitRaf); npcFitRaf = requestAnimationFrame(fitAllNpcBtns); }).observe($('mk-token-list'));
+    }
     MarketData.onPricePrefsChange(function () { // 全站取價設定改了：已展開的排行立刻重算，沒展開的下次點開時再算
       if (!pane.isConnected) return;
       renderScope();
@@ -4560,7 +4567,10 @@
       const open = body.style.display !== 'none';
       t.querySelector('.ph').className = open ? 'ph ph-caret-right' : 'ph ph-caret-down';
       body.style.display = open ? 'none' : 'block';
-      if (open || body.dataset.loaded) return;
+      const tokRow = t.closest('.market-token-row');
+      if (tokRow) tokRow.classList.toggle('is-open', !open);
+      if (open) return;
+      if (body.dataset.loaded) { fitNpcBtn(tokRow); return; }
       renderTokenBody(body, id);
     });
     // 賣速／成交頻率的數字顯示。重點：「0」不等於「沒人買」，所以不寫0，也不寫要讀懂定義的「稀少」，
@@ -4576,7 +4586,7 @@
       if (!(f > 0)) return '<span class="mtr-null" title="近30天成交不到5筆，筆數太少算不出可靠的頻率（不代表完全沒有成交）">&lt;5</span>' + unit('筆/月');
       return f.toFixed(2) + unit('筆/天');
     }
-    /* NPC 即賣排行：從表頭按鈕「往上」彈出的小浮層（不再是蓋滿畫面的視窗），
+    /* 商店賣價排行：從表頭按鈕「往上」彈出的小浮層（不再是蓋滿畫面的視窗），
      * 這樣排行表每一列的市價欄不會被擋住，可以一邊看排行一邊對照。
      * 上方放得下（至少約180px）就往上開、高度縮到剛好放得下，內部可捲動；上方真的放不下才改往下開。 */
     async function openNpcRanking(id, anchor) {
@@ -4623,7 +4633,7 @@
       }
       pop._place = place;
       const curName = ITEM_NAMES_TW_ALL[id] || ('#' + id);
-      $('mk-npc-title').innerHTML = '🏪 NPC 即賣排行';
+      $('mk-npc-title').innerHTML = '🏪 商店賣價排行';
       const nbody = $('mk-npc-body');
       nbody.innerHTML = '<p class="craft-muted">讀取中⋯</p>';
       pop.style.display = 'flex'; place();
@@ -4654,8 +4664,27 @@
       }
       draw();
     }
+    // 「商店賣價排行」按鈕的文字長度由實際空間決定：先試完整文字「商店賣價排行」，
+    // 同一行放不下就縮成「商店價」再試；還是放不下，就回到完整文字、讓它自然換到下一行（靠右）。
+    // 用量的，不用猜寬度——名稱短就多留一點，名稱長就早一點縮。
+    function fitNpcBtn(row) {
+      if (!row || !row.classList.contains('is-open')) return;
+      const btn = row.querySelector('.mk-npc-slot .mk-npc-open');
+      const head = row.querySelector('.market-token-head');
+      if (!btn || !head || !head.offsetParent) return;
+      function sameLine() { return btn.getBoundingClientRect().top < head.getBoundingClientRect().bottom - 2; }
+      btn.classList.remove('is-short'); row.dataset.npcFit = 'full';
+      if (sameLine()) return;
+      btn.classList.add('is-short'); row.dataset.npcFit = 'short';
+      if (sameLine()) return;
+      btn.classList.remove('is-short'); row.dataset.npcFit = 'wrap';
+    }
+    function fitAllNpcBtns() { pane.querySelectorAll('.market-token-row.is-open').forEach(fitNpcBtn); }
     async function renderTokenBody(body, id) {
       body.dataset.loaded = '1';
+      const tokRow = body.closest('.market-token-row');
+      const npcSlot = tokRow && tokRow.querySelector('.mk-npc-slot');
+      if (npcSlot) npcSlot.innerHTML = '';
       body.innerHTML = '<p class="craft-muted">讀取排行中⋯</p>';
       const settings = getSupplySettings();
       const dcData = await getTokenData();
@@ -4686,7 +4715,7 @@
       function sortHead(key, cls, html, tip) {
         return '<button type="button" class="mtr-sort ' + cls + (sortKey === key ? ' active' : '') + '" data-token-sort="' + key + '" title="' + tip + '">' + html + '</button>';
       }
-      const npcBtnHtml = npcCount ? '<button type="button" class="mk-npc-open mk-npc-open-row" data-npc-open="' + id + '" title="只看賣給系統 NPC 的價格排行（固定價格、不需要等買家、必定成交），共 ' + npcCount + ' 種">🏪<span class="mk-npc-open-l"> NPC 即賣排行（' + npcCount + '）</span> ›</button>' : '';
+      const npcBtnHtml = npcCount ? '<button type="button" class="mk-npc-open mk-npc-open-row" data-npc-open="' + id + '" title="只看賣給系統 NPC 的價格排行（固定價格、不需要等買家、必定成交），共 ' + npcCount + ' 種">🏪 ' + '<span class="mk-npc-l-full">商店賣價排行</span><span class="mk-npc-l-short">商店價</span>（' + npcCount + '） ›</button>' : '';
       const headHtml = '<div class="mtr-head"><span class="mtr-rank"></span><span class="mtr-name">' + '' + '</span>' +
         sortHead('net', 'mtr-val', '每1' + itemIconHtml(id, 13) + '價值', '用1個這種代幣，大約能換到多少金幣的東西（換成最划算的那一種）') +
         sortHead('vel', 'mtr-vel', '賣速', '最近每天大約賣出幾件') +
@@ -4703,7 +4732,7 @@
       if (best.some(function (r) { return r.viaChain; })) legendParts.push('🔗→ 再兌換成該物品後的市價');
       if (best.some(function (r) { return r.viaNpc; })) legendParts.push('🏪 以 NPC 收購價估算（不可交易）');
       if (best.some(function (r) { return r.locked; })) legendParts.push('🔒 需先完成任務或成就');
-      body.innerHTML = npcBtnHtml + '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
+      body.innerHTML = '<div class="mtr-wrap">' + headHtml + best.map(function (r, i) {
         const first = r.resultItems[0];
         const label = r.resultItems.map(function (x) { return itemRefHtml(x[0], { name: true }) + (x[1] > 1 ? '×' + x[1] : ''); }).join('＋');
         // 🔗＝這個物品本身不可交易，淨值是追查它能再換到什麼有市場價的東西才算出來的，
@@ -4730,6 +4759,7 @@
           e.preventDefault(); openItemDetail(el.dataset.mkGotoItem);
         });
       });
+      if (npcSlot) { npcSlot.innerHTML = npcBtnHtml; fitNpcBtn(tokRow); }
     }
   }
 
