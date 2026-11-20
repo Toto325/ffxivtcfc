@@ -1,0 +1,47 @@
+/* ══════════════════════════════════════════════════════════════
+   市場頁「物品查詢」美術微調（放在 market-detail-v2.css 之後載入）
+   1) 左欄四塊由「純黑半透明」改為與製作頁一致的淡金底
+   2) 買／製作 兩格改為「上標籤、下大數字」的厚實方塊，不再是又寬又扁的一條
+   3) 材料文字＋供應鏈鍵獨立成下方一行，不與兩格擠在一起
+   只動顏色與版面，不改任何 JS。想還原：移除 index.html 裡這一行 <link> 即可。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 1) 淡金底色：與 page-craft.css 的 rgba(197,160,89,.05~.08) 同一級 ── */
+#mk-pane-item .mdb-stats,
+#mk-pane-item .mdb-verdict:not(:empty),
+#mk-pane-item .mk-info-world:not(:empty),
+#mk-pane-item .mk-info-notes:not(:empty) {
+  background: linear-gradient(180deg, rgba(197,160,89,.075), rgba(197,160,89,.035));
+  border-color: rgba(197,160,89,.30);
+  box-shadow: inset 0 1px 0 rgba(252,246,186,.06);
+}
+/* 面板頂部一抹微光（與 content-royal 的 rgba(252,246,186,.07) 同源） */
+#mk-pane-item .mk-col-info {
+  background: radial-gradient(80% 110px at 50% 0, rgba(252,246,186,.045), transparent 100%);
+}
+
+/* ── 2) 買／製作：厚實方塊 ── */
+#mk-pane-item .mdb-verdict:not(:empty) { gap: 10px; padding: 12px 14px; }
+#mk-pane-item .mdb-v-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#mk-pane-item .mdb-v-tiles .msc-tile {
+  flex: none; flex-direction: column; flex-wrap: nowrap; align-items: center; justify-content: center;
+  gap: 3px; min-height: 72px; padding: 12px 10px 10px; text-align: center; border-radius: 8px;
+}
+#mk-pane-item .mdb-v-tiles .msc-tile em { font-size: var(--fs-sub); letter-spacing: .12em; }
+#mk-pane-item .mdb-v-tiles .msc-tile b  { font-size: 22px; line-height: 1.15; }
+#mk-pane-item .mdb-v-tiles .msc-tile.is-lose b { font-size: 19px; }
+#mk-pane-item .mdb-v-tiles .msc-badge { margin-top: 2px; font-size: var(--fs-sub); }
+/* 「×N」製作數量：獨立置中一行，不佔格子 */
+#mk-pane-item .mdb-v-mult { grid-column: 1 / -1; justify-self: center; margin: -4px 0; }
+
+/* ── 3) 材料＋供應鏈鍵：下方獨立一行，上方細分隔線 ── */
+#mk-pane-item .mdb-v-mats {
+  align-items: center; gap: 12px; padding-top: 10px;
+  border-top: 1px dashed rgba(197,160,89,.28);
+}
+#mk-pane-item .mdb-chain-btn { padding: 5px 12px; }
+
+/* 窄容器（單欄／手機）：兩格仍並排，但縮小數字避免溢出 */
+@media (max-width: 420px) {
+  #mk-pane-item .mdb-v-tiles .msc-tile b { font-size: 19px; }
+}
