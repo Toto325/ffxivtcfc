@@ -2816,12 +2816,14 @@
       const matNames = matNodes.map(function (n) {
         const isCrystalMat = typeof CRYSTAL_ITEM_IDS !== 'undefined' && CRYSTAL_ITEM_IDS.has(Number(n.itemId));
         const crafty = decisionByItem[n.itemId] === 'craft' && !(isCrystalMat && settings.includeCrystal === false);
-        return crafty ? '<span class="mdb-mat is-craft" title="這項自己製作比較省">' + escHtml(n.name) + '</span>' : escHtml(n.name);
+        // 建議自製的材料：標籤前加錘子圖示（不用顏色表示，避免被誤認成「這項比較便宜」）
+        return crafty ? '<span class="mdb-chip mdb-mat is-craft" title="這項自己製作比較省"><i class="ph ph-hammer"></i>' + escHtml(n.name) + '</span>'
+          : '<span class="mdb-chip mdb-mat">' + escHtml(n.name) + '</span>';
       });
-      const listTxt = hasDown ? '<span class="mdb-v-lead">材料：</span>' + matNames.join('、')
-        : '<span class="mdb-v-lead">用途：</span>' + useNodesFull.length + ' 種';
-      bv.innerHTML = tiles + '<div class="mdb-v-mats"><span class="mdb-v-text">' + listTxt + '</span>' +
-        '<button type="button" class="market-history-btn mdb-chain-btn" data-mk-open-chain="1" title="開啟完整供應鏈圖">供應鏈 ▸</button></div>';
+      const listHtml = hasDown ? '<span class="mdb-v-lead">材料</span>' + matNames.join('')
+        : '<span class="mdb-v-lead">用途</span><span class="mdb-chip">' + useNodesFull.length + ' 種</span>';
+      bv.innerHTML = '<div class="mdb-v-body">' + tiles + '<div class="mdb-v-mats"><div class="mdb-v-mlist">' + listHtml + '</div>' +
+        '<button type="button" class="market-history-btn mdb-chain-btn" data-mk-open-chain="1" title="開啟完整供應鏈圖">供應鏈 ▸</button></div></div>';
       bv.querySelector('[data-mk-open-chain]').addEventListener('click', function () { openChainModal(); });
     })();
     box.querySelector('[data-mk-chain-close]').addEventListener('click', function () { closeChainModal(); });
