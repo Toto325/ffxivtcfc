@@ -736,6 +736,7 @@
       // 供應鏈圖平常畫在這個看不見的容器裡（買/做結論要靠它算）；按「供應鏈」才整個搬進彈窗，關掉再搬回來
       '<div id="mk-detail-supply" class="mk-chain-host" aria-hidden="true"></div>';
     const backBtn = $('mk-back-btn'); if (backBtn) backBtn.addEventListener('click', goBack);
+    (function () { const hd = $('mk-pane-item').querySelector('.market-detail-header'); if (hd) { fitDetailHeader(hd); mkObserveFit(hd, function () { fitDetailHeader(hd); }); } })();
     ensureNpcPrices().then(function () { // 固定價格，載入後補在名稱旁；沒有（NPC 不收）就不顯示
       const el = $('mk-npc'); const pr = npcPriceOf(itemId);
       if (el && currentDetailItemId === itemId && pr > 0) {
@@ -798,11 +799,12 @@
     const btn = $('mk-solve-btn');
     if (!btn) return;
     await ensureCraftDataLoaded();
-    if (typeof CRAFT_RECIPES === 'undefined') { btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 無法製作</span>'; btn.title = '無法製作'; btn.setAttribute('aria-label', '無法製作'); btn.classList.add('market-solve-btn-disabled'); return; }
+    if (typeof CRAFT_RECIPES === 'undefined') { btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 無法製作</span>'; btn.title = '無法製作'; btn.setAttribute('aria-label', '無法製作'); btn.classList.add('market-solve-btn-disabled'); refitDetailHeader(); return; }
     const rid = (buildToRecipesIndex()[itemId] || [])[0];
-    if (!rid) { btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 無法製作</span>'; btn.title = '無法製作'; btn.setAttribute('aria-label', '無法製作'); btn.classList.add('market-solve-btn-disabled'); return; }
+    if (!rid) { btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 無法製作</span>'; btn.title = '無法製作'; btn.setAttribute('aria-label', '無法製作'); btn.classList.add('market-solve-btn-disabled'); refitDetailHeader(); return; }
     btn.innerHTML = '<i class="ph ph-flask"></i><span class="mk-btn-l"> 製作求解</span>'; btn.title = '製作求解'; btn.setAttribute('aria-label', '製作求解');
     btn.disabled = false;
+    refitDetailHeader();
     btn.addEventListener('click', function () { openCraftSolverModal(rid); });
   }
 
@@ -1051,6 +1053,17 @@
       box.querySelectorAll('.market-stat-foot, .mk-notes-sig').forEach(function (el) { inn.appendChild(el); });
     }
   }
+  // 標題列：「製作求解」「取得方式」兩顆先用完整文字，實際量一下——完整版讓標題列變高（＝擠到換行或標題被壓成更多行）才縮成圖示。
+  // 比用寬度門檻準：不管物品名稱多長、版本標籤有幾個，都是照實際排出來的結果判斷。「加入關注」永遠是圖示。
+  function fitDetailHeader(hd) {
+    if (!hd || !hd.isConnected) return;
+    hd.classList.add('is-compact');
+    const hCompact = hd.offsetHeight;
+    hd.classList.remove('is-compact');
+    const hFull = hd.offsetHeight;
+    if (hFull > hCompact + 2) hd.classList.add('is-compact');
+  }
+  function refitDetailHeader() { const p = $('mk-pane-item'); const hd = p && p.querySelector('.market-detail-header'); if (hd) fitDetailHeader(hd); }
   function fitStatBar(bar) {
     if (!bar || !bar.isConnected) return;
     const tiles = Array.prototype.slice.call(bar.querySelectorAll('.market-stat-tile'));
@@ -1204,7 +1217,17 @@
     if (overview && overview.lastUploadTime) footNotes.push('<span id="mk-fresh" title="資料最後上傳時間，隨下方選的世界變動">' + timeAgo(overview.lastUploadTime / 1000) + '更新</span>');
 
     html += '<div class="market-stat-bar" id="mk-stat-bar">' + buildStatBarHtml(dcStat) + '</div>';
-    if (footNotes.length) html += '<p class="market-stat-foot craft-muted">' + footNotes.join('　·　') + '</p>';
+    // 掛單訊號（▼74%）放在「寄售稅後」與「更新時間」之間同一行；沒有訊號時整段（含前面的點）隱藏，見 market-detail-v2.css 的 .mk-sig-item:has(...)
+    const hasTax = !!(taxInfo && overview && overview.listings.length);
+    const sigItem = (overview && overview.listings.length)
+      ? '<span class="mk-sig-item">' + (hasTax ? '　·　' : '') + '<span class="market-sig" id="mk-sig-sell" style="display:none"></span></span>' : '';
+    if (footNotes.length || sigItem) {
+      let foot = hasTax ? footNotes[0] : '';
+      foot += sigItem;
+      const fr = footNotes.slice(hasTax ? 1 : 0).join('　·　');
+      if (fr) foot += ((foot && (hasTax || sigItem)) ? '　·　' : '') + fr;
+      html += '<p class="market-stat-foot craft-muted">' + foot + '</p>';
+    }
 
     if (overviewFailed) {
       html += '<div class="market-untradable"><i class="ph ph-warning"></i><div><b>查詢失敗</b><button type="button" class="market-history-btn" id="mk-retry-load" style="margin-top:6px"><i class="ph ph-arrow-clockwise"></i> 重試</button></div></div>';
@@ -1252,7 +1275,6 @@
     // 最便宜的世界價格標綠色。點一格＝切換整個頁面的範圍（在售／成交／走勢都跟著換）。內容在下面 renderWorldStrip 填入。
     html += '<div class="market-world-strip" id="mk-world-strip"></div>';
     // 賣出訊號（掛單 ▲%）：放在左欄「寄售稅後／資料更新」的下面，顏色規則不變
-    html += '<div class="mk-notes-sig"><span class="market-sig" id="mk-sig-sell" style="display:none"></span></div>';
     html += '<div class="market-listing-bar">' +
         '<div class="market-tabs-mini" id="mk-tabs" role="tablist">' +
           '<button type="button" class="market-tab-mini active" data-mk-tab="listing" role="tab" aria-selected="true" title="目前掛單數">在售 <span id="mk-tab-count">' + (overview.listingsCount != null ? overview.listingsCount : overview.listings.length) + '項</span></button>' +
@@ -1608,6 +1630,7 @@
       btn.classList.toggle('is-on', on);
       btn.innerHTML = on ? '<span aria-hidden="true">★</span><span class="mk-btn-l"> 已關注</span>' : '<span aria-hidden="true">☆</span><span class="mk-btn-l"> 加入關注</span>';
       btn.setAttribute('aria-label', on ? '已關注（點一下取消）' : '加入關注');
+      refitDetailHeader();
       btn.title = on ? '點一下取消關注' : '加入關注清單（右側「關注清單」可以看所有關注物品的價格）';
     }
     render();
@@ -2875,7 +2898,8 @@
     const upRow = root.querySelector('.msc-row-up');
     const downRow = root.querySelector('.msc-row-down');
     const upCells = upRow ? Array.prototype.filter.call(upRow.children, function (c) { return !c.classList.contains('msc-more'); }) : [];
-    const MIN_CELL_W = [140, 140, 108, 140, 136, 130]; // 卡片改成圖示在左、整體縮小 // 各密度的卡片最小寬度（直式卡片名稱可兩行，所以較窄；橫式要放圖示，較寬）
+    const MIN_CELL_W = [156, 156, 156, 156, 150, 150]; // 卡片最小寬度：要讓 7 個中文字（13px≈91px）的名稱不換行，圖示在左的卡片至少約 154px；彈窗不夠寬時，欄數會自然減少（而不是硬擠）
+    const MIN_CELL_W_OLD = [140, 140, 108, 140, 136, 130]; // 卡片改成圖示在左、整體縮小 // 各密度的卡片最小寬度（直式卡片名稱可兩行，所以較窄；橫式要放圖示，較寬）
     const COL_GAP = 12;                                 // 卡片左右間距：以前是16，縮到8省出寬度
     function visibleCells(row) { return Array.prototype.filter.call(row.children, function (c) { return !c.hidden; }); }
     let minWOverride = 0; // 手機：每排最多 2 張，名稱才讀得舒服
@@ -3071,7 +3095,7 @@
       }
       delete root.dataset.o; delete root.dataset.hs; delete root.dataset.hn; root.style.removeProperty('--msc-hgap');
       [upRow, downRow].forEach(function (row) { if (row) row.style.removeProperty('--msc-cols'); });
-      minWOverride = stacked ? 140 : 0;
+      minWOverride = stacked ? 156 : 0;
       if (stacked) { apply(0, shownFor(0, true)); drawLinks(); return; }
       function fits() { return !colEl || colEl.scrollHeight <= colEl.clientHeight; }
       for (let lv = 0; lv <= 2; lv++) { apply(lv, shownFor(lv, false)); if (fits()) break; }
