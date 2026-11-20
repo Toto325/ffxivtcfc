@@ -1305,7 +1305,10 @@
 
     let worldFilter = 'ALL'; // 目前選的範圍：'ALL'＝整個資料中心，否則是世界名稱
     function bindAvgBadge() {
-      const avgBtn = box.querySelector('#mk-avgprice-badge');
+      // 統計列已被 hoistStatBar 搬到上方「決策列」(#mk-band-stats)，不在 box 裡面了，
+      // 所以要從 #mk-stat-bar 本身找；只在 box 裡找會找不到按鈕、點擊事件永遠沒綁上（均價彈窗點了沒反應）。
+      const statBarEl = $('mk-stat-bar') || box;
+      const avgBtn = statBarEl.querySelector('#mk-avgprice-badge');
       if (!avgBtn) return;
       avgBtn.addEventListener('click', function (e) {
         e.stopPropagation(); // 沒有這行，點擊會冒泡到document把彈窗自己剛打開的畫面關掉，看起來像沒反應
