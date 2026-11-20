@@ -1,0 +1,58 @@
+name: 自動更新潛水艇繁中名稱
+
+# 排程：每週一（UTC 0:30，約台灣早上 8:30，錯開 update-craft-data）自動跑一次；也可以手動觸發（workflow_dispatch）
+on:
+  schedule:
+    - cron: '30 0 * * 1'
+  workflow_dispatch: {}
+
+concurrency:
+  group: update-sub-names
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 簽出 repo
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 腳本只更新「名稱」（航區繁中名、戰利品繁中名），不動任何數值。
+      # 來源抓不到／格式不對／筆數變少／更新後資料無法載入，腳本都會直接報錯，
+      # 這個 job 就會失敗，不會 commit，也不會用不完整的結果覆蓋現有檔案。
+      - name: 執行更新腳本
+        run: node scripts/update-sub-names.js
+
+      - name: 確認更新後的潛水艇資料仍能正常計算路線
+        run: |
+          node -e '
+          const fs=require("fs");
+          eval(fs.readFileSync("js/items.js","utf8")+fs.readFileSync("js/sub-data.js","utf8")+fs.readFileSync("js/sub-calc.js","utf8")+";globalThis.__ok=[SUB_SECTORS.length,typeof subBestOrderFast,Object.keys(ITEM_DB).length];");
+          if(__ok[0]!==143||__ok[1]!=="function"||__ok[2]<300){console.error("驗證失敗",__ok);process.exit(1);}
+          console.log("驗證通過",__ok);
+          '
+
+      - name: 檢查資料有沒有變動
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain -- js/sub-data.js js/items.js)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 送出變更
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "sub-names-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add js/sub-data.js js/items.js
+          git commit -m "chore: 自動更新潛水艇繁中名稱 ($(date -u +%Y-%m-%d))"
+          git push
