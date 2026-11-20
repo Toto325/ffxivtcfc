@@ -2744,7 +2744,7 @@
         '<span class="msc-head-title">供應鏈</span>' +
         '<div class="msc-head-btns">' +
           '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／材料品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
-          '<button type="button" class="market-history-btn market-fullchain-btn msc-list-btn" data-mk-open-fullchain="1" title="查看完整供應鏈清單"><i class="ph ph-tree-structure"></i>完整清單</button>' +
+          '<button type="button" class="market-history-btn market-fullchain-btn msc-list-btn" data-mk-open-fullchain="1" title="查看完整供應鏈清單">完整清單</button>' +
         '</div>' +
         '<button type="button" class="market-modal-close msc-head-close" data-mk-chain-close="1" aria-label="關閉"><i class="ph ph-x"></i></button>' +
       '</div>';
