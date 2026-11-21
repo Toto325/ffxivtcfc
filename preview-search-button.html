@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="悠然詩靜 — Final Fantasy XIV 利維坦伺服器公會，永久休閒公會，無貢獻要求，歡迎加入。">
+<title>【預覽】悠然詩靜 | FF14 FC</title>
+<!-- 選單模式（左側／頂部）：必須在任何 CSS 套用前同步決定好，
+     不然畫面會先用錯的版面畫一次，再跳成對的（FOUC）。
+     有手動選過 → 用 localStorage 存的值；沒選過 → 依裝置寬度決定一次預設值，
+     之後就固定下來，不會再因為拉動視窗寬度被強制切換。 -->
+<script>
+(function(){
+  var m;
+  try{
+    m = localStorage.getItem('ff14fc-nav-mode');
+  }catch(e){}
+  if(m!=='left'&&m!=='top'){
+    m = 'left';
+  }
+  // 手機／窄螢幕一律使用頂部選單（左側選單會佔掉大半個畫面，沒有意義）。
+  // 這裡只是「顯示用」，不會改寫 localStorage 存的偏好，所以回到大螢幕時仍是原本選的模式。
+  if(window.innerWidth<=900){ m='top'; }
+  // 被嵌在市場頁「製作求解」彈窗裡的實例（網址帶 embed=1）不需要任何選單，
+  // 用專屬的 'embed' 模式，讓全站那一大堆 html[data-nav-mode="left"/"top"] 的版面規則
+  // （幫選單預留 315px、固定頂欄高度、限制寬度…）通通不會套用到這個彈窗內容上。
+  if(/embed=1/.test(window.location.hash)){ m = 'embed'; }
+  document.documentElement.setAttribute('data-nav-mode', m);
+})();
+</script>
+<!-- 字體預連線：讓瀏覽器盡早建立 DNS/TCP，縮短字體阻塞時間 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- CSS 依「元件/頁面」拆分，載入順序必須維持 base → content → sub-air → macro，
+     以保留原本 style.css → style_patch.css → layout_fix.css 疊層覆蓋的結果 -->
+<link rel="stylesheet" href="css/base.css?v=13">
+<link rel="stylesheet" href="css/page-content.css?v=24">
+<link rel="stylesheet" href="css/page-sub-air.css?v=13">
+<link rel="stylesheet" href="css/page-macro.css?v=13">
+<link rel="stylesheet" href="css/page-craft.css?v=13">
+<link rel="stylesheet" href="css/page-market.css?v=15">
+<link rel="stylesheet" href="css/page-market-watchlist.css?v=13">
+<link rel="stylesheet" href="css/nav-royal.css?v=9">
+<link rel="stylesheet" href="css/nav-unify.css?v=4">
+<link rel="stylesheet" href="css/content-royal.css?v=1">
+<link rel="stylesheet" href="css/content-royal-v2.css?v=1">
+<link rel="stylesheet" href="css/ui-refine.css?v=4">
+<link rel="stylesheet" href="css/market-unify.css?v=3">
+<link rel="stylesheet" href="css/touch-fixes.css?v=1">
+<link rel="stylesheet" href="css/market-detail-v2.css?v=6">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
+
+<style id="pv-style">
+/* ========== 預覽專用樣式（只影響本預覽頁） ========== */
+.pv-block{margin:6px 0 16px;padding:12px 8px 6px;border-top:1px dashed rgba(197,160,89,.35);border-bottom:1px dashed rgba(197,160,89,.35)}
+.pv-cap{font:500 12px/1.5 "Noto Serif TC",serif;color:rgba(232,201,128,.75);text-align:center;margin:2px 0 6px;letter-spacing:1px}
+.pv-center{display:flex;justify-content:center;margin:6px 0 18px;padding:10px 0}
+.pv-ctl{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;font:500 12px/1.6 "Noto Serif TC",serif;color:var(--main,#ddd);margin-top:2px}
+.pv-ctl label{cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+
+/* ----- B：匾額按鈕（公告頁同款）＋ 淡金底、放大鏡、滿亮度外框 ----- */
+.pv-b .pv-row{display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.pv-b .pv-row .ph{font-size:1.15rem;color:var(--gold-bright,#f6e8b0);filter:drop-shadow(0 0 4px rgba(252,246,186,.35))}
+.pv-b .plq-fill{fill:rgba(197,160,89,.17)}
+.pv-b:hover .plq-fill{fill:rgba(197,160,89,.30)}
+.pv-b .plq-out{stroke-opacity:1}
+.pv-b .plq-in{stroke:rgba(252,228,170,.5)}
+
+/* ----- C：一般圓角按鈕，放大＋加強 ----- */
+.sub-mogship .sub-search-btn.pv-c{min-height:52px;padding:12px 44px;gap:10px;font-size:17px;letter-spacing:5px;
+  border:1.5px solid rgba(232,201,128,.9);border-radius:9px;
+  background:linear-gradient(135deg,rgba(197,160,89,.45),rgba(197,160,89,.16));
+  box-shadow:0 0 18px rgba(197,160,89,.30),inset 0 1px 0 rgba(252,246,186,.28)}
+.sub-mogship .sub-search-btn.pv-c{flex:0 0 auto!important;order:0!important;width:auto}
+.sub-mogship .sub-search-btn.pv-c .ph{font-size:22px}
+.sub-mogship .sub-search-btn.pv-c:hover{box-shadow:0 0 26px rgba(197,160,89,.5),inset 0 1px 0 rgba(252,246,186,.4);
+  background:linear-gradient(135deg,rgba(197,160,89,.55),rgba(197,160,89,.22))}
+
+/* ----- 浮動按鈕：沿用關注按鈕（.wl-fab 全套樣式來自 page-market-watchlist.css），只換圖示與文字 ----- */
+#pv-fab.wl-fab .wl-fab-disc .ph{font-size:22px}
+</style>
+</head>
+<body>
+<canvas id="starfield"></canvas>
+<div class="luxury-overlay"></div>
+<nav class="royal-nav nav-has-burger">
+  <button id="nav-mode-toggle" class="nav-mode-toggle" type="button" aria-label="切換選單顯示位置"><span class="nmt-icon" aria-hidden="true">⇄</span><span class="nmt-label" aria-hidden="true">頂部選單</span></button>
+  <button id="nav-burger" class="nav-burger" type="button" aria-expanded="false" aria-label="展開選單"><span class="nb-icon" aria-hidden="true"><i class="ph ph-list"></i></span><span class="nb-label" id="nav-burger-label"><span class="nb-cn">序語</span><span class="nb-en">PROLOGUE</span></span><span class="nb-caret" aria-hidden="true">▾</span></button>
+  <div class="nav-item" data-nav="home"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-sparkle"></i></span>序語</span><span class="en">PROLOGUE</span></div></div>
+  <div class="nav-item" data-nav="about"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-book-open-text"></i></span>簡介</span><span class="en">INTRO</span></div></div>
+  <div class="nav-item" data-nav="links"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-compass"></i></span>指南</span><span class="en">DIRECTORY</span></div></div>
+  <div class="nav-item" data-nav="news"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-megaphone"></i></span>公告</span><span class="en">ANNOUNCEMENT</span></div></div>
+  <div class="nav-item nav-group" id="nav-group-exploration" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-sailboat"></i></span>遠航探索</span><span class="en">EXPLORATION</span></div><span class="nav-group-arrow" aria-hidden="true">▾</span>
+    <div class="nav-submenu">
+      <div class="nav-item nav-subitem" data-nav="submarine"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji"><i class="ph ph-anchor"></i></span>潛水艇</span><span class="en">SUBMARINE</span></div></div>
+      <div class="nav-item nav-subitem" data-nav="airship"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nav-emoji"><i class="ph ph-airplane-tilt"></i></span>飛空艇</span><span class="en">AIRSHIP</span></div></div>
+    </div>
+  </div>
+  <div class="nav-item" data-nav="craft"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-hammer"></i></span>生產</span><span class="en">CRAFT</span></div></div>
+  <div class="nav-item" data-nav="market"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-scales"></i></span>市場</span><span class="en">MARKET</span></div></div>
+  <div class="nav-item" data-nav="fashion"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-t-shirt"></i></span>時尚品鑑</span><span class="en">FASHION</span></div></div>
+  <div class="nav-item" data-nav="macro"><div class="nav-glow"></div><div class="nav-ribbon"></div><div class="nav-content"><span class="cn"><span class="nr-ic"><i class="ph ph-gear-six"></i></span>巨集</span><span class="en">MACROS</span></div></div>
+</nav>
+<main id="viewport">
+  <section id="home" class="scene">
+    <div class="noble-outer-frame"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-sparkle"></i></span><div class="noble-inner-frame">
+      <span class="game-label">Final Fantasy XIV TC</span>
+      <h1 class="royal-main-title">悠然詩靜</h1>
+      <div class="fancy-divider composite"><div class="silk-thread"></div><div class="ornament-center"><span class="inner-star">✧</span><div class="halo"></div></div><div class="silk-thread"></div></div>
+      <p class="ultra-elegant-en">World No.1 Free Company Buffs Provider</p>
+      <p class="elegant-body-text quote-text">『你以為躲起來就找不到你了嗎？沒有用的！像你這樣出色的冒險者，無論在什麼地方，都像漆黑中的螢火蟲一樣，那樣的鮮明，那樣的出眾。』</p>
+    </div></div>
+  </section>
+  <section id="about" class="scene">
+    <div class="noble-outer-frame"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-book-open-text"></i></span><div class="noble-inner-frame intro-layout">
+      <h2 class="unified-gold-header small"><i class="ph ph-book-open-text cr-title-ic" aria-hidden="true"></i>公會簡介</h2>
+      <div class="fancy-divider mini"><div class="long-silk-line-short"></div></div>
+      <div class="intro-cards">
+        <article class="intro-card2" data-plaque="card" style="--gem:232,201,128;--i:0;--t:0">
+          <div class="ic2-head">
+            <span class="ic2-seat" aria-hidden="true"></span>
+            <span class="intro-lbl">創建時間</span>
+            <span class="ic2-en">CREATED</span>
+          </div>
+          <div class="intro-val" data-roll>2025 / 11 / 28</div>
+        </article>
+        <article class="intro-card2" data-plaque="card" style="--gem:112,205,226;--i:1;--t:1">
+          <div class="ic2-head">
+            <span class="ic2-seat" aria-hidden="true"></span>
+            <span class="intro-lbl">伺服器</span>
+            <span class="ic2-en">WORLD</span>
+          </div>
+          <div class="intro-val">利維坦</div>
+        </article>
+        <article class="intro-card2" data-plaque="card" style="--gem:236,150,160;--i:2;--t:3">
+          <div class="ic2-head">
+            <span class="ic2-seat" aria-hidden="true"></span>
+            <span class="intro-lbl">公寓地址</span>
+            <span class="ic2-en">RESIDENCE</span>
+          </div>
+          <div class="intro-val">穹頂皓天　第3區　30號</div>
+        </article>
+        <article class="intro-card2" data-plaque="card" style="--gem:140,214,160;--i:3;--t:2">
+          <div class="ic2-head">
+            <span class="ic2-seat" aria-hidden="true"></span>
+            <span class="intro-lbl">招募形式</span>
+            <span class="ic2-en">RECRUITMENT</span>
+          </div>
+          <div class="intro-val">開放申請</div>
+        </article>
+      </div>
+      <div class="intro-motto">
+        <div class="intro-lbl motto-title">公會標語</div>
+        <p class="elegant-body-text motto-text">永久小型休閒公會，無任何貢獻要求<br>自願貢獻式經營，請安心以自己的方式享受遊戲<br>並保持自願自發，以禮以誠待人</p>
+      </div>
+    </div></div>
+  </section>
+  <section id="links" class="scene">
+    <div class="noble-outer-frame"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-compass"></i></span><div class="noble-inner-frame links-grid">
+      <h2 class="unified-gold-header small news-title links-title"><i class="ph ph-compass cr-title-ic" aria-hidden="true"></i>冒險者指南</h2>
+      <div class="fancy-divider mini news-div links-div"><div class="long-silk-line-short"></div></div>
+      <p class="elegant-body-text links-page-note page-note">感謝每一位用心製作工具及分享的冒險者。他們都是夜晚的螢火蟲。</p>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-scroll"></i></span>參考</span><span class="links-cat-line"></span></div>
+      <a href="https://www.ffxiv.com.tw/web/index.aspx" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">OFFICIAL SITE</span><span class="btn-cn">最終幻想14繁中官網</span></a>
+      <a href="https://ff14.huijiwiki.com/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">WIKI KNOWLEDGE</span><span class="btn-cn">灰機維基百科</span></a>
+      <a href="https://ff14.huijiwiki.com/wiki/LeveList" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">LEVE REWARDS</span><span class="btn-cn">全理符獎勵及需求</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-sword"></i></span>玩法</span><span class="links-cat-line"></span></div>
+      <a href="https://cycleapple.github.io/xiv-tc-treasure-finder/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">TREASURE FINDER</span><span class="btn-cn">繁中藏寶圖查詢器</span></a>
+      <a href="https://cookiebox0501.github.io/Eureka-Tracker/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">EUREKA NM TRACKER</span><span class="btn-cn">優雷卡NM即時追蹤站</span></a>
+      <a href="https://r820704.github.io/ffxiv-scions/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">FFXIV SCIONS</span><span class="btn-cn">優雷卡工具</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-scales"></i></span>市場</span><span class="links-cat-line"></span></div>
+      <a href="https://beherw.github.io/FFXIV_Market/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">MARKET BOARD TC</span><span class="btn-cn">繁中市場小屋</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-hammer"></i></span>生產</span><span class="links-cat-line"></span></div>
+      <a href="https://isla-liu.github.io/ffxiv-best-craft-zhtw/#/welcome" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">CRAFTING CALCULATOR</span><span class="btn-cn">生產計算器</span></a>
+      <a href="https://alanghung.github.io/FFXIVGardeningHelper/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">GARDENING HELPER</span><span class="btn-cn">園藝小幫手</span></a>
+      <a href="https://ronaldzzzzz.github.io/ffxiv-toolbox/gathering-log/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">GATHERING TOOLBOX</span><span class="btn-cn">採集手冊小工具</span></a>
+      <a href="https://andycom12000.github.io/ff14-craft-helper/#/batch" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">CRAFT HELPER</span><span class="btn-cn">吐司工坊製作助手</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-toolbox"></i></span>綜合</span><span class="links-cat-line"></span></div>
+      <a href="https://babelin.netlify.app/" target="_blank" rel="noopener noreferrer" class="noble-anchor ih recommend"><span class="recommend-badge">★ 推薦</span><span class="btn-en">MOCHI'S TOOLBOX</span><span class="btn-cn">小麻糬工具箱</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-t-shirt"></i></span>時尚</span><span class="links-cat-line"></span></div>
+      <a href="https://ffxivchocobo.com/en" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">CHOCOBO COLOUR</span><span class="btn-cn">陸行鳥染色計算器</span></a>
+
+      <div class="links-cat-hdr"><span class="links-cat-line"></span><span class="links-cat-label"><span class="cr-ic sm" aria-hidden="true"><i class="ph ph-anchor"></i></span>潛艇</span><span class="links-cat-line"></span></div>
+      <a href="https://5p.nbbjack.com/#/workshop" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">SUBMARINE MATERIALS</span><span class="btn-cn">潛水艇材料計算器</span></a>
+      <a href="https://www.mogship.com/submarines/exp-calculator" target="_blank" rel="noopener noreferrer" class="noble-anchor ih"><span class="btn-en">SUBMARINE EXP ROUTE</span><span class="btn-cn">潛水艇經驗路線計算器</span></a>
+    </div></div>
+  </section>
+  <section id="news" class="scene">
+    <div class="noble-outer-frame news-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-megaphone"></i></span><div class="noble-inner-frame news-layout">
+      <h2 class="unified-gold-header small news-title"><i class="ph ph-megaphone cr-title-ic" aria-hidden="true"></i>官方最新公告</h2>
+      <div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>
+      <div id="news-list" class="news-list-container"><div class="news-loading"><span class="news-loading-icon">✧</span><span>正在讀取最新公告⋯</span></div></div>
+      <a href="https://www.ffxiv.com.tw/web/news/news_list.aspx" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih" data-plaque="btn"><span class="btn-en">VIEW ALL ANNOUNCEMENTS</span><span class="btn-cn-sm">前往官網查看全部公告</span></a>
+    </div></div>
+  </section>
+  <section id="submarine" class="scene">
+    <div class="noble-outer-frame tool-outer sub-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-anchor"></i></span>
+      <div class="noble-inner-frame tool-layout" id="sub-root"></div>
+    </div>
+  </section>
+  <section id="airship" class="scene">
+    <div class="noble-outer-frame tool-outer air-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-airplane-tilt"></i></span>
+      <div class="noble-inner-frame tool-layout" id="air-root"></div>
+    </div>
+  </section>
+  <section id="craft" class="scene">
+    <div class="noble-outer-frame tool-outer craft-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-hammer"></i></span>
+      <div class="noble-inner-frame tool-layout" id="craft-root"></div>
+    </div>
+  </section>
+  <section id="market" class="scene">
+    <div class="noble-outer-frame tool-outer market-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-scales"></i></span>
+      <div class="noble-inner-frame tool-layout" id="market-root"></div>
+    </div>
+  </section>
+  <section id="fashion" class="scene">
+    <div class="noble-outer-frame news-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-t-shirt"></i></span><div class="noble-inner-frame news-layout">
+      <h2 class="unified-gold-header small news-title"><i class="ph ph-t-shirt cr-title-ic" aria-hidden="true"></i>本週時尚品鑑答案</h2>
+      <div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>
+      <p class="elegant-body-text page-note">感謝巴哈眾英雄熱心分享。如有幫到你，可對他們說聲謝謝。</p>
+      <div id="fashion-content" class="news-list-container"><div class="news-loading"><span class="news-loading-icon">✿</span><span>正在讀取本週答案⋯</span></div></div>
+      <a href="https://forum.gamer.com.tw/C.php?bsn=17608&snA=20177" target="_blank" rel="noopener noreferrer" class="news-visit-btn ih" data-plaque="btn"><span class="btn-en">VIEW ORIGINAL POST</span><span class="btn-cn-sm">前往巴哈姆特原文討論串</span></a>
+    </div></div>
+  </section>
+  <section id="macro" class="scene">
+    <div class="noble-outer-frame tool-outer macro-outer"><span class="cr-medal cr-ic" aria-hidden="true"><i class="ph ph-gear-six"></i></span><div class="noble-inner-frame macro-root-frame" id="macro-root"></div></div>
+  </section>
+</main>
+<!-- 載入順序有相依性，請勿任意調換：
+     1) items.js                資料查表，UI 面板顯示物品名稱用
+     2) sub-data.js / sub-calc.js   潛水艇資料 → 演算法（演算法在頂層直接用到資料常數，順序不可顛倒）
+     3) air-data.js / air-calc.js   飛空艇資料 → 演算法，同上
+     4) app.js                  定義全站共用的 app 物件骨架（必須先於下面兩個面板載入，
+                                 因為它們啟動時就會對 app 物件賦值）
+     5) sub-panel.js / air-panel.js  潛水艇／飛空艇 UI 面板，掛在 app 物件上
+     6) macro-tool.js           巨集工具，獨立運作，不依賴 app 物件
+     7) nav.js                  左側/頂部選單切換，完全獨立 -->
+<script src="js/items.js"></script>
+<script src="js/sub-data.js"></script>
+<script src="js/sub-calc.js"></script>
+<script src="js/app.js?v=25"></script>
+<script src="js/sub-panel.js"></script>
+<script src="js/nav.js?v=13"></script>
+<script src="js/nav-royal.js?v=13"></script>
+<script src="js/content-royal-v2.js?v=2"></script>
+<script src="js/plaque.js?v=2"></script>
+<script src="js/ui-motion.js?v=2"></script>
+
+<script id="pv-script">
+(function(){
+  'use strict';
+  var block=null, fab=null, mode='auto', dimTimer=null, fabFrame=null;
+
+  function build(){
+    var panel=document.querySelector('#sub-route-panel');
+    if(!panel||panel.querySelector('.pv-block')) return !!(panel&&panel.querySelector('.pv-block'));
+    var filt=panel.querySelector('.sub-filters-section'); if(!filt) return false;
+    block=document.createElement('div'); block.className='pv-block';
+    block.innerHTML=
+      '<div class="pv-cap">▼ 預覽 B：匾額樣式（淡金底＋放大鏡＋滿亮度外框）</div>'+
+      '<div class="pv-center"><button type="button" id="pv-b" class="news-visit-btn pv-b ih" data-plaque="btn">'+
+        '<span class="btn-en">SEARCH</span><span class="pv-row"><i class="ph ph-magnifying-glass"></i><span class="btn-cn-sm">搜尋</span></span></button></div>'+
+      '<div class="pv-cap">▼ 預覽 C：一般圓角按鈕，放大加強</div>'+
+      '<div class="pv-center"><button type="button" id="pv-c" class="sub-search-btn pv-c"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button></div>'+
+      '<div class="pv-cap">▼ 浮動按鈕預覽（右下角）：自動＝兩顆主按鈕都不在畫面內才出現</div>'+
+      '<div class="pv-ctl">'+
+        '<label><input type="radio" name="pv-m" value="auto" checked>自動</label>'+
+        '<label><input type="radio" name="pv-m" value="always">一直顯示</label>'+
+        '<label><input type="radio" name="pv-m" value="off">隱藏</label></div>';
+    filt.parentNode.insertBefore(block,filt);
+    block.querySelectorAll('input[name=pv-m]').forEach(function(r){r.addEventListener('change',function(){mode=r.value;sync();});});
+    ['pv-b','pv-c'].forEach(function(id){
+      document.getElementById(id).addEventListener('click',function(){
+        var b=this; b.classList.add('pv-clicked'); setTimeout(function(){b.classList.remove('pv-clicked');},300);
+      });
+    });
+    return true;
+  }
+
+  var visible={}; 
+  function sync(){
+    if(!fab) return;
+    var anyVisible=!!(visible['pv-b']||visible['pv-c']);
+    var show = mode==='always' || (mode==='auto' && !anyVisible);
+    fab.classList.toggle('hide',!show);
+  }
+
+  function mountFab(){
+    if(fab) return;
+    var host=document.createElement('div');
+    host.innerHTML=
+      '<button type="button" id="pv-fab" class="wl-fab hide" title="搜尋" aria-label="搜尋">'+
+      '<span class="wl-fab-medal"><span class="wl-fab-disc"><i class="ph ph-magnifying-glass"></i></span>'+
+      '<i class="wl-fab-gem n"></i><i class="wl-fab-gem e"></i><i class="wl-fab-gem s"></i><i class="wl-fab-gem w"></i></span>'+
+      '<span class="wl-fab-plate">搜尋</span></button>';
+    document.body.appendChild(host.firstChild);
+    fab=document.getElementById('pv-fab');
+    fab.addEventListener('click',function(){ if(block) block.scrollIntoView({behavior:'smooth',block:'center'}); });
+    // 捲動時縮小變暗（同關注按鈕）
+    var last=new WeakMap();
+    document.addEventListener('scroll',function(e){
+      var t=e.target===document?document.scrollingElement:e.target;
+      if(!t||typeof t.scrollTop!=='number') return;
+      var p=last.has(t)?last.get(t):0,c=t.scrollTop; last.set(t,c); if(c===p) return;
+      fab.classList.add('dim'); clearTimeout(dimTimer); dimTimer=setTimeout(function(){fab.classList.remove('dim');},700);
+    },true);
+    // 螢幕很寬時貼到內容框右外側（同關注按鈕）
+    fabFrame=document.querySelector('#submarine .noble-outer-frame');
+    function pos(){
+      if(!fab||!fabFrame) return; var fr=fabFrame.getBoundingClientRect(); if(!fr.width) return;
+      var vw=document.documentElement.clientWidth,w=fab.offsetWidth||58,room=vw-fr.right;
+      fab.style.right=(room>=w+16+18)?Math.round(room-w-16)+'px':'';
+    }
+    window.addEventListener('resize',pos); setInterval(pos,800);
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){visible[e.target.id]=e.isIntersecting;}); sync();
+    },{threshold:0.6});
+    ['pv-b','pv-c'].forEach(function(id){io.observe(document.getElementById(id));});
+    sync();
+  }
+
+  function boot(){
+    var n=0,t=setInterval(function(){
+      n++;
+      var item=document.querySelector('.nav-item[data-nav="submarine"]');
+      var scene=document.getElementById('submarine');
+      if(scene&&!scene.classList.contains('active')&&item&&n===1) item.click();
+      if(build()){ clearInterval(t); mountFab(); }
+      if(n>80) clearInterval(t);
+    },150);
+  }
+  if(document.readyState==='complete') boot(); else window.addEventListener('load',boot);
+})();
+</script>
+</body>
+</html>
