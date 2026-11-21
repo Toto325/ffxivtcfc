@@ -95,6 +95,29 @@
     return { cs: cs, ct: ct, cp: cp, csMax: csMax, steps: clean.length, keys: clean.map(function (a) { return a.constructor.name; }) };
   }
 
+  /* 庫手法／集束搜尋手法的需求評估。這類手法只在「自己的作業範圍」內有效：作業太高，進度在前幾步就做完，
+   * 後面的步驟不會執行，手法會被截成殘缺版本（需求變成作業 19000 以上的垃圾）。所以不能用超大的寬裕數值評估，
+   * 而是由低往高找出第一個「整套手法都能完整執行且達到目標」的作業值，再以它當寬裕數值精確反推需求。
+   * c.gen 只提供加工精度與 CP 的寬裕值（作業由這裡找）；start 是掃描的起點。找不到（在 maxCs 以內都做不到）回傳 null。 */
+  function scanGenCs(craft, rotation, c, start, maxCs) {
+    var g = c.gen;
+    var okAt = function (cs) {
+      var sim = new simulator.Simulation(craft, rotation, c.makeStats(cs, g.ct, g.cp), c.hq);
+      var res = sim.run(true, undefined, c.safeMode);
+      if (!res.success || (c.full && (sim.quality || 0) < c.qGoal)) return false;
+      var ran = 0; for (var i = 0; i < res.steps.length; i++) { var st = res.steps[i]; if (st && !st.skipped && st.success) ran++; }
+      return ran === rotation.length; // 整套手法都有執行（沒有被提早做完截斷）
+    };
+    for (var cs = Math.max(300, Math.floor(start || 300)); cs <= (maxCs || 40000); cs = Math.ceil(cs * 1.04)) if (okAt(cs)) return cs;
+    return null;
+  }
+  function needsOfRotationScan(craft, rotation, c, step, withMax, start, maxCs) {
+    if (c.allowed) { for (var ai = 0; ai < rotation.length; ai++) if (!c.allowed.has(rotation[ai].constructor.name)) return null; }
+    var cs = scanGenCs(craft, rotation, c, start, maxCs);
+    if (cs == null) return null;
+    return needsOfRotation(craft, rotation, Object.assign({}, c, { gen: { cs: cs, ct: c.gen.ct, cp: c.gen.cp } }), step, withMax);
+  }
+
   function FrontierGA(recipe, genStats, config, F) {
     global.CraftSolverGA.call(this, recipe, genStats, config);
     this.F = F;                // { goal, full, ref, qGoal, makeStats, hq, safeMode, gen }
@@ -181,26 +204,10 @@
     };
     // 手法庫：不論玩家數值多少，都能精確反推每套手法最少需要多少
     var libCands = [];
-    /* 庫的手法只在「自己的作業範圍」內有效：作業太高進度會提早做完，後面的步驟不會執行，手法被截成殘缺版本。
-     * 所以不能一律用超大的寬裕數值評估，而是由低往高找出第一個「整套手法都能完整執行且達到目標」的作業值，
-     * 再以它當寬裕數值精確反推需求（這時需求、作業上限都是這套手法真正的值）。 */
-    var libGenFor = function (rot) {
-      var ctB = Math.max(Math.ceil(ref.ct * 10), 30000), cpB = Math.max(Math.ceil(ref.cp * 10 + 600), 3000);
-      var okAt = function (cs) {
-        var sim = new simulator.Simulation(craft, rot, makeStats(cs, ctB, cpB), baseCtx.hq);
-        var res = sim.run(true, undefined, baseCtx.safeMode);
-        if (!res.success || (full && (sim.quality || 0) < baseCtx.qGoal)) return false;
-        var ran = 0; for (var i = 0; i < res.steps.length; i++) { var st = res.steps[i]; if (st && !st.skipped && st.success) ran++; }
-        return ran === rot.length; // 整套手法都有執行（沒有被提早做完截斷）
-      };
-      for (var cs = Math.max(300, Math.floor(ref.cs * 0.3)); cs <= 40000; cs = Math.ceil(cs * 1.04)) if (okAt(cs)) return { cs: cs, ct: ctB, cp: cpB };
-      return null;
-    };
     (msg.libKeys || []).forEach(function (keys) {
       try {
-        var rot = actionsFromKeys(keys), gen = libGenFor(rot);
-        if (!gen) return;
-        var n = needsOfRotation(craft, rot, Object.assign({ gen: gen }, baseCtx), 5, true);
+        var rot = actionsFromKeys(keys);
+        var n = needsOfRotationScan(craft, rot, Object.assign({ gen: { cs: 0, ct: Math.max(Math.ceil(ref.ct * 10), 30000), cp: Math.max(Math.ceil(ref.cp * 10 + 600), 3000) } }, baseCtx), 5, true, Math.floor(ref.cs * 0.3));
         if (n) { var cc = costOf(n); n.cost = cc.cost; n.fromLib = true; libCands.push(n); }
       } catch (e) { /* 這套手法在目前條件下不能用就略過 */ }
     });
@@ -262,7 +269,7 @@
         var genB = { cs: Math.ceil(ref.cs * usedMul), ct: Math.ceil(ref.ct * usedMul), cp: Math.ceil(ref.cp * usedMul + (usedMul > 1 ? 40 : 0)) };
         var keysB = msg.beamFn(genB, msg.beamExpand || 3e6);
         if (keysB && keysB.length) {
-          var nB = needsOfRotation(craft, actionsFromKeys(keysB), Object.assign({ gen: { cs: Math.max(Math.ceil(ref.cs * 10), 30000), ct: Math.max(Math.ceil(ref.ct * 10), 30000), cp: Math.max(Math.ceil(ref.cp * 10 + 600), 3000) } }, baseCtx), 5, true);
+          var nB = needsOfRotation(craft, actionsFromKeys(keysB), Object.assign({ gen: genB }, baseCtx), 5, true); // 集束搜尋就是在 genB 找到的（一定做得到），用它評估才不會被截斷
           if (nB) { var cB = costOf(nB); nB.cost = cB.cost; nB.fromLib = true; merged.push(nB); }
         }
       } catch (e) { /* 集束搜尋失敗不影響已找到的結果 */ }
@@ -283,5 +290,5 @@
     return { cands: out.slice(0, 16), genMul: usedMul, found: found };
   }
 
-  global.CraftFrontier = { frontierSearch: frontierSearch, needsOfRotation: needsOfRotation };
+  global.CraftFrontier = { frontierSearch: frontierSearch, needsOfRotation: needsOfRotation, needsOfRotationScan: needsOfRotationScan };
 })(typeof self !== 'undefined' ? self : this);

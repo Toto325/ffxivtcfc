@@ -3850,6 +3850,7 @@ app._craftReady = function () {
     if (r.route && r.tight) h += '<span class="cdg-best"><i class="ph ph-seal-check"></i>最少提升</span>';
     if (r.route ? r.prep : r.html) h += '<div class="cdg-prep"><span class="cdg-prep-k">' + label + '</span>' + (r.route ? r.prep : r.html) + '</div>';
     if (r.route) h += diagStatRowsHtml(r);
+    if (r.route && r.hasFood) h += '<div class="cdg-foot" style="font-size:.78rem;opacity:.7;margin-top:.3rem">以上為基礎數值（含食物及藥水加成後即可達標）</div>';
     if (r.trial && r.key) h += '<div class="cdg-act"><button type="button" class="cdg-try" data-key="' + r.key + '"><i class="ph ph-flask"></i>用此目標試算</button></div>';
     h += diagTrialHtml((slot._trials || {})[r.key], r.grp === 'full');
     return h + '</div>';
@@ -4003,6 +4004,7 @@ app._craftReady = function () {
     return {
       solve: submit,
       call: function (msg) { return submit({ msg: msg }); }, // 任意訊息（frontier／simulate）
+      size: size,
     };
   }
 
@@ -4097,6 +4099,16 @@ app._craftReady = function () {
     const ref = { craftsmanship: baseB.craftsmanship, control: baseB.control, cp: baseB.cp };
     combos.forEach(function (c) { const f = finalFor(baseB, c); STAT_KEYS.forEach(function (k) { if (f[k] > ref[k]) ref[k] = f[k]; }); });
 
+    /* ── 設計者比例：只用來「排序」和「決定先往下降哪一項」，不拿來把任何數值拉高 ──
+     * 玩家提供的參考（大致關係，有小誤差）：作業 : 加工 ≈ 1 : 0.905　　CP ≈ 17 × 作業^0.35 + 180
+     * 「等級 S」：這組基礎數值相當於比例線上的哪一級裝備（三項各自換算、取最高的那項），S 越小越貼近真正的最低。 */
+    const DESIGN = { ct: 0.905, cpA: 17, cpP: 0.35, cpB: 180 };
+    const isExpert = !!craft.expert; // 專家配方的比例不同、狀態隨機：不用比例排序、不做逐項探測，維持原本的做法
+    const cpAt = function (sc) { return DESIGN.cpA * Math.pow(Math.max(sc, 0), DESIGN.cpP) + DESIGN.cpB; };
+    const scForCp = function (cp) { const d = cp - DESIGN.cpB; return d <= 0 ? 0 : Math.pow(d / DESIGN.cpA, 1 / DESIGN.cpP); };
+    const rayVal = function (S) { return { craftsmanship: S, control: DESIGN.ct * S, cp: cpAt(S) }; };
+    const tierOf = function (B) { return isExpert ? 0 : Math.max(B.craftsmanship, B.control / DESIGN.ct, scForCp(B.cp)); };
+
     /* 由「所需最終數值」反推「基礎數值至少要多少、搭配哪組食藥」：
      * 食藥是百分比加成但有封頂，每一項的最終值只跟那一項的基礎值有關，所以每組食藥、每一項各自二分，挑成本最小的那組。 */
     /* 成本＝各項「基礎數值需要提升的比例」的平方和開根號：偏向各項一起提升，避免把某一項拉到誇張的高度。 */
@@ -4115,8 +4127,8 @@ app._craftReady = function () {
           B[k] = roundUp(hi);
         });
         if (!ok) return;
-        const cost = costOf(B, keys), n = c ? c.n : 0;
-        if (!best || cost < best.cost - 1e-9 || (Math.abs(cost - best.cost) <= 1e-9 && n < best.n)) best = { B: B, c: c, cost: cost, n: n };
+        const cost = costOf(B, keys), n = c ? c.n : 0, tier = tierOf(B); // 先比「等級 S」（專家配方 S＝0，等於只比成本），S 相同再比成本、道具數
+        if (!best || tier < best.tier - 1e-6 || (Math.abs(tier - best.tier) <= 1e-6 && (cost < best.cost - 1e-9 || (Math.abs(cost - best.cost) <= 1e-9 && n < best.n)))) best = { B: B, c: c, cost: cost, n: n, tier: tier };
       });
       return best;
     };
@@ -4142,7 +4154,8 @@ app._craftReady = function () {
       /* 搜尋「所需數值最低的手法」。分兩階段：第一階段短時間，讓第一個方案盡快出現；
        * 第二階段每個 Worker 都從「目前所有人找到最好的幾個」接力精修（隨機搜尋的運氣有好有壞，接力能把好結果分享給大家）。 */
       const search = function (budget, seedList, mulHint, seedBase, refs) {
-        return Promise.all(seeds.map(function (job, ji) {
+        const jobs = (pool.size || 1) >= 3 || seeds.length === 1 ? seeds : ((pool.size || 1) === 2 ? seeds.slice(0, 2) : [seeds[0], seeds[seeds.length - 1]]); // Worker 少時不要排隊跑三個
+        return Promise.all(jobs.map(function (job, ji) {
           return pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats), ref: (refs && refs[ji]) || job.ref, goal: g, qGoal: craft.quality,
             hq: hqFor(g), budgetMs: budget, seedKeys: mainKeys, seedKeysList: seedList || [], mulHint: mulHint || null, seed: seedBase + job.seed });
         }));
@@ -4152,76 +4165,163 @@ app._craftReady = function () {
       const cur = { craftsmanship: stats.craftsmanship, control: stats.control, cp: stats.cp };
       const noteRow = function () { return { grp: g, order: 9, note: true, key: 'note-' + g, html: '分析未完成，請再按一次求解' }; };
 
-      /* ── 設計者比例的射線 ──
-       * 玩家提供的參考（大致關係，有小誤差，用來決定建議的方向，不是絕對數值）：
-       *   作業 : 加工 ≈ 1 : 0.89～0.95（大多數集中在 0.90～0.91）　　CP ≈ 17 × 作業^0.35 + 180
-       * 建議的「最終三項數值」一律落在這條射線上（作業＝S，加工＝比例×S，CP＝公式(S)）：不在射線上的結果不算答案。
-       * 玩家某一項已經比射線高就固定不動（不要求倒退），其餘項目沿射線往上；射線上找不到答案就把 S 繼續往上推。 */
-      const DESIGN = { ct: 0.905, cpA: 17, cpP: 0.35, cpB: 180 };
-      const cpAt = function (sc, off) { return DESIGN.cpA * Math.pow(Math.max(sc, 0), DESIGN.cpP) + DESIGN.cpB + off; };
-      const scForCp = function (cp, off) { const d = cp - DESIGN.cpB - off; return d <= 0 ? 0 : Math.pow(d / DESIGN.cpA, 1 / DESIGN.cpP); };
-      const VARIANTS = [{ ct: DESIGN.ct, cpOff: 0 }, { ct: 0.95, cpOff: -10 }, { ct: 0.89, cpOff: 10 }]; // 主方案＋兩個比重略有不同的備選（都在參考的誤差範圍內，不會極端）
-      /* 射線上的目標數值：作業、加工、CP 三項全部沿比例（CP 不再取「手法實際需要的 CP」的較大者）。
-       * 手法需要的 CP 比射線高時，不是把 CP 單獨拉高，而是把整條射線往上推（S 變大，三項一起變大），
-       * 直到射線上的 CP 夠用；這樣最終呈現的三項數值永遠符合設計者比例。玩家已經比射線高的項目維持原值。 */
-      const rayB = function (sc, v) {
-        const T = { craftsmanship: sc, control: v.ct * sc, cp: cpAt(sc, v.cpOff) };
-        const B = {};
-        STAT_KEYS.forEach(function (k) { B[k] = goalKeys.indexOf(k) >= 0 ? Math.max(baseB[k], roundUp(T[k])) : baseB[k]; });
-        return B;
-      };
-      const comboMeeting = function (B, need, ignoreMax) { // 在基礎數值 B 下，能讓三項最終值都達到需求的食藥組合（道具最少）
-        let best = null;
-        combos.forEach(function (c) {
-          const f = finalFor(B, c);
-          if (!goalKeys.every(function (k) { return f[k] >= need[k]; })) return;
-          if (!ignoreMax && need.csMax != null && f.craftsmanship > need.csMax) return; // 作業精度太高，這套手法的進度會提早做完而失效
-          const n = c ? c.n : 0;
-          if (!best || n < best.n) best = { c: c, n: n };
+      /* ── 設計者比例：只用來「排序」和「決定先往下降哪一項」，不拿來把任何數值拉高 ──
+       * 玩家提供的參考（大致關係，有小誤差）：作業 : 加工 ≈ 1 : 0.905　　CP ≈ 17 × 作業^0.35 + 180
+       * 建議的數值＝「這套手法自己的最低需求」（精確反推、確定的值）；候選之間用「等級 S」比高低：
+       * S＝這組基礎數值相當於比例線上的哪一級裝備（三項各自換算、取最高的那項），S 越小越貼近真正的最低。 */
+      /* 候選手法 → 各自的最低目標（含食藥），依「等級 S → 提升成本 → 道具數 → 步數」排序 */
+      const pickRoutes = function (raw) {
+        const seen = {}, items = [];
+        raw.forEach(function (c) {
+          const sig = c.keys.join(','); if (seen[sig]) return; seen[sig] = true;
+          const t = baseTargetFor(c.need, goalKeys);
+          if (!t || goalKeys.every(function (k) { return t.B[k] <= baseB[k]; })) return; // 基礎數值完全不用動（只換食藥）的情況前面已處理
+          items.push({ c: c, t: t, tier: tierOf(t.B) });
         });
-        return best;
+        items.sort(function (a, b) { return a.tier - b.tier || a.t.cost - b.t.cost || a.t.n - b.t.n || a.c.steps - b.c.steps; });
+        return items;
       };
-      const minScale = function (need, v) { // 這套手法在這條射線上最小要多少 S 才做得到（三項一起決定：作業、加工÷比例、CP 反推公式）
-        // 「最低需求」是單調的（越高越容易達到），先忽略上限找出最小的 S；再檢查那個 S 下作業精度有沒有高到讓手法失效
-        let hi = Math.max(need.craftsmanship, need.control / v.ct, scForCp(need.cp, v.cpOff), 0);
-        hi = roundUp(hi + STEP); // 射線上三項都 ≥ 需求，所以這個 S 一定夠
-        if (!comboMeeting(rayB(hi, v), need, true)) return null;
-        let lo = 0;
-        if (!comboMeeting(rayB(0, v), need, true)) {
-          while (hi - lo > STEP) { const mid = roundUp((lo + hi) / 2); if (mid >= hi) break; if (comboMeeting(rayB(mid, v), need, true)) hi = mid; else lo = mid; }
-        } else hi = 0;
-        const B = rayB(hi, v);
-        return comboMeeting(B, need) ? { sc: hi, B: B } : null;
-      };
-      const rayRoutes = async function (raw, final) {
-        const seenKeys = {}, cands = [];
-        raw.forEach(function (c) { const sig = c.keys.join(','); if (!seenKeys[sig]) { seenKeys[sig] = true; cands.push(c); } });
-        const picks = [];
-        VARIANTS.forEach(function (v, vi) {
-          let best = null;
-          cands.forEach(function (c) {
-            const r = minScale(c.need, v);
-            if (!r || goalKeys.every(function (k) { return r.B[k] <= baseB[k]; })) return; // 基礎數值完全不用動的情況（只換食藥）前面已經處理
-            if (!best || r.sc < best.sc) best = { sc: r.sc, B: r.B, c: c, v: vi };
-          });
-          if (best) picks.push(best);
-        });
-        const rows = [];
-        for (let i = 0; i < picks.length && rows.length < 3; i++) {
-          const p = picks[i];
-          if (i > 0) { // 備選：必須跟前面的方案有實質差異，而且不能被前面的方案全面壓過
-            if (rows.some(function (r0) { return STAT_KEYS.every(function (k) { return Math.abs(r0._B[k] - p.B[k]) <= STEP; }); })) continue;
-            if (rows.some(function (r0) { return goalKeys.every(function (k) { return r0._B[k] <= p.B[k]; }); })) continue;
+      const rankedRoutes = async function (raw, final) {
+        const items = pickRoutes(raw), rows = [];
+        for (let i = 0; i < items.length && rows.length < 3; i++) {
+          const it = items[i], B = it.t.B;
+          if (rows.length) { // 備選：必須跟前面的方案有實質差異，而且不能被前面的方案全面壓過
+            if (rows.some(function (r0) { return STAT_KEYS.every(function (k) { return Math.abs(r0._B[k] - B[k]) <= STEP; }); })) continue;
+            if (rows.some(function (r0) { return goalKeys.every(function (k) { return r0._B[k] <= B[k]; }); })) continue;
           }
-          const m = comboMeeting(p.B, p.c.need);
-          const o = await verify({ c: p.c }, finalFor(p.B, m.c));
+          const o = await verify(it, finalFor(B, it.t.c));
           if (!o) continue;
-          const key = 't-' + g + '-' + STAT_KEYS.map(function (k) { return p.B[k]; }).join('-');
-          rows.push({ grp: g, order: 5 + rows.length, kind: 'route', route: true, tight: final && rows.length === 0, key: key, icon: 'ph-shield', sMin: p.sc, _B: p.B,
-            prep: (hqTrial ? chip('ph-star', '全 HQ 材料', false) : '') + comboChips(m.c),
-            stats: STAT_KEYS.map(function (k) { return { key: k, from: baseB[k], to: p.B[k], delta: p.B[k] - baseB[k] }; }), trial: { result: o.result, craft: o.craft } });
+          const key = 't-' + g + '-' + STAT_KEYS.map(function (k) { return B[k]; }).join('-');
+          rows.push({ grp: g, order: 5 + rows.length, kind: 'route', route: true, tight: final && rows.length === 0, key: key, icon: 'ph-shield', sMin: it.tier, _B: B, hasFood: !!it.t.c,
+            prep: (hqTrial ? chip('ph-star', '全 HQ 材料', false) : '') + comboChips(it.t.c),
+            stats: STAT_KEYS.map(function (k) { return { key: k, from: baseB[k], to: B[k], delta: B[k] - baseB[k] }; }), trial: { result: o.result, craft: o.craft } });
         }
         return rows;
+      };
+
+      /* ── 逐項探測往下收斂（集束搜尋當裁判）──
+       * 隨機搜尋（遺傳演算法）常找不到「CP 精簡」之類取向的手法，找到的答案可能比真正的最低高出兩成以上；
+       * 集束搜尋是確定性的系統搜尋，能回答「在這組最終數值下做不做得到」。做法（以某一組食藥為前提，在基礎數值上做）：
+       *   1. 起點：沿比例線找一個「集束搜尋確認做得到」的點（數值只會比玩家現有的高，不會倒退）。
+       *   2. 挑「相對比例最高」的一項往下降一點（其他項固定），探測做不做得到；做得到就取那套手法自己的精確需求當新上界（三項一起往下跳）。
+       *   3. 玩家現有數值是每一項的下限（只降不升）。集束搜尋的「做不到」不完全可靠，只當提示；核心夠時再往下試一小格確認。
+       * 食藥組合：挑「候選最缺的那幾項」各自最強的組合，各探一遍（核心夠就並行）；最後所有找到的手法都進同一份候選，
+       * 由現有的換算與排序（等級 S）決定顯示哪個。起點用比例線而不是隨機搜尋的候選，避免被候選的取向帶進局部低谷。 */
+      const PROBE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 12e6, beamWidths: [2500, 6000], beamRealCapMs: 15000 };
+      const probeAt = async function (F) { // 在這組「最終數值」下，集束搜尋能不能做到目標；做得到回傳結果（含手法）
+        const r = await pool.solve({ recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), options: Object.assign({}, PROBE, { hqIngredients: hqFor(g) }) });
+        return r && r.actionKeys && r.actionKeys.length && goalOk(g, r) ? r : null;
+      };
+      const needsOfKeys = async function (keys, F) { // 這套手法自己的精確最低需求（在它自己的作業範圍內算）
+        const o = await pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), ref: F, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, libKeys: [keys], budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
+        return o && o.cands && o.cands[0] ? o.cands[0] : null;
+      };
+      const invAxis = function (c, k, needVal, hi) { // 這組食藥下，第 k 項「基礎值」至少要多少才能讓最終值達到 needVal
+        const f = function (b) { const t = Object.assign({}, baseB); t[k] = b; return finalFor(t, c)[k]; };
+        if (f(baseB[k]) >= needVal) return baseB[k];
+        let lo = baseB[k], h = hi; if (f(h) < needVal) return hi;
+        while (h - lo > 1) { const m = Math.floor((lo + h) / 2); if (f(m) >= needVal) h = m; else lo = m; }
+        return h;
+      };
+      const tightenBy = function (U, c, nd) { STAT_KEYS.forEach(function (kk) { const nb = invAxis(c, kk, nd.need[kk], U[kk]); if (nb < U[kk]) U[kk] = nb; }); };
+      const comboKeyOf = function (c) { return c ? safeId(c.mealId) + '-' + safeId(c.medId) : 'none'; };
+      const startFor = async function (c, hintB, tooLate) { // 沿比例線「由低往高」找第一個做得到的點（從低處出發，才不會被高處找到的手法帶進局部低谷）
+        const lo = Math.max(tierOf(baseB), 1), hi = Math.max(lo, hintB ? tierOf(hintB) : lo * 1.5);
+        const levels = [0, 1 / 3, 2 / 3, 1].map(function (f, i) { return { S: lo * Math.pow(hi / lo, f), last: i === 3 }; });
+        let prev = -1;
+        for (let i = 0; i < levels.length && !tooLate(); i++) {
+          const S = levels[i].S;
+          if (prev > 0 && Math.abs(S - prev) < 1) continue; // 範圍太窄時不重複探測
+          prev = S;
+          const rv = rayVal(S), U = {};
+          STAT_KEYS.forEach(function (k) { U[k] = Math.ceil(Math.max(baseB[k], rv[k], levels[i].last && hintB ? hintB[k] : 0)); }); // 最後一個點才併入候選本身的數值（保底）
+          const F = finalFor(U, c), r = await probeAt(F);
+          if (an.cancelled) return null;
+          if (r) { const nd = await needsOfKeys(r.actionKeys, F); return { U: U, nd: nd }; }
+        }
+        return null;
+      };
+      const descendBase = async function (st, c, tooLate, raw, refresh, plans) {
+        let U = Object.assign({}, st.U), improved = 0, probes = 0, weak = 0;
+        if (st.nd) { st.nd.fromDescent = true; raw.push(st.nd); tightenBy(U, c, st.nd); improved++; await refresh(); }
+        let lastCost = costOf(U, goalKeys);
+        const done = {};
+        const tryAxis = async function (k, deltas) {
+          const list = [];
+          deltas.forEach(function (d) { const v = Math.max(baseB[k], Math.floor(U[k] * (1 - d))); if (v < U[k] && list.indexOf(v) < 0) list.push(v); });
+          if (!list.length) return false;
+          probes += list.length;
+          const rs = await Promise.all(list.map(function (v) { const B = Object.assign({}, U); B[k] = v; return probeAt(finalFor(B, c)); }));
+          if (an.cancelled) return false;
+          let bi = -1; rs.forEach(function (r, i) { if (r && (bi < 0 || list[i] < list[bi])) bi = i; });
+          if (bi < 0) return false;
+          const B2 = Object.assign({}, U); B2[k] = list[bi];
+          const nd = await needsOfKeys(rs[bi].actionKeys, finalFor(B2, c));
+          U = B2;
+          if (nd) { nd.fromDescent = true; raw.push(nd); tightenBy(U, c, nd); } // 三項一起往下跳
+          improved++;
+          await refresh();
+          return true;
+        };
+        for (let round = 0; round < 2 && !tooLate() && probes < 14 && weak < 2; round++) {
+          for (let guard = 0; guard < 14 && !tooLate() && probes < 14 && weak < 2; guard++) {
+            const rv = rayVal(tierOf(U));
+            const axes = goalKeys.filter(function (k) { return !done[k] && U[k] > baseB[k]; })
+              .sort(function (a, b) { return U[b] / rv[b] - U[a] / rv[a]; }); // 先降「相對比例最高」的那一項
+            if (!axes.length) break;
+            let ok = false;
+            for (let pi = 0; pi < plans.length && !ok && !tooLate(); pi++) ok = await tryAxis(axes[0], plans[pi]);
+            if (!ok) done[axes[0]] = true;
+            else { const nc = costOf(U, goalKeys); weak = (lastCost - nc) / Math.max(1e-9, lastCost) < 0.02 ? weak + 1 : 0; lastCost = nc; }
+          }
+          // 確認（核心夠才做，單 Worker 時每次探測太久）：對還有提升的項目再往下試一小格
+          let again = false;
+          if ((pool.size || 1) >= 2 && weak < 2) {
+            const raised = goalKeys.filter(function (k) { return U[k] > baseB[k]; });
+            for (let i = 0; i < raised.length && !tooLate() && probes < 14; i++) if (await tryAxis(raised[i], [0.03])) { again = true; break; }
+          }
+          if (!again) break;
+          goalKeys.forEach(function (k) { done[k] = false; });
+        }
+        return improved;
+      };
+      const descend = async function (raw, refresh) {
+        if (!full || isExpert || an.cancelled) return 0;
+        const t0 = performance.now(), size = pool.size || 1;
+        const tooLate = function () { return outOfTime() || performance.now() - t0 > 40000; };
+        const first = pickRoutes(raw)[0] || null; // 目前最好的候選（可能還沒有）
+        const real = combos.filter(Boolean);
+        const topCombo = function (k) { return real.reduce(function (m, c) { return (!m || finalFor(baseB, c)[k] > finalFor(baseB, m)[k]) ? c : m; }, null); };
+        // 食藥組合：玩家「相對比例最缺」的項目，挑那一項最強的組合（例如 CP 遠低於比例，就先試 CP 最強的食藥）
+        const rv0 = rayVal(tierOf(baseB));
+        const scarce = goalKeys.slice().sort(function (a, b) { return baseB[a] / rv0[a] - baseB[b] / rv0[b]; });
+        const combosByNeed = [];
+        scarce.forEach(function (k) { const c = topCombo(k); if (c && !combosByNeed.some(function (x) { return comboKeyOf(x) === comboKeyOf(c); })) combosByNeed.push(c); });
+        // 每次 refresh 一個接一個排隊（多組並行時避免舊結果蓋掉新結果）
+        let chain = Promise.resolve();
+        const serial = function () { chain = chain.then(function () { return an.cancelled ? null : refresh(); }); return chain; };
+        const plans = size === 2 ? [[0.05, 0.12]] : [[0.05]]; // 「做不到」的探測最花時間：每項只探 5%（容許誤差）；核心夠（≥3）時改成多組並行
+        const stopFor = function (ms) { const tc = performance.now(); return function () { return tooLate() || performance.now() - tc > ms; }; };
+        const slice = size >= 3 ? 30000 : 20000;
+        const tasks = [];
+        if (combosByNeed[0]) tasks.push(async function () { // ① 沿比例線由低往高找起點，再往下收斂（探索不同取向的手法）
+          const stop = stopFor(slice), c = combosByNeed[0], st = await startFor(c, first ? first.t.B : null, stop);
+          return st ? descendBase(st, c, stop, raw, serial, plans) : 0;
+        });
+        if (first) tasks.push(async function () { // ② 從「當下」最好的候選出發局部收斂（它已驗證做得到）；最好的若已是逐項探測收斂出來的就不用重跑
+          const cur = pickRoutes(raw)[0];
+          if (!cur || cur.c.fromDescent) return 0;
+          return descendBase({ U: Object.assign({}, cur.t.B), nd: null }, cur.t.c, stopFor(slice), raw, serial, plans);
+        });
+        if (combosByNeed[1] && size >= 2) tasks.push(async function () { // ③ 另一組食藥（相對次缺的項目）
+          const stop = stopFor(slice), c = combosByNeed[1], st = await startFor(c, first ? first.t.B : null, stop);
+          return st ? descendBase(st, c, stop, raw, serial, plans) : 0;
+        });
+        let improved = 0;
+        if (size >= 3) (await Promise.all(tasks.map(function (t) { return t(); }))).forEach(function (n) { improved += n; });
+        else for (let i = 0; i < tasks.length && !tooLate(); i++) improved += await tasks[i]();
+        await chain;
+        return improved;
       };
 
       const present = async function (raw, final) {
@@ -4256,10 +4356,9 @@ app._craftReady = function () {
           if (frows.length) { report(g, frows); return { done: true, items: items }; }
         }
         /* 3. 需要提升裝備數值。
-         * 「設計者比例」：每套新裝備帶來的三項總能力值，作業：加工 ≈ 1：0.905，CP ≈ 17 × 作業^0.35 + 180（玩家提供的參考，實際常數見 DESIGN）。
-         * 建議目標＝沿這個比例找出「做得到的最小 S」；玩家某一項已經比射線高就固定不動（不會要求他倒退），其餘項目沿比例往上。
-         * 三項最終數值都落在射線上；不在射線上的不算答案，射線上暫時沒有答案就繼續把 S 往上推，不再退回「各項最低需求」。 */
-        const rows3 = await rayRoutes(raw, final);
+         * 顯示每套手法「自己的最低需求」（含食藥），候選之間用「等級 S」排序（比例只用來排序，不會把數值拉高）；
+         * 之後由逐項探測（集束搜尋）往下收斂，找到更低的就在原位更新。 */
+        const rows3 = await rankedRoutes(raw, final);
         if (rows3.length) report(g, rows3);
         return { done: false, items: items, shown: rows3.length, sMin: rows3.length ? rows3[0].sMin : null };
       };
@@ -4275,27 +4374,29 @@ app._craftReady = function () {
           if (r0.done || an.cancelled) return;
         }
       }
-      // 第一階段：快速找出第一批方案，先讓玩家看到
-      const outs1 = await search(full ? 1800 : 1500, [], null, 0);
-      if (an.cancelled) return;
-      gather(outs1, raw);
-      let r1 = raw.length ? await present(raw, false) : { done: false, items: [] };
-      if (r1.done || an.cancelled) return;
-      // 第二階段：接力精修，有更好的就在原位更新
-      const topKeys = r1.items.slice(0, 6).map(function (x) { return x.c.keys; });
-      // 接力的搜尋以「比目前最好的倍率再低一點」的射線點當參考，讓搜尋有明確的方向（還差多少），把需求再往下壓
-      let refs2 = null;
-      if (r1.sMin) {
-        const refAt = function (f) {
-          const B = rayB(roundUp(r1.sMin * f), VARIANTS[0]), o = { craftsmanship: B.craftsmanship, control: B.control, cp: B.cp };
-          combos.forEach(function (c) { const fn = finalFor(B, c); STAT_KEYS.forEach(function (k) { if (fn[k] > o[k]) o[k] = fn[k]; }); });
-          return o;
-        };
-        refs2 = full ? [refAt(0.95), refAt(0.88), refAt(0.8)] : [refAt(0.9)];
+      /* 第一階段：快速找出第一批方案，先讓玩家看到。
+       * 滿品質且庫已經給出候選時略過（庫的答案已經顯示了，而隨機搜尋在核心少的裝置上要花十幾秒，直接進逐項探測更划算）。 */
+      let outs1 = [], r1 = { done: false, items: [] };
+      const skipPhase1 = full && !isExpert && raw.length > 0;
+      if (!skipPhase1) {
+        outs1 = await search(full ? 1800 : 1500, [], null, 0);
+        if (an.cancelled) return;
+        gather(outs1, raw);
+        r1 = raw.length ? await present(raw, false) : { done: false, items: [] };
+        if (r1.done || an.cancelled) return;
       }
-      const outs2 = await search(raw.length ? (full ? 3000 : 2500) : 4500, topKeys, refs2 ? null : hintOf(outs1), 10, refs2);
-      if (an.cancelled) return;
-      gather(outs2, raw);
+      // 第二階段：逐項探測往下收斂（集束搜尋當裁判）；每找到更低的答案就在原位更新。找不到任何更好的才退回遺傳演算法接力精修。
+      let refined = 0;
+      if (full && !isExpert) {
+        refined = await descend(raw, async function () { if (!an.cancelled && raw.length) await present(raw, false); });
+        if (an.cancelled) return;
+      }
+      if (!refined) {
+        const topKeys = (r1.items || []).slice(0, 6).map(function (x) { return x.c.keys; });
+        const outs2 = await search(raw.length ? (full ? 3000 : 2500) : 4500, topKeys, hintOf(outs1), 10, null);
+        if (an.cancelled) return;
+        gather(outs2, raw);
+      }
       if (!raw.length) { report(g, [noteRow()]); return; }
       const r2 = await present(raw, true);
       if (!r2.done && !r2.shown) report(g, [noteRow()]);
