@@ -84,7 +84,8 @@
     var csMax = Infinity;
     if (withMax) {
       var hiLim = Math.max(g.cs, cs * 4);
-      var okCs = function (v) { var r = run(clean, v, g.ct, cp); return r.res.success && (!c.full || (r.sim.quality || 0) >= c.qGoal); };
+      var ctAt = ct > 0 ? ct : g.ct; // 作業上限要在「這套手法自己的最低加工」下算：用寬裕的加工會讓被截斷的殘缺版本也湊出滿品質，上限就被高估成無限
+      var okCs = function (v) { var r = run(clean, v, ctAt, cp); return r.res.success && (!c.full || (r.sim.quality || 0) >= c.qGoal); };
       if (!okCs(hiLim)) {
         var lo = Math.ceil(cs / step), hi = Math.ceil(hiLim / step); // lo 可行、hi 不可行
         while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (okCs(mid * step)) lo = mid; else hi = mid; }
@@ -180,9 +181,26 @@
     };
     // 手法庫：不論玩家數值多少，都能精確反推每套手法最少需要多少
     var libCands = [];
+    /* 庫的手法只在「自己的作業範圍」內有效：作業太高進度會提早做完，後面的步驟不會執行，手法被截成殘缺版本。
+     * 所以不能一律用超大的寬裕數值評估，而是由低往高找出第一個「整套手法都能完整執行且達到目標」的作業值，
+     * 再以它當寬裕數值精確反推需求（這時需求、作業上限都是這套手法真正的值）。 */
+    var libGenFor = function (rot) {
+      var ctB = Math.max(Math.ceil(ref.ct * 10), 30000), cpB = Math.max(Math.ceil(ref.cp * 10 + 600), 3000);
+      var okAt = function (cs) {
+        var sim = new simulator.Simulation(craft, rot, makeStats(cs, ctB, cpB), baseCtx.hq);
+        var res = sim.run(true, undefined, baseCtx.safeMode);
+        if (!res.success || (full && (sim.quality || 0) < baseCtx.qGoal)) return false;
+        var ran = 0; for (var i = 0; i < res.steps.length; i++) { var st = res.steps[i]; if (st && !st.skipped && st.success) ran++; }
+        return ran === rot.length; // 整套手法都有執行（沒有被提早做完截斷）
+      };
+      for (var cs = Math.max(300, Math.floor(ref.cs * 0.3)); cs <= 40000; cs = Math.ceil(cs * 1.04)) if (okAt(cs)) return { cs: cs, ct: ctB, cp: cpB };
+      return null;
+    };
     (msg.libKeys || []).forEach(function (keys) {
       try {
-        var n = needsOfRotation(craft, actionsFromKeys(keys), Object.assign({ gen: { cs: Math.max(Math.ceil(ref.cs * 10), 30000), ct: Math.max(Math.ceil(ref.ct * 10), 30000), cp: Math.max(Math.ceil(ref.cp * 10 + 600), 3000) } }, baseCtx), 5, true); // 寬裕數值至少給到 30000，避免玩家數值很低時庫裡的手法因為「寬裕不夠」被誤判為做不到
+        var rot = actionsFromKeys(keys), gen = libGenFor(rot);
+        if (!gen) return;
+        var n = needsOfRotation(craft, rot, Object.assign({ gen: gen }, baseCtx), 5, true);
         if (n) { var cc = costOf(n); n.cost = cc.cost; n.fromLib = true; libCands.push(n); }
       } catch (e) { /* 這套手法在目前條件下不能用就略過 */ }
     });
