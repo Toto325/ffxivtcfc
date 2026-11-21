@@ -61,6 +61,7 @@ app.exploreUi = app.exploreUi || (function(){
       const o=e.target.closest('.wl-dd-opt');if(!o)return;
       e.stopPropagation();
       sel.value=o.dataset.v;
+  {const ch=sel.options[sel.selectedIndex];if(ch&&ch.dataset&&ch.dataset.locked==='1')setTimeout(()=>nudge(btn),0);}
       sel.dispatchEvent(new Event('change',{bubbles:true}));
       close();
     });
@@ -265,6 +266,48 @@ app.exploreUi = app.exploreUi || (function(){
     if(ch&&sel._ddRender)sel._ddRender();
   };
 
+
+  /* 選到等級不足的部件時：輕微震動（左右 2px、0.4 秒）＋ Lv 標籤閃一下紅光。
+   * 只在「使用者主動選／勾」時觸發；改等級時不觸發（避免輸入數字時一直震）。
+   * 系統開了「減少動態效果」就只閃紅光、不震動（見 CSS）。 */
+  const nudge=(el)=>{
+    if(!el)return;
+    el.classList.remove('pt-shake');void el.offsetWidth;el.classList.add('pt-shake');
+    clearTimeout(el._ptT);el._ptT=setTimeout(()=>el.classList.remove('pt-shake'),700);
+  };
+  const bindLockNudge=(el)=>{
+    if(!el||el._ptNudge)return;el._ptNudge=true;
+    el.addEventListener('change',e=>{
+      const c=e.target;
+      if(!(c&&c.matches&&c.matches('.sub-owned-item input[type="checkbox"]'))||!c.checked)return;
+      const lb=c.closest('.sub-owned-item');if(lb&&lb.classList.contains('pt-locked'))nudge(lb);
+    });
+  };
+
+  /* 擁有部件格子的欄數：依「實際一行放得下完整名稱」自動決定。
+   * 量出最寬那一欄單行所需寬度，再依容器寬度在「全部並排 → 2×2 → 1 欄」之間挑，
+   * 不會出現 3＋1 的殘缺排列，也不會為了擠進去而讓名稱換行（除非 1 欄都放不下）。 */
+  const fitOwnedGrids=(scope)=>{
+    if(!scope)return;
+    scope.querySelectorAll('.sub-owned-grid').forEach(grid=>{
+      if(grid._ptFit){grid._ptFit(true);return;}
+      const fit=(force)=>{
+        const cols=grid.children.length;if(!cols)return;
+        const w=grid.clientWidth;if(!w)return;
+        if(!force&&grid._ptW===w)return;
+        grid.classList.add('pt-measure');
+        let need=0;Array.prototype.forEach.call(grid.children,c=>{need=Math.max(need,c.offsetWidth);});
+        grid.classList.remove('pt-measure');
+        const gap=parseFloat(getComputedStyle(grid).columnGap)||10;
+        let n=1;[cols,Math.ceil(cols/2)].some(k=>{if(k*need+(k-1)*gap<=w+0.5){n=k;return true;}return false;});
+        grid._ptW=w;grid.style.gridTemplateColumns='repeat('+n+',minmax(0,1fr))';
+      };
+      grid._ptFit=fit;
+      if(window.ResizeObserver)new ResizeObserver(()=>fit(false)).observe(grid);
+      if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>fit(true));
+      fit(true);
+    });
+  };
   /* ─── 搜尋按鈕列：雙線夾珠點（同標題下的分隔線）＋ 中央搜尋鈕 ─────────── */
   const searchRowHtml=(id)=>'<div class="sub-search-row"><span class="ssr-line l" aria-hidden="true"></span><i class="ssr-gem" aria-hidden="true"></i><button id="'+id+'" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><i class="ssr-gem" aria-hidden="true"></i><span class="ssr-line r" aria-hidden="true"></span></div>';
 
@@ -337,7 +380,7 @@ app.exploreUi = app.exploreUi || (function(){
     });
     update();pos();setTimeout(pos,400);setTimeout(pos,1300);
   };
-  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData,isNarrow,ownedItemHtml,applyOwnedLocks,decorateOption,applySelectLocks,searchRowHtml,scrollToResults,mountSearchFab};
+  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData,isNarrow,ownedItemHtml,applyOwnedLocks,fitOwnedGrids,bindLockNudge,nudge,decorateOption,applySelectLocks,searchRowHtml,scrollToResults,mountSearchFab};
 })();
 
 /* ─── SUBMARINE UI ─── */
@@ -558,6 +601,7 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
     const revRank=()=>parseInt(root.querySelector('#sub-rev-rank')?.value)||1;
     const applyRouteSelectLocks=()=>['hull','stern','bow','bridge'].forEach(slot=>app.exploreUi.applySelectLocks(root.querySelector(`#sub-${slot}`),curRank()));
     applyRouteSelectLocks();
+    app.exploreUi.bindLockNudge(root.querySelector('#sub-owned-route-grid'));
     const renderOwnedRouteGrid=()=>{
       const gridEl=root.querySelector('#sub-owned-route-grid');if(!gridEl)return;
       const slotLabel={hull:'船體',stern:'船尾',bow:'船首',bridge:'艦橋'}; const SLOT_ICON={hull:'boat',stern:'fan',bow:'navigation-arrow',bridge:'binoculars'};
@@ -574,6 +618,7 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
       html+='</div>';
       gridEl.innerHTML=html;
       app.exploreUi.applyOwnedLocks(gridEl,curRank());
+      app.exploreUi.fitOwnedGrids(gridEl);
       gridEl.querySelectorAll('input[type="checkbox"]').forEach(chk=>{
         chk.addEventListener('change',()=>{
           const slot=chk.dataset.slot,rk=+chk.dataset.rank;
@@ -2007,6 +2052,8 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
     };
     buildReversePanel();
   app.exploreUi.applyOwnedLocks(revPanel,revRank());
+  app.exploreUi.fitOwnedGrids(revPanel);
+  app.exploreUi.bindLockNudge(revPanel);
   ['input','change'].forEach(ev=>revPanel.querySelector('#sub-rev-rank')?.addEventListener(ev,()=>app.exploreUi.applyOwnedLocks(revPanel,revRank())));
   revPanel.querySelector('#sub-rev-search-btn')?.addEventListener('click',()=>{
     const vis=['#sub-rev-results-dest','#sub-rev-results-item','#sub-rev-results-stat'].map(q=>revPanel.querySelector(q)).find(e=>e&&e.style.display!=='none');

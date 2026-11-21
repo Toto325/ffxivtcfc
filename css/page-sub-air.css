@@ -1828,8 +1828,21 @@ html[data-nav-mode="top"] .news-outer,
  * ===================================================================== */
 .pt-wrap{min-width:0}
 .pt-lv{margin-left:6px;font-size:.84em;letter-spacing:.4px;white-space:nowrap;color:rgba(197,160,89,.62);font-variant-numeric:tabular-nums}
-.pt-locked .pt-nm{opacity:.5;text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:rgba(197,160,89,.4)}
-.pt-locked .pt-lv{color:#e3a94d}
+/* 等級不足：名稱連同刪除線一起調暗（刪除線＝文字同色，不另外上色）；標籤用站上的警告紅 */
+.pt-locked .pt-nm{opacity:.6;text-decoration:line-through;text-decoration-thickness:1.5px}
+.pt-locked .pt-lv{color:#f87171;font-weight:600}
+
+/* 選到等級不足的部件：輕微震動＋標籤閃一下紅光（減少動態效果時只閃光） */
+@keyframes pt-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-2px)}40%{transform:translateX(2px)}60%{transform:translateX(-2px)}80%{transform:translateX(2px)}}
+@keyframes pt-flash{0%{text-shadow:0 0 0 rgba(248,113,113,0)}35%{text-shadow:0 0 9px rgba(248,113,113,.95)}100%{text-shadow:0 0 0 rgba(248,113,113,0)}}
+.pt-shake{animation:pt-shake .4s ease-in-out}
+.pt-shake .pt-lv{animation:pt-flash .7s ease-out}
+@media (prefers-reduced-motion:reduce){.pt-shake{animation:none}}
+
+/* 擁有部件格子量測用（JS 暫時加上，量完立刻移除）：各欄依內容撐開、名稱不換行 */
+.sub-mogship .sub-owned-grid.pt-measure{display:flex!important;flex-wrap:nowrap;width:max-content;max-width:none}
+.sub-mogship .sub-owned-grid.pt-measure>.sub-owned-col{flex:none;width:max-content}
+.sub-mogship .sub-owned-grid.pt-measure .sub-owned-item{white-space:nowrap}
 
 /* =====================================================================
  * 搜尋按鈕列：雙線夾珠點（同頁面標題下的分隔線語彙）＋ 中央搜尋鈕

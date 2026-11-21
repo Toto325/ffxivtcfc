@@ -202,6 +202,7 @@ app.exploreUi.enhanceAll(root);
   const revRank = () => parseInt(root.querySelector('#air-rev-rank')?.value) || 1;
   const applyRouteSelectLocks = () => ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => app.exploreUi.applySelectLocks(root.querySelector(`#air-${slot}`), curRank()));
   applyRouteSelectLocks();
+  app.exploreUi.bindLockNudge(root.querySelector('#air-owned-route-grid'));
   const renderOwnedRouteGrid = () => {
     const gridEl = root.querySelector('#air-owned-route-grid'); if (!gridEl) return;
     const slotLabel = { hull: '船體', rigging: '舾裝', forecastle: '船首', aftcastle: '船尾' }; const SLOT_ICON={hull:'airplane-tilt',rigging:'steering-wheel',forecastle:'navigation-arrow',aftcastle:'fan'};
@@ -217,6 +218,7 @@ app.exploreUi.enhanceAll(root);
     html += '</div>';
     gridEl.innerHTML = html;
   app.exploreUi.applyOwnedLocks(gridEl, curRank());
+  app.exploreUi.fitOwnedGrids(gridEl);
     gridEl.querySelectorAll('input[type="checkbox"]').forEach(chk => {
       chk.addEventListener('change', () => {
         const slot = chk.dataset.slot, rk = +chk.dataset.rank;
@@ -1284,6 +1286,8 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
   };
   buildReversePanel();
   app.exploreUi.applyOwnedLocks(revPanel, revRank());
+  app.exploreUi.fitOwnedGrids(revPanel);
+  app.exploreUi.bindLockNudge(revPanel);
   ['input', 'change'].forEach(ev => revPanel.querySelector('#air-rev-rank')?.addEventListener(ev, () => app.exploreUi.applyOwnedLocks(revPanel, revRank())));
   revPanel.querySelector('#air-rev-search-btn')?.addEventListener('click', () => {
     const vis = ['#air-rev-results-dest', '#air-rev-results-item', '#air-rev-results-stat'].map(q => revPanel.querySelector(q)).find(e => e && e.style.display !== 'none');
