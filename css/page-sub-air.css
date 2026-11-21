@@ -1396,7 +1396,6 @@ html[data-nav-mode="top"] .news-outer,
   .sub-mogship{gap:12px}
   .sub-mogship .sub-top-row{flex-direction:column;align-items:stretch}
   .sub-mogship .explore-actions{margin-left:0;width:100%}
-  .sub-mogship .sub-search-btn{flex:1 1 100%;order:-1;padding:9px 20px}
   .sub-mogship .sub-switch{flex:1 1 auto;justify-content:center}
   .sub-mogship .sub-switch .sw-opt{flex:1;justify-content:center}
   .sub-mogship .sub-view-btn,.sub-mogship .sub-clear-btn{flex:1 1 auto;justify-content:center}
@@ -1820,3 +1819,62 @@ html[data-nav-mode="top"] .news-outer,
   /* 手指提示圖示：放到第一行（備註＋T1/T2/T3）的最右邊，不獨佔一行 */
   .sub-mogship .sub-legend>.sub-legend-sep:has(.lg-info){order:-1;margin-left:auto}
 }
+
+
+/* =====================================================================
+ * 部件等級標示（潛水艇／飛空艇共用）
+ *  .pt-lv 標籤固定放在名稱字尾；等級不足的部件加 .pt-locked：
+ *  名稱調暗＋淡刪除線，標籤變琥珀色（標籤本身不加刪除線，保持清楚）。
+ * ===================================================================== */
+.pt-wrap{min-width:0}
+.pt-lv{margin-left:6px;font-size:.84em;letter-spacing:.4px;white-space:nowrap;color:rgba(197,160,89,.62);font-variant-numeric:tabular-nums}
+.pt-locked .pt-nm{opacity:.5;text-decoration:line-through;text-decoration-thickness:1px;text-decoration-color:rgba(197,160,89,.4)}
+.pt-locked .pt-lv{color:#e3a94d}
+
+/* =====================================================================
+ * 搜尋按鈕列：雙線夾珠點（同頁面標題下的分隔線語彙）＋ 中央搜尋鈕
+ *  ‧ 按鈕寬 = 容器的 68%，最小 200、最大 300px；高度各處一致
+ *  ‧ 兩側的線吃掉剩下的空間（每側最長 380px）；容器窄於 300px 時線與珠點整組隱藏
+ *  ‧ 線的亮端朝向按鈕、往外淡出；暗線在亮線下 4px（同標題分隔線）
+ * ===================================================================== */
+.sub-mogship .sub-search-row{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;margin:20px 0 22px;container-type:inline-size}
+.sub-mogship .sub-search-row .ssr-line{flex:1 1 0;min-width:0;max-width:380px;height:1px;position:relative;background:linear-gradient(90deg,transparent,rgba(197,160,89,.9))}
+.sub-mogship .sub-search-row .ssr-line::after{content:"";position:absolute;left:12%;right:0;top:4px;height:1px;background:linear-gradient(90deg,transparent,rgba(197,160,89,.28))}
+.sub-mogship .sub-search-row .ssr-line.r{transform:scaleX(-1)}
+.sub-mogship .sub-search-row .ssr-gem{flex:none;width:6px;height:6px;transform:rotate(45deg);background:radial-gradient(circle at 35% 35%,#fff 0%,rgb(var(--acc,197,160,89)) 60%);box-shadow:0 0 7px rgba(var(--acc,197,160,89),.65)}
+@container (max-width:299px){
+  .sub-mogship .sub-search-row .ssr-line,.sub-mogship .sub-search-row .ssr-gem{display:none}
+}
+
+.sub-mogship .sub-search-row .sub-search-btn{
+  flex:0 0 clamp(200px,68%,300px);order:0;width:auto;box-sizing:border-box;height:54px;min-height:54px;margin:0!important;padding:0 16px;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden;cursor:pointer;
+  font-family:"Noto Serif TC",serif;font-size:17px;font-weight:600;letter-spacing:5px;color:#fff4cf;
+  text-shadow:0 1px 2px rgba(0,0,0,.6),0 0 8px rgba(252,246,186,.25);
+  border:1px solid rgba(240,214,140,.95);border-radius:9px;
+  background:linear-gradient(180deg,rgba(214,176,98,.52) 0%,rgba(197,160,89,.30) 48%,rgba(150,115,52,.30) 100%);
+  box-shadow:0 0 18px rgba(197,160,89,.28),0 3px 8px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,246,214,.45),inset 0 -2px 0 rgba(60,40,10,.45);
+  transition:box-shadow .2s,transform .15s,background .2s,opacity .2s}
+.sub-mogship .sub-search-row .sub-search-btn .ph{font-size:22px;color:#fff4cf}
+.sub-mogship .sub-search-row .sub-search-btn:hover{
+  transform:translateY(-1px);
+  background:linear-gradient(180deg,rgba(226,190,112,.62) 0%,rgba(205,168,96,.38) 48%,rgba(160,124,58,.36) 100%);
+  box-shadow:0 0 26px rgba(197,160,89,.5),0 4px 10px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,246,214,.6),inset 0 -2px 0 rgba(60,40,10,.45)}
+.sub-mogship .sub-search-row .sub-search-btn:active{transform:scale(.97)}
+.sub-mogship .sub-search-row .sub-search-btn:focus-visible{outline:2px solid var(--gold-bright,#f6e8b0);outline-offset:3px}
+/* hover 光掃過（同公告頁匾額按鈕）：通用規則把 ::before/::after 全關了，這裡用更高的優先權只開 ::after */
+.sub-mogship .sub-search-row .sub-search-btn::after{display:block!important;content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 38%,rgba(255,246,214,.22) 50%,transparent 62%);transform:translateX(-110%)}
+.sub-mogship .sub-search-row .sub-search-btn:hover::after{transform:translateX(110%);transition:transform .9s cubic-bezier(.22,1,.36,1)}
+.sub-mogship .sub-search-row .sub-search-btn.is-busy{pointer-events:none;opacity:.85}
+@media (prefers-reduced-motion:reduce){
+  .sub-mogship .sub-search-row .sub-search-btn:hover::after{transition:none}
+  .sub-mogship .sub-search-row .sub-search-btn{transition:none}
+}
+
+/* 浮動搜尋鈕：造型來自 page-market-watchlist.css 的 .wl-fab；搜尋中暫時不能點 */
+.wl-fab.is-busy{pointer-events:none}
+
+/* 按下搜尋後自動捲到結果區時，上緣留一點空間 */
+#sub-results,#air-results,#sub-rev-results-dest,#sub-rev-results-item,#sub-rev-results-stat,
+#air-rev-results-dest,#air-rev-results-item,#air-rev-results-stat{scroll-margin-top:12px}

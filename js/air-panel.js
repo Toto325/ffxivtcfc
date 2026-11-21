@@ -109,7 +109,7 @@ app.buildAir = function () {
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
 </div>
 <div id="air-route-panel">
-<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="air-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="air-rank-inp" class="sub-inp" value="1" min="1" max="50"><span class="sub-exp-next" id="air-exp-next"></span><span class="sub-exp-badge" id="air-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="air-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="air-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="air-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="air-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="air-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>收獲概覽</span></button><button id="air-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
+<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="air-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="air-rank-inp" class="sub-inp" value="1" min="1" max="50"><span class="sub-exp-next" id="air-exp-next"></span><span class="sub-exp-badge" id="air-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="air-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="air-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="air-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="air-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>收獲概覽</span></button><button id="air-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
 <div class="sub-parts-row" id="air-parts-select-row">
   <div class="sub-part-col"><label class="sub-lbl" for="air-hull"><i class="ph ph-airplane-tilt"></i>船體</label><select id="air-hull" class="sub-sel"></select></div>
   <div class="sub-part-col"><label class="sub-lbl" for="air-rigging"><i class="ph ph-steering-wheel"></i>舾裝</label><select id="air-rigging" class="sub-sel"></select></div>
@@ -130,6 +130,7 @@ app.buildAir = function () {
   <div id="air-owned-route-grid"></div>
   <div class="sub-owned-tier-row"><label class="sub-lbl" for="air-owned-tier"><i class="ph ph-seal-check"></i>獲得物品門檻</label><select id="air-owned-tier" class="sub-sel"><option value="none">不限（純比效率，較快）</option><option value="normal">全程每一站至少「達標」</option><option value="best">全程每一站都「最佳」</option></select><span class="sub-exp-badge" data-tip="開啟門檻篩選時，搜尋範圍變大，會比純比效率慢一些。"><i class="ph ph-info"></i></span></div>
 </div>
+${app.exploreUi.searchRowHtml('air-search-btn')}
 <div class="sub-filters-section">
   <button id="air-filters-hdr" class="sub-filters-hdr" type="button"><i class="ph ph-funnel"></i><span>篩選條件</span><i class="ph ph-caret-down fh-caret"></i></button>
   <div id="air-filters-panel" class="sub-filters-panel">
@@ -179,7 +180,7 @@ app.buildAir = function () {
      （反查配裝功能也需要用到，搬成共用資料，避免兩處各自維護一份）。 */
   ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => {
     const sel = root.querySelector(`#air-${slot}`);
-    AIR_PARTS[slot].forEach(p => { const o = document.createElement('option'); o.value = p[0]; o.textContent = `${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}`; sel.appendChild(o); });
+    AIR_PARTS[slot].forEach(p => { const o = document.createElement('option'); o.value = p[0]; o.textContent = `${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}`; app.exploreUi.decorateOption(o, `${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}`, p[1]); sel.appendChild(o); });
 app.exploreUi.enhanceAll(root);
   });
 
@@ -197,6 +198,10 @@ app.exploreUi.enhanceAll(root);
   }
 
   /* ── 路線搜尋的「擁有部件」模式（架構比照 sub-panel.js）── */
+  const curRank = () => parseInt(root.querySelector('#air-rank-inp')?.value) || 1;
+  const revRank = () => parseInt(root.querySelector('#air-rev-rank')?.value) || 1;
+  const applyRouteSelectLocks = () => ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => app.exploreUi.applySelectLocks(root.querySelector(`#air-${slot}`), curRank()));
+  applyRouteSelectLocks();
   const renderOwnedRouteGrid = () => {
     const gridEl = root.querySelector('#air-owned-route-grid'); if (!gridEl) return;
     const slotLabel = { hull: '船體', rigging: '舾裝', forecastle: '船首', aftcastle: '船尾' }; const SLOT_ICON={hull:'airplane-tilt',rigging:'steering-wheel',forecastle:'navigation-arrow',aftcastle:'fan'};
@@ -205,12 +210,13 @@ app.exploreUi.enhanceAll(root);
       html += `<div class="sub-owned-col"><div class="sub-owned-col-title"><i class="ph ph-${SLOT_ICON[slot]}"></i>${slotLabel[slot]}</div>`;
       AIR_PARTS[slot].forEach(p => {
         const checked = (ownedParts[slot] || []).includes(p[1]) ? 'checked' : '';
-        html += `<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${p[1]}" ${checked}> ${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}</label>`;
+        html += app.exploreUi.ownedItemHtml(slot, p[1], !!checked, `${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}`, p[1]);
       });
       html += '</div>';
     });
     html += '</div>';
     gridEl.innerHTML = html;
+  app.exploreUi.applyOwnedLocks(gridEl, curRank());
     gridEl.querySelectorAll('input[type="checkbox"]').forEach(chk => {
       chk.addEventListener('change', () => {
         const slot = chk.dataset.slot, rk = +chk.dataset.rank;
@@ -222,7 +228,7 @@ app.exploreUi.enhanceAll(root);
     });
   };
   root.querySelector('#air-owned-route-all')?.addEventListener('click', () => {
-    ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => { ownedParts[slot] = AIR_PARTS[slot].map(p => p[1]); });
+    ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => { ownedParts[slot] = AIR_PARTS[slot].filter(p => curRank() >= p[1]).map(p => p[1]); });
     saveOwnedParts(); renderOwnedRouteGrid();
   });
   root.querySelector('#air-owned-route-none')?.addEventListener('click', () => {
@@ -506,7 +512,7 @@ app.exploreUi.enhanceAll(root);
     if (this._airWorkerFailed) return null;
     if (this._airWorker) return this._airWorker;
     try {
-      const w = new Worker('js/air-worker.js');
+      const w = new Worker('js/air-worker.js?v=2');
       w.addEventListener('error', ev => { console.warn('[XIV] air_worker 執行失敗，改回主執行緒計算：', ev.message); this._airWorkerFailed = true; this._airWorker = null; });
       this._airWorker = w; return w;
     } catch (err) { console.warn('[XIV] 瀏覽器不支援 Worker 或載入失敗，改回主執行緒計算：', err); this._airWorkerFailed = true; return null; }
@@ -518,8 +524,8 @@ app.exploreUi.enhanceAll(root);
     if (!owned) {
       st = getStats(); if (!st) { root.querySelector('#air-results').innerHTML = '<div class="sub-empty">請先選擇所有部件</div>'; return; }
     } else {
-      const hasAll = ['hull', 'rigging', 'forecastle', 'aftcastle'].every(slot => (ownedParts[slot] || []).length > 0);
-      if (!hasAll) { root.querySelector('#air-results').innerHTML = '<div class="sub-empty">請至少為每個部位（船體／舾裝／船首／船尾）勾選一種擁有的部件</div>'; return; }
+      const hasAll = ['hull', 'rigging', 'forecastle', 'aftcastle'].every(slot => airUsableParts(slot, ownedParts, curRank()).length > 0);
+      if (!hasAll) { root.querySelector('#air-results').innerHTML = '<div class="sub-empty">請至少為每個部位（船體／舾裝／船首／船尾）勾選一種已擁有、且目前等級裝得上的部件</div>'; return; }
     }
     const lootStrict = root.querySelector('#air-loot-strict')?.checked || false;
     const lootMustMeet = root.querySelector('#air-loot-meet')?.checked || false;
@@ -837,6 +843,10 @@ app.exploreUi.enhanceAll(root);
   };
 
   root.querySelector('#air-rank-inp')?.addEventListener('input', updateStats);
+  ['input', 'change'].forEach(ev => root.querySelector('#air-rank-inp')?.addEventListener(ev, () => {
+    applyRouteSelectLocks();
+    app.exploreUi.applyOwnedLocks(root.querySelector('#air-owned-route-grid'), curRank());
+  }));
   const saveFilterState = () => {
     try {
       localStorage.setItem(FILTER_KEY, JSON.stringify({
@@ -860,7 +870,7 @@ app.exploreUi.enhanceAll(root);
   };
 
   ['air-hull', 'air-rigging', 'air-forecastle', 'air-aftcastle'].forEach(id => root.querySelector(`#${id}`)?.addEventListener('change', updateStats));
-  { const _sb=root.querySelector('#air-search-btn'); _sb?.addEventListener('click',()=>{ doSearch(); app.exploreUi.watchBusy(_sb,root.querySelector('#air-results')); saveFilterState(); }); }
+  { const _sb=root.querySelector('#air-search-btn'); _sb?.addEventListener('click',()=>{ doSearch(); app.exploreUi.watchBusy(_sb,root.querySelector('#air-results')); saveFilterState(); app.exploreUi.scrollToResults(root.querySelector('#air-results')); }); }
   root.querySelector('#air-clear-btn')?.addEventListener('click', () => {
     [mustInc, mustExcl, mustLootIds].forEach(a => a.length = 0);
     root.querySelectorAll('.sub-chips-display').forEach(c => c.innerHTML = '');
@@ -968,7 +978,7 @@ app.exploreUi.enhanceAll(root);
       ownedHtml += `<div class="sub-owned-col"><div class="sub-owned-col-title"><i class="ph ph-${SLOT_ICON[slot]}"></i>${slotLabel[slot]}</div>`;
       AIR_PARTS[slot].forEach(p => {
         const checked = (ownedParts[slot] || []).includes(p[1]) ? 'checked' : '';
-        ownedHtml += `<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${p[1]}" ${checked}> ${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}</label>`;
+        ownedHtml += app.exploreUi.ownedItemHtml(slot, p[1], !!checked, `${AIR_RANK_CODE[p[1]] || p[1]} — ${p[2]}`, p[1]);
       });
       ownedHtml += '</div>';
     });
@@ -1021,7 +1031,7 @@ app.exploreUi.enhanceAll(root);
   </div>
   <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<small>自動記住，下次不用重選</small></label><div class="sub-owned-actions"><button type="button" id="air-owned-all" class="sub-owned-mini-btn"><i class="ph ph-checks"></i>全選</button><button type="button" id="air-owned-none" class="sub-owned-mini-btn"><i class="ph ph-x-circle"></i>清除</button></div></div>
   ${ownedHtml}
-  <div class="sub-rev-row"><button id="air-rev-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button></div>
+  ${app.exploreUi.searchRowHtml('air-rev-search-btn')}
   <div id="air-rev-results-dest"><div class="sub-empty">選擇目的地、門檻與擁有的部件後按搜尋</div></div>
   <div id="air-rev-results-item" style="display:none"><div class="sub-empty">選擇物品、門檻與擁有的部件後按搜尋</div></div>
   <div id="air-rev-results-stat" style="display:none"><div class="sub-empty">輸入需求值與擁有的部件後按搜尋</div></div>`;
@@ -1192,7 +1202,7 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
     const setAllOwned = (checked) => {
       revPanel.querySelectorAll('.sub-owned-item input').forEach(chk => { chk.checked = checked; });
       ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => {
-        ownedParts[slot] = checked ? AIR_PARTS[slot].map(p => p[1]) : [];
+        ownedParts[slot] = checked ? AIR_PARTS[slot].filter(p => revRank() >= p[1]).map(p => p[1]) : [];
       });
       try { localStorage.setItem(OWNED_KEY, JSON.stringify(ownedParts)); } catch (e) {}
     };
@@ -1240,7 +1250,7 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
         const num = id => { const v = revPanel.querySelector(`#${id}`).value; return v === '' ? null : parseFloat(v); };
         const target = { sur: num('air-rev-stat-sur'), ret: num('air-rev-stat-ret'), fav: num('air-rev-stat-fav'), spd: num('air-rev-stat-spd'), rng: num('air-rev-stat-rng') };
         const results = airFindBuildsByStats(target, ownedParts, rank);
-        if (!results.length) { resEl.innerHTML = '<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠，或超過承載力）</div>'; return; }
+        if (!results.length) { resEl.innerHTML = '<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、已勾選的部件超過目前等級，或超過承載力）</div>'; return; }
         resEl.innerHTML = `<div class="sub-target-hint">共找到 ${results.length} 組符合條件（顯示前100組，依承載力使用量由低到高排序）</div>` + mkResultTable(results);
         return;
       }
@@ -1256,7 +1266,7 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
         if (Object.keys(sectorTierMap).length > 5) { resEl.innerHTML = '<div class="sub-empty">選到的物品分散在超過5個航區，同一趟飛不完，請減少物品數量或改選同航區的物品</div>'; return; }
         const th = { ret: getThr('ret'), fav: getThr('fav') };
         const results = airFindBuildsForTiers(sectorTierMap, th, ownedParts, rank);
-        if (!results.length) { resEl.innerHTML = '<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、超過承載力，或航程不夠飛完全程）</div>'; return; }
+        if (!results.length) { resEl.innerHTML = '<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、已勾選的部件超過目前等級、超過承載力，或航程不夠飛完全程）</div>'; return; }
         const destStr = Object.keys(sectorTierMap).map(id => { const s = AIR_SECTOR_MAP.get(+id); return s ? `${s[1]} ${s[3]}` : ''; }).join('、');
         resEl.innerHTML = `<div class="sub-target-hint">路線會經過：${destStr}　共找到 ${results.length} 組符合條件（顯示前100組，依耗時由短到長排序）</div>` + mkResultTable(results);
         return;
@@ -1267,12 +1277,18 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
       if (!targets.length) { resEl.innerHTML = `<div class="sub-empty">請先選擇${targetMode === 'route' ? '至少一個' : ''}目的地</div>`; return; }
       const th = { sur: getThr('sur'), ret: getThr('ret'), fav: getThr('fav') };
       const results = airFindBuilds(targets, ownedParts, th, rank);
-      if (!results.length) { resEl.innerHTML = '<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、超過承載力，或航程不夠飛完全程）</div>'; return; }
+      if (!results.length) { resEl.innerHTML = '<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、已勾選的部件超過目前等級、超過承載力，或航程不夠飛完全程）</div>'; return; }
       const destStr = targets.map(id => { const s = AIR_SECTOR_MAP.get(id); return s ? `${s[1]} ${s[3]}` : ''; }).join(' → ');
       resEl.innerHTML = `<div class="sub-target-hint">目的地：${destStr}　共找到 ${results.length} 組符合條件（顯示前100組，依耗時由短到長排序）</div>` + mkResultTable(results);
     });
   };
   buildReversePanel();
+  app.exploreUi.applyOwnedLocks(revPanel, revRank());
+  ['input', 'change'].forEach(ev => revPanel.querySelector('#air-rev-rank')?.addEventListener(ev, () => app.exploreUi.applyOwnedLocks(revPanel, revRank())));
+  revPanel.querySelector('#air-rev-search-btn')?.addEventListener('click', () => {
+    const vis = ['#air-rev-results-dest', '#air-rev-results-item', '#air-rev-results-stat'].map(q => revPanel.querySelector(q)).find(e => e && e.style.display !== 'none');
+    app.exploreUi.scrollToResults(vis);
+  });
 
   /* 配裝反查的勾選格只在 buildReversePanel() 時畫過一次，架構比照 sub-panel.js：
      切到「配裝反查」分頁時只同步 checkbox 勾選狀態，不重畫整塊面板。 */
@@ -1294,6 +1310,14 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
       if (mode === 'reverse') syncReverseOwnedCheckboxes();
       else if (partsMode === 'owned') renderOwnedRouteGrid();
     });
+  });
+
+  app.exploreUi.mountSearchFab({
+    key: 'air', sceneId: 'airship',
+    buttons: () => [root.querySelector('#air-search-btn'), revPanel.querySelector('#air-rev-search-btn')],
+    results: () => revPanel.style.display !== 'none'
+      ? ['#air-rev-results-dest', '#air-rev-results-item', '#air-rev-results-stat'].map(q => revPanel.querySelector(q)).find(e => e && e.style.display !== 'none')
+      : root.querySelector('#air-results')
   });
 
   setTimeout(() => root.querySelectorAll('.ih:not([data-ih])').forEach(el => { el.setAttribute('data-ih', '1'); this._bindIH(el); }), 100);

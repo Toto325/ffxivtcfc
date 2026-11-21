@@ -5,7 +5,7 @@
  * air-data.js／air-calc.js 同時被 index.html 以 <script> 載入（主執行緒）和這裡以
  * importScripts 載入（Worker），確保資料只有一份來源。
  */
-importScripts('air-data.js', 'air-calc.js');
+importScripts('air-data.js?v=2', 'air-calc.js?v=2');
 
 self.onmessage = function (e) {
   const d = e.data || {};

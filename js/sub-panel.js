@@ -34,13 +34,19 @@ app.exploreUi = app.exploreUi || (function(){
     sel.parentNode.insertBefore(wrap,sel.nextSibling);
     const btn=wrap.querySelector('.wl-dd-btn'),list=wrap.querySelector('.wl-dd-list');
     const close=()=>{list.hidden=true;wrap.classList.remove('open');btn.setAttribute('aria-expanded','false');};
-    const render=()=>{
-      const cur=sel.options[sel.selectedIndex];
-      btn.firstElementChild.textContent=cur?cur.text:'';
-      btn.disabled=sel.disabled;
-      list.innerHTML=Array.prototype.map.call(sel.options,o=>'<button type="button" role="option" class="wl-dd-opt'+(o.selected?' on':'')+'" data-v="'+String(o.value).replace(/"/g,'&quot;')+'">'+o.text+'</button>').join('');
-    };
-    render();
+    /* 部件選項（帶 data-min）：畫成「名稱＋Lv 標籤」；等級不足（data-locked=1）加 pt-locked，
+     由 CSS 做調暗＋淡刪除線＋琥珀色標籤。其餘一般選項維持原本的純文字。 */
+  const optHtml=o=>(o.dataset&&o.dataset.min)?'<span class="pt-wrap"><span class="pt-nm">'+o.dataset.lbl+'</span><span class="pt-lv">Lv.'+o.dataset.min+'</span></span>':null;
+  const isLocked=o=>!!(o&&o.dataset&&o.dataset.locked==='1');
+  const render=()=>{
+  const cur=sel.options[sel.selectedIndex];
+  const ch=cur?optHtml(cur):null;
+  if(ch!==null)btn.firstElementChild.innerHTML=ch;else btn.firstElementChild.textContent=cur?cur.text:'';
+  btn.classList.toggle('pt-locked',isLocked(cur));
+  btn.disabled=sel.disabled;
+  list.innerHTML=Array.prototype.map.call(sel.options,o=>{const h=optHtml(o);return '<button type="button" role="option" class="wl-dd-opt'+(o.selected?' on':'')+(isLocked(o)?' pt-locked':'')+'" data-v="'+String(o.value).replace(/"/g,'&quot;')+'">'+(h!==null?h:o.text)+'</button>';}).join('');
+  };
+  render();
     sel._ddRender=render;
     const d=Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value');
     Object.defineProperty(sel,'value',{configurable:true,get:()=>d.get.call(sel),set:v=>{d.set.call(sel,v);render();}});
@@ -235,7 +241,103 @@ app.exploreUi = app.exploreUi || (function(){
   };
   /* 手機／窄螢幕：只顯示卡片式（表格式在窄螢幕上幾乎等於卡片，沒有存在必要） */
   const isNarrow=()=>{try{return window.matchMedia('(max-width:700px)').matches;}catch(e){return false;}};
-  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData,isNarrow};
+
+  /* ─── 部件等級限制（潛水艇／飛空艇共用） ───────────────────────────────
+   * 實際的「等級不足就略過」在 sub-calc.js／air-calc.js；這裡只負責畫面提示：
+   * 名稱調暗＋淡刪除線、Lv 標籤變琥珀色（樣式見 page-sub-air.css 的 .pt-*）。
+   * 勾選／選取本身仍然允許，使用者想測試高等級部件，把等級欄改高即可。 */
+  const ownedItemHtml=(slot,rk,checked,label,min)=>'<label class="sub-owned-item" data-min="'+min+'"><input type="checkbox" data-slot="'+slot+'" data-rank="'+rk+'" '+(checked?'checked':'')+'> <span class="pt-nm">'+label+'</span><span class="pt-lv">Lv.'+min+'</span></label>';
+  const applyOwnedLocks=(scope,rank)=>{
+    if(!scope)return;
+    scope.querySelectorAll('.sub-owned-item[data-min]').forEach(it=>{
+      const mn=+it.dataset.min,lock=rank<mn;
+      it.classList.toggle('pt-locked',lock);
+      it.title=lock?'需要等級 '+mn+' 才能裝備（目前 '+rank+'），搜尋時會自動略過':'';
+    });
+  };
+  const decorateOption=(o,label,min)=>{o.dataset.lbl=label;o.dataset.min=min;};
+  const applySelectLocks=(sel,rank)=>{
+    if(!sel)return;let ch=false;
+    Array.prototype.forEach.call(sel.options,o=>{
+      const mn=+(o.dataset.min||0);if(!mn)return;
+      const v=rank<mn?'1':'0';if(o.dataset.locked!==v){o.dataset.locked=v;ch=true;}
+    });
+    if(ch&&sel._ddRender)sel._ddRender();
+  };
+
+  /* ─── 搜尋按鈕列：雙線夾珠點（同標題下的分隔線）＋ 中央搜尋鈕 ─────────── */
+  const searchRowHtml=(id)=>'<div class="sub-search-row"><span class="ssr-line l" aria-hidden="true"></span><i class="ssr-gem" aria-hidden="true"></i><button id="'+id+'" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><i class="ssr-gem" aria-hidden="true"></i><span class="ssr-line r" aria-hidden="true"></span></div>';
+
+  /* 按下搜尋後，結果區若不在畫面內就平滑捲過去（已在畫面內就不動，避免畫面亂跳） */
+  const scrollToResults=(res)=>{
+    if(!res)return;
+    const r=res.getBoundingClientRect(),vh=window.innerHeight||document.documentElement.clientHeight;
+    if(r.top>vh*0.6||r.bottom<80){
+      try{res.scrollIntoView({behavior:reduce()?'auto':'smooth',block:'start'});}catch(e){res.scrollIntoView();}
+    }
+  };
+
+  /* ─── 浮動搜尋鈕（最後手段）：造型沿用市場頁「關注」浮動按鈕（.wl-fab 樣式） ───
+   * 只在「目前可見的主搜尋鈕不在畫面內」且「結果區還沒被捲過」時出現；
+   * 主按鈕回到畫面就消失，所以兩顆不會同時出現。點它＝點主搜尋鈕。
+   * cfg={key,sceneId,buttons:()=>[按鈕…],results:()=>結果區元素} */
+  const mountSearchFab=(cfg)=>{
+    const old=document.getElementById(cfg.key+'-fab-host');if(old)old.remove();
+    const scene=document.getElementById(cfg.sceneId);if(!scene)return;
+    const host=document.createElement('div');host.id=cfg.key+'-fab-host';
+    const IDLE='<i class="ph ph-magnifying-glass"></i>',BUSY='<i class="ph ph-circle-notch ex-spin"></i>';
+    host.innerHTML='<button type="button" id="'+cfg.key+'-fab" class="wl-fab hide" title="搜尋" aria-label="搜尋" tabindex="-1">'+
+      '<span class="wl-fab-medal"><span class="wl-fab-disc">'+IDLE+'</span><i class="wl-fab-gem n"></i><i class="wl-fab-gem e"></i><i class="wl-fab-gem s"></i><i class="wl-fab-gem w"></i></span>'+
+      '<span class="wl-fab-plate">搜尋</span></button>';
+    document.body.appendChild(host);
+    const fab=host.firstChild,disc=fab.querySelector('.wl-fab-disc'),plate=fab.querySelector('.wl-fab-plate');
+    const frame=scene.querySelector('.noble-outer-frame')||scene;
+    const activeBtn=()=>cfg.buttons().find(b=>b&&b.offsetParent!==null)||null;
+    const update=()=>{
+      const on=scene.classList.contains('active');
+      host.style.display=on?'':'none';
+      if(!on)return;
+      let show=false;const b=activeBtn();
+      if(b){
+        const vh=window.innerHeight||document.documentElement.clientHeight,r=b.getBoundingClientRect();
+        const vis=Math.min(r.bottom,vh)-Math.max(r.top,0);
+        const inView=r.height>0&&vis>=r.height*0.6;
+        const res=cfg.results&&cfg.results();
+        const rr=res?res.getBoundingClientRect():null;
+        const pastSettings=!!(rr&&rr.height>0&&rr.top<60);
+        show=!inView&&!pastSettings;
+      }
+      fab.classList.toggle('hide',!show);fab.tabIndex=show?0:-1;
+    };
+    const pos=()=>{ /* 螢幕很寬時貼到內容框右外側（同關注按鈕） */
+      const fr=frame.getBoundingClientRect();if(!fr.width)return;
+      const vw=document.documentElement.clientWidth,w=fab.offsetWidth||58,room=vw-fr.right;
+      fab.style.right=(room>=w+16+18)?Math.round(room-w-16)+'px':'';
+    };
+    let raf=0;const sched=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;update();});};
+    let dimT=null;const lastTop=new WeakMap();
+    document.addEventListener('scroll',e=>{
+      sched();
+      const t=e.target===document?document.scrollingElement:e.target;
+      if(!t||typeof t.scrollTop!=='number')return;
+      const p=lastTop.has(t)?lastTop.get(t):0,c=t.scrollTop;lastTop.set(t,c);if(c===p)return;
+      fab.classList.add('dim');clearTimeout(dimT);dimT=setTimeout(()=>fab.classList.remove('dim'),700);
+    },true);
+    window.addEventListener('resize',()=>{sched();pos();});
+    setInterval(()=>{if(scene.classList.contains('active')){update();pos();}},600);
+    fab.addEventListener('click',()=>{const b=activeBtn();if(b)b.click();});
+    /* 搜尋中：同步主按鈕的忙碌狀態（圖示換成旋轉小寶飾座，暫時不能點） */
+    cfg.buttons().forEach(b=>{
+      if(!b)return;
+      new MutationObserver(()=>{
+        const busy=b.classList.contains('is-busy');
+        fab.classList.toggle('is-busy',busy);
+        disc.innerHTML=busy?BUSY:IDLE;plate.textContent=busy?'計算中':'搜尋';
+      }).observe(b,{attributes:true,attributeFilter:['class']});
+    });
+    update();pos();setTimeout(pos,400);setTimeout(pos,1300);
+  };
+  return {enhanceSelect,enhanceAll,setStat,setCapBar,watchBusy,toggleFilters,openLootData,isNarrow,ownedItemHtml,applyOwnedLocks,decorateOption,applySelectLocks,searchRowHtml,scrollToResults,mountSearchFab};
 })();
 
 /* ─── SUBMARINE UI ─── */
@@ -362,7 +464,7 @@ app.buildSub = function (){
   <button type="button" class="sub-mode-btn" data-mode="reverse"><i class="ph ph-wrench"></i>配裝反查</button>
 </div>
 <div id="sub-route-panel">
-<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="sub-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="sub-rank-inp" class="sub-inp" value="1" min="1" max="145"><span class="sub-exp-next" id="sub-exp-next"></span><span class="sub-exp-badge" id="sub-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="sub-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button><button id="sub-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="sub-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="sub-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="sub-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>收獲概覽</span></button><button id="sub-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
+<div class="sub-top-row"><div class="sub-field-grp"><label class="sub-lbl" for="sub-rank-inp"><i class="ph ph-medal"></i>等級</label><input type="number" id="sub-rank-inp" class="sub-inp" value="1" min="1" max="145"><span class="sub-exp-next" id="sub-exp-next"></span><span class="sub-exp-badge" id="sub-exp-badge" data-tip-wide="1" data-tip="" title="查看全部等級經驗需求"><i class="ph ph-list-numbers"></i></span></div><div class="explore-actions"><button id="sub-parts-mode-toggle" class="sub-switch" type="button" data-state="select" title="切換配裝輸入方式：單一配裝／擁有部件"><span class="sw-opt" data-v="select"><i class="ph ph-faders"></i>單一配裝</span><span class="sw-opt" data-v="owned"><i class="ph ph-package"></i>擁有部件</span></button><button id="sub-view-toggle" class="sub-switch" type="button" data-state="full" title="切換篩選區顯示：完整／精簡"><span class="sw-opt" data-v="full"><i class="ph ph-article"></i>完整</span><span class="sw-opt" data-v="compact"><i class="ph ph-list-dashes"></i>精簡</span></button><button id="sub-map-btn" class="sub-view-btn" type="button"><i class="ph ph-map-trifold"></i><span>探索地圖</span></button><button id="sub-loot-btn" class="sub-view-btn" type="button"><i class="ph ph-package"></i><span>收獲概覽</span></button><button id="sub-clear-btn" class="sub-clear-btn" type="button"><i class="ph ph-arrow-counter-clockwise"></i><span>清除篩選</span></button></div></div>
 <div class="sub-parts-row" id="sub-parts-select-row">
   <div class="sub-part-col"><label class="sub-lbl" for="sub-hull"><i class="ph ph-boat"></i>船體</label><select id="sub-hull" class="sub-sel"></select></div>
   <div class="sub-part-col"><label class="sub-lbl" for="sub-stern"><i class="ph ph-fan"></i>船尾</label><select id="sub-stern" class="sub-sel"></select></div>
@@ -383,6 +485,7 @@ app.buildSub = function (){
   <div id="sub-owned-route-grid"></div>
   <div class="sub-owned-tier-row"><label class="sub-lbl" for="sub-owned-tier"><i class="ph ph-seal-check"></i>獲得物品門檻</label><select id="sub-owned-tier" class="sub-sel"><option value="none">不限（純比效率，較快）</option><option value="normal">全程每一站至少「達標」</option><option value="best">全程每一站都「最佳」</option></select><span class="sub-exp-badge" data-tip="開啟門檻篩選時，搜尋範圍變大，會比純比效率慢一些。"><i class="ph ph-info"></i></span></div>
 </div>
+${app.exploreUi.searchRowHtml('sub-search-btn')}
 <div class="sub-filters-section">
   <button id="sub-filters-hdr" class="sub-filters-hdr" type="button"><i class="ph ph-funnel"></i><span>篩選條件</span><i class="ph ph-caret-down fh-caret"></i></button>
   <div id="sub-filters-panel" class="sub-filters-panel">
@@ -432,7 +535,7 @@ app.buildSub = function (){
 <div id="sub-reverse-panel" style="display:none"></div>
 </div>`;
 
-    ['hull','stern','bow','bridge'].forEach(slot=>{const sel=root.querySelector(`#sub-${slot}`);PARTS[slot].forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=`${p[0]} — ${p[1]}`;sel.appendChild(o);});});
+    ['hull','stern','bow','bridge'].forEach(slot=>{const sel=root.querySelector(`#sub-${slot}`);PARTS[slot].forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=`${p[0]} — ${p[1]}`;app.exploreUi.decorateOption(o,`${p[0]} — ${p[1]}`,SUB_PART_MIN_RANK[p[0]]||1);sel.appendChild(o);});});
     app.exploreUi.enhanceAll(root);
 
     /* 記憶功能：還原上次的等級／部件選擇 */
@@ -451,19 +554,10 @@ app.buildSub = function (){
      * 跟下面配裝反查的擁有部件勾選格是同一份資料（ownedParts／OWNED_KEY），
      * 這裡只是另外畫一份勾選格 UI（因為兩邊不會同時顯示，不需要即時雙向同步，
      * 每次切換顯示時重新畫一次、讀取當下的 ownedParts 即可）。 */
-    /* 依目前等級標示「等級不足、尚不能裝備」的部件（資料見 sub-data.js 的 SUB_PART_MIN_RANK）。
-     * 只調暗＋提示，不動使用者已勾選的記錄；搜尋時 sub-calc.js 會自動略過等級不足的部件。 */
-    const applyOwnedLock=(scope,rankSel)=>{
-      if(!scope)return;
-      const rk=parseInt(root.querySelector(rankSel)?.value)||1;
-      scope.querySelectorAll('.sub-owned-item input').forEach(chk=>{
-        const lbl=chk.closest('.sub-owned-item');if(!lbl)return;
-        const min=SUB_PART_MIN_RANK[SUB_RANK_CODE[+chk.dataset.rank]]||1;
-        const lock=rk<min;
-        lbl.style.opacity=lock?'.4':'';
-        lbl.title=lock?`需要等級 ${min} 才能裝備（目前 ${rk}），搜尋時會自動略過`:'';
-      });
-    };
+    const curRank=()=>parseInt(root.querySelector('#sub-rank-inp')?.value)||1;
+    const revRank=()=>parseInt(root.querySelector('#sub-rev-rank')?.value)||1;
+    const applyRouteSelectLocks=()=>['hull','stern','bow','bridge'].forEach(slot=>app.exploreUi.applySelectLocks(root.querySelector(`#sub-${slot}`),curRank()));
+    applyRouteSelectLocks();
     const renderOwnedRouteGrid=()=>{
       const gridEl=root.querySelector('#sub-owned-route-grid');if(!gridEl)return;
       const slotLabel={hull:'船體',stern:'船尾',bow:'船首',bridge:'艦橋'}; const SLOT_ICON={hull:'boat',stern:'fan',bow:'navigation-arrow',bridge:'binoculars'};
@@ -473,13 +567,13 @@ app.buildSub = function (){
         PARTS[slot].forEach(p=>{
           const rankCode=SUB_RANK_CODE_REV[p[0]];
           const checked=(ownedParts[slot]||[]).includes(rankCode)?'checked':'';
-          html+=`<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${rankCode}" ${checked}> ${p[0]} — ${p[1]}${SUB_PART_MIN_RANK[p[0]]>1?` <small style="opacity:.6">Lv.${SUB_PART_MIN_RANK[p[0]]}</small>`:''}</label>`;
+          html+=app.exploreUi.ownedItemHtml(slot,rankCode,!!checked,`${p[0]} — ${p[1]}`,SUB_PART_MIN_RANK[p[0]]||1);
         });
         html+='</div>';
       });
       html+='</div>';
       gridEl.innerHTML=html;
-      applyOwnedLock(gridEl,'#sub-rank-inp');
+      app.exploreUi.applyOwnedLocks(gridEl,curRank());
       gridEl.querySelectorAll('input[type="checkbox"]').forEach(chk=>{
         chk.addEventListener('change',()=>{
           const slot=chk.dataset.slot,rk=+chk.dataset.rank;
@@ -491,7 +585,8 @@ app.buildSub = function (){
       });
     };
     root.querySelector('#sub-owned-route-all')?.addEventListener('click',()=>{
-      ['hull','stern','bow','bridge'].forEach(slot=>{ownedParts[slot]=PARTS[slot].map(p=>SUB_RANK_CODE_REV[p[0]]);});
+      const rk=curRank();
+      ['hull','stern','bow','bridge'].forEach(slot=>{ownedParts[slot]=PARTS[slot].filter(p=>rk>=(SUB_PART_MIN_RANK[p[0]]||1)).map(p=>SUB_RANK_CODE_REV[p[0]]);});
       saveOwnedParts();renderOwnedRouteGrid();
     });
     root.querySelector('#sub-owned-route-none')?.addEventListener('click',()=>{
@@ -886,7 +981,7 @@ app.buildSub = function (){
       if(this._subWorkerFailed)return null;
       if(this._subWorker)return this._subWorker;
       try{
-        const w=new Worker('js/sub-worker.js');
+        const w=new Worker('js/sub-worker.js?v=2');
         w.addEventListener('error',ev=>{
           console.warn('[XIV] sub_worker 執行失敗，改回主執行緒計算：',ev.message);
           this._subWorkerFailed=true;this._subWorker=null;
@@ -909,7 +1004,7 @@ app.buildSub = function (){
       if(!this._subWorkerPool)this._subWorkerPool=[];
       while(this._subWorkerPool.length<n){
         try{
-          const w=new Worker('js/sub-worker.js');
+          const w=new Worker('js/sub-worker.js?v=2');
           w.addEventListener('error',ev=>{
             console.warn('[XIV] sub_worker（平行池）執行失敗，改回單一 Worker 計算：',ev.message);
             this._subWorkerPoolFailed=true;
@@ -930,9 +1025,8 @@ app.buildSub = function (){
       if(!owned){
         st=getStats();if(!st){root.querySelector('#sub-results').innerHTML='<div class="sub-empty">請先選擇所有部件</div>';return;}
       }else{
-        const curRank=parseInt(root.querySelector('#sub-rank-inp')?.value)||1;
-        const hasAll=['hull','stern','bow','bridge'].every(slot=>subUsableParts(slot,ownedParts,curRank).length>0);
-        if(!hasAll){root.querySelector('#sub-results').innerHTML='<div class="sub-empty">請至少為每個部位（船體／船尾／船首／艦橋）勾選一種擁有、且目前等級已可裝備的部件（例如甲鱟級需等級 15、改款需等級 50）</div>';return;}
+        const hasAll=['hull','stern','bow','bridge'].every(slot=>subUsableParts(slot,ownedParts,curRank()).length>0);
+        if(!hasAll){root.querySelector('#sub-results').innerHTML='<div class="sub-empty">請至少為每個部位（船體／船尾／船首／艦橋）勾選一種已擁有、且目前等級裝得上的部件（例如甲鱟級需等級 15、改款需等級 50）</div>';return;}
       }
       letterOnly=root.querySelector('#sub-letter')?.checked||false;
       const lootStrict=root.querySelector('#sub-loot-strict')?.checked||false;
@@ -1442,7 +1536,10 @@ app.buildSub = function (){
     };
 
     root.querySelector('#sub-rank-inp')?.addEventListener('input',updateStats);
-    root.querySelector('#sub-rank-inp')?.addEventListener('input',()=>applyOwnedLock(root.querySelector('#sub-owned-route-grid'),'#sub-rank-inp'));
+    ['input','change'].forEach(ev=>root.querySelector('#sub-rank-inp')?.addEventListener(ev,()=>{
+      applyRouteSelectLocks();
+      app.exploreUi.applyOwnedLocks(root.querySelector('#sub-owned-route-grid'),curRank());
+    }));
     ['sub-hull','sub-stern','sub-bow','sub-bridge'].forEach(id=>root.querySelector(`#${id}`)?.addEventListener('change',updateStats));
     const saveFilterState=()=>{
       try{
@@ -1466,7 +1563,7 @@ app.buildSub = function (){
       }catch(e){}
     };
 
-    { const _sb=root.querySelector('#sub-search-btn'); _sb?.addEventListener('click',()=>{ doSearch(); app.exploreUi.watchBusy(_sb,root.querySelector('#sub-results')); saveFilterState(); }); }
+    { const _sb=root.querySelector('#sub-search-btn'); _sb?.addEventListener('click',()=>{ doSearch(); app.exploreUi.watchBusy(_sb,root.querySelector('#sub-results')); saveFilterState(); app.exploreUi.scrollToResults(root.querySelector('#sub-results')); }); }
     root.querySelector('#sub-clear-btn')?.addEventListener('click',()=>{
       [mustInc,mustExcl,mustIncMaps,mustExclMaps,mustLootIds].forEach(a=>a.length=0);
       root.querySelectorAll('.sub-chips-display').forEach(c=>c.innerHTML='');
@@ -1601,7 +1698,7 @@ app.buildSub = function (){
         PARTS[slot].forEach(p=>{
           const rankCode=SUB_RANK_CODE_REV[p[0]];
           const checked=(ownedParts[slot]||[]).includes(rankCode)?'checked':'';
-          ownedHtml+=`<label class="sub-owned-item"><input type="checkbox" data-slot="${slot}" data-rank="${rankCode}" ${checked}> ${p[0]} — ${p[1]}${SUB_PART_MIN_RANK[p[0]]>1?` <small style="opacity:.6">Lv.${SUB_PART_MIN_RANK[p[0]]}</small>`:''}</label>`;
+          ownedHtml+=app.exploreUi.ownedItemHtml(slot,rankCode,!!checked,`${p[0]} — ${p[1]}`,SUB_PART_MIN_RANK[p[0]]||1);
         });
         ownedHtml+='</div>';
       });
@@ -1654,7 +1751,7 @@ app.buildSub = function (){
   </div>
   <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<small>自動記住，下次不用重選</small></label><div class="sub-owned-actions"><button type="button" id="sub-owned-all" class="sub-owned-mini-btn"><i class="ph ph-checks"></i>全選</button><button type="button" id="sub-owned-none" class="sub-owned-mini-btn"><i class="ph ph-x-circle"></i>清除</button></div></div>
   ${ownedHtml}
-  <div class="sub-rev-row"><button id="sub-rev-search-btn" class="sub-search-btn" type="button"><i class="ph ph-magnifying-glass"></i><span>搜尋</span></button></div>
+  ${app.exploreUi.searchRowHtml('sub-rev-search-btn')}
   <div id="sub-rev-results-dest"><div class="sub-empty">選擇目的地、門檻與擁有的部件後按搜尋</div></div>
   <div id="sub-rev-results-item" style="display:none"><div class="sub-empty">選擇物品、門檻與擁有的部件後按搜尋</div></div>
   <div id="sub-rev-results-stat" style="display:none"><div class="sub-empty">輸入需求值與擁有的部件後按搜尋</div></div>`;
@@ -1829,7 +1926,7 @@ app.buildSub = function (){
       const setAllOwned=(checked)=>{
         revPanel.querySelectorAll('.sub-owned-item input').forEach(chk=>{chk.checked=checked;});
         ['hull','stern','bow','bridge'].forEach(slot=>{
-          ownedParts[slot]=checked?PARTS[slot].map(p=>SUB_RANK_CODE_REV[p[0]]):[];
+          ownedParts[slot]=checked?PARTS[slot].filter(p=>revRank()>=(SUB_PART_MIN_RANK[p[0]]||1)).map(p=>SUB_RANK_CODE_REV[p[0]]):[];
         });
         try{localStorage.setItem(OWNED_KEY,JSON.stringify(ownedParts));}catch(e){}
       };
@@ -1873,7 +1970,7 @@ app.buildSub = function (){
           const num=id=>{const v=revPanel.querySelector(`#${id}`).value;return v===''?null:parseFloat(v);};
           const target={sur:num('sub-rev-stat-sur'),ret:num('sub-rev-stat-ret'),fav:num('sub-rev-stat-fav'),spd:num('sub-rev-stat-spd'),rng:num('sub-rev-stat-rng')};
           const results=subFindBuildsByStats(target,ownedParts,rank);
-          if(!results.length){resEl.innerHTML='<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠，或超過承載力）</div>';return;}
+          if(!results.length){resEl.innerHTML='<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、已勾選的部件超過目前等級，或超過承載力）</div>';return;}
           resEl.innerHTML=`<div class="sub-target-hint">共找到 ${results.length} 組符合條件（顯示前100組，依承載力使用量由低到高排序）</div>`+mkResultTable(results);
           return;
         }
@@ -1892,7 +1989,7 @@ app.buildSub = function (){
           if(mapIds.length>1){resEl.innerHTML='<div class="sub-empty">選到的物品分散在不同航海圖，沒辦法一趟跑完，請改選同一張航海圖的物品</div>';return;}
           const th={ret:getThr('ret'),fav:getThr('fav')};
           const results=subFindBuildsForTiers(sectorTierMap,th,ownedParts,rank);
-          if(!results.length){resEl.innerHTML='<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、超過承載力，或航程不夠飛完全程）</div>';return;}
+          if(!results.length){resEl.innerHTML='<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、已勾選的部件超過目前等級、超過承載力，或航程不夠飛完全程）</div>';return;}
           const destStr=secIds.map(id=>{const s=SECTOR_MAP.get(id);return s?`${s[2]} ${s[4]}`:'';}).join('、');
           resEl.innerHTML=`<div class="sub-target-hint">路線會經過：${destStr}　共找到 ${results.length} 組符合條件（顯示前100組，依耗時由短到長排序）</div>`+mkResultTable(results);
           return;
@@ -1903,14 +2000,18 @@ app.buildSub = function (){
         if(!targets.length){resEl.innerHTML=`<div class="sub-empty">請先選擇${targetMode==='route'?'至少一個':''}目的地</div>`;return;}
         const th={sur:getThr('sur'),ret:getThr('ret'),fav:getThr('fav')};
         const results=subFindBuilds(targets,ownedParts,th,rank);
-        if(!results.length){resEl.innerHTML='<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、超過承載力、選了不同航海圖的目的地，或航程不夠飛完全程）</div>';return;}
+        if(!results.length){resEl.innerHTML='<div class="sub-empty">找不到符合條件的組合（可能是擁有的部件不夠、已勾選的部件超過目前等級、超過承載力、選了不同航海圖的目的地，或航程不夠飛完全程）</div>';return;}
         const destStr=targets.map(id=>{const s=SECTOR_MAP.get(id);return s?`${s[2]} ${s[4]}`:'';}).join(' → ');
         resEl.innerHTML=`<div class="sub-target-hint">目的地：${destStr}　共找到 ${results.length} 組符合條件（顯示前100組，依耗時由短到長排序）</div>`+mkResultTable(results);
       });
     };
     buildReversePanel();
-    applyOwnedLock(revPanel,'#sub-rev-rank');
-    root.querySelector('#sub-rev-rank')?.addEventListener('input',()=>applyOwnedLock(revPanel,'#sub-rev-rank'));
+  app.exploreUi.applyOwnedLocks(revPanel,revRank());
+  ['input','change'].forEach(ev=>revPanel.querySelector('#sub-rev-rank')?.addEventListener(ev,()=>app.exploreUi.applyOwnedLocks(revPanel,revRank())));
+  revPanel.querySelector('#sub-rev-search-btn')?.addEventListener('click',()=>{
+    const vis=['#sub-rev-results-dest','#sub-rev-results-item','#sub-rev-results-stat'].map(q=>revPanel.querySelector(q)).find(e=>e&&e.style.display!=='none');
+    app.exploreUi.scrollToResults(vis);
+  });
 
     /* 配裝反查的勾選格只在 buildReversePanel() 時畫過一次；如果使用者是在
        「路線搜尋（擁有部件模式）」勾的，切過來時畫面不會自動更新，只更新
@@ -1936,5 +2037,13 @@ app.buildSub = function (){
       });
     });
 
-    setTimeout(()=>root.querySelectorAll('.ih:not([data-ih])').forEach(el=>{el.setAttribute('data-ih','1');this._bindIH(el);}),100);
+    app.exploreUi.mountSearchFab({
+    key:'sub',sceneId:'submarine',
+    buttons:()=>[root.querySelector('#sub-search-btn'),revPanel.querySelector('#sub-rev-search-btn')],
+    results:()=>revPanel.style.display!=='none'
+      ?['#sub-rev-results-dest','#sub-rev-results-item','#sub-rev-results-stat'].map(q=>revPanel.querySelector(q)).find(e=>e&&e.style.display!=='none')
+      :root.querySelector('#sub-results')
+  });
+
+  setTimeout(()=>root.querySelectorAll('.ih:not([data-ih])').forEach(el=>{el.setAttribute('data-ih','1');this._bindIH(el);}),100);
   };

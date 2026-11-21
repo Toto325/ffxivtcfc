@@ -11,7 +11,7 @@
  * 順序不可顛倒：sub-calc.js 在頂層直接使用 sub-data.js 定義的常數
  * （例如 SECTOR_MAP 是從 SUB_SECTORS 算出來的），必須先載入 sub-data.js。
  */
-importScripts('sub-data.js', 'sub-calc.js');
+importScripts('sub-data.js?v=2', 'sub-calc.js?v=2');
 
 self.onmessage = function (e) {
   const d = e.data || {};

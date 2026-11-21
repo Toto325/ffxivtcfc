@@ -126,13 +126,20 @@ function airMeetsThreshold(val, normalThr, bestThr, mode) {
   if (mode === 'best') return val >= bestThr;
   return true;
 }
+/* 依「擁有勾選」＋「飛空艇等級」取得某部位可用的部件：
+ * 部件需求等級（AIR_PARTS 每項的第 2 欄）高於目前等級的，即使被勾選也不能用，
+ * 避免建議出還裝不上的配裝。rank 沒給（null／undefined）時不做等級限制。 */
+function airUsableParts(slot, ownedRanks, rank) {
+  return AIR_PARTS[slot].filter(p =>
+    (ownedRanks[slot] || []).includes(p[1]) && (rank == null || rank >= p[1]));
+}
 function airFindBuilds(sectorIds, ownedRanks, th, rank) {
   const ids = Array.isArray(sectorIds) ? sectorIds : [sectorIds];
   const secs = ids.map(id => AIR_SECTOR_MAP.get(id)).filter(Boolean);
   if (!secs.length) return [];
   const best = airBestOrder(ids); // 单一目的地时 ids 只有一个元素，一样适用
   const maxCap = (AIR_RANKS[rank] || [])[1];
-  const own = slot => AIR_PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(p[1]));
+  const own = slot => airUsableParts(slot, ownedRanks, rank);
   const hulls = own('hull'), riggings = own('rigging'), forecastles = own('forecastle'), aftcastles = own('aftcastle');
   const tank = secs.reduce((s, sec) => s + sec[13], 0);
   const results = [];
@@ -179,7 +186,7 @@ function airFindBuildsForTiers(sectorTierMap, th, ownedRanks, rank) {
   if (!secs.length) return [];
   const best = airBestOrder(ids);
   const maxCap = (AIR_RANKS[rank] || [])[1];
-  const own = slot => AIR_PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(p[1]));
+  const own = slot => airUsableParts(slot, ownedRanks, rank);
   const hulls = own('hull'), riggings = own('rigging'), forecastles = own('forecastle'), aftcastles = own('aftcastle');
   const tank = secs.reduce((s, sec) => s + sec[13], 0);
   const results = [];
@@ -211,7 +218,7 @@ function airFindBuildsForTiers(sectorTierMap, th, ownedRanks, rank) {
  * 沒有航區就沒有「時間」概念，改成依承載力使用量由低到高排序（越省越好）。 */
 function airFindBuildsByStats(target, ownedRanks, rank) {
   const maxCap = (AIR_RANKS[rank] || [])[1];
-  const own = slot => AIR_PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(p[1]));
+  const own = slot => airUsableParts(slot, ownedRanks, rank);
   const hulls = own('hull'), riggings = own('rigging'), forecastles = own('forecastle'), aftcastles = own('aftcastle');
   const results = [];
   for (const h of hulls) for (const r of riggings) for (const f of forecastles) for (const a of aftcastles) {
@@ -281,7 +288,7 @@ function airPruneSlotPartsFull(parts) {
 }
 function airOwnedCombos(ownedRanks, rank) {
   const maxCap = (AIR_RANKS[rank] || [])[1];
-  const own = slot => airPruneSlotPartsFull(AIR_PARTS[slot].filter(p => (ownedRanks[slot] || []).includes(p[1])));
+  const own = slot => airPruneSlotPartsFull(airUsableParts(slot, ownedRanks, rank));
   const hulls = own('hull'), riggings = own('rigging'), forecastles = own('forecastle'), aftcastles = own('aftcastle');
   const combos = [];
   for (const h of hulls) for (const r of riggings) for (const f of forecastles) for (const a of aftcastles) {
