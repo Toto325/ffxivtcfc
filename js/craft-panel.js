@@ -21,10 +21,13 @@
  * 不是憑印象猜的翻譯。ROBUST（頑強，只會在超稀有情況下接在「吉兆」前面觸發到「結實」）
  * 玩家截圖裡沒有出現這個狀態球，暫時沒有能核對的來源，所以先留言標記、用回英文鍵名顯示，
  * 不要為了填滿表格硬猜一個可能是錯的中文詞——這正是這次要修的問題，不能在修的過程中又犯一次。 */
+/* 版本參數：每次更新 craft-*.js 就改這個值（同時 index.html 載入 craft-panel.js 的 ?v= 也一起改），
+ * Worker 與它用 importScripts 載入的檔案才會跟著一起更新，不會出現新舊檔混用。 */
+var CRAFT_BUILD = '20261122c';
 /* 建立求解 Worker：送出訊息時自動把「這一個配方」附在 msg.recipe 裡，Worker 就不必各自載入整份配方庫（約 9 MB、數十 MB 記憶體）。
  * 附上的配方跟 Worker 自己載入的是同一份資料，求解結果完全相同。 */
 function newCraftWorker() {
-  const w = new Worker('js/craft-worker.js');
+  const w = new Worker('js/craft-worker.js?v=' + CRAFT_BUILD);
   const post = w.postMessage.bind(w);
   w.postMessage = function (msg, transfer) {
     if (msg && msg.recipeId != null && !msg.recipe && typeof CRAFT_RECIPES !== 'undefined' && CRAFT_RECIPES[msg.recipeId]) msg = Object.assign({}, msg, { recipe: CRAFT_RECIPES[msg.recipeId] });
@@ -4099,6 +4102,9 @@ app._craftReady = function () {
     const ref = { craftsmanship: baseB.craftsmanship, control: baseB.control, cp: baseB.cp };
     combos.forEach(function (c) { const f = finalFor(baseB, c); STAT_KEYS.forEach(function (k) { if (f[k] > ref[k]) ref[k] = f[k]; }); });
 
+    const DIAG = typeof location !== 'undefined' && /[?&]diag=1/.test(location.search || '');
+    const diag = function () { if (DIAG && typeof console !== 'undefined') console.info.apply(console, ['[建議診斷]'].concat(Array.prototype.slice.call(arguments))); };
+    const t00 = performance.now(), tsec = function () { return ((performance.now() - t00) / 1000).toFixed(1) + 's'; };
     /* ── 設計者比例：只用來「排序」和「決定先往下降哪一項」，不拿來把任何數值拉高 ──
      * 玩家提供的參考（大致關係，有小誤差）：作業 : 加工 ≈ 1 : 0.905　　CP ≈ 17 × 作業^0.35 + 180
      * 「等級 S」：這組基礎數值相當於比例線上的哪一級裝備（三項各自換算、取最高的那項），S 越小越貼近真正的最低。 */
@@ -4207,13 +4213,16 @@ app._craftReady = function () {
        *   3. 玩家現有數值是每一項的下限（只降不升）。集束搜尋的「做不到」不完全可靠，只當提示；核心夠時再往下試一小格確認。
        * 食藥組合：挑「候選最缺的那幾項」各自最強的組合，各探一遍（核心夠就並行）；最後所有找到的手法都進同一份候選，
        * 由現有的換算與排序（等級 S）決定顯示哪個。起點用比例線而不是隨機搜尋的候選，避免被候選的取向帶進局部低谷。 */
-      const PROBE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 12e6, beamWidths: [2500, 6000], beamRealCapMs: 15000 };
+      const PROBE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 12e6, beamWidths: [2500, 6000], beamRealCapMs: 120000 }; // 只用「展開節點數」限制，不用時鐘：結果才不會隨裝置速度改變（整體時間由 descend 的期限控制）
       const probeAt = async function (F) { // 在這組「最終數值」下，集束搜尋能不能做到目標；做得到回傳結果（含手法）
         const r = await pool.solve({ recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), options: Object.assign({}, PROBE, { hqIngredients: hqFor(g) }) });
-        return r && r.actionKeys && r.actionKeys.length && goalOk(g, r) ? r : null;
+        const ok = !!(r && r.actionKeys && r.actionKeys.length && goalOk(g, r));
+        diag('探測', tsec(), F.craftsmanship + '/' + F.control + '/' + F.cp, ok ? '做得到' : '做不到', r ? ('品質 ' + (r.quality || 0) + '/' + craft.quality) : '(無回應)');
+        return ok ? r : null;
       };
       const needsOfKeys = async function (keys, F) { // 這套手法自己的精確最低需求（在它自己的作業範圍內算）
         const o = await pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), ref: F, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, libKeys: [keys], budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
+        if (!(o && o.cands && o.cands[0])) diag('需求反推失敗（手法在這組數值下無法完整執行）', tsec());
         return o && o.cands && o.cands[0] ? o.cands[0] : null;
       };
       const invAxis = function (c, k, needVal, hi) { // 這組食藥下，第 k 項「基礎值」至少要多少才能讓最終值達到 needVal
@@ -4241,9 +4250,10 @@ app._craftReady = function () {
         }
         return null;
       };
+      let descAdded = 0; // 逐項探測實際新增的候選手法數（只有取得新手法才算有效）
       const descendBase = async function (st, c, tooLate, raw, refresh, plans) {
         let U = Object.assign({}, st.U), improved = 0, probes = 0, weak = 0;
-        if (st.nd) { st.nd.fromDescent = true; raw.push(st.nd); tightenBy(U, c, st.nd); improved++; await refresh(); }
+        if (st.nd) { st.nd.fromDescent = true; raw.push(st.nd); descAdded++; tightenBy(U, c, st.nd); improved++; await refresh(); }
         let lastCost = costOf(U, goalKeys);
         const done = {};
         const tryAxis = async function (k, deltas) {
@@ -4258,7 +4268,7 @@ app._craftReady = function () {
           const B2 = Object.assign({}, U); B2[k] = list[bi];
           const nd = await needsOfKeys(rs[bi].actionKeys, finalFor(B2, c));
           U = B2;
-          if (nd) { nd.fromDescent = true; raw.push(nd); tightenBy(U, c, nd); } // 三項一起往下跳
+          if (nd) { nd.fromDescent = true; raw.push(nd); descAdded++; tightenBy(U, c, nd); } // 三項一起往下跳
           improved++;
           await refresh();
           return true;
@@ -4321,7 +4331,8 @@ app._craftReady = function () {
         if (size >= 3) (await Promise.all(tasks.map(function (t) { return t(); }))).forEach(function (n) { improved += n; });
         else for (let i = 0; i < tasks.length && !tooLate(); i++) improved += await tasks[i]();
         await chain;
-        return improved;
+        diag('逐項探測結束', tsec(), '新增候選', descAdded);
+        return descAdded;
       };
 
       const present = async function (raw, final) {
@@ -4365,19 +4376,21 @@ app._craftReady = function () {
 
       // 第 0 步：手法庫（幾乎不花時間）。不論玩家數值多少，庫裡的手法都能精確反推需求，馬上就能給出第一批答案；之後的搜尋只負責再往下改進。
       const raw = [];
+      diag('開始分析', g, '工作池', pool.size, '基礎', JSON.stringify(baseB), '專家配方', isExpert);
       {
         const libOut = await pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
         if (an.cancelled) return;
         if (libOut && libOut.cands && libOut.cands.length) {
           gather([libOut], raw);
+          diag('庫候選', libOut.cands.length, '套');
           const r0 = await present(raw, false);
           if (r0.done || an.cancelled) return;
         }
       }
       /* 第一階段：快速找出第一批方案，先讓玩家看到。
-       * 滿品質且庫已經給出候選時略過（庫的答案已經顯示了，而隨機搜尋在核心少的裝置上要花十幾秒，直接進逐項探測更划算）。 */
+       * 隨機搜尋（以主求解的手法當種子）能改良出庫裡沒有的取向，所以不跳過；之後的逐項探測只會往下改進。 */
       let outs1 = [], r1 = { done: false, items: [] };
-      const skipPhase1 = full && !isExpert && raw.length > 0;
+      const skipPhase1 = false; // 隨機搜尋以主求解的手法當種子，會改良出庫裡沒有的取向（例如 CP 精簡），不能跳過
       if (!skipPhase1) {
         outs1 = await search(full ? 1800 : 1500, [], null, 0);
         if (an.cancelled) return;
@@ -4388,7 +4401,10 @@ app._craftReady = function () {
       // 第二階段：逐項探測往下收斂（集束搜尋當裁判）；每找到更低的答案就在原位更新。找不到任何更好的才退回遺傳演算法接力精修。
       let refined = 0;
       if (full && !isExpert) {
-        refined = await descend(raw, async function () { if (!an.cancelled && raw.length) await present(raw, false); });
+        diag('進入逐項探測', tsec(), '工作池', pool.size, '候選數', raw.length);
+        try {
+          refined = await descend(raw, async function () { if (!an.cancelled && raw.length) await present(raw, false); });
+        } catch (e) { diag('逐項探測發生錯誤，改用隨機搜尋接力', e && e.message ? e.message : e); refined = 0; }
         if (an.cancelled) return;
       }
       if (!refined) {
