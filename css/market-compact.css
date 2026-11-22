@@ -83,7 +83,9 @@
 .mk-opts { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; align-items: center; }
 #market-root .mk-cpanel .pp-bar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 #market-root .mk-cpanel .pp-side { flex-wrap: wrap; }
-#mk-hot-filters { display: flex; flex-direction: column; gap: 12px; }
+/* 舊規則（page-market.css）把這兩個容器設成「橫排、換行、置中」，面板裡的每一列會縮成內容寬度再置中而錯位；這裡明確改成直排、撐滿、靠左 */
+#mk-hot-filters { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start; gap: 12px; }
+#mk-radar-filters { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
 .mk-cpanel .market-hot-median { margin: 0; }
 .mk-cpanel .market-token-note:empty { display: none; }
 /* 「完成」固定貼在面板底部：內容多到要捲動時，按鈕也一直看得到 */
@@ -97,9 +99,15 @@
 .mk-hscroll { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overflow-y: hidden; position: relative; min-width: 0; padding: 1px 0; scrollbar-width: none; }
 .mk-hscroll::-webkit-scrollbar { display: none; }
 .mk-hscroll > * { flex: none; white-space: nowrap; }
-.mk-hscroll.can-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
-.mk-hscroll.can-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); }
-.mk-hscroll.can-l.can-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+/* 放不下時，左右邊緣各浮一顆小箭頭，疊在被切到一半的按鈕上：看得出「後面還有」、點了就捲，不佔額外空間 */
+.mk-hs-edge { display: none; position: sticky; z-index: 3; flex: none; width: 0; align-self: stretch; }
+.mk-hscroll.can-l > .mk-hs-edge.l { display: block; left: 0; margin-right: -6px; }
+.mk-hscroll.can-r > .mk-hs-edge.r { display: block; right: 0; margin-left: -6px; }
+.mk-hs-arrow { position: absolute; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
+  border: 1px solid rgba(197,160,89,.75); border-radius: 50%; background: rgba(10,8,5,.94); color: var(--gold-bright); font-size: 12px; cursor: pointer; box-shadow: 0 0 8px rgba(0,0,0,.75); }
+.mk-hs-edge.l .mk-hs-arrow { left: 2px; }
+.mk-hs-edge.r .mk-hs-arrow { right: 2px; }
+.mk-hs-arrow:hover { border-color: var(--gold-bright); background: rgba(40,30,12,.96); }
 
 /* ── 代幣分頁：條件列內的搜尋 ── */
 .market-token-topbar.mk-cond .market-fold-btn { flex: 1 1 0; }

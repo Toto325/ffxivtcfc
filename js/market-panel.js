@@ -551,15 +551,13 @@
   const condUpdaters = {}; // 各分頁註冊「重畫條件摘要」的函式；全站取價設定改了要一起更新
   function condFoldBtnHtml(p) {
     return '<button type="button" class="market-fold-btn" id="mk-' + p + '-fold-btn" aria-expanded="false" aria-haspopup="true">' +
-      '<i class="ph ph-funnel"></i><span class="mk-fold-l">篩選</span><span class="mk-fold-n" id="mk-' + p + '-fold-n" hidden></span>' +
+      '<i class="ph ph-funnel"></i><span class="mk-fold-l">篩選</span>' +
       '<span class="market-fold-sum" id="mk-' + p + '-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>';
   }
   function condDoneHtml() { return '<div class="mk-cpanel-foot"><button type="button" class="market-solve-btn mk-cpanel-done">完成</button></div>'; }
   function mkSetChips(prefix, chips, n) {
     const sum = $('mk-' + prefix + '-fold-sum');
     if (sum) sum.innerHTML = chips.map(function (c) { return '<span>' + escHtml(c) + '</span>'; }).join('<i class="mk-chip-dot">·</i>');
-    const badge = $('mk-' + prefix + '-fold-n');
-    if (badge) { badge.textContent = n; badge.hidden = !n; }
   }
   // 全站取價設定（買入／賣出的範圍與基準）的摘要：條件面板收起時也看得到目前用哪一套
   function mkPrefsChips(sides) {
@@ -624,6 +622,21 @@
       sc.classList.toggle('can-l', sc.scrollLeft > 4);
       sc.classList.toggle('can-r', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
     };
+    // 左右邊緣的小箭頭：放不下時才出現，疊在被切到一半的那顆按鈕上，不佔額外空間、也不用文字說明；
+    // 滑鼠點箭頭或滾輪、觸控滑動都能捲。箭頭放在捲動容器裡面、用寬度 0 的 sticky 外框貼住兩端，所以不改變按鈕的位置與間距。
+    ['l', 'r'].forEach(function (dir) {
+      const edge = document.createElement('span');
+      edge.className = 'mk-hs-edge ' + dir; edge.setAttribute('aria-hidden', 'true');
+      const b = document.createElement('button');
+      b.type = 'button'; b.tabIndex = -1; b.className = 'mk-hs-arrow';
+      b.innerHTML = '<i class="ph ph-caret-' + (dir === 'l' ? 'left' : 'right') + '"></i>';
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        sc.scrollBy({ left: (dir === 'l' ? -1 : 1) * Math.max(120, sc.clientWidth * 0.7), behavior: 'smooth' });
+      });
+      edge.appendChild(b);
+      if (dir === 'l') sc.insertBefore(edge, sc.firstChild); else sc.appendChild(edge);
+    });
     sc.addEventListener('scroll', edges, { passive: true });
     sc.addEventListener('wheel', function (e) {
       if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
@@ -648,7 +661,7 @@
     try {
       let list = getRecentlyViewed().filter(function (r) { return r.id !== itemId; });
       list.unshift({ id: itemId, name: name });
-      list = list.slice(0, 20);
+      list = list.slice(0, 30);
       localStorage.setItem(RECENT_KEY, JSON.stringify(list));
     } catch (e) { /* localStorage被封鎖（例如私密瀏覽）就靜默放棄，不影響其他功能 */ }
   }
