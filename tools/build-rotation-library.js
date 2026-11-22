@@ -35,7 +35,10 @@ if (args.includes('--merge')) {
 }
 
 (async () => {
-  const w = makeWorker({ library: false });
+  const EXTRA_EX = String(opt('exclude', '')).split(',').filter(Boolean); // 例如 --exclude Manipulation：在「玩家沒學會操作」的條件下建庫（手法不能用這些技能）
+  const w = makeWorker({ library: false, extraExcluded: EXTRA_EX });
+  const ALSO_EX = String(opt('also-exclude', '')).split(',').filter(Boolean); // 例如 --also-exclude Manipulation：每個參考點另外再用「沒學會這些技能」的條件各找一次（玩家勾掉操作時庫才有手法可用）
+  const w2 = ALSO_EX.length ? makeWorker({ library: false, extraExcluded: EXTRA_EX.concat(ALSO_EX) }) : null;
   const R = w.recipes();
   const minRlvl = +opt('min-rlvl', 580), maxRlvl = +opt('max-rlvl', 99999), budget = +opt('budget', 6000);
   const [si, sn] = String(opt('shard', '0/1')).split('/').map(Number);
@@ -80,10 +83,12 @@ if (args.includes('--merge')) {
       REFS.forEach(function (r) { const sv = S0 * r[0], c = refOf(sv, r[1], r[2]); pts.push({ craftsmanship: Math.round(sv), control: Math.round(c.control), cp: Math.round(c.cp) }); });
       [0.45, 0.6, 0.75, 0.9].forEach(function (f) { const sv = S0 * f; pts.push({ craftsmanship: Math.round(sv), control: Math.round((isExpert ? 0.75 : 0.905) * sv), cp: Math.round(isExpert ? cpFormula(sv) * 2.0 : cpFormula(sv)) }); });
       for (const pt of pts) {
-        const bst = Object.assign({ jobId: rec.jobId, level: 100 }, pt);
-        const b = await w.send({ type: 'solve', recipeId: id, stats: bst, options: { strategy: 'beam', lang: 'tw', hqIngredients: hqv, beamMaxExpand: BEAM_BUDGET, beamWidths: BEAM_WIDTHS, beamRealCapMs: 600000 } });
-        const bk = b.ok && b.result && b.result.actionKeys, sig = bk && bk.join(',');
-        if (bk && bk.length && !seenSig.has(sig)) { seenSig.add(sig); list.push(bk); }
+        for (const wk of w2 ? [w, w2] : [w]) {
+          const bst = Object.assign({ jobId: rec.jobId, level: 100 }, pt);
+          const b = await wk.send({ type: 'solve', recipeId: id, stats: bst, options: { strategy: 'beam', lang: 'tw', hqIngredients: hqv, beamMaxExpand: BEAM_BUDGET, beamWidths: BEAM_WIDTHS, beamRealCapMs: 600000 } });
+          const bk = b.ok && b.result && b.result.actionKeys, sig = bk && bk.join(',');
+          if (bk && bk.length && !seenSig.has(sig)) { seenSig.add(sig); list.push(bk); }
+        }
       }
       result[k] = list;
       console.log('shape of recipe', id, 'rlvl', rec.rlvl, '->', list.length, 'rotations kept (beam-only),', Math.round((Date.now() - t0) / 1000) + 's');
@@ -114,6 +119,9 @@ if (args.includes('--merge')) {
       const items = nr.result.map((n, i) => n && Object.assign(n, { i })).filter(Boolean);
       const le = (a, b) => a.cs <= b.cs && a.ct <= b.ct && a.cp <= b.cp;
       items.filter((c, ii) => !items.some((e, j) => j !== ii && le(e, c) && (e.cs < c.cs || e.ct < c.ct || e.cp < c.cp || j < ii))).forEach((c) => keep.add(c.i));
+      // 「沒學會操作」的玩家不能用含操作的手法：只在不含操作的手法之間再篩一次，否則好用但含操作的手法會把它們全部擠掉（實測高等級形狀有 70/201 個沒有任何可用手法）
+      const noMan = items.filter((c) => !uniq[c.i].includes('Manipulation'));
+      noMan.filter((c, ii) => !noMan.some((e, j) => j !== ii && le(e, c) && (e.cs < c.cs || e.ct < c.ct || e.cp < c.cp || j < ii))).forEach((c) => keep.add(c.i));
     }
     result[k] = Array.from(keep).sort((a, b) => a - b).map((i) => uniq[i]);
     // 品質階梯的踏腳石：不只存「滿品質」的手法，也存「品質目標只有 50%～95%」時所需數值最低的手法。

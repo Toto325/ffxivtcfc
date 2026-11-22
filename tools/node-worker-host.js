@@ -53,6 +53,7 @@ function makeWorker(opts) {
       const recipe = msg.recipeId ? ensureData()[msg.recipeId] : null;
       st.excludedActions = SPECIAL.filter((a) => a.defaultOff || !canUse(a.key, st.jobId, level, specialist, recipe)).map((a) => a.key);
     }
+    if (opts.extraExcluded && opts.extraExcluded.length) st.excludedActions = Array.from(new Set(st.excludedActions.concat(opts.extraExcluded))); // 離線建庫：模擬「玩家沒有學會某些技能」
     return st;
   };
   const send = (msg) => new Promise((res) => {
