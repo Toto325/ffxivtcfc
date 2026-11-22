@@ -231,11 +231,25 @@
           for (var k4 = 0; k4 < NF; k4++) t2[k4] = nxt[j * NF + k4];
           hbuf[j] = nProt[j] ? 1e18 : heur(ctx, W, t2);
         }
+        if (o.diverse) { // o.diverse（0～1，預設不啟用＝跟原本完全一樣）：前 (1-diverse) 比例照分數留，其餘名額讓「資源組合（CP、耐久、增益）不同」的狀態各留最好的 2 個，避免整層都是相似狀態；窄集束在 CP 吃緊時常因此漏掉可行手法
+          var order = new Int32Array(nN); for (var oi = 0; oi < nN; oi++) order[oi] = oi;
+          order = Array.prototype.slice.call(order).sort(function (a, b) { return hbuf[b] - hbuf[a]; });
+          var topN = Math.floor(beam * (1 - o.diverse)); sel = order.slice(0, topN);
+          var cnt = {}, rest = [];
+          for (var oi2 = topN; oi2 < nN && sel.length < beam; oi2++) {
+            var jj = order[oi2], bb = jj * NF;
+            var bk = ((nxt[bb + F.CP] >> 4) * 64 + (nxt[bb + F.DUR] >> 3)) * 256 + (nxt[bb + F.IQ] > 0 ? 1 : 0) + (nxt[bb + F.INNO] > 0 ? 2 : 0) + (nxt[bb + F.VEN] > 0 ? 4 : 0) + (nxt[bb + F.GS] > 0 ? 8 : 0) + (nxt[bb + F.MANIP] > 0 ? 16 : 0) + (nxt[bb + F.WN] > 0 ? 32 : 0) + (nxt[bb + F.MM] > 0 ? 64 : 0);
+            if ((cnt[bk] || 0) < 2) { cnt[bk] = (cnt[bk] || 0) + 1; sel.push(jj); } else rest.push(jj);
+          }
+          for (var ri2 = 0; ri2 < rest.length && sel.length < beam; ri2++) sel.push(rest[ri2]);
+          keepN = sel.length;
+        } else {
         var thr = quickselectThreshold(hbuf, nN, beam - 1);
         sel = []; var ties = [];
         for (var j2 = 0; j2 < nN; j2++) { if (hbuf[j2] > thr) sel.push(j2); else if (hbuf[j2] === thr) ties.push(j2); }
         for (var t3 = 0; t3 < ties.length && sel.length < beam; t3++) sel.push(ties[t3]);
         keepN = sel.length;
+        }
       }
       var newCur = new Int32Array(beam * NF), np = new Int32Array(keepN), na = new Uint8Array(keepN);
       for (var m = 0; m < keepN; m++) {

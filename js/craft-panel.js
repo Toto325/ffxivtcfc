@@ -21,14 +21,14 @@
  * 不是憑印象猜的翻譯。ROBUST（頑強，只會在超稀有情況下接在「吉兆」前面觸發到「結實」）
  * 玩家截圖裡沒有出現這個狀態球，暫時沒有能核對的來源，所以先留言標記、用回英文鍵名顯示，
  * 不要為了填滿表格硬猜一個可能是錯的中文詞——這正是這次要修的問題，不能在修的過程中又犯一次。 */
-/* 版本參數：每次更新 craft-*.js 就改這個值（同時 index.html 載入 craft-panel.js 的 ?v= 也一起改），
- * Worker 與它用 importScripts 載入的檔案才會跟著一起更新，不會出現新舊檔混用。 */
-var CRAFT_BUILD = '20261122d';
+/* 版本參數：只是 Worker 載入網址的快取標記。忘記改也不會壞：GitHub Pages 的檔案快取約 10 分鐘，之後瀏覽器會自動向伺服器確認並取得新檔；
+ * 想立刻生效就按 Ctrl+F5。index.html 不需要為此改動（不必在載入 craft-panel.js 時加 ?v=）。 */
+var CRAFT_BUILD = '20261123c';
 /* 網址參數（排查問題用，平常不用）：?diag=1 在主控台印診斷；?noV=1 Worker 網址不帶版本參數（等同原本載入方式）；
- * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」。 */
+ * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」；?noWide=1 探測不做「差一點時用較寬集束補確認」。 */
 var CRAFT_FLAGS = (function () {
   var q = (typeof location !== 'undefined' && location.search) || '';
-  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q) };
+  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q), noWide: /[?&]noWide=1/.test(q) };
 })();
 function craftDiag() { if (CRAFT_FLAGS.diag && typeof console !== 'undefined') console.info.apply(console, ['[建議診斷]'].concat(Array.prototype.slice.call(arguments))); }
 /* 建立求解 Worker：送出訊息時自動把「這一個配方」附在 msg.recipe 裡，Worker 就不必各自載入整份配方庫（約 9 MB、數十 MB 記憶體）。
@@ -4224,13 +4224,32 @@ app._craftReady = function () {
        * 食藥組合：挑「候選最缺的那幾項」各自最強的組合，各探一遍（核心夠就並行）；最後所有找到的手法都進同一份候選，
        * 由現有的換算與排序（等級 S）決定顯示哪個。起點用比例線而不是隨機搜尋的候選，避免被候選的取向帶進局部低谷。 */
       const PROBE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 12e6, beamWidths: [2500, 6000], beamRealCapMs: 120000 }; // 只用「展開節點數」限制，不用時鐘：結果才不會隨裝置速度改變（整體時間由 descend 的期限控制）
+      const PROBE_WIDE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 60e6, beamWidths: [4000, 12000, 30000], beamRealCapMs: 120000 }; // 較寬的集束：只在「差一點就做到」時才用（窄的集束會漏掉部分做得到的點；實測同一點窄的得 7854、寬的得 8235，目標 8200）
+      const PROBE_DIVERSE = Object.assign({}, PROBE, { diverse: 0.6 }); // 同樣的窄集束，但每層保留「資源組合不同」的狀態
       let noResp = 0, probeBroken = false; // 連續沒有回應（Worker 出錯）的次數：探測壞掉就立刻放棄，改用隨機搜尋接力，不要白等
-      const probeAt = async function (F) { // 在這組「最終數值」下，集束搜尋能不能做到目標；做得到回傳結果（含手法）
+      const probeAt = async function (F, bud) { // 在這組「最終數值」下，集束搜尋能不能做到目標；做得到回傳結果（含手法）
         if (probeBroken) return null;
+        const tP = performance.now();
         const r = await pool.solve({ recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), options: Object.assign({}, PROBE, { hqIngredients: hqFor(g) }) });
+        const dtP = performance.now() - tP; // 這次窄探測花的時間：用來判斷裝置快不快
         if (!r) { noResp++; if (noResp >= 3 && !probeBroken) { probeBroken = true; diag('集束搜尋連續沒有回應，停止逐項探測，改用隨機搜尋接力', tsec()); } } else noResp = 0;
-        const ok = !!(r && r.actionKeys && r.actionKeys.length && goalOk(g, r));
+        let ok = !!(r && r.actionKeys && r.actionKeys.length && goalOk(g, r));
         diag('探測', tsec(), F.craftsmanship + '/' + F.control + '/' + F.cp, ok ? '做得到' : '做不到', r ? ('品質 ' + (r.quality || 0) + '/' + craft.quality) : '(無回應)');
+        // 差一點（品質達目標 95% 以上）才補確認；每條搜尋線最多 3 次，離邊界遠的探測不花這份時間。次數只看這條線自己的探測，不受裝置速度影響。
+        // 先用「多樣性」窄集束（約 1.4 倍時間，實測在邊界附近常比 3.5 倍時間的寬集束更好）；仍差一點（97% 以上）才用最寬的。
+        const nearOk = function (q) { return q >= craft.quality * 0.95; };
+        if (!ok && r && bud && bud.n > 0 && !CRAFT_FLAGS.noWide && (pool.size || 1) >= 2 && dtP < 3500 && nearOk(r.quality || 0) && !an.cancelled) { // 慢裝置（窄探測就要 3.5 秒以上）或單一 Worker 不補確認，才不會讓他們多等
+          const again = async function (opts, tag) {
+            bud.n--;
+            const r2 = await pool.solve({ recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), options: Object.assign({}, opts, { hqIngredients: hqFor(g) }) });
+            const ok2 = !!(r2 && r2.actionKeys && r2.actionKeys.length && goalOk(g, r2));
+            diag(tag, tsec(), F.craftsmanship + '/' + F.control + '/' + F.cp, ok2 ? '做得到' : '仍做不到', r2 ? ('品質 ' + (r2.quality || 0) + '/' + craft.quality) : '(無回應)');
+            return { ok: ok2, r: r2 };
+          };
+          let o2 = await again(PROBE_DIVERSE, '多樣性探測');
+          if (o2.ok) return o2.r;
+          if (bud.n > 0 && o2.r && (o2.r.quality || 0) >= craft.quality * 0.97 && !an.cancelled) { o2 = await again(PROBE_WIDE, '寬探測'); if (o2.ok) return o2.r; }
+        }
         return ok ? r : null;
       };
       const needsOfKeys = async function (keys, F) { // 這套手法自己的精確最低需求（在它自己的作業範圍內算）
@@ -4266,6 +4285,7 @@ app._craftReady = function () {
       let descAdded = 0; // 逐項探測實際新增的候選手法數（只有取得新手法才算有效）
       const descendBase = async function (st, c, tooLate, raw, refresh, plans) {
         let U = Object.assign({}, st.U), improved = 0, probes = 0, weak = 0;
+        const wideBud = { n: 3 }; // 這條搜尋線可用的「寬探測」次數
         if (st.nd) { st.nd.fromDescent = true; raw.push(st.nd); descAdded++; tightenBy(U, c, st.nd); improved++; await refresh(); }
         let lastCost = costOf(U, goalKeys);
         const done = {};
@@ -4274,7 +4294,7 @@ app._craftReady = function () {
           deltas.forEach(function (d) { const v = Math.max(baseB[k], Math.floor(U[k] * (1 - d))); if (v < U[k] && list.indexOf(v) < 0) list.push(v); });
           if (!list.length) return false;
           probes += list.length;
-          const rs = await Promise.all(list.map(function (v) { const B = Object.assign({}, U); B[k] = v; return probeAt(finalFor(B, c)); }));
+          const rs = await Promise.all(list.map(function (v) { const B = Object.assign({}, U); B[k] = v; return probeAt(finalFor(B, c), wideBud); }));
           if (an.cancelled) return false;
           let bi = -1; rs.forEach(function (r, i) { if (r && (bi < 0 || list[i] < list[bi])) bi = i; });
           if (bi < 0) return false;

@@ -562,7 +562,7 @@ function solveBeam(craft, crafterStats, options) {
     for (let ri = 0; ri < run.length; ri++) {
       const vi = run[ri];
       if (budget <= 0 || Date.now() > realDeadline) break outer;
-      const r = E.beamSearch(ctx, { beam: widths[wi], variant: BEAM_VARIANTS[vi], seeds: libIds, startState: startState, maxExpand: budget, realDeadline: realDeadline });
+      const r = E.beamSearch(ctx, { beam: widths[wi], variant: BEAM_VARIANTS[vi], seeds: libIds, startState: startState, maxExpand: budget, realDeadline: realDeadline, diverse: options.diverse });
       expandedTotal += r.expanded || 0; budget -= r.expanded || 0;
       if (r.unsupported) return null;
       if (r.ids) { consider(prefixIds.concat(r.ids)); if (r.qcap > vscore[vi]) vscore[vi] = r.qcap; }
@@ -584,7 +584,7 @@ function solveBeam(craft, crafterStats, options) {
   /* 快速局部搜尋（放在最後面，所以前面的流程跟沒有它時完全一樣，這一步只會「追加候選」，最終結果一定不會比沒有它時差）：
    * 對「ILS 精修後的最佳結果」與候選池前幾名各精修一次（精簡模擬器，固定種子與評估次數，可重現）；
    * 精修出的手法一樣用 vendor 模擬器重算後才參與比較。 */
-  if (best && best.eval.progression >= craft.progress && !options.noLocalSearch) {
+  if (best && best.eval.progression >= craft.progress && !options.noLocalSearch && typeof E.localSearch === 'function') {
     const startList = [], sigs = new Set();
     const addStart = function (ids) { if (!ids || !ids.length) return; const sg = ids.join(','); if (!sigs.has(sg)) { sigs.add(sg); startList.push(ids); } };
     addStart(best.rotation.map(function (a) { return S.A[a.constructor.name]; }).every(function (x) { return x != null; }) ? best.rotation.map(function (a) { return S.A[a.constructor.name]; }) : null);
