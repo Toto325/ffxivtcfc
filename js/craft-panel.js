@@ -23,11 +23,18 @@
  * 不要為了填滿表格硬猜一個可能是錯的中文詞——這正是這次要修的問題，不能在修的過程中又犯一次。 */
 /* 版本參數：每次更新 craft-*.js 就改這個值（同時 index.html 載入 craft-panel.js 的 ?v= 也一起改），
  * Worker 與它用 importScripts 載入的檔案才會跟著一起更新，不會出現新舊檔混用。 */
-var CRAFT_BUILD = '20261122c';
+var CRAFT_BUILD = '20261122d';
+/* 網址參數（排查問題用，平常不用）：?diag=1 在主控台印診斷；?noV=1 Worker 網址不帶版本參數（等同原本載入方式）；
+ * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」。 */
+var CRAFT_FLAGS = (function () {
+  var q = (typeof location !== 'undefined' && location.search) || '';
+  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q) };
+})();
+function craftDiag() { if (CRAFT_FLAGS.diag && typeof console !== 'undefined') console.info.apply(console, ['[建議診斷]'].concat(Array.prototype.slice.call(arguments))); }
 /* 建立求解 Worker：送出訊息時自動把「這一個配方」附在 msg.recipe 裡，Worker 就不必各自載入整份配方庫（約 9 MB、數十 MB 記憶體）。
  * 附上的配方跟 Worker 自己載入的是同一份資料，求解結果完全相同。 */
 function newCraftWorker() {
-  const w = new Worker('js/craft-worker.js?v=' + CRAFT_BUILD);
+  const w = new Worker(CRAFT_FLAGS.noV ? 'js/craft-worker.js' : 'js/craft-worker.js?v=' + CRAFT_BUILD);
   const post = w.postMessage.bind(w);
   w.postMessage = function (msg, transfer) {
     if (msg && msg.recipeId != null && !msg.recipe && typeof CRAFT_RECIPES !== 'undefined' && CRAFT_RECIPES[msg.recipeId]) msg = Object.assign({}, msg, { recipe: CRAFT_RECIPES[msg.recipeId] });
@@ -3602,6 +3609,7 @@ app._craftReady = function () {
       }
       let pick = list[0];
       list.forEach(function (m) { if (betterRes(m, pick, m.craft)) pick = m; });
+      craftDiag('主求解 最終採用', '優質率 ' + Math.round((pick.result && pick.result.hqPercent) || 0) + '%，' + (pick.result && pick.result.steps) + ' 步', '參與的策略數', list.length, '核心數', (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || '?');
       renderResult(pick.craft, pick.result, solvingName, stats, hqIngredients);
     };
     const startOthers = function (hasLibrary, beamOnly) {
@@ -3619,9 +3627,10 @@ app._craftReady = function () {
         const settle = function (m) { if (m) pend.others.push(m); pend.pending = Math.max(0, pend.pending - 1); finishAll(); };
         wk.addEventListener('message', function (e2) {
           if (e2.data.requestId !== requestId || e2.data.type === 'solve-progress' || e2.data.type === 'solve-info') return;
+          craftDiag('主求解 策略=' + strategy, e2.data.ok ? ('優質率 ' + Math.round((e2.data.result && e2.data.result.hqPercent) || 0) + '%，' + (e2.data.result && e2.data.result.steps) + ' 步，成功=' + (e2.data.result && e2.data.result.success)) : ('失敗：' + e2.data.error));
           settle(e2.data);
         });
-        wk.addEventListener('error', function () { settle(null); });
+        wk.addEventListener('error', function (ev) { craftDiag('主求解 策略=' + strategy + ' Worker error 事件', ev && ev.message, ev && ev.filename, ev && ev.lineno); settle(null); });
         wk.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { strategy: strategy, lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal, beamMaxExpand: cores >= 4 ? 36e6 : 12e6 } });
       });
     };
@@ -3638,6 +3647,7 @@ app._craftReady = function () {
         return;
       }
       pend.a = e.data;
+      craftDiag('主求解 主Worker(lib)', e.data.ok ? ('優質率 ' + Math.round((e.data.result && e.data.result.hqPercent) || 0) + '%，' + (e.data.result && e.data.result.steps) + ' 步，成功=' + (e.data.result && e.data.result.success)) : ('失敗：' + e.data.error));
       if (e.data.ok && e.data.result && e.data.result.libHit) stopSecond(); // 手法庫直接命中滿品質：結果是確定的，不必等第二個 Worker
       finishAll();
     }
@@ -3982,6 +3992,7 @@ app._craftReady = function () {
         if (e.data.requestId !== id || e.data.type === 'solve-progress' || e.data.type === 'solve-info') return;
         w.removeEventListener('message', onMsg);
         inflight.delete(job);
+        if (!e.data.ok) craftDiag('Worker 回報失敗', job.msg ? job.msg.type : 'solve', String(e.data.error || '(沒有錯誤訊息)'));
         job.resolve(e.data.ok ? (job.msg && job.msg.type === 'simulate' ? { result: e.data.result, craft: e.data.craft } : e.data.result) : null);
         if (closed) return;
         const next = waiting.shift();
@@ -3992,7 +4003,7 @@ app._craftReady = function () {
     }
     for (let i = 0; i < size; i++) {
       const w = newCraftWorker();
-      w.addEventListener('error', close); // 載入失敗：整個分析放棄（不顯示建議，不影響主結果）
+      w.addEventListener('error', function (ev) { craftDiag('Worker error 事件（整個分析池關閉）', ev && ev.message, ev && ev.filename, ev && ev.lineno); close(); }); // 載入失敗：整個分析放棄（不顯示建議，不影響主結果）
       workers.push(w); idle.push(w);
     }
     an.cancel = close;
@@ -4102,8 +4113,7 @@ app._craftReady = function () {
     const ref = { craftsmanship: baseB.craftsmanship, control: baseB.control, cp: baseB.cp };
     combos.forEach(function (c) { const f = finalFor(baseB, c); STAT_KEYS.forEach(function (k) { if (f[k] > ref[k]) ref[k] = f[k]; }); });
 
-    const DIAG = typeof location !== 'undefined' && /[?&]diag=1/.test(location.search || '');
-    const diag = function () { if (DIAG && typeof console !== 'undefined') console.info.apply(console, ['[建議診斷]'].concat(Array.prototype.slice.call(arguments))); };
+    const diag = craftDiag;
     const t00 = performance.now(), tsec = function () { return ((performance.now() - t00) / 1000).toFixed(1) + 's'; };
     /* ── 設計者比例：只用來「排序」和「決定先往下降哪一項」，不拿來把任何數值拉高 ──
      * 玩家提供的參考（大致關係，有小誤差）：作業 : 加工 ≈ 1 : 0.905　　CP ≈ 17 × 作業^0.35 + 180
@@ -4162,7 +4172,7 @@ app._craftReady = function () {
       const search = function (budget, seedList, mulHint, seedBase, refs) {
         const jobs = (pool.size || 1) >= 3 || seeds.length === 1 ? seeds : ((pool.size || 1) === 2 ? seeds.slice(0, 2) : [seeds[0], seeds[seeds.length - 1]]); // Worker 少時不要排隊跑三個
         return Promise.all(jobs.map(function (job, ji) {
-          return pool.call({ type: 'frontier', accurate: true, recipeId: craft.id, stats: Object.assign({}, stats), ref: (refs && refs[ji]) || job.ref, goal: g, qGoal: craft.quality,
+          return pool.call({ type: 'frontier', accurate: !CRAFT_FLAGS.noAccurate, recipeId: craft.id, stats: Object.assign({}, stats), ref: (refs && refs[ji]) || job.ref, goal: g, qGoal: craft.quality,
             hq: hqFor(g), budgetMs: budget, seedKeys: mainKeys, seedKeysList: seedList || [], mulHint: mulHint || null, seed: seedBase + job.seed });
         }));
       };
@@ -4214,14 +4224,17 @@ app._craftReady = function () {
        * 食藥組合：挑「候選最缺的那幾項」各自最強的組合，各探一遍（核心夠就並行）；最後所有找到的手法都進同一份候選，
        * 由現有的換算與排序（等級 S）決定顯示哪個。起點用比例線而不是隨機搜尋的候選，避免被候選的取向帶進局部低谷。 */
       const PROBE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 12e6, beamWidths: [2500, 6000], beamRealCapMs: 120000 }; // 只用「展開節點數」限制，不用時鐘：結果才不會隨裝置速度改變（整體時間由 descend 的期限控制）
+      let noResp = 0, probeBroken = false; // 連續沒有回應（Worker 出錯）的次數：探測壞掉就立刻放棄，改用隨機搜尋接力，不要白等
       const probeAt = async function (F) { // 在這組「最終數值」下，集束搜尋能不能做到目標；做得到回傳結果（含手法）
+        if (probeBroken) return null;
         const r = await pool.solve({ recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), options: Object.assign({}, PROBE, { hqIngredients: hqFor(g) }) });
+        if (!r) { noResp++; if (noResp >= 3 && !probeBroken) { probeBroken = true; diag('集束搜尋連續沒有回應，停止逐項探測，改用隨機搜尋接力', tsec()); } } else noResp = 0;
         const ok = !!(r && r.actionKeys && r.actionKeys.length && goalOk(g, r));
         diag('探測', tsec(), F.craftsmanship + '/' + F.control + '/' + F.cp, ok ? '做得到' : '做不到', r ? ('品質 ' + (r.quality || 0) + '/' + craft.quality) : '(無回應)');
         return ok ? r : null;
       };
       const needsOfKeys = async function (keys, F) { // 這套手法自己的精確最低需求（在它自己的作業範圍內算）
-        const o = await pool.call({ type: 'frontier', accurate: true, recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), ref: F, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, libKeys: [keys], budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
+        const o = await pool.call({ type: 'frontier', accurate: !CRAFT_FLAGS.noAccurate, recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), ref: F, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, libKeys: [keys], budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
         if (!(o && o.cands && o.cands[0])) diag('需求反推失敗（手法在這組數值下無法完整執行）', tsec());
         return o && o.cands && o.cands[0] ? o.cands[0] : null;
       };
@@ -4377,8 +4390,10 @@ app._craftReady = function () {
       // 第 0 步：手法庫（幾乎不花時間）。不論玩家數值多少，庫裡的手法都能精確反推需求，馬上就能給出第一批答案；之後的搜尋只負責再往下改進。
       const raw = [];
       diag('開始分析', g, '工作池', pool.size, '基礎', JSON.stringify(baseB), '專家配方', isExpert);
+      diag('環境', '核心數', (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || '?', '版本', CRAFT_BUILD, '旗標', JSON.stringify(CRAFT_FLAGS),
+        'stats', JSON.stringify({ jobId: stats.jobId, level: stats.level, specialist: stats.specialist, excluded: stats.excludedActions, levels: stats.levels }), '全HQ材料數', hqAll.length);
       {
-        const libOut = await pool.call({ type: 'frontier', accurate: true, recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
+        const libOut = await pool.call({ type: 'frontier', accurate: !CRAFT_FLAGS.noAccurate, recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
         if (an.cancelled) return;
         if (libOut && libOut.cands && libOut.cands.length) {
           gather([libOut], raw);
@@ -4400,7 +4415,7 @@ app._craftReady = function () {
       }
       // 第二階段：逐項探測往下收斂（集束搜尋當裁判）；每找到更低的答案就在原位更新。找不到任何更好的才退回遺傳演算法接力精修。
       let refined = 0;
-      if (full && !isExpert) {
+      if (full && !isExpert && !CRAFT_FLAGS.noDescent) {
         diag('進入逐項探測', tsec(), '工作池', pool.size, '候選數', raw.length);
         try {
           refined = await descend(raw, async function () { if (!an.cancelled && raw.length) await present(raw, false); });
