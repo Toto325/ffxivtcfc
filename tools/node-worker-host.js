@@ -20,6 +20,8 @@ function makeWorker(opts) {
   ctx.importScripts = (f) => { const p = path.join(ROOT, 'js', f); vm.runInContext(fs.readFileSync(p, 'utf8'), ctx, { filename: p }); };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', 'craft-worker.js'), 'utf8'), ctx, { filename: 'craft-worker.js' });
+  // 配方資料不再於 Worker 啟動時載入（見 craft-worker.js 的 getRecipe）；離線腳本需要時才載入
+  const ensureData = () => { if (vm.runInContext('typeof CRAFT_RECIPES', ctx) === 'undefined') ctx.importScripts('craft-data.js'); return vm.runInContext('CRAFT_RECIPES', ctx); };
   let seq = 0;
   /* 角色數值的預設值：完全比照網站介面（craft-panel.js 的 currentSolveStats／specialActionAvailability），
    * 測試與離線產生手法庫才會跟玩家實際按下「開始求解」時的條件一致。曾經因為測試條件跟介面不一致
@@ -48,7 +50,7 @@ function makeWorker(opts) {
     if (st.specialist === undefined) st.specialist = false;
     if (st.relicTool === undefined) st.relicTool = false;
     if (st.excludedActions === undefined) {
-      const recipe = msg.recipeId ? vm.runInContext('CRAFT_RECIPES', ctx)[msg.recipeId] : null;
+      const recipe = msg.recipeId ? ensureData()[msg.recipeId] : null;
       st.excludedActions = SPECIAL.filter((a) => a.defaultOff || !canUse(a.key, st.jobId, level, specialist, recipe)).map((a) => a.key);
     }
     return st;
@@ -60,6 +62,6 @@ function makeWorker(opts) {
     listeners.push(f);
     ctx.onmessage({ data: msg });
   });
-  return { ctx, send, recipes: () => vm.runInContext('CRAFT_RECIPES', ctx), shapeKeyOf: (r) => vm.runInContext('shapeKeyOf', ctx)(r) };
+  return { ctx, send, recipes: () => ensureData(), shapeKeyOf: (r) => vm.runInContext('shapeKeyOf', ctx)(r) };
 }
 module.exports = { makeWorker, DEFAULT_EXCLUDED };

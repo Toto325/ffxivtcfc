@@ -4,7 +4,7 @@
  * 沿著大量隨機路徑，每一步都比對：
  *   ① 「哪些技能現在能用」：兩邊的集合必須完全相同（限於精簡模擬器收錄的技能）。
  *   ② 套用同一個技能後的狀態：進度、品質、耐久、CP、是否完成／失敗、優質率，必須完全相同。
- * 用法：node tools/fuzz-sim.js [路徑數，預設 3000] [種子，預設 1]
+ * 用法：node tools/fuzz-sim.js [路徑數，預設 3000] [種子，預設 1] [low＝只測角色等級 5～55]
  * 任何不一致都會印出完整重現資訊（配方、數值、到目前為止的手法）並計入失敗。 */
 const { makeWorker } = require('./node-worker-host');
 const path = require('path'), fs = require('fs'), vm = require('vm');
@@ -25,7 +25,7 @@ function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B7
 
   for (let pi = 0; pi < PATHS; pi++) {
     const rid = pick(ids), rec = R[rid];
-    const level = rnd() < 0.75 ? 100 : pick([60, 70, 80, 90, 95, 99]);
+    const level = process.argv[4] === 'low' ? pick([5, 10, 11, 15, 20, 26, 30, 31, 40, 50, 51, 55]) : (rnd() < 0.75 ? 100 : pick([60, 70, 80, 90, 95, 99]));
     const S0 = rec.suggestedCraftsmanship > 0 ? rec.suggestedCraftsmanship : Math.max(300, 6.5 * rec.rlvl);
     const csv = Math.round(S0 * (0.4 + rnd() * 1.4)), ctv = Math.round(S0 * (0.3 + rnd() * 1.4)), cpv = Math.round(60 + rnd() * 900);
     const specialist = rnd() < 0.25;
@@ -38,7 +38,7 @@ function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B7
     const cs = cx.buildCrafterStats(Object.assign({}, stats, { excludedActions: excluded }));
     const allowed = cx.allowedActionNames(cs);
     const lv = LEVEL_TABLE ? LEVEL_TABLE[level] : 0;
-    const ctx = S.makeCtx(craft, { craftsmanship: csv, control: ctv, cp: cpv, level, specialist }, hq, lv || 0, allowed);
+    const ctx = S.makeCtx(craft, { craftsmanship: csv, control: ctv, cp: cpv, level, specialist }, hq, lv, allowed); // lv 可能是 undefined（51 級以下 LEVEL_TABLE 沒有值），要原樣傳，跟 vendor 一致
     const st = S.initState(ctx);
     const rot = []; paths++;
     const len = 8 + Math.floor(rnd() * 40);
