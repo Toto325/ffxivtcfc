@@ -1,0 +1,117 @@
+/* ══════════════════════════════════════════════════════════════
+   市場頁：緊湊工具列＋篩選條件列／條件面板（載入順序放在所有市場 css 的最後面）
+   ‧ 版型依「容器寬度」切換（container query），不看視窗寬度：左選單模式下視窗寬≠內容寬
+       工具列容器 mktb（.market-top-fixed）　寬 ≥1000：分頁＋搜尋＋最近＋設定 同一列
+                                              中 600–999：搜尋列／分頁 兩列，設定顯示完整摘要
+                                              窄 <600：兩列，設定只留「我的世界」；<360：設定只剩圖示
+       代幣分頁容器 mktok（#mk-pane-tokens）　 <600：搜尋框收成放大鏡鈕
+   ‧ 字級不縮小：只減內容、改排列；所有「必須單行」的元素都 nowrap＋min-width:0＋省略／淡出
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 工具列 ── */
+.market-top-fixed { position: relative; z-index: 12; container: mktb / inline-size; }
+.mk-toolbar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin: 0; }
+.mk-toolbar .market-searchbar { display: contents; }
+.mk-toolbar .market-search-box { order: 1; flex: 1 1 150px; min-width: 0; position: relative; }
+.mk-toolbar .market-search-box .craft-search { min-width: 0; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.mk-recent-btn { order: 2; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; padding: 0; box-sizing: border-box;
+  border: 1px solid var(--tb); border-radius: 6px; background: rgba(255,255,255,.03); color: var(--gold); font-size: 17px; cursor: pointer; transition: border-color .15s, background .15s; }
+.mk-recent-btn:hover { border-color: var(--gold); background: rgba(197,160,89,.09); }
+.mk-recent-btn.is-empty { color: var(--dim); }
+.mk-toolbar .market-settings-btn { order: 3; flex: none; max-width: 100%; }
+.mk-toolbar .market-tabs { order: 4; flex: 1 1 100%; min-width: 0; margin: 0 0 12px; }
+/* 搜尋結果改成浮在工具列下方（不再推擠版面）：一列排下去時，結果清單不會把旁邊的分頁、按鈕撐高 */
+.mk-toolbar .craft-search-results { position: absolute; left: 0; top: 100%; z-index: 30; width: max(100%, 320px); max-width: calc(100vw - 32px); max-height: min(60vh, 420px); }
+
+/* 設定膠囊：窄時只留「我的世界」，更窄只剩圖示（完整內容在提示與無障礙名稱裡） */
+.market-settings-segs { min-width: 0; }
+.mss { white-space: nowrap; }
+.mss-world { max-width: 7.5em; overflow: hidden; text-overflow: ellipsis; }
+
+@container mktb (min-width: 1000px) {
+  .mk-toolbar { flex-wrap: nowrap; align-items: flex-end; margin-bottom: 12px; }
+  .mk-toolbar .market-tabs { order: 0; flex: none; margin: 0; height: 38px; }
+  .mk-toolbar .market-tabs .craft-tab-btn { height: 100%; }
+}
+@container mktb (max-width: 599px) {
+  .market-settings-segs.has-world .mss-dc, .market-settings-segs.has-world .mss-tax { display: none; }
+  .mss-empty .mk-long { display: none; }
+  .mk-toolbar .market-tabs { gap: 2px; }
+  .mk-toolbar .market-tabs .craft-tab-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; padding-left: 2px; padding-right: 2px; font-size: var(--fs-head); }
+}
+@container mktb (max-width: 319px) {
+  .market-settings-segs { display: none; }
+  .mk-toolbar .market-settings-btn { padding: 0 11px; }
+  .mk-toolbar .market-settings-gear { margin-right: 0; }
+}
+
+/* ── 最近查看浮層 ── */
+.craft-mat-worlds-popover.mk-recent-pop { width: min(340px, calc(100vw - 16px)); max-width: min(340px, calc(100vw - 16px)); }
+.mk-recent-list { display: flex; flex-direction: column; gap: 2px; max-height: min(60vh, 360px); overflow-y: auto; }
+.mk-recent-item { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent;
+  color: var(--main); font-family: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.mk-recent-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-recent-item:hover { border-color: var(--gold); background: rgba(197,160,89,.1); }
+.mk-recent-item.is-current { border-color: var(--gold); background: rgba(197,160,89,.16); color: var(--gold-bright); font-weight: 600; }
+.mk-recent-foot { display: flex; justify-content: flex-end; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--tb); }
+.mk-recent-clear { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 1px solid var(--tb); border-radius: 6px; background: transparent; color: var(--dim); font-family: inherit; font-size: 12px; cursor: pointer; }
+.mk-recent-clear:hover { border-color: var(--gold); color: var(--main); }
+
+/* ── 篩選條件列 ── */
+.mk-cond { position: relative; display: flex; align-items: stretch; gap: 8px; min-width: 0; margin: 0; }
+.mk-cond .market-fold-btn { flex: 1 1 auto; width: auto; min-width: 0; height: 36px; margin: 0; padding: 0 10px; gap: 8px; font-size: 12.5px; color: var(--main); }
+.mk-cond .market-fold-btn.open { border-color: var(--gold); }
+.mk-fold-l { flex: none; white-space: nowrap; }
+.mk-fold-n { flex: none; min-width: 18px; padding: 0 6px; border-radius: 9px; background: var(--gold-deep); color: var(--gold-bright); font-size: 11px; line-height: 18px; text-align: center; }
+.mk-fold-n[hidden] { display: none; }
+/* 目前條件：單行、放不下就右側淡出；展開時也照常顯示（以前展開就藏起來，看起來像空的下拉） */
+.mk-cond .market-fold-btn .market-fold-sum, .mk-cond .market-fold-btn.open .market-fold-sum { visibility: visible; display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+.mk-cond .market-fold-sum > span { flex: none; }
+.mk-chip-dot { flex: none; font-style: normal; color: var(--dim); }
+.market-hot-controls .mk-cond, .market-token-topbar.mk-cond { margin: 0; align-self: stretch; width: 100%; }
+.market-token-topbar.mk-cond { margin-bottom: 8px; }
+.market-radar-jobtabs.mk-hscroll { margin-bottom: 10px; }
+
+/* ── 條件面板：浮在列表上方，不推擠列表 ── */
+#market-root .mk-cpanel { display: none; }
+#market-root .mk-cpanel.on { display: flex; flex-direction: column; gap: 12px; position: absolute; z-index: 6; top: calc(100% + 4px); left: 0; width: min(640px, 100%); max-height: 60vh; overflow-y: auto; box-sizing: border-box;
+  background: var(--panel, #1c1c22); border: 1px solid var(--line, #333); border-radius: 8px; padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+  scrollbar-width: thin; scrollbar-color: rgba(197,160,89,.4) transparent; }
+#market-root .mk-cpanel .market-hot-row-filter { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 4px 10px; align-items: start; flex: 0 0 auto; }
+#market-root .mk-cpanel .market-hot-filter-label { min-width: 0; margin: 4px 0 0; white-space: nowrap; }
+.mk-opts { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; align-items: center; }
+#market-root .mk-cpanel .pp-bar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+#market-root .mk-cpanel .pp-side { flex-wrap: wrap; }
+#mk-hot-filters { display: flex; flex-direction: column; gap: 12px; }
+.mk-cpanel .market-hot-median { margin: 0; }
+.mk-cpanel .market-token-note:empty { display: none; }
+/* 「完成」固定貼在面板底部：內容多到要捲動時，按鈕也一直看得到 */
+.mk-cpanel-foot { position: sticky; bottom: -12px; z-index: 1; display: flex; justify-content: flex-end; margin: 0 -12px -12px; padding: 10px 12px; background: var(--panel, #1c1c22); border-top: 1px solid var(--tb); border-radius: 0 0 8px 8px; }
+/* 代幣分類：等寬格狀（17 個分類不再是參差換行的一大片）；名稱太長用省略，完整說明在滑鼠提示 */
+#market-root .market-token-cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 6px; margin: 0; }
+#market-root .market-token-cats .craft-job-filter-btn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#market-root .market-token-scope { margin: 0; }
+
+/* ── 單行橫滑按鈕列（職業、世界範圍）：不換行 ── */
+.mk-hscroll { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overflow-y: hidden; position: relative; min-width: 0; padding: 1px 0; scrollbar-width: none; }
+.mk-hscroll::-webkit-scrollbar { display: none; }
+.mk-hscroll > * { flex: none; white-space: nowrap; }
+.mk-hscroll.can-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
+.mk-hscroll.can-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent); }
+.mk-hscroll.can-l.can-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+
+/* ── 代幣分頁：條件列內的搜尋 ── */
+.market-token-topbar.mk-cond .market-fold-btn { flex: 1 1 0; }
+.market-token-topbar.mk-cond .market-token-gear { flex: none; width: 36px; height: 36px; }
+.market-token-topbar.mk-cond .craft-search { flex: 0 1 260px; min-width: 0; width: auto; height: 36px; margin: 0; box-sizing: border-box; white-space: nowrap; text-overflow: ellipsis; }
+.mk-tsr-btn, .mk-tsr-x { display: none; }
+@container mktok (max-width: 599px) {
+  .market-token-topbar.mk-cond .craft-search { display: none; flex: 1 1 0; }
+  .market-token-topbar.mk-cond .mk-tsr-btn { display: inline-flex; }
+  .market-token-topbar.mk-cond.is-search .craft-search { display: block; }
+  .market-token-topbar.mk-cond.is-search .mk-tsr-x { display: inline-flex; }
+  .market-token-topbar.mk-cond.is-search .market-fold-btn,
+  .market-token-topbar.mk-cond.is-search #mk-token-gear,
+  .market-token-topbar.mk-cond.is-search .mk-tsr-btn { display: none; }
+}

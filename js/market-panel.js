@@ -186,14 +186,14 @@
         '<div class="market-header">' +
           '<h2 class="unified-gold-header small news-title"><i class="ph ph-scales cr-title-ic" aria-hidden="true"></i>市場</h2>' +
           '<div class="fancy-divider mini news-div"><div class="long-silk-line-short"></div></div>' +
-          '<p class="elegant-body-text page-note">查詢單一物品的即時價格、跨服比價與供應鏈，或看看最近交易熱度排行。</p>' +
         '</div>' +
-        '<div class="market-recent-row" id="mk-recent-row"></div>' +
+        '<div class="mk-toolbar" id="mk-toolbar">' +
         '<div class="market-searchbar">' +
           '<div class="market-search-box">' +
             '<input id="mk-search" class="craft-search" placeholder="搜尋物品名稱⋯" autocomplete="off" />' +
             '<div id="mk-search-results" class="craft-search-results"></div>' +
           '</div>' +
+          '<button type="button" id="mk-recent-btn" class="mk-recent-btn" title="最近查看" aria-label="最近查看" aria-haspopup="true"><i class="ph ph-clock-counter-clockwise"></i></button>' +
           '<button type="button" id="mk-settings-btn" class="market-settings-btn" title="' + (MarketData.dcSelectorVisible ? '設定資料中心／我的世界' : '設定我的世界') + '">' +
             '<i class="ph ph-gear-six market-settings-gear"></i><span id="mk-settings-summary" class="market-settings-segs"><span class="mss mss-empty">尚未設定市場資訊</span></span>' +
           '</button>' +
@@ -203,6 +203,7 @@
           '<button type="button" class="craft-tab-btn" data-mk-tab="radar">製作商機</button>' +
           '<button type="button" class="craft-tab-btn" data-mk-tab="hot">熱度排行</button>' +
           '<button type="button" class="craft-tab-btn" data-mk-tab="tokens">代幣兌換</button>' +
+        '</div>' +
         '</div>' +
       '</div>' +
       '<div class="market-panes-flex">' +
@@ -243,8 +244,11 @@
 
     $('mk-settings-btn').addEventListener('click', function (e) {
       e.stopPropagation();
+      const rp = $('mk-recent-pop'); if (rp) rp.style.display = 'none';
       openMarketSettingsPopover(this);
     });
+    bindRecentBtn();
+    mkBindCondGlobal();
   }
 
   /* 目前的市場設定摘要：分成幾段，每段「小圖示＋文字」，段與段之間用細線隔開。
@@ -257,13 +261,21 @@
     if (!el || typeof MarketData === 'undefined') return;
     const s = MarketData.getSettings();
     const segs = [];
-    if (s.dcName) segs.push('<span class="mss" title="資料中心（買進、材料成本查價的範圍）"><i class="ph ph-globe-hemisphere-west"></i>' + s.dcName + '</span>');
-    if (s.worldName) segs.push('<span class="mss" title="我的世界"><i class="ph ph-map-pin"></i>' + s.worldName + '</span>');
+    if (s.dcName) segs.push('<span class="mss mss-dc" title="資料中心（買進、材料成本查價的範圍）"><i class="ph ph-globe-hemisphere-west"></i>' + s.dcName + '</span>');
+    if (s.worldName) segs.push('<span class="mss mss-world" title="我的世界"><i class="ph ph-map-pin"></i>' + s.worldName + '</span>');
     if (s.dcName && s.worldName) {
-      segs.push('<span class="mss" title="' + (s.sellCityKey ? '賣出稅率：使用你手動選的城市' : '賣出稅率：自動採用目前稅率最低的城市') + '"><i class="ph ph-percent"></i>' + (s.sellCityKey ? '手動稅率' : '自動最低稅率') + '</span>');
+      segs.push('<span class="mss mss-tax" title="' + (s.sellCityKey ? '賣出稅率：使用你手動選的城市' : '賣出稅率：自動採用目前稅率最低的城市') + '"><i class="ph ph-percent"></i>' + (s.sellCityKey ? '手動稅率' : '自動最低稅率') + '</span>');
     }
-    el.innerHTML = segs.length ? segs.join('') : '<span class="mss mss-empty">尚未設定市場資訊</span>';
-    const btn = $('mk-settings-btn'); if (btn) btn.classList.toggle('is-unset', !segs.length);
+    el.innerHTML = segs.length ? segs.join('') : '<span class="mss mss-empty">尚未設定<span class="mk-long">市場資訊</span></span>';
+    el.classList.toggle('has-world', !!s.worldName);
+    const btn = $('mk-settings-btn');
+    if (btn) {
+      btn.classList.toggle('is-unset', !segs.length);
+      // 窄到只剩圖示時，目前的設定改放在提示與無障礙名稱裡
+      const plain = [s.dcName, s.worldName, (s.dcName && s.worldName) ? (s.sellCityKey ? '手動稅率' : '自動最低稅率') : ''].filter(Boolean).join('・') || '尚未設定市場資訊';
+      btn.setAttribute('aria-label', '市場設定：' + plain);
+      btn.title = (MarketData.dcSelectorVisible ? '設定資料中心／我的世界' : '設定我的世界') + '（目前：' + plain + '）';
+    }
   }
 
   /* 市場設定彈出卡：生產頁craft-panel.js裡已經有一份幾乎一樣的邏輯（cf-market-*系列），
@@ -532,6 +544,100 @@
   }
   window.addEventListener('resize', function () { fitMarketHeights(); });
 
+  /* ── 篩選條件列＋條件面板（製作商機／熱度排行／代幣兌換共用）──
+   * 條件列永遠只有一行：「篩選」按鈕（有文字、有生效條件數）＋目前條件（單行、放不下就淡出）。
+   * 條件面板浮在列表上方、不推擠列表，所以展開／收合不會讓列表跳動，也不用重算高度。
+   * 面板內的按鈕、勾選框全部沿用各分頁原本的元素與事件，這裡只負責開關、擺位置、摘要。 */
+  const condUpdaters = {}; // 各分頁註冊「重畫條件摘要」的函式；全站取價設定改了要一起更新
+  function condFoldBtnHtml(p) {
+    return '<button type="button" class="market-fold-btn" id="mk-' + p + '-fold-btn" aria-expanded="false" aria-haspopup="true">' +
+      '<i class="ph ph-funnel"></i><span class="mk-fold-l">篩選</span><span class="mk-fold-n" id="mk-' + p + '-fold-n" hidden></span>' +
+      '<span class="market-fold-sum" id="mk-' + p + '-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>';
+  }
+  function condDoneHtml() { return '<div class="mk-cpanel-foot"><button type="button" class="market-solve-btn mk-cpanel-done">完成</button></div>'; }
+  function mkSetChips(prefix, chips, n) {
+    const sum = $('mk-' + prefix + '-fold-sum');
+    if (sum) sum.innerHTML = chips.map(function (c) { return '<span>' + escHtml(c) + '</span>'; }).join('<i class="mk-chip-dot">·</i>');
+    const badge = $('mk-' + prefix + '-fold-n');
+    if (badge) { badge.textContent = n; badge.hidden = !n; }
+  }
+  // 全站取價設定（買入／賣出的範圍與基準）的摘要：條件面板收起時也看得到目前用哪一套
+  function mkPrefsChips(sides) {
+    try {
+      const p = MarketData.getPricePrefs(), w = MarketData.getSettings().worldName;
+      return sides.map(function (side) {
+        return (side === 'buy' ? '買入 ' : '賣出 ') + (p[side + 'Scope'] === 'world' ? (w || '我的世界') : '所有世界') + '・' + (p[side + 'Basis'] === 'avg' ? '均價' : '最低價');
+      });
+    } catch (e) { return []; }
+  }
+  function panelPrefix(p) { return p.id.replace(/^mk-/, '').replace(/-fold$/, ''); }
+  // 面板最高高度：桌面版分頁是固定高度（超出會被裁掉），所以算到分頁底部；手機版整頁在捲，最高 70% 視窗
+  function mkFitPanel(panel) {
+    const cond = panel.closest('.mk-cond'), pane = panel.closest('.market-pane');
+    let avail = window.innerHeight * 0.7;
+    if (cond && pane && getComputedStyle(pane).overflow === 'hidden') {
+      avail = Math.min(avail, pane.getBoundingClientRect().bottom - cond.getBoundingClientRect().bottom - 12);
+    } else if (cond) { // 整頁在捲的版面：留出右下角「關注」按鈕的位置，面板底部的「完成」才不會被它蓋住
+      avail = Math.min(avail, window.innerHeight - cond.getBoundingClientRect().bottom - 96);
+    }
+    panel.style.maxHeight = Math.max(160, Math.floor(avail)) + 'px';
+  }
+  function mkSetPanel(prefix, open) {
+    const panel = $('mk-' + prefix + '-fold'), btn = $('mk-' + prefix + '-fold-btn');
+    if (!panel || !btn) return;
+    if (open) document.querySelectorAll('.mk-cpanel.on').forEach(function (p) { if (p !== panel) mkSetPanel(panelPrefix(p), false); });
+    panel.classList.toggle('on', !!open);
+    btn.classList.toggle('open', !!open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) { mkFitPanel(panel); panel.scrollTop = 0; }
+  }
+  let condGlobalBound = false;
+  function mkBindCondGlobal() {
+    if (condGlobalBound) return;
+    condGlobalBound = true;
+    // 用 pointerdown 判斷「點到外面」：click 發生時，面板裡被重畫過的按鈕已經不在 DOM 裡，會誤判成點外面
+    document.addEventListener('pointerdown', function (e) {
+      document.querySelectorAll('.mk-cpanel.on').forEach(function (p) {
+        const c = p.closest('.mk-cond');
+        if (c && !c.contains(e.target)) mkSetPanel(panelPrefix(p), false);
+      });
+    }, true);
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      document.querySelectorAll('.mk-cpanel.on').forEach(function (p) { mkSetPanel(panelPrefix(p), false); });
+    });
+    document.addEventListener('click', function (e) {
+      const d = e.target.closest && e.target.closest('.mk-cpanel-done');
+      const p = d && d.closest('.mk-cpanel');
+      if (p) mkSetPanel(panelPrefix(p), false);
+    });
+    window.addEventListener('resize', function () { document.querySelectorAll('.mk-cpanel.on').forEach(mkFitPanel); });
+    MarketData.onPricePrefsChange(function () { Object.keys(condUpdaters).forEach(function (k) { try { condUpdaters[k](); } catch (e) { /* 單一分頁出錯不影響其他 */ } }); });
+  }
+
+  /* 單行橫向捲動（職業、世界範圍這類「選一個」的按鈕列）：不換行；放不下的往旁邊捲，邊緣淡出提示後面還有。
+   * 滑鼠滾輪直接橫向捲（只有真的放不下才攔截）；觸控本來就能滑。沿用「最近查看」以前那套做法。 */
+  function mkEnhanceHScroll(sc) {
+    if (!sc || sc.dataset.hs) return;
+    sc.dataset.hs = '1';
+    const edges = function () {
+      sc.classList.toggle('can-l', sc.scrollLeft > 4);
+      sc.classList.toggle('can-r', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
+    };
+    sc.addEventListener('scroll', edges, { passive: true });
+    sc.addEventListener('wheel', function (e) {
+      if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      sc.scrollLeft += e.deltaY; e.preventDefault();
+    }, { passive: false });
+    if (window.ResizeObserver) new ResizeObserver(edges).observe(sc); else window.addEventListener('resize', edges);
+    requestAnimationFrame(edges);
+  }
+  function mkHScrollInto(el) { // 把被選到的那顆捲到看得見的位置
+    const sc = el && el.parentElement;
+    if (!sc || sc.scrollWidth <= sc.clientWidth) return;
+    sc.scrollLeft = Math.max(0, el.offsetLeft - (sc.clientWidth - el.offsetWidth) / 2);
+  }
+
   /* 最近查看：純本機 localStorage，零維護，不用帳號、不用後端。之後點進物品詳情頁時
    * 會呼叫 recordRecentlyViewed() 把當下這個物品記進來，這裡先只做「讀出來顯示」的部分。 */
   const RECENT_KEY = 'ff14fc-market-recent';
@@ -575,48 +681,57 @@
     d.sc.classList.remove('is-dragging');
     if (d.moved) { recentSuppressClick = true; setTimeout(function () { recentSuppressClick = false; }, 0); } // click 事件緊接在 pointerup 之後，同一輪就會被擋掉
   });
+  /* 最近查看改成工具列上的 🕘 按鈕＋浮層（不再佔一整列高度）：
+   * 一次列出全部紀錄（圖示＋完整名稱，目前正在看的用金框），不用橫向滑動；點一下就開那個物品。
+   * 不用「搜尋框聚焦才顯示」：手機一聚焦就跳鍵盤，只想挑最近物品的人會被鍵盤擋住。 */
+  function ensureRecentPopDom() {
+    let pop = $('mk-recent-pop');
+    if (pop) return pop;
+    pop = document.createElement('div');
+    pop.id = 'mk-recent-pop';
+    pop.className = 'craft-mat-worlds-popover mk-recent-pop';
+    pop.style.display = 'none';
+    document.body.appendChild(pop);
+    pop.addEventListener('click', function (e) { e.stopPropagation(); });
+    document.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('#mk-recent-btn')) return; pop.style.display = 'none'; });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') pop.style.display = 'none'; });
+    return pop;
+  }
   function renderRecentlyViewed() {
-    const row = $('mk-recent-row');
+    const btn = $('mk-recent-btn');
+    if (!btn) return;
     const list = getRecentlyViewed();
-    if (!list.length) { row.innerHTML = ''; row.classList.remove('can-left', 'can-right'); return; }
-    row.innerHTML = '<span class="market-recent-label"><i class="ph ph-clock-counter-clockwise"></i>最近查看</span>' +
-      '<div class="market-recent-wrap">' +
-        '<button type="button" class="market-recent-nav prev" aria-label="往左" tabindex="-1"><i class="ph ph-caret-left"></i></button>' +
-        '<div class="market-recent-scroller">' +
-          list.map(function (r) {
-            return '<button type="button" class="market-recent-chip' + (String(r.id) === String(currentDetailItemId) ? ' is-current' : '') + '" data-mk-recent="' + r.id + '" title="' + escHtml(r.name) + '">' + itemIconHtml(r.id, 18) + '<span>' + escHtml(r.name) + '</span></button>';
-          }).join('') +
-        '</div>' +
-        '<button type="button" class="market-recent-nav next" aria-label="往右" tabindex="-1"><i class="ph ph-caret-right"></i></button>' +
-      '</div>' +
-      '<button type="button" class="market-recent-clear" title="清除最近查看紀錄"><i class="ph ph-x"></i></button>';
-    const sc = row.querySelector('.market-recent-scroller');
-    function edges() {
-      row.classList.toggle('can-left', sc.scrollLeft > 4);
-      row.classList.toggle('can-right', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
-    }
-    sc.addEventListener('scroll', edges);
-    sc.addEventListener('pointerdown', function (e) {
-      if (e.pointerType !== 'mouse' || e.button !== 0) return;
-      recentDrag = { x: e.clientX, left: sc.scrollLeft, sc: sc, moved: false };
+    btn.classList.toggle('is-empty', !list.length);
+    const label = list.length ? '最近查看（' + list.length + '）' : '最近查看（還沒有紀錄）';
+    btn.title = label; btn.setAttribute('aria-label', label);
+    const pop = ensureRecentPopDom();
+    pop.innerHTML = '<p class="craft-mat-worlds-title">最近查看</p>' + (list.length
+      ? '<div class="mk-recent-list">' + list.map(function (r) {
+          return '<button type="button" class="mk-recent-item' + (String(r.id) === String(currentDetailItemId) ? ' is-current' : '') + '" data-mk-recent="' + r.id + '" title="' + escHtml(r.name) + '">' + itemIconHtml(r.id, 20) + '<span>' + escHtml(r.name) + '</span></button>';
+        }).join('') + '</div><div class="mk-recent-foot"><button type="button" class="mk-recent-clear"><i class="ph ph-x"></i> 清除紀錄</button></div>'
+      : '<p class="craft-muted" style="margin:4px 0 6px">還沒有查看紀錄。查看過的物品會出現在這裡。</p>');
+    pop.querySelectorAll('[data-mk-recent]').forEach(function (el) {
+      el.addEventListener('click', function () { pop.style.display = 'none'; openItemDetail(el.dataset.mkRecent); });
     });
-    sc.addEventListener('dragstart', function (e) { e.preventDefault(); }); // 不要讓瀏覽器把圖示當圖片拖走
-    sc.addEventListener('wheel', function (e) { // 滾輪直接橫向捲動（只有真的放不下時才攔截，不影響頁面本身的捲動）
-      if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      sc.scrollLeft += e.deltaY; e.preventDefault();
-    }, { passive: false });
-    row.querySelector('.market-recent-nav.prev').addEventListener('click', function () { sc.scrollBy({ left: -sc.clientWidth * 0.7, behavior: 'smooth' }); });
-    row.querySelector('.market-recent-nav.next').addEventListener('click', function () { sc.scrollBy({ left: sc.clientWidth * 0.7, behavior: 'smooth' }); });
-    row.querySelector('.market-recent-clear').addEventListener('click', function () {
+    const clr = pop.querySelector('.mk-recent-clear');
+    if (clr) clr.addEventListener('click', function () {
       try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 被封鎖就算了 */ }
       renderRecentlyViewed();
     });
-    row.querySelectorAll('[data-mk-recent]').forEach(function (el) {
-      el.addEventListener('click', function () { if (recentSuppressClick) return; openItemDetail(el.dataset.mkRecent); });
-    });
-    requestAnimationFrame(edges); // 要等排版完成才量得到寬度
   }
-  window.addEventListener('resize', function () { const sc = document.querySelector('.market-recent-scroller'); if (sc) sc.dispatchEvent(new Event('scroll')); });
+  function bindRecentBtn() {
+    const btn = $('mk-recent-btn');
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () {
+      const pop = ensureRecentPopDom();
+      if (pop.style.display === 'flex') { pop.style.display = 'none'; return; }
+      renderRecentlyViewed();
+      pop.style.display = 'flex';
+      delete pop.dataset.dir; // 每次重新決定往上或往下開
+      placePopover(pop, btn.getBoundingClientRect(), 0);
+    });
+  }
 
   /* 物品詳情頁：即時跨服比價、銷售速度、（可製作品）供應鏈視覺化、被用在哪的反查。
    * 供應鏈那塊才需要載入 craft-data.js（好幾MB），其他資訊只需要 MarketData，
@@ -3721,17 +3836,17 @@
     let liveToken = 0, liveRounds = 0, liveNote = '';
     let pc = null; // { dc, sell, meta, ageMs }
     function row(label, key, options) {
-      return '<div class="market-hot-row-filter"><span class="market-hot-filter-label">' + label + '</span>' +
-        options.map(function (o) { return '<button type="button" class="craft-job-filter-btn" data-rk="' + key + '" data-rv="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
+      return '<div class="market-hot-row-filter"><span class="market-hot-filter-label">' + label + '</span><span class="mk-opts">' +
+        options.map(function (o) { return '<button type="button" class="craft-job-filter-btn" data-rk="' + key + '" data-rv="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</span></div>';
     }
     box.innerHTML =
-      '<div class="market-radar-jobtabs market-pane-fixed" id="mk-radar-jobtabs">' +
+      '<div class="market-radar-jobtabs mk-hscroll market-pane-fixed" id="mk-radar-jobtabs">' +
         JOB_LIST.map(function (j) { return '<button type="button" class="craft-job-filter-btn" data-mk-radar-job="' + j.id + '">' + j.name + '</button>'; }).join('') +
       '</div>' +
       '<div class="market-hot-controls market-pane-fixed" id="mk-radar-filters" style="display:none">' +
-        '<div class="market-hot-row-filter">' + MarketData.pricePrefsBarHtml(['buy', 'sell']) + '</div>' +
-        '<button type="button" class="market-fold-btn" id="mk-radar-fold-btn" aria-expanded="false"><i class="ph ph-funnel"></i><span class="market-fold-sum" id="mk-radar-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>' +
-        '<div id="mk-radar-fold" style="display:none">' +
+        '<div class="mk-cond">' + condFoldBtnHtml('radar') +
+        '<div id="mk-radar-fold" class="mk-cpanel">' +
+        '<div class="market-hot-row-filter"><span class="market-hot-filter-label">取價</span><span class="mk-opts">' + MarketData.pricePrefsBarHtml(['buy', 'sell']) + '</span></div>' +
         row('材料成本', 'matMode', [['buy', '直接買'], ['auto', '自動選較便宜（買或自己做）']]) +
         row('成品視角', 'persp', HOT_UI_BTNS.persp) +
         row('價格帶', 'band', HOT_UI_BTNS.band) +
@@ -3739,39 +3854,38 @@
         '<label class="market-hot-median"><input type="checkbox" id="mk-radar-median"> 只看成品賣速在「同價格帶」中位數以上的配方</label>' +
         '<label class="market-hot-median"><input type="checkbox" id="mk-radar-profit"> 只顯示有獲利的配方</label>' +
         '<label class="market-hot-median" title="買方稅固定5%、賣方稅依你的城市"><input type="checkbox" id="mk-radar-tax"> 含稅</label>' +
-        '</div>' +
+        condDoneHtml() +
+        '</div></div>' +
         '<p class="craft-muted market-hot-status" id="mk-radar-status" style="display:none"></p>' +
       '</div>' +
       '<div id="mk-radar-body" class="market-pane-scrollbody"><p class="craft-muted">選一個職業，找出材料成本低、成品行情高的配方。</p></div>';
 
-    const RADAR_FOLD_KEY = 'ff14fc-radar-fold';
+    mkEnhanceHScroll($('mk-radar-jobtabs'));
+    // 目前條件（不含「排序」）有幾項不是預設值＝徽章數字；取價設定放最後，窄時被淡出也不影響主要條件
     function radarFoldSummary() {
-      const parts = [];
-      const act = function (k) { const b = box.querySelector('[data-rk="' + k + '"].active'); return b ? b.textContent : ''; };
-      if (ui.matMode === 'auto') parts.push('買或自己做');
-      if (ui.persp !== 'all') parts.push(act('persp'));
-      if (ui.band !== 'all') parts.push(act('band'));
-      parts.push(act('sort'));
-      if (ui.medianOnly) parts.push('賣速≥中位');
-      if (ui.profitOnly) parts.push('有獲利');
-      if (ui.tax) parts.push('含稅');
-      return parts.filter(Boolean).join('・');
+      const chips = [], act = function (k) { const b = box.querySelector('[data-rk="' + k + '"].active'); return b ? b.textContent : ''; };
+      let n = 0;
+      if (ui.matMode === 'auto') { chips.push('買或自己做'); n++; }
+      if (ui.persp !== 'all') { chips.push(act('persp')); n++; }
+      if (ui.band !== 'all') { chips.push(act('band')); n++; }
+      chips.push(act('sort'));
+      if (ui.medianOnly) { chips.push('賣速≥中位'); n++; }
+      if (ui.profitOnly) { chips.push('有獲利'); n++; }
+      if (ui.tax) { chips.push('含稅'); n++; }
+      return { chips: chips.concat(mkPrefsChips(['buy', 'sell'])).filter(Boolean), n: n };
     }
-    function setRadarFold(open) {
-      $('mk-radar-fold').style.display = open ? '' : 'none';
-      $('mk-radar-fold-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
-      $('mk-radar-fold-btn').classList.toggle('open', open);
-      try { localStorage.setItem(RADAR_FOLD_KEY, open ? 'open' : 'closed'); } catch (e) { /* 存不了就只對這次有效 */ }
-      fitMarketHeights();
-    }
-    $('mk-radar-fold-btn').addEventListener('click', function () { setRadarFold($('mk-radar-fold').style.display === 'none'); });
-    try { if (localStorage.getItem(RADAR_FOLD_KEY) === 'open') setRadarFold(true); } catch (e) { /* 預設收起 */ }
+    function syncRadarChips() { const r = radarFoldSummary(); mkSetChips('radar', r.chips, r.n); }
+    condUpdaters.radar = syncRadarChips;
+    function setRadarFold(open) { mkSetPanel('radar', open); }
+    $('mk-radar-fold-btn').addEventListener('click', function () { setRadarFold(!$('mk-radar-fold').classList.contains('on')); });
+    let radarShownJob = null;
     function setStatus(html) { const el = $('mk-radar-status'); el.innerHTML = html || ''; el.style.display = html ? '' : 'none'; }
     function sync() {
       box.querySelectorAll('[data-mk-radar-job]').forEach(function (b) { b.classList.toggle('active', ui.job !== null && parseInt(b.dataset.mkRadarJob, 10) === ui.job); });
       box.querySelectorAll('[data-rk]').forEach(function (b) { b.classList.toggle('active', String(ui[b.dataset.rk]) === b.dataset.rv); });
       $('mk-radar-filters').style.display = ui.mode === 'pre' && ui.job !== null ? '' : 'none';
-      $('mk-radar-fold-sum').textContent = radarFoldSummary();
+      syncRadarChips();
+      if (ui.job !== radarShownJob) { radarShownJob = ui.job; mkHScrollInto(box.querySelector('[data-mk-radar-job].active')); }
     }
     function goLive(note) {
       ui.mode = 'live'; sync(); $('mk-radar-filters').style.display = 'none';
@@ -4412,15 +4526,18 @@
     // 內容包進 market-pane-scrollbody，不然外層 .market-pane 是 overflow:hidden，清單一長就整個被裁掉、完全不能捲動。
     // 分類按鈕放在搜尋框上方：先選「哪一類」再用名稱縮小範圍，是兩個層次的篩選。
     pane.innerHTML =
-      '<div class="market-token-topbar market-pane-fixed">' +
-        '<button type="button" class="market-fold-btn" id="mk-token-fold-btn" aria-expanded="false"><i class="ph ph-funnel"></i><span class="market-fold-sum" id="mk-token-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>' +
+      '<div class="market-token-topbar market-pane-fixed mk-cond" id="mk-token-bar">' +
+        condFoldBtnHtml('token') +
         '<button type="button" id="mk-token-gear" class="market-token-gear" title="代幣兌換設定（顯示無可比價代幣／排除滯銷物品）" aria-label="代幣兌換設定" aria-haspopup="true"><i class="ph ph-gear-six"></i></button>' +
+        '<button type="button" id="mk-token-sbtn" class="market-token-gear mk-tsr-btn" title="搜尋代幣" aria-label="搜尋代幣"><i class="ph ph-magnifying-glass"></i></button>' +
         '<input type="text" id="mk-token-search" class="craft-search" placeholder="搜尋代幣名稱⋯">' +
-      '</div>' +
-      '<div id="mk-token-fold" class="market-pane-fixed" style="display:none">' +
-        '<div class="market-token-scope" id="mk-token-scope"></div>' +
-        '<div class="market-token-cats" id="mk-token-cats"></div>' +
-        '<p class="market-token-note" id="mk-token-note"></p>' +
+        '<button type="button" id="mk-token-sx" class="market-token-gear mk-tsr-x" title="關閉搜尋" aria-label="關閉搜尋"><i class="ph ph-x"></i></button>' +
+        '<div id="mk-token-fold" class="mk-cpanel">' +
+          '<div class="market-token-scope" id="mk-token-scope"></div>' +
+          '<div class="market-token-cats" id="mk-token-cats"></div>' +
+          '<p class="market-token-note" id="mk-token-note"></p>' +
+          condDoneHtml() +
+        '</div>' +
       '</div>' +
       '<div class="market-pane-scrollbody"><div class="market-token-list" id="mk-token-list"></div></div>';
     function tokenRowHtml(x, showGroup) {
@@ -4527,20 +4644,15 @@
     // 篩選區收合（比照熱度排行）：收起時只剩「漏斗＋目前選了什麼」與搜尋框，清單才有空間；選擇會記住，預設收起
     const TOKEN_FOLD_KEY = 'ff14fc-token-fold', TOKEN_NOSLOW_KEY = 'ff14fc-token-noslow';
     function syncFoldSummary() {
-      const parts = [tokenCatSel === 'all' ? '全部分類' : (groupLabel[tokenCatSel] || '全部分類')];
-      if (tokenExcludeSlow) parts.push('排除滯銷');
-      if (tokenShowHidden) parts.push('含無可比價');
-      $('mk-token-fold-sum').textContent = parts.join('・');
+      const chips = [tokenCatSel === 'all' ? '全部分類' : (groupLabel[tokenCatSel] || '全部分類')];
+      let n = tokenCatSel !== 'all' ? 1 : 0;
+      if (tokenExcludeSlow) { chips.push('排除滯銷'); n++; }
+      if (tokenShowHidden) { chips.push('含無可比價'); n++; }
+      mkSetChips('token', chips.concat(mkPrefsChips(['sell'])), n);
     }
-    function setTokenFold(open) {
-      $('mk-token-fold').style.display = open ? '' : 'none';
-      $('mk-token-fold-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
-      $('mk-token-fold-btn').classList.toggle('open', open);
-      try { localStorage.setItem(TOKEN_FOLD_KEY, open ? 'open' : 'closed'); } catch (e) { /* 存不了就只對這次有效 */ }
-      fitMarketHeights();
-    }
-    $('mk-token-fold-btn').addEventListener('click', function () { setTokenFold($('mk-token-fold').style.display === 'none'); });
-    try { if (localStorage.getItem(TOKEN_FOLD_KEY) === 'open') setTokenFold(true); } catch (e) { /* 預設收起 */ }
+    condUpdaters.token = syncFoldSummary;
+    function setTokenFold(open) { mkSetPanel('token', open); }
+    $('mk-token-fold-btn').addEventListener('click', function () { setTokenFold(!$('mk-token-fold').classList.contains('on')); });
     try { tokenExcludeSlow = localStorage.getItem(TOKEN_NOSLOW_KEY) === '1'; } catch (e) { tokenExcludeSlow = false; }
     // 已展開的排行要重算（排序、價格設定、排除滯銷任何一個改了都一樣）；沒展開的下次點開時再算
     function refreshOpenTokenBodies() {
@@ -4574,6 +4686,17 @@
       const sb = pane.querySelector('.market-pane-scrollbody'); if (sb) sb.scrollTop = 0;
     });
     $('mk-token-search').addEventListener('input', renderList);
+    // 窄容器：搜尋框收成放大鏡鈕，點了才換成搜尋列（關掉會一併清除關鍵字，免得「看不到的篩選」還在作用）
+    $('mk-token-sbtn').addEventListener('click', function () {
+      setTokenFold(false);
+      $('mk-token-bar').classList.add('is-search');
+      $('mk-token-search').focus();
+    });
+    $('mk-token-sx').addEventListener('click', function () {
+      const inp = $('mk-token-search');
+      inp.value = ''; inp.dispatchEvent(new Event('input'));
+      $('mk-token-bar').classList.remove('is-search');
+    });
 
     const TOKEN_SORTS = [['net', '市價'], ['vel', '賣速'], ['txnFreq', '成交頻率']];
     pane.addEventListener('click', async function (e) {
@@ -4802,51 +4925,49 @@
     const ui = { scope: 'ALL', metric: 'changePct', persp: 'all', freq: 'high', dir: 'up', band: 'all', medianOnly: false, shown: 30, mode: 'pre' };
     let pcResult = null;
     function btnRow(label, key, rowId) {
-      return '<div class="market-hot-row-filter" id="' + rowId + '"><span class="market-hot-filter-label">' + label + '</span>' +
-        HOT_UI_BTNS[key].map(function (o) { return '<button type="button" class="craft-job-filter-btn" data-hk="' + key + '" data-hv="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>';
+      return '<div class="market-hot-row-filter" id="' + rowId + '"><span class="market-hot-filter-label">' + label + '</span><span class="mk-opts">' +
+        HOT_UI_BTNS[key].map(function (o) { return '<button type="button" class="craft-job-filter-btn" data-hk="' + key + '" data-hv="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</span></div>';
     }
     box.innerHTML =
       '<div class="market-hot-controls market-pane-fixed">' +
-        '<div class="market-hot-scope">' +
+        '<div class="market-hot-scope mk-hscroll" id="mk-hot-scope">' +
           '<button type="button" class="craft-job-filter-btn active" data-mk-hot-scope="ALL">所有世界</button>' +
           worldNames.map(function (w) { return '<button type="button" class="craft-job-filter-btn" data-mk-hot-scope="' + w + '">' + w + '</button>'; }).join('') +
         '</div>' +
-        '<button type="button" class="market-fold-btn" id="mk-hot-fold-btn" aria-expanded="false"><i class="ph ph-funnel"></i><span class="market-fold-sum" id="mk-hot-fold-sum"></span><i class="ph ph-caret-down market-fold-caret"></i></button>' +
-        '<div id="mk-hot-fold" style="display:none">' +
+        '<div class="mk-cond">' + condFoldBtnHtml('hot') +
+        '<div id="mk-hot-fold" class="mk-cpanel">' +
         '<p class="craft-muted market-hot-scope-note"><strong>提醒：</strong>只能在自己的世界掛賣，「所有世界」僅供參考。</p>' +
         btnRow('指標', 'metric', 'mk-hf-metric') +
         '<div id="mk-hot-filters">' +
           btnRow('視角', 'persp', 'mk-hf-persp') + btnRow('成交頻率', 'freq', 'mk-hf-freq') + btnRow('方向', 'dir', 'mk-hf-dir') + btnRow('價格帶', 'band', 'mk-hf-band') +
           '<label class="market-hot-median" id="mk-hot-median-label"><input type="checkbox" id="mk-hot-median"> 只看賣速在「同價格帶」中位數以上的道具（成交冷清的先排除）</label>' +
         '</div>' +
-        '</div>' +
+        condDoneHtml() +
+        '</div></div>' +
         '<p class="craft-muted market-hot-status" id="mk-hot-status"></p>' +
       '</div>' +
       '<div id="mk-hot-body" class="market-pane-scrollbody"><p class="craft-muted">讀取市場資料中⋯</p></div>';
     fitMarketHeights();
+    mkEnhanceHScroll($('mk-hot-scope'));
 
     // 篩選區收合：收起時只留一條「目前選了什麼」的摘要（沿用按鈕上的短字），清單才有空間；選擇會記住
-    const HOT_FOLD_KEY = 'ff14fc-hot-fold';
     function hotFoldSummary() {
       return ['metric', 'persp', 'freq', 'dir', 'band'].map(function (k) {
         const b = box.querySelector('[data-hk="' + k + '"].active'); const row = b && b.closest('.market-hot-row-filter');
         const t = b && (!row || row.style.display !== 'none') && b.dataset.hv !== 'all' ? b.textContent : '';
         return t && k === 'freq' ? '頻率' + t : t; // 「較高」單獨出現看不出是什麼，加上「頻率」
-      }).filter(Boolean).join('・');
+      }).filter(Boolean);
     }
-    function setHotFold(open) {
-      $('mk-hot-fold').style.display = open ? '' : 'none';
-      $('mk-hot-fold-btn').setAttribute('aria-expanded', open ? 'true' : 'false');
-      $('mk-hot-fold-btn').classList.toggle('open', open);
-      try { localStorage.setItem(HOT_FOLD_KEY, open ? 'open' : 'closed'); } catch (e) { /* 存不了就只對這次有效 */ }
-      fitMarketHeights();
-    }
-    $('mk-hot-fold-btn').addEventListener('click', function () { setHotFold($('mk-hot-fold').style.display === 'none'); });
-    try { if (localStorage.getItem(HOT_FOLD_KEY) === 'open') setHotFold(true); } catch (e) { /* 預設收起 */ }
+    function syncHotChips() { const c = hotFoldSummary(); mkSetChips('hot', c, Math.max(0, c.length - 1)); } // 第一個是「指標」（一定有），不算進徽章
+    condUpdaters.hot = syncHotChips;
+    function setHotFold(open) { mkSetPanel('hot', open); }
+    $('mk-hot-fold-btn').addEventListener('click', function () { setHotFold(!$('mk-hot-fold').classList.contains('on')); });
+    let hotShownScope = null;
     function syncButtons() {
       box.querySelectorAll('[data-hk]').forEach(function (b) { b.classList.toggle('active', ui[b.dataset.hk] === b.dataset.hv); });
-      $('mk-hot-fold-sum').textContent = hotFoldSummary();
+      syncHotChips();
       box.querySelectorAll('[data-mk-hot-scope]').forEach(function (b) { b.classList.toggle('active', b.dataset.mkHotScope === ui.scope); });
+      if (ui.scope !== hotShownScope) { hotShownScope = ui.scope; mkHScrollInto(box.querySelector('[data-mk-hot-scope].active')); }
       const pre = ui.mode === 'pre';
       $('mk-hot-filters').style.display = pre ? '' : 'none';
       $('mk-hf-freq').style.display = pre && (ui.metric === 'changePct' || ui.metric === 'turnover') ? '' : 'none';

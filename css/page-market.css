@@ -869,9 +869,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .market-fold-caret { transition: transform .15s; }
 .market-fold-btn.open .market-fold-caret { transform: rotate(180deg); }
 
-/* 篩選區收合：外層容器不參與排版（display:contents），裡面的選項組維持原本的橫向並排、自動換行 */
-#mk-hot-fold, #mk-radar-fold { display: contents; }
-#mk-radar-filters .market-fold-btn { flex: 1 1 100%; }
+/* 篩選區：條件面板改成浮層（見 market-compact.css），原本的 display:contents／整列寬度規則已移除 */
 
 /* 在售列：計算器小按鈕＋右側「掛單」訊號與含稅勾選，都在同一列，不多佔列數 */
 .market-listing-bar { position: relative; }

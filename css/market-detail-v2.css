@@ -163,14 +163,7 @@
   .mk-chain-modal .mk-chain-body { padding: 0 10px 12px; }
 }
 
-/* ── 手機：頂部搜尋列／分頁不再被擠變形（搜尋框整行、設定按鈕整行、四個分頁平均分、不換行） ── */
-@media (max-width: 560px) {
-  #market-root .market-searchbar { flex-wrap: wrap; gap: 6px; }
-  #market-root .market-search-box { flex: 1 1 100%; }
-  #market-root .market-settings-btn { flex: 1 1 100%; }
-  #market-root .market-tabs { gap: 2px; }
-  #market-root .market-tabs .craft-tab-btn { flex: 1 1 0; min-width: 0; white-space: nowrap; padding-left: 2px; padding-right: 2px; font-size: var(--fs-head); }
-}
+/* 頂部搜尋列／設定／分頁的窄版排法已改由 market-compact.css 依「容器寬度」處理（不再看視窗寬度） */
 
 /* ══════════ 買／製作哪邊便宜都用綠色：差額徽章也跟著綠（只動決策卡與主卡片，材料小卡的徽章不動） ══════════ */
 #mk-pane-item .mdb-v-tiles .msc-badge.is-buy, .mk-chain-modal .msc-hero .msc-badge.is-buy { color: #4ade80; background: #16301f; }
