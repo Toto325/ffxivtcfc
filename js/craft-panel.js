@@ -4162,7 +4162,7 @@ app._craftReady = function () {
       const search = function (budget, seedList, mulHint, seedBase, refs) {
         const jobs = (pool.size || 1) >= 3 || seeds.length === 1 ? seeds : ((pool.size || 1) === 2 ? seeds.slice(0, 2) : [seeds[0], seeds[seeds.length - 1]]); // Worker 少時不要排隊跑三個
         return Promise.all(jobs.map(function (job, ji) {
-          return pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats), ref: (refs && refs[ji]) || job.ref, goal: g, qGoal: craft.quality,
+          return pool.call({ type: 'frontier', accurate: true, recipeId: craft.id, stats: Object.assign({}, stats), ref: (refs && refs[ji]) || job.ref, goal: g, qGoal: craft.quality,
             hq: hqFor(g), budgetMs: budget, seedKeys: mainKeys, seedKeysList: seedList || [], mulHint: mulHint || null, seed: seedBase + job.seed });
         }));
       };
@@ -4221,7 +4221,7 @@ app._craftReady = function () {
         return ok ? r : null;
       };
       const needsOfKeys = async function (keys, F) { // 這套手法自己的精確最低需求（在它自己的作業範圍內算）
-        const o = await pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), ref: F, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, libKeys: [keys], budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
+        const o = await pool.call({ type: 'frontier', accurate: true, recipeId: craft.id, stats: Object.assign({}, stats, { craftsmanship: F.craftsmanship, control: F.control, cp: F.cp }), ref: F, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, libKeys: [keys], budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
         if (!(o && o.cands && o.cands[0])) diag('需求反推失敗（手法在這組數值下無法完整執行）', tsec());
         return o && o.cands && o.cands[0] ? o.cands[0] : null;
       };
@@ -4378,7 +4378,7 @@ app._craftReady = function () {
       const raw = [];
       diag('開始分析', g, '工作池', pool.size, '基礎', JSON.stringify(baseB), '專家配方', isExpert);
       {
-        const libOut = await pool.call({ type: 'frontier', recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
+        const libOut = await pool.call({ type: 'frontier', accurate: true, recipeId: craft.id, stats: Object.assign({}, stats), ref: ref, goal: g, qGoal: craft.quality, hq: hqFor(g), libOnly: true, budgetMs: 0, seedKeys: null, seedKeysList: [], seed: 0 });
         if (an.cancelled) return;
         if (libOut && libOut.cands && libOut.cands.length) {
           gather([libOut], raw);

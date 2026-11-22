@@ -84,7 +84,7 @@
     var csMax = Infinity;
     if (withMax) {
       var hiLim = Math.max(g.cs, cs * 4);
-      var ctAt = ct > 0 ? ct : g.ct; // 作業上限要在「這套手法自己的最低加工」下算：用寬裕的加工會讓被截斷的殘缺版本也湊出滿品質，上限就被高估成無限
+      var ctAt = (c.accurate && ct > 0) ? ct : g.ct; // 作業上限要在「這套手法自己的最低加工」下算：用寬裕的加工會讓被截斷的殘缺版本也湊出滿品質，上限就被高估成無限
       var okCs = function (v) { var r = run(clean, v, ctAt, cp); return r.res.success && (!c.full || (r.sim.quality || 0) >= c.qGoal); };
       if (!okCs(hiLim)) {
         var lo = Math.ceil(cs / step), hi = Math.ceil(hiLim / step); // lo 可行、hi 不可行
@@ -115,7 +115,7 @@
     if (c.allowed) { for (var ai = 0; ai < rotation.length; ai++) if (!c.allowed.has(rotation[ai].constructor.name)) return null; }
     var cs = scanGenCs(craft, rotation, c, start, maxCs);
     if (cs == null) return null;
-    return needsOfRotation(craft, rotation, Object.assign({}, c, { gen: { cs: cs, ct: c.gen.ct, cp: c.gen.cp } }), step, withMax);
+    return needsOfRotation(craft, rotation, Object.assign({}, c, { accurate: true, gen: { cs: cs, ct: c.gen.ct, cp: c.gen.cp } }), step, withMax);
   }
 
   function FrontierGA(recipe, genStats, config, F) {
@@ -204,10 +204,15 @@
     };
     // 手法庫：不論玩家數值多少，都能精確反推每套手法最少需要多少
     var libCands = [];
+    /* msg.accurate（只有「建議分析」會帶）：庫手法只在自己的作業範圍內有效，要由低往高掃描找出範圍再精確反推需求；
+     * 沒帶（主求解的「放寬再收緊＋品質階梯」會反覆呼叫這裡，時間上限很緊）就維持原本的做法，結果與耗時都跟原本一樣。 */
+    var accurate = !!msg.accurate;
     (msg.libKeys || []).forEach(function (keys) {
       try {
-        var rot = actionsFromKeys(keys);
-        var n = needsOfRotationScan(craft, rot, Object.assign({ gen: { cs: 0, ct: Math.max(Math.ceil(ref.ct * 10), 30000), cp: Math.max(Math.ceil(ref.cp * 10 + 600), 3000) } }, baseCtx), 5, true, Math.floor(ref.cs * 0.3));
+        var rot = actionsFromKeys(keys), n;
+        var genLib = { cs: Math.max(Math.ceil(ref.cs * 10), 30000), ct: Math.max(Math.ceil(ref.ct * 10), 30000), cp: Math.max(Math.ceil(ref.cp * 10 + 600), 3000) };
+        if (accurate) n = needsOfRotationScan(craft, rot, Object.assign({ gen: genLib }, baseCtx), 5, true, Math.floor(ref.cs * 0.3));
+        else n = needsOfRotation(craft, rot, Object.assign({ gen: genLib }, baseCtx), 5, true);
         if (n) { var cc = costOf(n); n.cost = cc.cost; n.fromLib = true; libCands.push(n); }
       } catch (e) { /* 這套手法在目前條件下不能用就略過 */ }
     });
@@ -269,7 +274,7 @@
         var genB = { cs: Math.ceil(ref.cs * usedMul), ct: Math.ceil(ref.ct * usedMul), cp: Math.ceil(ref.cp * usedMul + (usedMul > 1 ? 40 : 0)) };
         var keysB = msg.beamFn(genB, msg.beamExpand || 3e6);
         if (keysB && keysB.length) {
-          var nB = needsOfRotation(craft, actionsFromKeys(keysB), Object.assign({ gen: genB }, baseCtx), 5, true); // 集束搜尋就是在 genB 找到的（一定做得到），用它評估才不會被截斷
+          var nB = needsOfRotation(craft, actionsFromKeys(keysB), Object.assign({ gen: accurate ? genB : { cs: Math.max(Math.ceil(ref.cs * 10), 30000), ct: Math.max(Math.ceil(ref.ct * 10), 30000), cp: Math.max(Math.ceil(ref.cp * 10 + 600), 3000) } }, baseCtx), 5, true); // 精確模式：集束搜尋就是在 genB 找到的（一定做得到），用它評估才不會被截斷；其餘維持原本
           if (nB) { var cB = costOf(nB); nB.cost = cB.cost; nB.fromLib = true; merged.push(nB); }
         }
       } catch (e) { /* 集束搜尋失敗不影響已找到的結果 */ }
