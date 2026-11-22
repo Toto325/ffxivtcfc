@@ -11,12 +11,13 @@
  * 順序不可顛倒：sub-calc.js 在頂層直接使用 sub-data.js 定義的常數
  * （例如 SECTOR_MAP 是從 SUB_SECTORS 算出來的），必須先載入 sub-data.js。
  */
-importScripts('sub-data.js?v=2', 'sub-calc.js?v=2');
+importScripts('sub-data.js?v=2', 'sub-calc.js?v=3');
 
 self.onmessage = function (e) {
   const d = e.data || {};
   const reqId = d.reqId;
   try {
+    if (d.opts) subSetSearchOpts(d.opts); // 結果排序／站數上限（每次搜尋都會帶來）
     if (d.mode === 'ownedEnumerateMap') {
       /* 平行化：只列舉分配給這個 Worker 的那幾張地圖的候選路線，
        * 跟配裝完全無關，可以放心切開分給多個 Worker 同時跑。 */

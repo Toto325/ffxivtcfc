@@ -126,9 +126,13 @@ app.buildAir = function () {
 </div>
 <div class="sub-owned-route-block" id="air-owned-route-block" style="display:none">
   <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<span class="sub-exp-badge" data-tip="與「配裝反查」共用同一份記錄。
-勾選後搜尋會忽略維修成本，自動找出效率最高的路線＋建議配裝，計算耗時較久。"><i class="ph ph-info"></i></span></label><div class="sub-owned-actions"><button type="button" id="air-owned-route-all" class="sub-owned-mini-btn"><i class="ph ph-checks"></i>全選</button><button type="button" id="air-owned-route-none" class="sub-owned-mini-btn"><i class="ph ph-x-circle"></i>清除</button></div></div>
+勾選後搜尋會忽略維修成本，自動找出效率最高的路線＋建議配裝，計算耗時較久。"><i class="ph ph-info"></i></span></label><div class="sub-owned-actions"><button type="button" id="air-owned-route-all" class="sub-owned-mini-btn" title="依等級全選"><i class="ph ph-checks"></i>全選</button><button type="button" id="air-owned-route-none" class="sub-owned-mini-btn"><i class="ph ph-x-circle"></i>清除</button></div></div>
   <div id="air-owned-route-grid"></div>
   <div class="sub-owned-tier-row"><label class="sub-lbl" for="air-owned-tier"><i class="ph ph-seal-check"></i>獲得物品門檻</label><select id="air-owned-tier" class="sub-sel"><option value="none">不限（純比效率，較快）</option><option value="normal">全程每一站至少「達標」</option><option value="best">全程每一站都「最佳」</option></select><span class="sub-exp-badge" data-tip="開啟門檻篩選時，搜尋範圍變大，會比純比效率慢一些。"><i class="ph ph-info"></i></span></div>
+</div>
+<div class="sub-search-opts">
+  <div class="sub-search-opt"><label class="sub-lbl" for="air-loot-sort"><i class="ph ph-arrows-down-up"></i>結果排序依據</label><select id="air-loot-sort" class="sub-sel"><option value="exp">EXP 效率（預設）</option><option value="time">最短耗時</option><option value="total">最高經驗值</option><option value="coverage" disabled>物品覆蓋效率（先選必須獲得物品）</option><option value="count" disabled>物品數量效率（先選必須獲得物品）</option></select></div>
+  <div class="sub-search-opt"><label class="sub-lbl" for="air-max-stops"><i class="ph ph-map-pin-line"></i>站數上限</label><select id="air-max-stops" class="sub-sel"><option value="5">不限（最多5站）</option><option value="1">只算1站</option><option value="2">最多2站</option><option value="3">最多3站</option><option value="4">最多4站</option></select></div>
 </div>
 ${app.exploreUi.searchRowHtml('air-search-btn')}
 <div class="sub-filters-section">
@@ -166,7 +170,7 @@ ${app.exploreUi.searchRowHtml('air-search-btn')}
   <div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-plus-circle"></i>必須包含目的地</label><div class="sub-multisel-wrap" id="air-inc-wrap"></div></div>
   <div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-exc"><i class="ph ph-prohibit"></i>排除目的地</label><div class="sub-multisel-wrap" id="air-excl-wrap"></div></div>
 </div>
-<div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-gift"></i>必須獲得物品</label><div class="sub-multisel-wrap" id="air-loot-wrap"></div><div class="sub-chk-row"><label class="sub-chk-lbl sub-chip-lbl sub-loot-strict-lbl"><input type="checkbox" id="air-loot-strict"><i class="ph ph-checks"></i>每個目的地都至少有其中一項物品</label><label class="sub-chk-lbl sub-chip-lbl sub-loot-meet-lbl" title="只計入探索性能已經達到取得門檻的物品；還沒達標、理論上有機率但目前配裝拿不到的不算數"><input type="checkbox" id="air-loot-meet"><i class="ph ph-seal-check"></i>忽略不達標的結果</label></div><div class="sub-loot-sort-row" id="air-loot-sort-row" style="display:none"><label class="sub-lbl" for="air-loot-sort"><i class="ph ph-arrows-down-up"></i>結果排序依據</label><select id="air-loot-sort" class="sub-sel"><option value="exp">EXP 效率（預設）</option><option value="coverage">物品覆蓋效率（短時間內湊齊優先）</option><option value="count">物品數量效率（拿越多越好）</option></select></div></div>
+<div class="sub-filter-col"><label class="sub-lbl sub-lbl-is-inc"><i class="ph ph-gift"></i>必須獲得物品</label><div class="sub-multisel-wrap" id="air-loot-wrap"></div><div class="sub-chk-row"><label class="sub-chk-lbl sub-chip-lbl sub-loot-strict-lbl"><input type="checkbox" id="air-loot-strict"><i class="ph ph-checks"></i>每個目的地都至少有其中一項物品</label><label class="sub-chk-lbl sub-chip-lbl sub-loot-meet-lbl" title="只計入探索性能已經達到取得門檻的物品；還沒達標、理論上有機率但目前配裝拿不到的不算數"><input type="checkbox" id="air-loot-meet"><i class="ph ph-seal-check"></i>忽略不達標的結果</label></div></div>
 <div id="air-range-disp" class="sub-range-disp"><i class="ph ph-ruler"></i>目前航行距離 <b>—</b></div>
   </div>
 </div>
@@ -195,6 +199,8 @@ app.exploreUi.enhanceAll(root);
     const strictChk = root.querySelector('#air-loot-strict'); if (strictChk) strictChk.checked = !!savedFilter.lootStrict;
     const meetChk = root.querySelector('#air-loot-meet'); if (meetChk) meetChk.checked = !!savedFilter.lootMustMeet;
     const letterChk = root.querySelector('#air-letter'); if (letterChk) letterChk.checked = !!savedFilter.letterOnly;
+    const sortSel0 = root.querySelector('#air-loot-sort'); if (sortSel0 && savedFilter.sortBy && sortSel0.querySelector(`option[value="${savedFilter.sortBy}"]`)) sortSel0.value = savedFilter.sortBy;
+    const stopSel0 = root.querySelector('#air-max-stops'); if (stopSel0 && savedFilter.maxStops && stopSel0.querySelector(`option[value="${savedFilter.maxStops}"]`)) stopSel0.value = String(savedFilter.maxStops);
   }
 
   /* ── 路線搜尋的「擁有部件」模式（架構比照 sub-panel.js）── */
@@ -496,25 +502,35 @@ app.exploreUi.enhanceAll(root);
   };
 
   mkSecFilter('air-inc-wrap', mustInc); mkSecFilter('air-excl-wrap', mustExcl);
-  /* 排序依據選單：只有勾了「必須獲得物品」才顯示，架構比照 sub-panel.js。 */
+  /* 結果排序依據／站數上限：搜尋鈕上方常駐顯示，架構比照 sub-panel.js。
+     「物品覆蓋／數量效率」要先有「必須獲得物品」才有意義，沒選物品時變灰並註明原因。 */
+  const SORT_LOOT_NAME = { coverage: '物品覆蓋效率', count: '物品數量效率' };
+  const SORT_LOOT_NOTE = { coverage: '短時間內湊齊優先', count: '拿越多越好' };
   const updateLootSortVisibility = () => {
-    const row = root.querySelector('#air-loot-sort-row');
-    if (row) row.style.display = mustLootIds.length ? '' : 'none';
-    if (!mustLootIds.length) { const sel = root.querySelector('#air-loot-sort'); if (sel) sel.value = 'exp'; }
+    const sel = root.querySelector('#air-loot-sort'); if (!sel) return;
+    const has = mustLootIds.length > 0;
+    Array.prototype.forEach.call(sel.options, o => {
+      if (!SORT_LOOT_NAME[o.value]) return;
+      o.disabled = !has;
+      o.textContent = SORT_LOOT_NAME[o.value] + '（' + (has ? SORT_LOOT_NOTE[o.value] : '先選必須獲得物品') + '）';
+    });
+    if (!has && SORT_LOOT_NAME[sel.value]) sel.value = 'exp';
+    if (sel._ddRender) sel._ddRender();
   };
   mkLootFilter('air-loot-wrap', mustLootIds, updateLootSortVisibility);
-  root.querySelector('#air-loot-sort')?.addEventListener('change', () => {
-    const sel = root.querySelector('#air-loot-sort');
-    sortKey = sel.value === 'exp' ? 'epm' : 'itemEff'; sortDir = -1;
-    root.querySelector('#air-search-btn')?.click();
-  });
+  updateLootSortVisibility();
+  /* 排序依據／站數上限一變動：已經搜尋過就依新設定重新搜尋，還沒搜尋過就只記住設定。 */
+  let hasSearched = false;
+  ['#air-loot-sort', '#air-max-stops'].forEach(q => root.querySelector(q)?.addEventListener('change', () => {
+    if (hasSearched) root.querySelector('#air-search-btn')?.click();
+  }));
 
 
   const ensureAirWorker = () => {
     if (this._airWorkerFailed) return null;
     if (this._airWorker) return this._airWorker;
     try {
-      const w = new Worker('js/air-worker.js?v=2');
+      const w = new Worker('js/air-worker.js?v=3');
       w.addEventListener('error', ev => { console.warn('[XIV] air_worker 執行失敗，改回主執行緒計算：', ev.message); this._airWorkerFailed = true; this._airWorker = null; });
       this._airWorker = w; return w;
     } catch (err) { console.warn('[XIV] 瀏覽器不支援 Worker 或載入失敗，改回主執行緒計算：', err); this._airWorkerFailed = true; return null; }
@@ -533,6 +549,18 @@ app.exploreUi.enhanceAll(root);
     const lootMustMeet = root.querySelector('#air-loot-meet')?.checked || false;
     letterOnly = root.querySelector('#air-letter')?.checked || false;
     const res = root.querySelector('#air-results');
+    hasSearched = true;
+    /* 結果排序依據／站數上限（搜尋鈕上方的兩個下拉選單） */
+    let sortChoice = root.querySelector('#air-loot-sort')?.value || 'exp';
+    if (SORT_LOOT_NAME[sortChoice] && !mustLootIds.length) sortChoice = 'exp';
+    const maxStops = Math.min(5, Math.max(1, parseInt(root.querySelector('#air-max-stops')?.value) || 5));
+    const stopsText = maxStops === 1 ? '只算1站' : maxStops >= 5 ? '不限' : '最多' + maxStops + '站';
+    if (mustInc.length > maxStops) { res.innerHTML = `<div class="sub-empty">已鎖定 ${mustInc.length} 個目的地，超過站數上限（${stopsText}），請提高站數上限，或減少「必須包含目的地」</div>`; return; }
+    const SORT_APPLY = { exp: ['epm', -1], time: ['time', 1], total: ['exp', -1], coverage: ['itemEff', -1], count: ['itemEff', -1] };
+    const sortApply = SORT_APPLY[sortChoice] || SORT_APPLY.exp;
+    sortKey = sortApply[0]; sortDir = sortApply[1];
+    const searchOpts = { maxStops, sortBy: ({ exp: 'epm', time: 'time', total: 'exp' })[sortChoice] || 'epm' };
+    airSetSearchOpts(searchOpts);
 
     const timeMode = root.querySelector('#air-time-mode-target')?.checked ? 'target' : 'dur';
     if (timeMode === 'target') {
@@ -620,7 +648,7 @@ app.exploreUi.enhanceAll(root);
       const st = getStats(); const curStats = st ? { sur: st.sur, ret: st.ret, fav: st.fav } : { sur: 0, ret: 0, fav: 0 };
       const hasBuild = routes.some(r => r.build);
       const lootSortSel = root.querySelector('#air-loot-sort');
-      const lootSortMode = (mustLootIds.length && lootSortSel) ? lootSortSel.value : 'exp';
+      const lootSortMode = (mustLootIds.length && lootSortSel && SORT_LOOT_NAME[lootSortSel.value]) ? lootSortSel.value : 'exp';
       const showItemEff = lootSortMode !== 'exp';
       if (showItemEff) {
         routes.forEach(r => {
@@ -801,6 +829,17 @@ app.exploreUi.enhanceAll(root);
       }
     };
 
+    /* 結果上方的說明：筆數、是否被 200 筆上限截斷、以及「再排序只重排目前結果」。 */
+    const renderRoutesCore = renderRoutes;
+    renderRoutes = (routes) => {
+      renderRoutesCore(routes);
+      if (!routes.length) return;
+      const SORT_NAME = { exp: 'EXP 效率', time: '最短耗時', total: '最高經驗值', coverage: '物品覆蓋效率', count: '物品數量效率' };
+      const poolByLoot = !!(mustLootIds.length && SORT_LOOT_NAME[sortChoice]);
+      const truncated = !poolByLoot && routes.length >= 200;
+      res.insertAdjacentHTML('afterbegin', `<div class="sub-target-hint">共 ${routes.length} 筆結果${truncated ? `（已達 200 筆上限，保留的是依「${SORT_NAME[sortChoice]}」排在最前面的 200 筆）` : ''}。欄位標題（卡片式為排序鈕）可再排序，只會重排目前這些結果。</div>`);
+    };
+
     const handleOwnedResult = (result) => {
       if (result.noParts) { res.innerHTML = '<div class="sub-empty">目前擁有的部件組合不出任何符合承載力上限的配裝，請確認勾選或調整等級</div>'; return; }
       renderRoutes(result.routes);
@@ -813,7 +852,7 @@ app.exploreUi.enhanceAll(root);
     };
     const lootTier = owned ? (root.querySelector('#air-owned-tier')?.value || 'none') : 'none';
     const lootSortSel = root.querySelector('#air-loot-sort');
-    const lootSortMode = (mustLootIds.length && lootSortSel) ? lootSortSel.value : 'exp';
+    const lootSortMode = (mustLootIds.length && lootSortSel && SORT_LOOT_NAME[lootSortSel.value]) ? lootSortSel.value : 'exp';
     const runOnMainThread = () => {
       setTimeout(() => {
         if (owned) {
@@ -840,8 +879,8 @@ app.exploreUi.enhanceAll(root);
     };
     worker.addEventListener('message', onMsg);
     worker.postMessage(owned
-      ? { reqId, mode: lootSortMode !== 'exp' ? 'ownedByLoot' : 'owned', rank: airRank, ownedParts, mustInc, mustExcl, mustLootIds, desiredMins, useTime, lootStrict, lootTier, lootMustMeet }
-      : { reqId, mode: lootSortMode !== 'exp' ? 'selectByLoot' : 'select', rank: airRank, stats: st, mustInc, mustExcl, mustLootIds, desiredMins, useTime, lootStrict, lootMustMeet });
+      ? { opts: searchOpts, reqId, mode: lootSortMode !== 'exp' ? 'ownedByLoot' : 'owned', rank: airRank, ownedParts, mustInc, mustExcl, mustLootIds, desiredMins, useTime, lootStrict, lootTier, lootMustMeet }
+      : { opts: searchOpts, reqId, mode: lootSortMode !== 'exp' ? 'selectByLoot' : 'select', rank: airRank, stats: st, mustInc, mustExcl, mustLootIds, desiredMins, useTime, lootStrict, lootMustMeet });
   };
 
   root.querySelector('#air-rank-inp')?.addEventListener('input', updateStats);
@@ -861,6 +900,8 @@ app.exploreUi.enhanceAll(root);
         lootStrict: root.querySelector('#air-loot-strict')?.checked || false,
         lootMustMeet: root.querySelector('#air-loot-meet')?.checked || false,
         letterOnly,
+        sortBy: root.querySelector('#air-loot-sort')?.value || 'exp',
+        maxStops: root.querySelector('#air-max-stops')?.value || '5',
         time: {
           days: root.querySelector('#air-days')?.value,
           hrs: root.querySelector('#air-hrs')?.value,
@@ -880,6 +921,9 @@ app.exploreUi.enhanceAll(root);
     const meetChk2 = root.querySelector('#air-loot-meet'); if (meetChk2) meetChk2.checked = false;
     const letterChk = root.querySelector('#air-letter'); if (letterChk) letterChk.checked = false;
     letterOnly = false;
+    const sortSel1 = root.querySelector('#air-loot-sort'); if (sortSel1) sortSel1.value = 'exp';
+    const stopSel1 = root.querySelector('#air-max-stops'); if (stopSel1) stopSel1.value = '5';
+    updateLootSortVisibility();
     saveFilterState();
   });
 
@@ -1031,7 +1075,7 @@ app.exploreUi.enhanceAll(root);
     <div class="sub-rev-thr-grp sub-rev-thr-toggle"><label class="sub-lbl"><i class="ph ph-hand-grabbing"></i>收集</label><select id="air-rev-ret" class="sub-sel"><option value="none">不要求</option><option value="normal">達標</option><option value="best">最佳</option><option value="adv">自行輸入</option></select><input type="number" id="air-rev-ret-num" class="sub-inp sub-rev-thr-num" value="0"></div>
     <div class="sub-rev-thr-grp sub-rev-thr-toggle"><label class="sub-lbl"><i class="ph ph-sparkle"></i>恩惠</label><select id="air-rev-fav" class="sub-sel"><option value="none">不要求</option><option value="met">達標(雙倍機會)</option><option value="adv">自行輸入</option></select><input type="number" id="air-rev-fav-num" class="sub-inp sub-rev-thr-num" value="0"></div>
   </div>
-  <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<small>自動記住，下次不用重選</small></label><div class="sub-owned-actions"><button type="button" id="air-owned-all" class="sub-owned-mini-btn"><i class="ph ph-checks"></i>全選</button><button type="button" id="air-owned-none" class="sub-owned-mini-btn"><i class="ph ph-x-circle"></i>清除</button></div></div>
+  <div class="sub-owned-hdr-row"><label class="sub-lbl"><i class="ph ph-package"></i>擁有的部件<small>自動記住，下次不用重選</small></label><div class="sub-owned-actions"><button type="button" id="air-owned-all" class="sub-owned-mini-btn" title="依等級全選"><i class="ph ph-checks"></i>全選</button><button type="button" id="air-owned-none" class="sub-owned-mini-btn"><i class="ph ph-x-circle"></i>清除</button></div></div>
   ${ownedHtml}
   ${app.exploreUi.searchRowHtml('air-rev-search-btn')}
   <div id="air-rev-results-dest"><div class="sub-empty">選擇目的地、門檻與擁有的部件後按搜尋</div></div>
@@ -1039,6 +1083,8 @@ app.exploreUi.enhanceAll(root);
   <div id="air-rev-results-stat" style="display:none"><div class="sub-empty">輸入需求值與擁有的部件後按搜尋</div></div>`;
 
     app.exploreUi.enhanceAll(revPanel);
+  /* 反查等級的初始值沿用路線搜尋已記住的等級（原本固定 1，全選會幾乎選不到部件） */
+  { const rr = revPanel.querySelector('#air-rev-rank'); if (rr) rr.value = curRank(); }
 mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, wide: true });
     ['air-rev-sur-num', 'air-rev-ret-num', 'air-rev-fav-num', 'air-rev-stat-sur', 'air-rev-stat-ret', 'air-rev-stat-fav', 'air-rev-stat-spd', 'air-rev-stat-rng'].forEach(id => {
       mkStepper(revPanel.querySelector(`#${id}`), { step: 1, min: 0 });
@@ -1201,10 +1247,13 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
         try { localStorage.setItem(OWNED_KEY, JSON.stringify(ownedParts)); } catch (e) {}
       });
     });
+    /* 全選＝依目前等級套用：只勾等級夠用的部件；畫面從 ownedParts 回推，確保與搜尋資料一致。 */
     const setAllOwned = (checked) => {
-      revPanel.querySelectorAll('.sub-owned-item input').forEach(chk => { chk.checked = checked; });
       ['hull', 'rigging', 'forecastle', 'aftcastle'].forEach(slot => {
         ownedParts[slot] = checked ? AIR_PARTS[slot].filter(p => revRank() >= p[1]).map(p => p[1]) : [];
+      });
+      revPanel.querySelectorAll('.sub-owned-item input[type="checkbox"]').forEach(chk => {
+        chk.checked = (ownedParts[chk.dataset.slot] || []).includes(+chk.dataset.rank);
       });
       try { localStorage.setItem(OWNED_KEY, JSON.stringify(ownedParts)); } catch (e) {}
     };

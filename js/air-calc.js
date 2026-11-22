@@ -10,6 +10,22 @@ const AIR_RANK_CODE={1:'B',5:'I',15:'E',25:'I(II)',35:'O',45:'T',50:'V'};
 const AIR_SECTOR_MAP=new Map(AIR_SECTORS.map(s=>[s[0],s]));
 
 /* ===== ROUTE CALCULATOR（架構比照 subFindRoutes，但單一地圖不需分圖迴圈）===== */
+/* ===== 搜尋選項：結果排序／站數上限 =====
+ * 由 air-panel.js 在每次搜尋前設定（主執行緒），Worker 則在每則訊息開頭
+ * 由 d.opts 設定（見 air-worker.js）。預設值＝改版前的行為（EXP 效率、最多 5 站）。
+ * 排序必須在「只保留前 200 筆」之前套用，所以不能只靠畫面端重排。 */
+var AIR_SEARCH_OPTS = { maxStops: 5, sortBy: 'epm' };
+function airSetSearchOpts(o) {
+  var m = parseInt(o && o.maxStops, 10);
+  AIR_SEARCH_OPTS = { maxStops: (m >= 1 && m <= 5) ? m : 5, sortBy: (o && o.sortBy) || 'epm' };
+}
+function airSortRoutes(arr) {
+  var k = AIR_SEARCH_OPTS.sortBy;
+  if (k === 'time') arr.sort(function (a, b) { return (a.timeMins - b.timeMins) || (b.epm - a.epm); });
+  else if (k === 'exp') arr.sort(function (a, b) { return (b.exp - a.exp) || (b.epm - a.epm); });
+  else arr.sort(function (a, b) { return b.epm - a.epm; });
+  return arr;
+}
 function airPerms(a){if(a.length<=1)return[a];const r=[];a.forEach((v,i)=>{airPerms([...a.slice(0,i),...a.slice(i+1)]).forEach(p=>r.push([v,...p]));});return r;}
 function airCombos(a,n){if(n===0)return[[]];if(n>a.length)return[];const r=[];for(let i=0;i<=a.length-n;i++){airCombos(a.slice(i+1),n-1).forEach(c=>r.push([a[i],...c]));}return r;}
 function airBestOrder(ids){
@@ -75,9 +91,10 @@ function airFindRoutes(rank,stats,mustInc,mustExcl,mustLootIds,desiredMin,useTim
   const results=[];
   const avail=AIR_SECTORS.filter(s=>s[4]<=rank&&!mustExcl.includes(s[0]));
   const required=mustInc.map(id=>AIR_SECTOR_MAP.get(id)).filter(Boolean);
+  if(required.length>AIR_SEARCH_OPTS.maxStops)return[]; // 鎖定的目的地已超過站數上限
   if(mustInc.some(id=>!avail.some(s=>s[0]===id)))return[];
   let optional=avail.filter(s=>!mustInc.includes(s[0]));
-  optional.sort((a,b)=>b[5]-a[5]);const topOpt=optional.slice(0,25);const maxExtra=Math.max(0,5-required.length);
+  optional.sort((a,b)=>b[5]-a[5]);const topOpt=optional.slice(0,AIR_SEARCH_OPTS.maxStops<=2?optional.length:25);const maxExtra=Math.max(0,AIR_SEARCH_OPTS.maxStops-required.length);
   for(let n=0;n<=Math.min(maxExtra,topOpt.length);n++){airCombos(topOpt,n).forEach(combo=>{
     const secs=[...required,...combo];if(!secs.length)return;
     /* 提早剪枝，架構與原因比照 sub-calc.js 的 subFindRoutes。 */
@@ -102,7 +119,7 @@ function airFindRoutes(rank,stats,mustInc,mustExcl,mustLootIds,desiredMin,useTim
     const secLetters=best.order.map(id=>AIR_SECTOR_MAP.get(id)[1]).join(' \u2192 ');
     results.push({minRank:Math.max(...secs.map(s=>s[4])),exp:totalExp,timeStr,timeMins,epm,range:best.totalRng,tank:totalTank,secCount:secs.length,secStr,secLetters,secIds:best.order,allLoot});
   });}
-  results.sort((a,b)=>b.epm-a.epm);return results.slice(0,200);
+  airSortRoutes(results);return results.slice(0,200);
 }
 
 /* ===== 配裝反查（GEAR REVERSE-LOOKUP）=====
@@ -242,6 +259,7 @@ function airEnumerateCandidates(rank, mustInc, mustExcl, lootFilterIds) {
   const candidates = [];
   const avail = AIR_SECTORS.filter(s => s[4] <= rank && !mustExcl.includes(s[0]));
   const required = mustInc.map(id => AIR_SECTOR_MAP.get(id)).filter(Boolean);
+  if (required.length > AIR_SEARCH_OPTS.maxStops) return candidates; // 鎖定的目的地已超過站數上限
   if (mustInc.some(id => !avail.some(s => s[0] === id))) return candidates;
   let optional = avail.filter(s => !mustInc.includes(s[0]));
   let topOpt;
@@ -251,9 +269,9 @@ function airEnumerateCandidates(rank, mustInc, mustExcl, lootFilterIds) {
     topOpt.sort((a, b) => b[5] - a[5]);
     if (topOpt.length > 30) topOpt = topOpt.slice(0, 30);
   } else {
-    optional.sort((a, b) => b[5] - a[5]); topOpt = optional.slice(0, 25);
+    optional.sort((a, b) => b[5] - a[5]); topOpt = optional.slice(0, AIR_SEARCH_OPTS.maxStops <= 2 ? optional.length : 25);
   }
-  const maxExtra = Math.max(0, 5 - required.length);
+  const maxExtra = Math.max(0, AIR_SEARCH_OPTS.maxStops - required.length);
   for (let n = 0; n <= Math.min(maxExtra, topOpt.length); n++) { airCombos(topOpt, n).forEach(combo => {
     const secs = [...required, ...combo]; if (!secs.length) return;
     const best = airBestOrderFast(secs.map(s => s[0]));
@@ -336,7 +354,7 @@ function airEvaluateOwnedCandidates(rank, candidates, ownedRanks, mustLootIds, d
         build: { hull: combo.hull, rigging: combo.rigging, forecastle: combo.forecastle, aftcastle: combo.aftcastle, st: combo.st, cost: combo.cost, cap: combo.cap }
       });
     });
-    results.sort((a, b) => b.epm - a.epm);
+    airSortRoutes(results);
     return { routes: noCap ? results : results.slice(0, 200), noParts: false };
   }
   /* 組合數上限保護，架構與原因比照 sub-calc.js（OWNED_FILTERED_CAP）。 */
@@ -374,7 +392,7 @@ function airEvaluateOwnedCandidates(rank, candidates, ownedRanks, mustLootIds, d
       break;
     }
   });
-  results.sort((a, b) => b.epm - a.epm);
+  airSortRoutes(results);
   return { routes: noCap ? results : results.slice(0, 200), noParts: false, capped, totalCount: combos.length, searchedCount: combosForFiltered.length };
 }
 function airFindRoutesForOwnedParts(rank, ownedRanks, mustInc, mustExcl, mustLootIds, desiredMin, useTime, lootStrict, lootTier, lootMustMeet) {
@@ -407,7 +425,7 @@ function airEvaluateSingleStats(candidates, stats, mustLootIds, desiredMin, useT
       secStr: cand.secStr, secLetters: cand.secLetters, secIds: cand.secIds, allLoot
     });
   });
-  results.sort((a, b) => b.epm - a.epm);
+  airSortRoutes(results);
   return results;
 }
 function airFindRoutesByLoot(rank, stats, mustInc, mustExcl, mustLootIds, desiredMin, useTime, lootStrict, lootMustMeet) {

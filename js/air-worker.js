@@ -5,12 +5,13 @@
  * air-data.js／air-calc.js 同時被 index.html 以 <script> 載入（主執行緒）和這裡以
  * importScripts 載入（Worker），確保資料只有一份來源。
  */
-importScripts('air-data.js?v=2', 'air-calc.js?v=2');
+importScripts('air-data.js?v=2', 'air-calc.js?v=3');
 
 self.onmessage = function (e) {
   const d = e.data || {};
   const reqId = d.reqId;
   try {
+    if (d.opts) airSetSearchOpts(d.opts); // 結果排序／站數上限（每次搜尋都會帶來）
     if (d.mode === 'owned') {
       const result = airFindRoutesForOwnedParts(
         d.rank, d.ownedParts, d.mustInc, d.mustExcl,

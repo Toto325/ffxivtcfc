@@ -8,6 +8,22 @@
 const SECTOR_MAP=new Map(SUB_SECTORS.map(s=>[s[0],s]));
 
 /* ===== ROUTE CALCULATOR ===== */
+/* ===== 搜尋選項：結果排序／站數上限 =====
+ * 由 sub-panel.js 在每次搜尋前設定（主執行緒），Worker 則在每則訊息開頭
+ * 由 d.opts 設定（見 sub-worker.js）。預設值＝改版前的行為（EXP 效率、最多 5 站）。
+ * 排序必須在「只保留前 200 筆」之前套用，所以不能只靠畫面端重排。 */
+var SUB_SEARCH_OPTS = { maxStops: 5, sortBy: 'epm' };
+function subSetSearchOpts(o) {
+  var m = parseInt(o && o.maxStops, 10);
+  SUB_SEARCH_OPTS = { maxStops: (m >= 1 && m <= 5) ? m : 5, sortBy: (o && o.sortBy) || 'epm' };
+}
+function subSortRoutes(arr) {
+  var k = SUB_SEARCH_OPTS.sortBy;
+  if (k === 'time') arr.sort(function (a, b) { return (a.timeMins - b.timeMins) || (b.epm - a.epm); });
+  else if (k === 'exp') arr.sort(function (a, b) { return (b.exp - a.exp) || (b.epm - a.epm); });
+  else arr.sort(function (a, b) { return b.epm - a.epm; });
+  return arr;
+}
 function subPerms(a){if(a.length<=1)return[a];const r=[];a.forEach((v,i)=>{subPerms([...a.slice(0,i),...a.slice(i+1)]).forEach(p=>r.push([v,...p]));});return r;}
 function subCombos(a,n){if(n===0)return[[]];if(n>a.length)return[];const r=[];for(let i=0;i<=a.length-n;i++){subCombos(a.slice(i+1),n-1).forEach(c=>r.push([a[i],...c]));}return r;}
 function subBestOrder(homeId,ids){
@@ -71,10 +87,14 @@ function subFindRoutes(rank,stats,mustInc,mustExcl,mustIncMaps,mustExclMaps,must
     const homeId=SUB_HOMES[String(mapId)];if(homeId===undefined)return;
     const mapSecs=SUB_SECTORS.filter(s=>s[1]===mapId&&s[5]<=rank&&!mustExcl.includes(s[0]));
     const mustInMap=mustInc.filter(id=>{const s=SECTOR_MAP.get(id);return s&&s[1]===mapId;});
+    /* 必須包含的目的地一定要都在這張圖上，否則這張圖的路線不可能包含它們（一趟只能跑同一張航海圖）。
+       以前沒擋，只鎖目的地、沒鎖航海圖時，其他圖的路線會混進來、擠掉真正含該目的地的結果。 */
+    if(mustInMap.length!==mustInc.filter(id=>SECTOR_MAP.get(id)).length)return;
     if(mustInMap.some(id=>!mapSecs.some(s=>s[0]===id)))return;
     const required=mustInMap.map(id=>SECTOR_MAP.get(id));
+    if(required.length>SUB_SEARCH_OPTS.maxStops)return; // 鎖定的目的地已超過站數上限
     let optional=mapSecs.filter(s=>!mustInMap.includes(s[0]));
-    optional.sort((a,b)=>b[6]-a[6]);const topOpt=optional.slice(0,25);const maxExtra=Math.max(0,5-required.length);
+    optional.sort((a,b)=>b[6]-a[6]);const topOpt=optional.slice(0,SUB_SEARCH_OPTS.maxStops<=2?optional.length:25);const maxExtra=Math.max(0,SUB_SEARCH_OPTS.maxStops-required.length);
     for(let n=0;n<=Math.min(maxExtra,topOpt.length);n++){subCombos(topOpt,n).forEach(combo=>{
       const secs=[...required,...combo];if(!secs.length)return;
       /* 提早剪枝：不管走哪種順序，這批目的地至少要花多少航行距離，用「起家
@@ -107,7 +127,7 @@ function subFindRoutes(rank,stats,mustInc,mustExcl,mustIncMaps,mustExclMaps,must
       results.push({minRank:Math.max(...secs.map(s=>s[5])),exp:totalExp,timeStr,timeMins,epm,range:best.totalRng,tank:totalTank,secCount:secs.length,mapStr:`(${mapId}) ${MAP_NAMES[mapId]}`,secStr,secLetters,secIds:best.order,allLoot});
     });}
   });
-  results.sort((a,b)=>b.epm-a.epm);return results.slice(0,200);
+  subSortRoutes(results);return results.slice(0,200);
 }
 
 /* ===== 配裝反查（GEAR REVERSE-LOOKUP）=====
@@ -279,8 +299,10 @@ function subEnumerateCandidates(rank, mustInc, mustExcl, mustIncMaps, mustExclMa
     const homeId = SUB_HOMES[String(mapId)]; if (homeId === undefined) return;
     const mapSecs = SUB_SECTORS.filter(s => s[1] === mapId && s[5] <= rank && !mustExcl.includes(s[0]));
     const mustInMap = mustInc.filter(id => { const s = SECTOR_MAP.get(id); return s && s[1] === mapId; });
+    if (mustInMap.length !== mustInc.filter(id => SECTOR_MAP.get(id)).length) return; // 必須包含的目的地不全在這張圖上（理由同 subFindRoutes）
     if (mustInMap.some(id => !mapSecs.some(s => s[0] === id))) return;
     const required = mustInMap.map(id => SECTOR_MAP.get(id));
+    if (required.length > SUB_SEARCH_OPTS.maxStops) return; // 鎖定的目的地已超過站數上限
     let optional = mapSecs.filter(s => !mustInMap.includes(s[0]));
     let topOpt;
     if (lootFilterIds && lootFilterIds.length) {
@@ -293,9 +315,9 @@ function subEnumerateCandidates(rank, mustInc, mustExcl, mustIncMaps, mustExclMa
       topOpt.sort((a, b) => b[6] - a[6]);
       if (topOpt.length > 30) topOpt = topOpt.slice(0, 30);
     } else {
-      optional.sort((a, b) => b[6] - a[6]); topOpt = optional.slice(0, 25);
+      optional.sort((a, b) => b[6] - a[6]); topOpt = optional.slice(0, SUB_SEARCH_OPTS.maxStops <= 2 ? optional.length : 25);
     }
-    const maxExtra = Math.max(0, 5 - required.length);
+    const maxExtra = Math.max(0, SUB_SEARCH_OPTS.maxStops - required.length);
     for (let n = 0; n <= Math.min(maxExtra, topOpt.length); n++) { subCombos(topOpt, n).forEach(combo => {
       const secs = [...required, ...combo]; if (!secs.length) return;
       const best = subBestOrderFast(homeId, secs.map(s => s[0]));
@@ -392,7 +414,7 @@ function subEvaluateOwnedCandidates(rank, candidates, ownedRanks, mustLootIds, d
         build: { hull: combo.hull, stern: combo.stern, bow: combo.bow, bridge: combo.bridge, st: combo.st, cost: combo.cost, cap: combo.cap }
       });
     });
-    results.sort((a, b) => b.epm - a.epm);
+    subSortRoutes(results);
     return { routes: noCap ? results : results.slice(0, 200), noParts: false };
   }
   /* 有「必須獲得物品」或「獲得物品門檻」時，探索/收集/恩惠也會影響合不合格，
@@ -438,7 +460,7 @@ function subEvaluateOwnedCandidates(rank, candidates, ownedRanks, mustLootIds, d
       break; // 已經是這條路線裡效率最高的配裝，後面（較慢的）組合不用再看
     }
   });
-  results.sort((a, b) => b.epm - a.epm);
+  subSortRoutes(results);
   return { routes: noCap ? results : results.slice(0, 200), noParts: false, capped, totalCount: combos.length, searchedCount: combosForFiltered.length };
 }
 function subFindRoutesForOwnedParts(rank, ownedRanks, mustInc, mustExcl, mustIncMaps, mustExclMaps, mustLootIds, desiredMin, useTime, letterOnly, lootStrict, lootTier, lootMustMeet) {
@@ -474,7 +496,7 @@ function subEvaluateSingleStats(candidates, stats, mustLootIds, desiredMin, useT
       mapStr: cand.mapStr, secStr: cand.secStr, secLetters: cand.secLetters, secIds: cand.secIds, allLoot
     });
   });
-  results.sort((a, b) => b.epm - a.epm);
+  subSortRoutes(results);
   return results;
 }
 function subFindRoutesByLoot(rank, stats, mustInc, mustExcl, mustIncMaps, mustExclMaps, mustLootIds, desiredMin, useTime, lootStrict, lootMustMeet) {

@@ -1891,3 +1891,13 @@ html[data-nav-mode="top"] .news-outer,
 /* 按下搜尋後自動捲到結果區時，上緣留一點空間 */
 #sub-results,#air-results,#sub-rev-results-dest,#sub-rev-results-item,#sub-rev-results-stat,
 #air-rev-results-dest,#air-rev-results-item,#air-rev-results-stat{scroll-margin-top:12px}
+
+
+/* —— 結果排序依據／站數上限（搜尋鈕上方，常駐顯示；沿用網站的自製下拉樣式）—— */
+.sub-mogship .sub-search-opts{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:14px 0 0}
+.sub-mogship .sub-search-opt{display:flex;align-items:center;gap:8px;flex:1 1 280px;min-width:0}
+.sub-mogship .sub-search-opt .sub-lbl{flex:none;white-space:nowrap}
+.sub-mogship .sub-search-opt .explore-dd{flex:1 1 170px;width:auto;min-width:0}
+/* 下拉選單裡「現在不能選」的選項：調暗、不顯示手指，滑過也不亮起 */
+.explore-dd .wl-dd-opt.is-disabled{opacity:.42;cursor:not-allowed}
+.explore-dd .wl-dd-opt.is-disabled:hover,.explore-dd .wl-dd-opt.is-disabled:focus-visible{background:transparent;color:var(--main)}
