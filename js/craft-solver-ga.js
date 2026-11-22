@@ -198,14 +198,14 @@
      * 再加上菁英保留，所以新條件下的結果一定不會比這份種子手法差——用來回答「換了條件（HQ／食藥／數值）最好能到哪」。 */
     var population = (this.config.seeds || []).filter(function (r) { return r && r.length; }).slice(0, populationSize);
     for (var i = population.length; i < populationSize; i++) {
-      if (deadline && i >= MIN_POPULATION && Date.now() > deadline) { this.timedOut = true; break; }
+      if (deadline && i >= MIN_POPULATION && CraftClock.now() > deadline) { this.timedOut = true; break; }
       population.push(this.generateRotation());
     }
 
     var best = null;
     var evCache = new Map(); // 菁英個體會原封不動進下一代，不必重新模擬評分
     for (var gen = 0; gen < this.config.generations; gen++) {
-      if (best && deadline && Date.now() > deadline) { this.timedOut = true; break; }
+      if (best && deadline && CraftClock.now() > deadline) { this.timedOut = true; break; }
       var scored = population.map(function (rotation) {
         var ev = evCache.get(rotation) || self.evaluate(rotation);
         return { rotation: rotation, ev: ev };
@@ -270,7 +270,7 @@
   CraftSolverGA.prototype.polish = function (rotation, maxMs) {
     var self = this;
     var prefixLen = this.fixedPrefix.length;
-    var limit = Date.now() + (maxMs || 2000);
+    var limit = CraftClock.now() + (maxMs || 2000);
     if (this.config.deadline) limit = Math.min(limit, this.config.deadline);
     var cur = rotation, curEv = this.evaluate(cur);
     var A = this.availableActions;
@@ -308,7 +308,7 @@
       for (var j = prefixLen; j <= cur.length; j++) for (var v = 0; v < usable[j].length; v++) ops.push([2, j, usable[j][v]]);
       for (var k = ops.length - 1; k > 0; k--) { var r = Math.floor(Math.random() * (k + 1)); var t = ops[k]; ops[k] = ops[r]; ops[r] = t; }
       for (var n = 0; n < ops.length; n++) {
-        if ((n & 63) === 0 && Date.now() > limit) return cur; // 時間到：polishConverged 維持 false
+        if ((n & 63) === 0 && CraftClock.now() > limit) return cur; // 時間到：polishConverged 維持 false
         var op = ops[n], cand = cur.slice();
         if (op[0] === 0) cand.splice(op[1], 1);
         else if (op[0] === 1) cand[op[1]] = new A[op[2]].constructor();
@@ -328,7 +328,7 @@
    * 連續 maxStall 次嘗試都沒有刷新最佳＝收斂（ilsConverged）；被時間截斷則不算收斂。 */
   CraftSolverGA.prototype.ils = function (rotation, maxMs) {
     var self = this, A = this.availableActions, prefixLen = this.fixedPrefix.length;
-    var limit = Date.now() + (maxMs || 3000);
+    var limit = CraftClock.now() + (maxMs || 3000);
     if (this.config.deadline) limit = Math.min(limit, this.config.deadline);
     var reached = function (ev) { return self.config.goalQuality != null && ev.success && ev.quality >= self.config.goalQuality; };
     var trim = function (rot, ev) { // 修掉最後一個「真的有執行」的動作之後的所有尾巴（之後都是失敗／完成後被跳過的）
@@ -355,7 +355,7 @@
     var p0 = this.polish(cur, polishMs); var e0 = this.evaluate(p0);
     if (e0.score >= curEv.score) { cur = trim(p0, e0); curEv = this.evaluate(cur); }
     var best = cur, bestEv = curEv, stall = 0, MAX_STALL = 40;
-    while (!reached(bestEv) && Date.now() < limit && stall < MAX_STALL) {
+    while (!reached(bestEv) && CraftClock.now() < limit && stall < MAX_STALL) {
       var cand = cur.slice(), kicks = 1 + rnd(3);
       for (var k = 0; k < kicks; k++) {
         var span = cand.length - prefixLen, kind = rnd(4);

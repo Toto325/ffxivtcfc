@@ -195,9 +195,11 @@
           var flag = S.step(ctx, t2, id);
           expanded++;
           if (flag === 1) {
-            if (ctx.reqQ && t2[F.QUAL] < ctx.reqQ) continue; // 專家配方：品質沒達最低門檻不算完成
+            // 專家配方有「最低品質門檻」：達到門檻的候選一定優先；都達不到（數值不足）時，退而求其次保留「品質最高」的，
+            // 讓玩家至少得到一套能做完、品質盡量高的手法（跟 GA 的行為一致），而不是什麼都沒有。
+            var met = !ctx.reqQ || t2[F.QUAL] >= ctx.reqQ;
             var qc = t2[F.QUAL] < Qcap ? t2[F.QUAL] : Qcap;
-            if (!best || qc > best.qcap || (qc === best.qcap && layer + 1 < best.steps)) best = { qcap: qc, steps: layer + 1, layer: layer, idx: i, id: id, q: t2[F.QUAL] };
+            if (!best || (met && !best.met) || (met === best.met && (qc > best.qcap || (qc === best.qcap && layer + 1 < best.steps)))) best = { met: met, qcap: qc, steps: layer + 1, layer: layer, idx: i, id: id, q: t2[F.QUAL] };
           } else if (flag === 0) {
             if (fin && t2[F.PROG] + fin.maxGain(t2) < ctx.P) { pruned++; continue; } // 一定做不完：丟掉
             insert(t2, i, id, false);
@@ -220,7 +222,7 @@
       }
       if (nN === 0) break;
       // 提前結束：已經達到品質上限，這一層之後的手法只會更長
-      if (best && best.qcap >= Qcap) break;
+      if (best && best.met && best.qcap >= Qcap) break;
       if (timedOut || expanded >= maxExpand) break;
       // 選出前 beam 個
       var keepN = nN, sel = null;
@@ -245,8 +247,68 @@
     }
     if (!best) return { ids: null, expanded: expanded, timedOut: timedOut, pruned: pruned };
     var ids = reconstruct(best.layer, best.idx, best.id);
-    return { ids: ids, quality: best.q, qcap: best.qcap, steps: best.steps, expanded: expanded, timedOut: timedOut, pruned: pruned, finMemo: fin ? fin.size() : 0 };
+    return { ids: ids, quality: best.q, qcap: best.qcap, met: best.met, steps: best.steps, expanded: expanded, timedOut: timedOut, pruned: pruned, finMemo: fin ? fin.size() : 0 };
   }
 
-  g.CraftExact = { beamSearch: beamSearch, makeWeights: makeWeights };
+
+  /* ── 快速局部搜尋 ──
+   * 集束搜尋找到的手法不一定是「局部最佳」：把其中某一步換掉、刪掉、插入一步、或跟隔壁交換，常常還能更好一點
+   * （實測用 GA 的局部搜尋精修，5 組裡有 2 組品質提高）。這裡用精簡模擬器做同樣的事，一次評估只要十幾微秒，
+   * 比 vendor 版快很多，所以可以對前幾名候選都精修。結果採用前仍由呼叫端用 vendor 模擬器重算。
+   * 評分：做完且達到門檻 > 做完但品質不足（專家配方）；再比品質（上限為目標）；最後步數越少越好。
+   * 運算量用「評估次數」限制，種子固定，所以結果可重現。 */
+  function makeRng(seed) { var a = seed >>> 0; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function localSearch(ctx, startIds, o) {
+    o = o || {};
+    var rnd = makeRng(o.seed || 1), maxEvals = o.maxEvals || 120000, prefixLen = o.prefixLen || 0, Qcap = ctx.QCAP;
+    var st = new Int32Array(NF), init = o.startState || S.initState(ctx), usableList = [];
+    for (var u = 0; u < NA; u++) if (ctx.usable[u]) usableList.push(u);
+    var evals = 0;
+    // 評估一串手法：回傳 { score, len }（score<0＝無效：有技能不能用、或沒做完）。做完之後多餘的步驟直接截掉。
+    function evaluate(ids) {
+      evals++;
+      st.set(init);
+      for (var i = 0; i < ids.length; i++) {
+        if (!S.canUse(ctx, st, ids[i])) return { score: -1, len: 0 };
+        var f = S.step(ctx, st, ids[i]);
+        if (f === 2) return { score: -1, len: 0 };
+        if (f === 1) {
+          var met = !ctx.reqQ || st[F.QUAL] >= ctx.reqQ, qc = st[F.QUAL] < Qcap ? st[F.QUAL] : Qcap;
+          return { score: (met ? 2e12 : 1e12) + qc * 1e3 + (999 - (i + 1)), len: i + 1 };
+        }
+      }
+      return { score: -1, len: 0 };
+    }
+    var cur = startIds.slice(), curE = evaluate(cur);
+    if (curE.score < 0) return null;
+    cur.length = curE.len;
+    var best = cur.slice(), bestScore = curE.score, sinceImprove = 0;
+    while (evals < maxEvals) {
+      var cand = cur.slice(), n = cand.length, free = n - prefixLen;
+      var kind = Math.floor(rnd() * 4), k = prefixLen + Math.floor(rnd() * Math.max(1, free));
+      if (kind === 0 && free > 0) cand[k] = usableList[Math.floor(rnd() * usableList.length)];           // 換一步
+      else if (kind === 1 && free > 1) cand.splice(k, 1);                                                  // 刪一步
+      else if (kind === 2) cand.splice(prefixLen + Math.floor(rnd() * (free + 1)), 0, usableList[Math.floor(rnd() * usableList.length)]); // 插一步
+      else if (free > 1 && k + 1 < n) { var t = cand[k]; cand[k] = cand[k + 1]; cand[k + 1] = t; }      // 跟隔壁交換
+      else continue;
+      var e = evaluate(cand);
+      if (e.score >= curE.score) { // 持平也接受（讓搜尋能在平坦區域移動）
+        cur = cand.slice(0, e.len); curE = e;
+        if (e.score > bestScore) { bestScore = e.score; best = cur.slice(); sinceImprove = 0; }
+      }
+      sinceImprove++;
+      if (sinceImprove > 4000) { // 卡住了：回到目前最好的，隨機擾動 2～3 步再繼續
+        cur = best.slice(); curE = evaluate(cur);
+        for (var r = 0, nr = 2 + Math.floor(rnd() * 2); r < nr; r++) {
+          var c2 = cur.slice(), f2 = c2.length - prefixLen; if (f2 < 1) break;
+          c2[prefixLen + Math.floor(rnd() * f2)] = usableList[Math.floor(rnd() * usableList.length)];
+          var e2 = evaluate(c2); if (e2.score >= 0) { cur = c2.slice(0, e2.len); curE = e2; }
+        }
+        sinceImprove = 0;
+      }
+    }
+    return { ids: best, score: bestScore, evals: evals };
+  }
+
+  g.CraftExact = { beamSearch: beamSearch, makeWeights: makeWeights, localSearch: localSearch };
 })(typeof self !== 'undefined' ? self : this);
