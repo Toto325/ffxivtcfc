@@ -754,7 +754,7 @@
   window.NRO = { NS: NS, GOLD: GOLD, fmt: fmt, P: P, gem: gem, glint: glint, taper: taper, ccvPath: ccvPath,
     frameJewel: frameJewel, miniJewel: miniJewel, cornerOrn: cornerOrn, claspStrokes: claspStrokes,
     centerFrame: centerFrame, wingSet: wingSet, PLAQUE_WING: PLAQUE_WING,
-    uiScale: uiScale, plaqueOrn: plaqueOrn, centerOrn: centerOrn };
+    uiScale: uiScale, plaqueOrn: plaqueOrn, centerOrn: centerOrn, chevSvg: chevSvg };
 
   /* 啟動 */
   relayout();

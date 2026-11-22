@@ -618,30 +618,58 @@
   function mkEnhanceHScroll(sc) {
     if (!sc || sc.dataset.hs) return;
     sc.dataset.hs = '1';
-    const edges = function () {
-      sc.classList.toggle('can-l', sc.scrollLeft > 4);
-      sc.classList.toggle('can-r', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
-    };
-    // 左右邊緣的小箭頭：放不下時才出現，疊在被切到一半的那顆按鈕上，不佔額外空間、也不用文字說明；
-    // 滑鼠點箭頭或滾輪、觸控滑動都能捲。箭頭放在捲動容器裡面、用寬度 0 的 sticky 外框貼住兩端，所以不改變按鈕的位置與間距。
+    // 外面包一層容器：淡出遮罩只作用在按鈕列（sc），兩端的指向菱形放在容器上，才不會被一起淡掉
+    const wrap = document.createElement('div');
+    wrap.className = 'mk-hs-wrap';
+    wrap.style.marginBottom = getComputedStyle(sc).marginBottom;
+    sc.style.marginBottom = '0';
+    sc.parentNode.insertBefore(wrap, sc);
+    wrap.appendChild(sc);
+    // 放不下時，兩端各一個「指向菱形」（沿用頂部選單展開提示的造型，轉成朝左／朝右）：點了往該方向捲，出現時輕輕晃三下提醒
+    const chev = (window.NRO && window.NRO.chevSvg) ? window.NRO.chevSvg() : '';
     ['l', 'r'].forEach(function (dir) {
-      const edge = document.createElement('span');
-      edge.className = 'mk-hs-edge ' + dir; edge.setAttribute('aria-hidden', 'true');
       const b = document.createElement('button');
-      b.type = 'button'; b.tabIndex = -1; b.className = 'mk-hs-arrow';
-      b.innerHTML = '<i class="ph ph-caret-' + (dir === 'l' ? 'left' : 'right') + '"></i>';
+      b.type = 'button'; b.tabIndex = -1; b.className = 'mk-hs-btn ' + dir;
+      b.setAttribute('aria-label', dir === 'l' ? '往左捲動' : '往右捲動');
+      b.innerHTML = '<span class="mk-hs-glyph">' + (chev ? chev.replace('<svg ', '<svg aria-hidden="true" ') : '<i class="ph ph-caret-' + (dir === 'l' ? 'left' : 'right') + '"></i>') + '</span>';
       b.addEventListener('click', function (e) {
         e.stopPropagation();
         sc.scrollBy({ left: (dir === 'l' ? -1 : 1) * Math.max(120, sc.clientWidth * 0.7), behavior: 'smooth' });
       });
-      edge.appendChild(b);
-      if (dir === 'l') sc.insertBefore(edge, sc.firstChild); else sc.appendChild(edge);
+      wrap.appendChild(b);
     });
+    const edges = function () {
+      sc.classList.toggle('can-l', sc.scrollLeft > 4);
+      sc.classList.toggle('can-r', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 4);
+    };
     sc.addEventListener('scroll', edges, { passive: true });
     sc.addEventListener('wheel', function (e) {
       if (sc.scrollWidth <= sc.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
       sc.scrollLeft += e.deltaY; e.preventDefault();
     }, { passive: false });
+    // 滑鼠按住拖動捲動（觸控本來就能滑）：移動超過 5px 才算拖動，所以單純點按鈕不受影響；
+    // 拖動結束後那一下 click 會被吃掉，免得拖完放開時誤選到底下的按鈕
+    let drag = null, dragged = false;
+    sc.addEventListener('pointerdown', function (e) {
+      dragged = false;
+      if (e.pointerType !== 'mouse' || e.button !== 0 || sc.scrollWidth <= sc.clientWidth) return;
+      drag = { x: e.clientX, left: sc.scrollLeft, id: e.pointerId, on: false };
+    });
+    sc.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      if (!drag.on) {
+        if (Math.abs(dx) < 5) return;
+        drag.on = true; dragged = true;
+        sc.classList.add('is-dragging');
+        try { sc.setPointerCapture(drag.id); } catch (err) { /* 抓不到就算了，拖到外面只是少了持續追蹤 */ }
+      }
+      sc.scrollLeft = drag.left - dx;
+    });
+    const endDrag = function () { if (drag && drag.on) sc.classList.remove('is-dragging'); drag = null; };
+    sc.addEventListener('pointerup', endDrag);
+    sc.addEventListener('pointercancel', endDrag);
+    sc.addEventListener('click', function (e) { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true);
     if (window.ResizeObserver) new ResizeObserver(edges).observe(sc); else window.addEventListener('resize', edges);
     requestAnimationFrame(edges);
   }

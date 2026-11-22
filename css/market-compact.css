@@ -99,15 +99,33 @@
 .mk-hscroll { display: flex; flex-wrap: nowrap; gap: 6px; overflow-x: auto; overflow-y: hidden; position: relative; min-width: 0; padding: 1px 0; scrollbar-width: none; }
 .mk-hscroll::-webkit-scrollbar { display: none; }
 .mk-hscroll > * { flex: none; white-space: nowrap; }
-/* 放不下時，左右邊緣各浮一顆小箭頭，疊在被切到一半的按鈕上：看得出「後面還有」、點了就捲，不佔額外空間 */
-.mk-hs-edge { display: none; position: sticky; z-index: 3; flex: none; width: 0; align-self: stretch; }
-.mk-hscroll.can-l > .mk-hs-edge.l { display: block; left: 0; margin-right: -6px; }
-.mk-hscroll.can-r > .mk-hs-edge.r { display: block; right: 0; margin-left: -6px; }
-.mk-hs-arrow { position: absolute; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; box-sizing: border-box;
-  border: 1px solid rgba(197,160,89,.75); border-radius: 50%; background: rgba(10,8,5,.94); color: var(--gold-bright); font-size: 12px; cursor: pointer; box-shadow: 0 0 8px rgba(0,0,0,.75); }
-.mk-hs-edge.l .mk-hs-arrow { left: 2px; }
-.mk-hs-edge.r .mk-hs-arrow { right: 2px; }
-.mk-hs-arrow:hover { border-color: var(--gold-bright); background: rgba(40,30,12,.96); }
+/* 放不下時：按鈕列兩端淡出，並在兩端各放一個「指向菱形」（同頂部選單的展開提示）。
+   淡出只作用在按鈕列本身，菱形放在外層容器上，所以不會被一起淡掉；也不佔額外高度、不需要文字說明。 */
+.mk-hs-wrap { position: relative; flex-shrink: 0; min-width: 0; }
+.mk-hs-wrap > .mk-hscroll { margin: 0; }
+.mk-hscroll { cursor: default; user-select: none; -webkit-user-select: none; }
+.mk-hscroll.can-l, .mk-hscroll.can-r { cursor: grab; }
+.mk-hscroll.is-dragging { cursor: grabbing; }
+.mk-hscroll.is-dragging > * { pointer-events: none; }
+.mk-hscroll.can-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent); }
+.mk-hscroll.can-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 40px), transparent); }
+.mk-hscroll.can-l.can-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.mk-hs-btn { display: none; position: absolute; top: 0; bottom: 0; z-index: 3; width: 38px; padding: 0; border: 0; background: transparent; align-items: center; justify-content: center; cursor: pointer;
+  filter: drop-shadow(0 0 5px rgba(0,0,0,.9)) drop-shadow(0 0 3px rgba(227,199,128,.35)); transition: filter .15s; }
+.mk-hs-btn.l { left: 0; }
+.mk-hs-btn.r { right: 0; }
+.mk-hscroll.can-l ~ .mk-hs-btn.l, .mk-hscroll.can-r ~ .mk-hs-btn.r { display: flex; }
+.mk-hs-btn:hover { filter: drop-shadow(0 0 5px rgba(0,0,0,.9)) drop-shadow(0 0 7px rgba(252,246,186,.7)) brightness(1.2); }
+.mk-hs-glyph { display: block; width: 34px; height: 19px; pointer-events: none; }  /* 轉 90° 之後約 19px 寬、34px 高 */
+.mk-hs-glyph svg { display: block; width: 100%; height: 100%; }
+.mk-hs-btn.l .mk-hs-glyph { transform: rotate(90deg); }
+.mk-hs-btn.r .mk-hs-glyph { transform: rotate(-90deg); }
+/* 出現時往箭頭方向輕輕晃三下就停（只提醒，不干擾閱讀） */
+@keyframes mk-hs-nudge-l { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-4px); } }
+@keyframes mk-hs-nudge-r { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(4px); } }
+.mk-hscroll.can-l ~ .mk-hs-btn.l { animation: mk-hs-nudge-l .55s ease-in-out 3; }
+.mk-hscroll.can-r ~ .mk-hs-btn.r { animation: mk-hs-nudge-r .55s ease-in-out 3; }
+@media (prefers-reduced-motion: reduce) { .mk-hs-btn { animation: none !important; } }
 
 /* ── 代幣分頁：條件列內的搜尋 ── */
 .market-token-topbar.mk-cond .market-fold-btn { flex: 1 1 0; }
