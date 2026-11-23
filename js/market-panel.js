@@ -1284,16 +1284,13 @@
     } catch (e) { /* 讀不到就回傳null，呼叫端自行處理 */ }
     return null;
   }
-  // 整份預先計算快照超過1小時沒更新才提示（平常完全不出現，也不對個別物品標「過舊」）
-  window.addEventListener('market-snapshot-stale', function (e) {
-    const root = document.getElementById('market-root');
-    if (!root || document.getElementById('mk-stale-banner')) return;
-    const mins = Math.round(((e.detail && e.detail.ageMs) || 0) / 60000);
-    const d = document.createElement('div');
-    d.id = 'mk-stale-banner'; d.className = 'craft-muted';
-    d.style.cssText = 'padding:6px 10px;margin:0 0 8px;border:1px solid rgba(245,158,11,.5);border-radius:8px;font-size:12px';
-    d.innerHTML = '<i class="ph ph-warning"></i> 預先計算的價格資料已經 ' + (mins >= 120 ? Math.round(mins / 60) + ' 小時' : mins + ' 分鐘') + '沒有更新，製作成本、熱度排行等估算可能落後；單一物品頁的價格仍是即時查詢。';
-    root.insertBefore(d, root.firstChild);
+  // 原本這裡會在整份預先計算快照超過1小時沒更新時，於市場頁頂端顯示一條黃色警告橫幅。
+  // 站長覺得不好看，已移除（market-data.js 仍會發出 'market-snapshot-stale' 事件，日後要恢復可再接回來）。
+  // 熱度排行／製作商機頁面在資料超過24小時時仍有各自的提示，不受影響。
+  // 若頁面上已經有舊的橫幅（例如來自快取的舊版腳本），保險起見也一併清掉：
+  window.addEventListener('market-snapshot-stale', function () {
+    const old = document.getElementById('mk-stale-banner');
+    if (old) old.remove();
   });
 
   /* ── 統計列／世界價格列的「自動適應」 ──
