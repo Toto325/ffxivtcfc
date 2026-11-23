@@ -23,12 +23,12 @@
  * 不要為了填滿表格硬猜一個可能是錯的中文詞——這正是這次要修的問題，不能在修的過程中又犯一次。 */
 /* 版本參數：只是 Worker 載入網址的快取標記。忘記改也不會壞：GitHub Pages 的檔案快取約 10 分鐘，之後瀏覽器會自動向伺服器確認並取得新檔；
  * 想立刻生效就按 Ctrl+F5。index.html 不需要為此改動（不必在載入 craft-panel.js 時加 ?v=）。 */
-var CRAFT_BUILD = '20261123c';
+var CRAFT_BUILD = '20261123d';
 /* 網址參數（排查問題用，平常不用）：?diag=1 在主控台印診斷；?noV=1 Worker 網址不帶版本參數（等同原本載入方式）；
- * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」；?noWide=1 探測不做「差一點時用較寬集束補確認」。 */
+ * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」；?noWide=1 探測不做「差一點時用較寬集束補確認」；?noDiv=1 主求解不多開「多樣性集束」策略。 */
 var CRAFT_FLAGS = (function () {
   var q = (typeof location !== 'undefined' && location.search) || '';
-  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q), noWide: /[?&]noWide=1/.test(q) };
+  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q), noWide: /[?&]noWide=1/.test(q), noDiv: /[?&]noDiv=1/.test(q) };
 })();
 function craftDiag() { if (CRAFT_FLAGS.diag && typeof console !== 'undefined') console.info.apply(console, ['[建議診斷]'].concat(Array.prototype.slice.call(arguments))); }
 /* 建立求解 Worker：送出訊息時自動把「這一個配方」附在 msg.recipe 裡，Worker 就不必各自載入整份配方庫（約 9 MB、數十 MB 記憶體）。
@@ -1165,11 +1165,11 @@ app._craftReady = function () {
     positionPopoverNear(pop, btn);
     const w = await MarketData.getAvgWindows(itemId, scope || undefined);
     if (!w) { pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取失敗，請稍後再試。</p>'; positionPopoverNear(pop, btn); return; }
-    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均（件數加權），已排除異常成交（可在設定裡關閉）。「掛單」是現在架上還沒賣掉的掛單價格平均，不是成交價。">？</span></p>' + MarketData.avgWindowRowsHtml(w) +
-      '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均，不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small><em class="mav-chg"></em></div>';
+    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均（件數加權），已排除異常成交（可在設定裡關閉）。「掛單」是現在架上還沒賣掉的掛單價格平均（已排除亂標價，跟成交均價同一套規則），不是成交價。">？</span></p>' + MarketData.avgWindowRowsHtml(w) +
+      '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均（已排除亂標價，跟成交均價同一套規則），不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small><em class="mav-chg"></em></div>';
     positionPopoverNear(pop, btn);
     try {
-      const ov = await MarketData.getItemMarketOverview(itemId);
+      const ov = await MarketData.getItemMarketOverview(itemId, undefined, { noRefresh: true }); // 這裡只要掛單均價，不需要各世界校正（省7個請求）
       const row = $('cf-avg-listing');
       if (row) { row.querySelector('strong').textContent = (ov && ov.avgPrice) ? Math.round(ov.avgPrice).toLocaleString() : '—'; if (!(ov && ov.avgPrice)) row.querySelector('small').textContent = '無掛單'; }
     } catch (e) { const row = $('cf-avg-listing'); if (row) { row.querySelector('strong').textContent = '—'; row.querySelector('small').textContent = '讀取失敗'; } }
@@ -3620,6 +3620,9 @@ app._craftReady = function () {
       /* 'beam'＝集束搜尋（js/craft-exact.js）：跟遺傳演算法完全不同的系統性搜尋，是「額外的候選來源」。上面所有原本的策略照舊都會跑，
        * 最後用 betterRes 取最好的，所以加入它只會讓結果更好、不會更差。核心少的裝置（手機）把它的運算量縮小，避免拖慢太多。 */
       const list = beamOnly ? ['beam'] : (((hasLibrary && cores >= 4) ? ['plain', 'ladder'] : ['plain']).concat(['beam']));
+       /* 'beamDiverse'＝多樣性集束：每層保留一部分「CP、耐久、增益組合不同」的狀態。實測在 CP 吃緊時常找得到一般集束漏掉的手法（品質比例平均 +2%，也有少數點較差），
+        * 所以只當「額外候選」，最後仍取最好的，不會讓結果更差。運算量用一般集束的窄設定（12e6），不會比原本最慢的那條更久；核心少（<6）的裝置不開。 */
+       if (!beamOnly && cores >= 6 && !CRAFT_FLAGS.noDiv) list.push('beamDiverse');
       list.forEach(function (strategy) { // 階梯優先流程需要手法庫當起點；沒有手法庫的配方只多開「獨立流程」當保險（主 Worker 跑的是追求滿品質的流程）
         let wk;
         try { wk = newCraftWorker(); } catch (err) { return; }
@@ -3631,7 +3634,7 @@ app._craftReady = function () {
           settle(e2.data);
         });
         wk.addEventListener('error', function (ev) { craftDiag('主求解 策略=' + strategy + ' Worker error 事件', ev && ev.message, ev && ev.filename, ev && ev.lineno); settle(null); });
-        wk.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { strategy: strategy, lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal, beamMaxExpand: cores >= 4 ? 36e6 : 12e6 } });
+        wk.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { strategy: strategy === 'beamDiverse' ? 'beam' : strategy, diverse: strategy === 'beamDiverse' ? 0.8 : undefined, lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal, beamMaxExpand: strategy === 'beamDiverse' ? 12e6 : (cores >= 4 ? 36e6 : 12e6) } });
       });
     };
     function onMsg(e) {
@@ -4225,7 +4228,7 @@ app._craftReady = function () {
        * 由現有的換算與排序（等級 S）決定顯示哪個。起點用比例線而不是隨機搜尋的候選，避免被候選的取向帶進局部低谷。 */
       const PROBE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 12e6, beamWidths: [2500, 6000], beamRealCapMs: 120000 }; // 只用「展開節點數」限制，不用時鐘：結果才不會隨裝置速度改變（整體時間由 descend 的期限控制）
       const PROBE_WIDE = { strategy: 'beam', lang: 'tw', beamMaxExpand: 60e6, beamWidths: [4000, 12000, 30000], beamRealCapMs: 120000 }; // 較寬的集束：只在「差一點就做到」時才用（窄的集束會漏掉部分做得到的點；實測同一點窄的得 7854、寬的得 8235，目標 8200）
-      const PROBE_DIVERSE = Object.assign({}, PROBE, { diverse: 0.6 }); // 同樣的窄集束，但每層保留「資源組合不同」的狀態
+      const PROBE_DIVERSE = Object.assign({}, PROBE, { diverse: 0.8 }); // 同樣的窄集束，但每層保留「資源組合不同」的狀態
       let noResp = 0, probeBroken = false; // 連續沒有回應（Worker 出錯）的次數：探測壞掉就立刻放棄，改用隨機搜尋接力，不要白等
       const probeAt = async function (F, bud) { // 在這組「最終數值」下，集束搜尋能不能做到目標；做得到回傳結果（含手法）
         if (probeBroken) return null;

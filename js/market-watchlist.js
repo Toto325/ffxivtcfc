@@ -408,7 +408,7 @@
       var worldTxt = '';
       if (noWorld) worldTxt = '';
       else if (m.p.src === 'live' && m.scope === 'dc' && m.p.world) worldTxt = '<span class="wl-world" title="目前最低價所在的伺服器">' + esc(m.p.world) + '</span>';
-      else if (m.p.src === 'cache') worldTxt = '<span class="wl-world cache" title="這是每小時預先計算的資料，即時價格載入中或查詢失敗">快取</span>';
+      else if (m.p.src === 'cache') worldTxt = '<span class="wl-world cache" title="這是預先計算的資料（約每15分鐘更新），即時價格載入中或查詢失敗">快取</span>';
       inner = '<span class="wl-price-top"><b class="wl-price-num' + (m.reached ? ' is-reached' : '') + '" title="' + fmtFull(m.price) + ' 金">' + fmt(m.price) + '</b>' +
         (m.qual ? '<span class="wl-q ' + m.qual.toLowerCase() + '" title="這個價格是' + m.qual + '品質">' + m.qual + '</span>' : '') + '</span>' + worldTxt;
     }
@@ -426,7 +426,7 @@
   function updatedBlock(m) {
     var inner = '<span class="wl-dim">—</span>', title = '';
     if (m.p && m.p.upload) { inner = '<span class="wl-ago ' + staleClass(m.p.upload) + '">' + agoText(m.p.upload) + '</span>'; title = '這個價格的資料最後上傳時間（超過 6 小時橘色、超過 1 天紅色）'; }
-    else if (m.p && m.p.src === 'cache') { inner = '<span class="wl-dim">快取</span>'; title = '每小時預先計算的資料'; }
+    else if (m.p && m.p.src === 'cache') { inner = '<span class="wl-dim">快取</span>'; title = '預先計算的資料（約每15分鐘更新）'; }
     return '<div class="wl-cell" title="' + title + '">' + inner + '</div>';
   }
   function avgBlock(m) {
@@ -538,7 +538,7 @@
   function compactPriceBlock(m, cols) {
     var meta = [];
     if (m.p && m.p.src === 'live' && m.scope === 'dc' && m.p.world) meta.push('<span class="wl-world" title="目前最低價所在的伺服器">' + esc(m.p.world) + '</span>');
-    else if (m.p && m.p.src === 'cache') meta.push('<span class="wl-world cache" title="這是每小時預先計算的資料，即時價格載入中或查詢失敗">快取</span>');
+    else if (m.p && m.p.src === 'cache') meta.push('<span class="wl-world cache" title="這是預先計算的資料（約每15分鐘更新），即時價格載入中或查詢失敗">快取</span>');
     if (cols.indexOf('change') >= 0 && m.change) meta.push(changeBlock(m));
     if (cols.indexOf('updated') >= 0 && m.p && m.p.upload) meta.push(updatedBlock(m));
     return '<div class="wl-pcol">' + priceBlock(m, true) + (meta.length ? '<div class="wl-pmeta">' + meta.join('') + '</div>' : '') + '</div>';
@@ -704,7 +704,7 @@
     else if (s === 'loading') { txt = '更新中⋯'; cls = 'busy'; }
     else if (s === 'ok' && lastRefreshAt) txt = '即時價格 · ' + new Date(lastRefreshAt).toTimeString().slice(0, 5) + ' 更新';
     else if (s === 'partial') { txt = '部分物品查詢失敗，其餘為即時價格'; cls = 'warn'; }
-    else if (s === 'fail') { txt = '即時查詢失敗，顯示的是每小時快取'; cls = 'warn'; }
+    else if (s === 'fail') { txt = '即時查詢失敗，顯示的是預先計算的快取'; cls = 'warn'; }
     else txt = list.length ? '尚未更新' : '';
     els.status.className = 'wl-status ' + cls;
     els.status.querySelector('.wl-status-txt').textContent = txt;

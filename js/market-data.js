@@ -11,7 +11,7 @@
  */
 window.MarketData = (function () {
   const API = 'https://universalis.app/api/v2';
-  const TTL_MS = 8 * 60 * 1000; // 8分鐘內的資料視為新鮮，不重查
+  const TTL_MS = 2 * 60 * 1000; // 2分鐘內的資料視為新鮮，不重查（以前8分鐘；價格要準，寧可多查一點）
   const SETTINGS_KEY = 'craftMarketSettings:v1';
   const CACHE_KEY_PREFIX = 'craftMarketCache:v1:';
 
@@ -45,7 +45,7 @@ window.MarketData = (function () {
    * 最終都要經過這裡才真的打出去，同時間最多只放行幾支請求，其餘先排隊。這是最後一道防線——
    * 前面已經盡量把同批需求合併成一次查詢，但難保不會有某個情境還是短時間內湊出一堆零散請求，
    * 一次全部發出去很容易把Universalis的流量限制觸發（429，瀏覽器常會誤報成CORS政策封鎖）。 ── */
-  const MAX_CONCURRENT_REQUESTS = 3;
+  const MAX_CONCURRENT_REQUESTS = 6; // 以前3。即時查價改成「每個世界各查一次」後請求數變多，Universalis 同IP上限約8條連線，這裡留餘裕
   let activeRequestCount = 0;
   const pendingQueue = [];
   function throttledFetch(url) {
@@ -230,7 +230,7 @@ window.MarketData = (function () {
   }
 
   /* ── 預先計算的市場資料（熱度排行用）──
-   * 由 GitHub Actions（.github/workflows/update-market-data.yml）每小時算好，發布在 repo 的
+   * 由 GitHub Actions（.github/workflows/update-market-data.yml）約每15分鐘算好，發布在 repo 的
    * market-data 分支，網頁只讀靜態檔案。網址預設從網站自己的網址推算（<帳號>.github.io/<repo>/），
    * 如果你用自訂網域，在載入這支腳本之前設定 window.XIV_MARKET_DATA_BASE = 'https://raw.githubusercontent.com/帳號/repo/market-data/market/' 即可。
    * 回傳 state：
@@ -257,8 +257,8 @@ window.MarketData = (function () {
   async function loadPrecomputed(scopeKey) {
     const base = deriveMarketDataBase();
     if (!base) return { state: 'none' };
-    if (!pcState.meta || Date.now() - pcState.metaTime > 10 * 60 * 1000) {
-      const r = await pcGet(base + 'meta.json');
+    if (!pcState.meta || Date.now() - pcState.metaTime > 3 * 60 * 1000) { // 以前10分鐘；資料改成約每15分鐘更新，meta 不能比資料還慢才發現
+      const r = await pcGet(base + 'meta.json?t=' + Math.floor(Date.now() / 120000)); // 每2分鐘換一個網址，避開 raw.githubusercontent 約5分鐘的CDN快取
       if (r.status === 404) return { state: 'none' };
       if (r.status === 200) { pcState.meta = r.json; pcState.metaTime = Date.now(); }
       else if (!pcState.meta) return { state: 'error' }; // 讀不到，而且手上沒有舊的可以先用
@@ -267,11 +267,16 @@ window.MarketData = (function () {
     const sc = meta.scopes && meta.scopes[scopeKey];
     if (!sc) return { state: 'error' };
     if (!pcState.scopes[scopeKey] || pcState.scopeGen[scopeKey] !== meta.generatedAtMs) {
-      const r = await pcGet(base + sc.file);
+      const r = await pcGet(base + sc.file + '?v=' + meta.generatedAtMs); // 檔名帶版本，新的一輪資料一出來就不會讀到CDN上的舊檔
       if (r.status !== 200) return { state: 'error' };
       pcState.scopes[scopeKey] = r.json; pcState.scopeGen[scopeKey] = meta.generatedAtMs;
     }
-    return { state: 'ok', meta: meta, data: pcState.scopes[scopeKey], ageMs: Date.now() - meta.generatedAtMs };
+    const ageMs = Date.now() - meta.generatedAtMs;
+    // 整份快照超過1小時沒更新（排程壞了、GitHub 暫停等）才提示一次；平常不對個別物品打「過舊」標籤
+    if (ageMs > 60 * 60 * 1000) { // 每次讀取都通知；接收端自己防重複（畫面上只會有一條）
+      try { window.dispatchEvent(new CustomEvent('market-snapshot-stale', { detail: { ageMs: ageMs, generatedAtMs: meta.generatedAtMs } })); } catch (e) { /* 忽略 */ }
+    }
+    return { state: 'ok', meta: meta, data: pcState.scopes[scopeKey], ageMs: ageMs };
   }
 
   async function fetchMostRecentlyUpdated(scopeType, scopeName, entries) {
@@ -365,6 +370,81 @@ window.MarketData = (function () {
     return result;
   }
 
+  /* ── 資料中心的「即時」掛單：改成對每個世界各查一次再合併 ──
+   * 為什麼不直接查資料中心端點：實測資料中心端點裡的各世界資料可能比單一世界端點舊
+   * （遊戲內1200、網站寫1497的實際案例），而價格是買賣決策，寧可多打幾個請求也要拿最新的。
+   * 單一世界端點支援逗號分隔，一次查一批物品，所以 N 個物品只需要 ceil(N/chunk)×世界數 個請求，不是 N×世界數。
+   * 回傳 { 物品ID: { listings（合併後由低到高、每筆帶 worldName）, worlds: {世界: {min,minNQ,minHQ,upload}}, complete, fallback } }
+   *   complete＝每個世界都查成功；有世界失敗的物品會退回舊的資料中心端點（fallback＝true），兩邊都失敗才是不完整。
+   * 世界清單查不到時回傳 null，呼叫端沿用舊做法。 */
+  async function dcEndpointListings(ids, listingsN) {
+    const out = {};
+    const CHUNK = 40, chunks = [];
+    for (let i = 0; i < ids.length; i += CHUNK) chunks.push(ids.slice(i, i + CHUNK));
+    await Promise.all(chunks.map(async function (chunk) {
+      let data;
+      try { data = await fetchJsonRetry(API + '/' + encodeURIComponent(settings.dcName) + '/' + chunk.join(',') + '?listings=' + (listingsN || 50) + '&entries=0'); } catch (e) { return; }
+      const list = chunk.length === 1 ? (data && data.itemID != null ? [data] : []) : Object.keys((data && data.items) || {}).map(function (k) { return data.items[k]; });
+      list.forEach(function (entry) {
+        if (!entry || entry.itemID == null) return;
+        out[entry.itemID] = (entry.listings || []).slice().sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
+      });
+    }));
+    return out;
+  }
+  async function fetchDcByWorld(itemIds, opts) {
+    opts = opts || {};
+    if (!itemIds || !itemIds.length) return {};
+    await ensureMeta();
+    const worlds = await listWorldNamesInDc(settings.dcName);
+    if (!worlds.length) return null;
+    const CHUNK = opts.chunk || 40, LISTINGS = opts.listings || 50, CAP = opts.cap || 120;
+    const out = {};
+    itemIds.forEach(function (id) { out[id] = { listings: [], worlds: {}, okWorlds: 0, complete: false, fallback: false }; });
+    const chunks = [];
+    for (let i = 0; i < itemIds.length; i += CHUNK) chunks.push(itemIds.slice(i, i + CHUNK));
+    const jobs = [];
+    chunks.forEach(function (chunk) {
+      worlds.forEach(function (w) {
+        jobs.push((async function () {
+          let data;
+          try { data = await fetchJsonRetry(API + '/' + encodeURIComponent(w) + '/' + chunk.join(',') + '?listings=' + LISTINGS + '&entries=0'); }
+          catch (e) { return; } // 這個世界這一批失敗：不計入 okWorlds，後面會退回舊端點
+          chunk.forEach(function (id) { out[id].okWorlds++; });
+          const list = chunk.length === 1 ? (data && data.itemID != null ? [data] : []) : Object.keys((data && data.items) || {}).map(function (k) { return data.items[k]; });
+          list.forEach(function (entry) {
+            if (!entry || entry.itemID == null || !out[entry.itemID]) return;
+            const rec = out[entry.itemID];
+            const ls = (entry.listings || []).map(function (l) { l.worldName = l.worldName || w; return l; });
+            ls.forEach(function (l) { rec.listings.push(l); });
+            let first = null; ls.forEach(function (l) { if (first == null || l.pricePerUnit < first) first = l.pricePerUnit; });
+            rec.worlds[w] = { min: entry.minPrice || first || null, minNQ: entry.minPriceNQ || null, minHQ: entry.minPriceHQ || null, upload: entry.lastUploadTime || null };
+          });
+        })());
+      });
+    });
+    await Promise.all(jobs);
+    itemIds.forEach(function (id) {
+      const rec = out[id];
+      rec.listings.sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
+      if (rec.listings.length > CAP) rec.listings.length = CAP;
+      rec.complete = rec.okWorlds === worlds.length;
+    });
+    // okWorlds 是「成功的世界數」：每個 (批次, 世界) 成功會讓該批每個物品 +1，所以完整＝等於世界數
+    const bad = itemIds.filter(function (id) { return !out[id].complete; });
+    if (bad.length) {
+      if (opts.stats) opts.stats.worldFallback = (opts.stats.worldFallback || 0) + bad.length;
+      const fb = await dcEndpointListings(bad, LISTINGS);
+      bad.forEach(function (id) { if (fb[id]) { out[id].listings = fb[id]; out[id].fallback = true; } });
+      if (opts.stats) bad.forEach(function (id) { if (!out[id].fallback) opts.stats.failedChunks = (opts.stats.failedChunks || 0) + 1; });
+    }
+    return out;
+  }
+  async function isDcScope(scopeName) {
+    await ensureMeta();
+    return !!(dcList && dcList.some(function (d) { return d.name === scopeName; }));
+  }
+
   /* ── 指定範圍的批次查價：scopeName可以是資料中心也可以是單一世界。
    * 第2點抓到的bug：熱度排行選單一世界時，原本是拿「整個資料中心最便宜的50筆」再篩出該世界的，
    * 但那個世界自己真正最便宜的掛單，很可能根本擠不進全服前50便宜的名單裡，篩出來的就會是
@@ -375,6 +455,10 @@ window.MarketData = (function () {
     if (!itemIds.length) return {};
     await ensureMeta();
     const result = {};
+    if (await isDcScope(scopeName)) { // 資料中心範圍：改成各世界各查一次再合併（見 fetchDcByWorld）
+      const fresh = await fetchDcByWorld(itemIds, { listings: itemIds.length > 60 ? 20 : 50, chunk: 40, stats: stats });
+      if (fresh) { itemIds.forEach(function (id) { const r = fresh[id]; if (r && (r.complete || r.fallback)) result[id] = r.listings; }); return result; }
+    }
     const CHUNK = 40;
     const chunks = [];
     for (let i = 0; i < itemIds.length; i += CHUNK) chunks.push(itemIds.slice(i, i + CHUNK));
@@ -403,6 +487,33 @@ window.MarketData = (function () {
     const result = {};
     if (!itemIds || !itemIds.length) return result;
     await ensureMeta();
+    if (await isDcScope(scopeName)) { // 資料中心範圍：各世界各查一次再合併，最低價／NQ／HQ／更新時間都取各世界自己的最新值
+      const fresh = await fetchDcByWorld(itemIds, { listings: 3, chunk: 100, stats: stats });
+      if (fresh) {
+        itemIds.forEach(function (id) {
+          const rec = fresh[id];
+          if (!rec || !(rec.complete || rec.fallback)) return; // 這個物品沒查完整：不給數字（畫面會顯示查詢失敗，不會顯示一個偏高的價格）
+          let minNQ = null, minHQ = null, lastUpload = null;
+          const worldMins = {}, worldUploadTimes = {};
+          Object.keys(rec.worlds).forEach(function (w) {
+            const x = rec.worlds[w];
+            if (x.minNQ && (minNQ == null || x.minNQ < minNQ)) minNQ = x.minNQ;
+            if (x.minHQ && (minHQ == null || x.minHQ < minHQ)) minHQ = x.minHQ;
+            if (x.min) worldMins[w] = x.min;
+            if (x.upload) { worldUploadTimes[w] = x.upload; if (lastUpload == null || x.upload > lastUpload) lastUpload = x.upload; }
+          });
+          rec.listings.forEach(function (l) { // fallback 或 API 沒給 NQ/HQ 彙總時，用掛單本身補
+            if (l.hq) { if (minHQ == null || l.pricePerUnit < minHQ) minHQ = l.pricePerUnit; }
+            else if (minNQ == null || l.pricePerUnit < minNQ) minNQ = l.pricePerUnit;
+            if (l.worldName && (worldMins[l.worldName] == null || l.pricePerUnit < worldMins[l.worldName])) worldMins[l.worldName] = l.pricePerUnit;
+          });
+          let min = null, minWorld = null;
+          Object.keys(worldMins).forEach(function (w) { if (min == null || worldMins[w] < min) { min = worldMins[w]; minWorld = w; } });
+          result[id] = { min: min, minNQ: minNQ, minHQ: minHQ, minWorld: minWorld, lastUpload: lastUpload, worldUploadTimes: worldUploadTimes, worldMins: worldMins };
+        });
+        return result;
+      }
+    }
     const CHUNK = 40;
     const chunks = [];
     for (let i = 0; i < itemIds.length; i += CHUNK) chunks.push(itemIds.slice(i, i + CHUNK));
@@ -462,6 +573,18 @@ window.MarketData = (function () {
       need.push(id);
     });
     if (!need.length) return result;
+
+    // 即時查價改成各世界各查一次再合併（資料中心端點的世界資料可能比較舊，見 fetchDcByWorld）；世界清單取不到才走下面舊做法
+    const freshMap = await fetchDcByWorld(need, { listings: need.length > 60 ? 20 : 50, chunk: 40 }); // 大批查詢（雷達、批次規劃）每個世界只取最便宜20筆，回傳量才不會比以前大太多
+    if (freshMap) {
+      need.forEach(function (id) {
+        const r = freshMap[id];
+        if (!r || !(r.complete || r.fallback)) return; // 沒查完整的不寫入快取、不回傳，呼叫端會當作這次沒查到
+        memCache.set(id, { time: now, listings: r.listings });
+        result[id] = r.listings;
+      });
+      return result;
+    }
 
     // Universalis單次查詢itemId數量上限抓保守值，超過就分批送。
     // 第6/10點：批次縮小（90筆×50個掛單的回應非常大，越大越容易出問題），並且改成平行送出，
@@ -730,7 +853,62 @@ window.MarketData = (function () {
       return { world: worldName, pricePerUnit: l.pricePerUnit, quantity: l.quantity, hq: !!l.hq, retainerName: l.retainerName };
     }).sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
     arr.total = data.listingsCount != null ? data.listingsCount : arr.length; // 這個世界的掛單總數
+    arr.lastUploadTime = data.lastUploadTime || null; // 這個世界掛單資料的上傳時間（毫秒），拿來跟資料中心總覽比誰比較新
     return arr;
+  }
+
+  /* ── 以「各世界自己的資料」校正資料中心總覽 ──
+   * 實際案例：遊戲內交易板是 1200，網站寫 1497。資料中心端點（DC總覽）的各世界資料可能比單一世界端點舊
+   * （兩邊各自快取、更新時間不同步）。價格是「買賣決策」，寧可多打幾個請求也要拿最新的，所以：
+   *   1. 對資料中心裡每個世界各查一次（節流器限制同時連線數，不會一次全灌出去）；
+   *   2. 每個世界比較「單一世界回傳的 lastUploadTime」與「DC總覽記載的該世界更新時間」，
+   *      誰比較新就用誰（單一世界查失敗或沒比較新就保留 DC 的，不會因為某個請求失敗而讓畫面變空）；
+   *   3. 用校正後的掛單重算整體最低價／NQ／HQ 最低價／掛單數／最後更新時間。
+   * overview 會被就地修改；overview._freshWorlds[世界] = 該世界的掛單已是單一世界端點的最新資料。
+   * overview._worldSync 留下診斷資料（console 也會印），之後再有「價格對不上」可以直接看是哪個世界、差幾秒。 */
+  async function refreshOverviewFromWorlds(overview, itemId, worldNames, timeoutMs) {
+    if (!overview || !worldNames || !worldNames.length) return overview;
+    timeoutMs = timeoutMs || 5000; // 單一世界查太久就放棄、沿用總覽，頁面最多多等這麼久
+    const fresh = {}, diag = [];
+    const jobs = worldNames.map(function (w) {
+      return Promise.race([
+        getListingsForWorld(itemId, w),
+        new Promise(function (_, rej) { setTimeout(function () { rej(new Error('timeout')); }, timeoutMs); }),
+      ]).then(function (arr) { return { w: w, arr: arr }; }).catch(function (e) { return { w: w, err: e }; });
+    });
+    const results = await Promise.all(jobs);
+    let changed = false;
+    results.forEach(function (r) {
+      const dcTs = overview.worldUploadTimes[r.w] || 0;
+      if (r.err || !r.arr) { diag.push({ world: r.w, used: 'dc', reason: 'world請求失敗' }); return; }
+      const wTs = r.arr.lastUploadTime || 0;
+      // 單一世界的更新時間不比 DC 舊（或 DC 根本沒記這個世界）→ 用單一世界的
+      if (wTs >= dcTs) {
+        overview.listings = overview.listings.filter(function (l) { return l.world !== r.w; }).concat(r.arr);
+        if (wTs) overview.worldUploadTimes[r.w] = wTs;
+        fresh[r.w] = true; changed = true;
+        diag.push({ world: r.w, used: 'world', worldTs: wTs, dcTs: dcTs, worldNewerBySec: dcTs ? Math.round((wTs - dcTs) / 1000) : null });
+      } else {
+        diag.push({ world: r.w, used: 'dc', worldTs: wTs, dcTs: dcTs, dcNewerBySec: Math.round((dcTs - wTs) / 1000) });
+      }
+    });
+    if (changed) {
+      overview.listings.sort(function (a, b) { return a.pricePerUnit - b.pricePerUnit; });
+      const minOf = function (hq) { let m = null; overview.listings.forEach(function (l) { if (!!l.hq === hq && (m == null || l.pricePerUnit < m)) m = l.pricePerUnit; }); return m; };
+      overview.minPriceNQ = minOf(false); overview.minPriceHQ = minOf(true);
+      overview.minPrice = overview.listings.length ? overview.listings[0].pricePerUnit : null;
+      // 掛單總數：只有「每個世界都成功校正」才能確定手上就是全部；否則維持 API 給的總數（避免誤判成全部都在）
+      const allOk = worldNames.every(function (w) { return fresh[w]; });
+      overview.listings.total = allOk ? overview.listings.length : (overview.listingsCount != null ? overview.listingsCount : overview.listings.length);
+      overview.listingsCount = overview.listings.total;
+      const times = Object.keys(overview.worldUploadTimes).map(function (k) { return overview.worldUploadTimes[k]; }).filter(Boolean);
+      if (times.length) overview.lastUploadTime = Math.max.apply(null, times.concat(overview.lastUploadTime || 0));
+    }
+    overview._freshWorlds = fresh;
+    overview._freshAt = Date.now();
+    overview._worldSync = diag;
+    try { console.info('[market] 世界資料校正 itemId=' + itemId, diag); } catch (e) { /* 無 console 就算了 */ }
+    return overview;
   }
 
   /* 某個世界自己的最近成交紀錄（「查看最近成交紀錄」選了特定世界時用）。
@@ -748,7 +926,7 @@ window.MarketData = (function () {
    * scopeName 不給＝整個資料中心；給世界名稱＝只查那個世界（均價彈窗選了世界時用）。
    * 另外帶回：listingsCount（這個範圍目前總共有幾筆掛單，判斷手上這100筆是不是全部）、
    * minPriceNQ／minPriceHQ（NQ、HQ 各自的最低價，兩種品質不要混在一起算）。 */
-  async function getItemMarketOverviewEx(itemId, scopeName) {
+  async function getItemMarketOverviewEx(itemId, scopeName, opts) {
     await ensureMeta();
     const scope = scopeName || settings.dcName;
     if (!scope) return null;
@@ -766,7 +944,7 @@ window.MarketData = (function () {
     const worldUploadTimes = {};
     if (data.worldUploadTimes) Object.keys(data.worldUploadTimes).forEach(function (id) { worldUploadTimes[worldName(Number(id))] = data.worldUploadTimes[id]; });
     listings.total = data.listingsCount != null ? data.listingsCount : listings.length; // 掛單總數（標籤顯示總數）
-    return {
+    const ov = {
       listings: listings,
       listingsCount: data.listingsCount != null ? data.listingsCount : null,
       history: history,
@@ -778,10 +956,29 @@ window.MarketData = (function () {
       lastUploadTime: data.lastUploadTime || null, // 掛單資料的更新時間戳（毫秒），給「資料新鮮度」用
       worldUploadTimes: worldUploadTimes,            // {世界名稱: 更新時間戳(毫秒)}，資料中心查詢時 Universalis 會一併回傳；沒給就是空物件
     };
+    // 資料中心範圍：用各世界自己的最新資料校正（市場頁、生產頁「在售最低」、均價彈窗都走這裡，價格才會一致）。
+    // 校正失敗不影響結果（保留總覽原本的資料）。
+    if (!scopeName && ov.listings.length && !(opts && opts.noRefresh)) {
+      try { await refreshOverviewFromWorlds(ov, itemId, await listWorldNamesInDc(settings.dcName)); } catch (e) { /* 沿用總覽 */ }
+    }
+    /* 掛單均價排除離群：Universalis 的 currentAveragePrice 是「每筆掛單單價的平均」，只要有人亂標價
+     * （例如 999,999,999）就會被拉到幾百萬。這裡用跟成交均價同一套規則（excludeOutlierEntries，也受「排除異常成交」設定控制）
+     * 先排除離群掛單再算平均；定義不變（每筆掛單單價的簡單平均），只是少了亂標價。
+     * 掛單拿得完整時一律用手上（已校正）的掛單重算，這樣均價才跟畫面上的掛單對得上；掛單沒拿全（listingsCount > 筆數）時重算會偏低，才保留官方值。
+     * avgPriceRaw 留著官方原值，avgExcludedCount 是排除了幾筆。市場頁、生產頁、均價彈窗讀的都是 ov.avgPrice，所以一次修好。 */
+    if (ov.listings.length >= 1 && (ov.listingsCount == null || ov.listings.length >= ov.listingsCount)) {
+      const kept = excludeOutlierEntries(ov.listings, function (l) { return l.pricePerUnit; });
+      if (kept.length) {
+        ov.avgPriceRaw = ov.avgPrice; // 官方原值（資料中心端點算的，可能已經跟校正後的掛單對不上）
+        ov.avgPrice = kept.reduce(function (a, l) { return a + l.pricePerUnit; }, 0) / kept.length;
+        ov.avgExcludedCount = ov.listings.length - kept.length;
+      }
+    }
+    return ov;
   }
   /* 舊介面（生產頁等地方在用）：失敗回傳 null，行為不變，只是現在查詢有重試 */
-  async function getItemMarketOverview(itemId, scopeName) {
-    try { return await getItemMarketOverviewEx(itemId, scopeName); } catch (e) { return null; }
+  async function getItemMarketOverview(itemId, scopeName, opts) {
+    try { return await getItemMarketOverviewEx(itemId, scopeName, opts); } catch (e) { return null; }
   }
 
   async function getSellDepth(itemId, worldNameStr) {
@@ -1124,6 +1321,8 @@ window.MarketData = (function () {
     dcSelectorVisible: DC_SELECTOR_VISIBLE,
     lockedDc: LOCKED_DC,
     getListingsForWorld: getListingsForWorld,
+    fetchDcByWorld: fetchDcByWorld,
+    refreshOverviewFromWorlds: refreshOverviewFromWorlds,
     getRecentHistoryForWorld: getRecentHistoryForWorld,
     loadPrecomputed: loadPrecomputed,
     fetchHistoryBatch: fetchHistoryBatch,
