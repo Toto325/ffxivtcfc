@@ -29,13 +29,41 @@ function encode(lib, shapes) { // 技能名稱改成編號，檔案小很多
 function decodeAll(lib) { const out = {}; Object.keys(lib.shapes).forEach((k) => { out[k] = lib.shapes[k].map((r) => r.map((i) => lib.actions[i])); }); return out; }
 
 if (args.includes('--merge')) {
-  const files = args.slice(args.indexOf('--merge') + 1).filter((a) => !a.startsWith('--') && a !== OUT && fs.existsSync(a));
-  const merged = { v: 1, actions: [], shapes: {} }; const all = {};
-  files.concat(fs.existsSync(OUT) ? [OUT] : []).forEach((f) => { const d = decodeAll(load(f)); Object.keys(d).forEach((k) => { all[k] = (all[k] || []).concat(d[k]); }); });
-  Object.keys(all).forEach((k) => { const seen = new Set(); all[k] = all[k].filter((r) => { const s = r.join(','); if (seen.has(s)) return false; seen.add(s); return true; }); });
-  encode(merged, all); fs.writeFileSync(OUT, JSON.stringify(merged)); console.log('merged', Object.keys(all).length, 'shapes ->', OUT); process.exit(0);
-}
-
+  (async () => {
+    const files = args.slice(args.indexOf('--merge') + 1).filter((a) => !a.startsWith('--') && a !== OUT && fs.existsSync(a));
+    const merged = { v: 1, actions: [], shapes: {} }; const all = {};
+    files.concat(fs.existsSync(OUT) ? [OUT] : []).forEach((f) => { const d = decodeAll(load(f)); Object.keys(d).forEach((k) => { all[k] = (all[k] || []).concat(d[k]); }); });
+    Object.keys(all).forEach((k) => { const seen = new Set(); all[k] = all[k].filter((r) => { const s = r.join(','); if (seen.has(s)) return false; seen.add(s); return true; }); });
+    // --prune N：把每個形狀修剪成「需求不被其他手法全面壓過」的手法，最多約 N 套（可用掌握與不能用掌握的玩家各自保留），超過時沿作業需求平均挑選。
+    // 實測（高等級一般配方）修剪到每形狀約 12 套，庫縮小約一半，求解結果與完整庫相當。只修剪 rlvl >= --prune-min-rlvl（預設 580，也就是有驗證過的範圍）的形狀。
+    const PRUNE = +opt('prune', 0), PRUNE_MIN = +opt('prune-min-rlvl', 580);
+    if (PRUNE > 0) {
+      const w = makeWorker({ library: false }); const R = w.recipes(); const rep = new Map();
+      Object.keys(R).forEach((id) => { const r = R[id]; if (!(r.quality > 0)) return; const k = w.shapeKeyOf(r); const c = rep.get(k); if (!c) rep.set(k, { id, rlvl: r.rlvl }); else if (r.rlvl > c.rlvl) c.rlvl = r.rlvl; });
+      const le = (a, b) => a.cs <= b.cs && a.ct <= b.ct && a.cp <= b.cp;
+      const front = (items) => items.filter((c, i) => !items.some((e, j) => j !== i && le(e, c) && (e.cs < c.cs || e.ct < c.ct || e.cp < c.cp || j < i)));
+      const thin = (items, n) => { if (items.length <= n) return items; const sorted = items.slice().sort((a, b) => a.cs - b.cs); const r = []; for (let i = 0; i < n; i++) r.push(sorted[Math.round(i * (sorted.length - 1) / Math.max(1, n - 1))]); return Array.from(new Set(r)); };
+      let before = 0, after = 0, done = 0;
+      for (const k of Object.keys(all)) {
+        const rots = all[k]; before += rots.length; const info = rep.get(k);
+        if (!info || info.rlvl < PRUNE_MIN || rots.length <= PRUNE) { after += rots.length; continue; }
+        const rec = R[info.id];
+        try {
+          const nr = (await w.send({ type: 'needs', recipeId: info.id, stats: { jobId: rec.jobId, level: 100 }, goal: 'full', hq: [], keysList: rots })).result;
+          const items = nr.map((x, i) => x ? { i, cs: x.cs, ct: x.ct, cp: x.cp, man: rots[i].includes('Manipulation') } : null).filter(Boolean);
+          if (!items.length) { after += rots.length; continue; } // 算不出需求（例如被模擬器判定為不可行）的形狀不動它
+          const keep = new Set();
+          thin(front(items), PRUNE).forEach((c) => keep.add(c.i));
+          thin(front(items.filter((c) => !c.man)), Math.max(2, Math.floor(PRUNE / 2))).forEach((c) => keep.add(c.i));
+          all[k] = rots.filter((_, i) => keep.has(i));
+        } catch (e) { /* 這個形狀修剪失敗就保留原樣 */ }
+        after += all[k].length; done++;
+      }
+      console.log('prune: rotations', before, '->', after, '(' + done + ' shapes pruned)');
+    }
+    encode(merged, all); fs.writeFileSync(OUT, JSON.stringify(merged)); console.log('merged', Object.keys(all).length, 'shapes ->', OUT, '|', fs.statSync(OUT).size, 'bytes'); process.exit(0);
+  })();
+} else
 (async () => {
   const EXTRA_EX = String(opt('exclude', '')).split(',').filter(Boolean); // 例如 --exclude Manipulation：在「玩家沒學會操作」的條件下建庫（手法不能用這些技能）
   const w = makeWorker({ library: false, extraExcluded: EXTRA_EX });
