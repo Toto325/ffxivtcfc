@@ -177,6 +177,24 @@
   // 把文字放進 HTML 之前先「跳脫」：把 < > & " 換成安全的寫法，這樣名稱裡就算剛好有這些符號，也只會被當成文字顯示，
   // 不會被瀏覽器當成網頁語法（例如名稱裡的 " 會把 title="…" 提早結束）。物品名稱目前都來自你自己的資料所以沒有實際風險，
   // 但從 localStorage（最近查看）讀出來的內容可以被改，加上這一層比較保險。
+  /* ── 搜尋比對共用工具（市場頁所有搜尋框都走這裡）──
+   * 名稱跟關鍵字先過同一套正規化再比：NFKC（全形英數→半形，例如「ＨＱ」「１」）、轉小寫（大小寫不分）、
+   * 去掉所有空白。關鍵字用空白分成多段＝每一段都要符合（順序不拘），跟生產頁的配方搜尋行為一致。
+   * 名稱的正規化結果照物品ID快取，只算一次，不然每敲一個鍵都要對幾萬個名稱重做一遍。 */
+  function normSearch(str) { return String(str == null ? '' : str).normalize('NFKC').toLowerCase().replace(/\s+/g, ''); }
+  function searchTokens(q) { return String(q == null ? '' : q).normalize('NFKC').toLowerCase().split(/\s+/).filter(Boolean); }
+  const NORM_NAME_CACHE = Object.create(null);
+  function normNameOf(id, name) {
+    const hit = NORM_NAME_CACHE[id];
+    if (hit !== undefined && hit.src === name) return hit.n;
+    const n = normSearch(name);
+    NORM_NAME_CACHE[id] = { src: name, n: n };
+    return n;
+  }
+  function tokensMatch(nameN, tokens) {
+    for (let i = 0; i < tokens.length; i++) { if (nameN.indexOf(tokens[i]) === -1) return false; }
+    return true;
+  }
   function escHtml(t) { return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
   function renderMarketSkeleton() {
@@ -399,6 +417,16 @@
       debounceTimer = setTimeout(runSearch, 120);
     });
     input.addEventListener('compositionend', function () { clearTimeout(debounceTimer); debounceTimer = setTimeout(runSearch, 0); });
+    // 第一次搜尋要把 1.6 萬個名稱都正規化一遍，會讓第一個字卡一下；游標一點進搜尋框就趁空檔先算好。
+    let warmed = false;
+    input.addEventListener('focus', function () {
+      if (warmed) return; warmed = true;
+      const warm = function () {
+        const ids = (typeof ITEM_MARKETABLE_TW !== 'undefined' && ITEM_MARKETABLE_TW.length) ? ITEM_MARKETABLE_TW : Object.keys(ITEM_NAMES_TW_ALL);
+        for (let i = 0; i < ids.length; i++) { const nm = ITEM_NAMES_TW_ALL[ids[i]]; if (nm) normNameOf(ids[i], nm); }
+      };
+      if (window.requestIdleCallback) requestIdleCallback(warm, { timeout: 1500 }); else setTimeout(warm, 50);
+    });
     // 結果清單的點擊用事件委派，只綁一次（原本每次搜尋都替每一列重綁 2 個監聽器）
     box.addEventListener('click', function (e) {
       const star = e.target.closest('[data-wl-star]');
@@ -421,10 +449,15 @@
       // 只搜尋可在市場交易的物品（ITEM_MARKETABLE_TW 由 update-craft-data.js 產生）；
       // 貨幣、不可交易的物品不需要被直接搜尋到，仍可從其他物品的兌換清單點進去。
       const ids = (typeof ITEM_MARKETABLE_TW !== 'undefined' && ITEM_MARKETABLE_TW.length) ? ITEM_MARKETABLE_TW : Object.keys(ITEM_NAMES_TW_ALL);
+      const qTokens = searchTokens(q);
+      const qN = normSearch(q);
+      if (!qTokens.length) { closeBox(); return; }
       const matches = [];
       for (let i = 0; i < ids.length; i++) {
         const name = ITEM_NAMES_TW_ALL[ids[i]];
-        if (name && name.indexOf(q) !== -1) matches.push({ id: ids[i], name: name });
+        if (!name) continue;
+        const nameN = normNameOf(ids[i], name);
+        if (tokensMatch(nameN, qTokens)) matches.push({ id: ids[i], name: name, nameN: nameN });
       }
       // 第5點抓到的真正原因：純粹按物品ID排序，會讓「基礎材料」被自己衍生出來的一大堆裝備
       // 名稱排擠出前30名——例如「銀狼革」這個素材本身的ID，剛好比拿它做出來的33件裝備的ID都大，
@@ -432,13 +465,13 @@
       // （這個物品在供應鏈圖上能正確顯示價格，證明資料完全存在），純粹是排序方式的問題。
       // 改成先比對「符合程度」：完全等於搜尋字串 > 開頭符合 > 只是包含在中間；
       // 同等級再比名字長度（越短越接近你在找的東西），最後才用ID排序當保底。
-      function rank(name) {
-        if (name === q) return 0;
-        if (name.indexOf(q) === 0) return 1;
+      function rank(nameN) {
+        if (nameN === qN) return 0;
+        if (nameN.indexOf(qN) === 0) return 1;
         return 2;
       }
       matches.sort(function (a, b) {
-        const ra = rank(a.name), rb = rank(b.name);
+        const ra = rank(a.nameN), rb = rank(b.nameN);
         if (ra !== rb) return ra - rb;
         if (a.name.length !== b.name.length) return a.name.length - b.name.length;
         return Number(a.id) - Number(b.id);
@@ -1185,6 +1218,50 @@
     row[7] = [minN, minH];
     return row;
   }
+  /* 供應鏈圖的「即時掛單價校正」：圖上每張卡片的「買 vs 自製」都是用預先計算的快照算的（最多落後一個排程週期），
+   * 但卡片上另外顯示的最低價標籤是即時查的，同一張卡片會出現兩個對不上的價格。
+   * 價格基準是「掛單價」時，圖上出現的物品（中心物品、材料、用在哪的成品）加上自製成本會往下追的材料，
+   * 背景查一次「現在」的最低掛單，蓋到快照上重算、重畫。數量通常只有幾十個，一批請求就夠。 */
+  const liveMinOverlay = {}; // 範圍（'ALL' 或世界名）-> { 物品ID: { min, minN, minH, time } }
+  function collectSupplyLiveIds(itemId, rid) {
+    const byItem = getRecipesByItem(), seen = {}, out = [];
+    function add(id) { id = Number(id); if (seen[id] || out.length >= 150) return false; seen[id] = 1; out.push(id); return true; }
+    function addTree(id, depth) { // 自製成本會一路往下算，下面幾層的材料價格也要即時
+      const r = byItem[id] && byItem[id][0];
+      if (!r || depth > 4) return;
+      (r.ingredients || []).forEach(function (ing) { if (add(ing.itemId)) addTree(ing.itemId, depth + 1); });
+    }
+    const recipe = rid ? CRAFT_RECIPES[rid] : null;
+    const mats = recipe ? (recipe.ingredients || []).map(function (ing) { return ing.itemId; }) : [];
+    const usedIn = (buildUsedInIndex()[itemId] || []).slice(0, 20).map(function (urid) { const r = CRAFT_RECIPES[urid]; return r ? r.itemId : null; }).filter(function (x) { return x != null; });
+    add(itemId); mats.forEach(add); usedIn.forEach(add); // 先把圖上直接看得到的放進去（超過上限時優先保留）
+    mats.forEach(function (id) { addTree(id, 1); }); usedIn.forEach(function (id) { addTree(id, 1); });
+    return out;
+  }
+  // redraw：由 renderSupplyChainWithBreakdown 傳進來的重畫函式；dcData：這次畫圖用的資料（拿來判斷即時價跟快照有沒有差，沒差就不重畫）
+  async function supplyLiveCorrect(itemId, rid, box, dcData, redraw) {
+    try {
+      const pf = MarketData.getPricePrefs(), st = MarketData.getSettings();
+      const scopeKey = (pf.buyScope === 'world' && st.worldName) ? st.worldName : 'ALL';
+      const fresh = function (rec) { return rec && Date.now() - rec.time < 5 * 60 * 1000; };
+      const lv = (liveMinOverlay[scopeKey] = liveMinOverlay[scopeKey] || {});
+      const need = collectSupplyLiveIds(itemId, rid).filter(function (id) { return !fresh(lv[id]) && !fresh(liveRowOverlay[String(id)]); });
+      if (!need.length) return;
+      const res = await MarketData.fetchWatchBatch(need, scopeKey === 'ALL' ? st.dcName : scopeKey, {});
+      let differs = false;
+      need.forEach(function (id) {
+        const r = res[id];
+        if (!r) return; // 沒查到（請求失敗）：保留快照價
+        lv[id] = { min: r.min, minN: r.minNQ, minH: r.minHQ, time: Date.now() };
+        const row = dcData && dcData.items && dcData.items[id], Q = row && row[7];
+        if ((row ? row[2] : null) !== r.min || (Q ? Q[0] : null) !== r.minNQ || (Q ? Q[1] : null) !== r.minHQ) differs = true;
+      });
+      if (!differs) return; // 即時價跟快照一樣：畫面不用動
+      // 查的期間使用者已經換了物品／離開頁面：不要蓋掉現在的畫面
+      if (!lastSupplyCtx || lastSupplyCtx.box !== box || lastSupplyCtx.itemId !== itemId || !document.body.contains(box)) return;
+      redraw();
+    } catch (e) { /* 校正失敗就維持快照價，不影響供應鏈圖 */ }
+  }
   async function getPrecomputedAllData() {
     try {
       const pf = MarketData.getPricePrefs(), w = MarketData.getSettings().worldName; // 供應鏈是「買」的決策：看全站共用設定的買入範圍
@@ -1192,9 +1269,16 @@
       const r = await MarketData.loadPrecomputed(scopeKey);
       if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) {
         const ids = Object.keys(liveRowOverlay).filter(function (id) { return Date.now() - liveRowOverlay[id].time < 5 * 60 * 1000; });
-        if (!ids.length) return r.data;
+        const lm = liveMinOverlay[scopeKey] || {};
+        const minIds = Object.keys(lm).filter(function (id) { return Date.now() - lm[id].time < 5 * 60 * 1000; });
+        if (!ids.length && !minIds.length) return r.data;
         const items = Object.assign({}, r.data.items);
-        ids.forEach(function (id) { items[id] = overlayRowFor(id, scopeKey, items[id]); });
+        minIds.forEach(function (id) { // 供應鏈圖查到的即時最低價（見 supplyLiveCorrect）
+          const row = items[id] ? items[id].slice() : [0, 0, null, null, null, null, null, null, null];
+          row[2] = lm[id].min; row[7] = [lm[id].minN, lm[id].minH];
+          items[id] = row;
+        });
+        ids.forEach(function (id) { items[id] = overlayRowFor(id, scopeKey, items[id]); }); // 物品頁那份有完整掛單，優先
         return Object.assign({}, r.data, { items: items });
       }
     } catch (e) { /* 讀不到就回傳null，呼叫端自行處理 */ }
@@ -2510,10 +2594,10 @@
    * 不需要重新整理整個物品詳情頁。 */
   let prefsSupplyHooked = false;
   let lastSupplyCtx = null; // 最後一次畫供應鏈圖的物品與容器：全站取價設定改了要能原地重畫
-  async function renderSupplyChainWithBreakdown(itemId, rid, box) {
+  async function renderSupplyChainWithBreakdown(itemId, rid, box, silent) { // silent＝即時價校正完成後的重畫：不顯示「讀取中」、不再發起校正
     lastSupplyCtx = { itemId: itemId, rid: rid, box: box };
     const settings = getSupplySettings();
-    box.innerHTML = '<p class="craft-muted">讀取供應鏈中⋯</p>';
+    if (!silent) box.innerHTML = '<p class="craft-muted">讀取供應鏈中⋯</p>';
     // 只要圖上會出現任何卡片（不管是材料還是用在哪）就要讀價格快照——用在哪的卡片一樣需要買/做比較，
     // 不是只有中心物品自己有配方時才需要（原礦類物品沒有配方，但一樣有「用在哪」的卡片要顯示比較）。
     const hasAnyGraph = !!rid || ((buildUsedInIndex()[itemId] || []).length > 0);
@@ -2535,6 +2619,10 @@
       if (bdOn && bdOff && bdOn.totalAuto != null && bdOff.totalAuto != null) crystalImpact = bdOn.totalAuto - bdOff.totalAuto; // 水晶的真實成本貢獻，恆為正
     }
     renderSupplyChain(itemId, rid, box, bd, dcData, settings, bdUnavailable, 1, crystalImpact);
+    // 掛單價基準：圖先用快照畫出來（不讓人等），背景查圖上物品的即時最低價，有差才重畫一次
+    if (!silent && dcData && settings.materialsBasis === 'listing') {
+      supplyLiveCorrect(itemId, rid, box, dcData, function () { renderSupplyChainWithBreakdown(itemId, rid, box, true); });
+    }
     return dcData; // 讓呼叫端（設定彈窗）能拿到這次重畫用的最新資料，不用沿用自己手上可能過期的那份
   }
 
@@ -4561,17 +4649,81 @@
    * 「哪些代幣算沒有可比價、要隱藏」固定用所有世界的掛單價判斷，不跟著切換，這樣切換基準時清單不會忽多忽少。 */
   // 代幣換到的東西是拿去賣的：範圍與基準都用全站共用設定的「賣出」那一邊
   function tokenScopeEff() { return MarketData.getPricePrefs().sellScope === 'world' ? 'world' : 'all'; }
+  /* 代幣兌換的「即時掛單價校正」：排行本身用預先計算的快照（最多落後一個排程週期），
+   * 價格基準是「掛單價」時，展開代幣後會對排行前面那幾十個兌換物（連同它們的其他付出項、鏈式終點）查一次「現在」的最低掛單，
+   * 蓋到快照上重算、重畫。做法跟製作商機的「前 50 名即時更新」一樣：快照負責「找」，即時價負責「定」。
+   * 均價基準是成交窗口（歷史資料），不需要也不做即時校正。校正結果 5 分鐘內有效，同一個範圍的各代幣共用。 */
+  const tokenLive = {}; // 範圍（'ALL' 或世界名）-> { 物品ID: { min, minN, minH, time } }
+  const TOKEN_LIVE_TTL = 5 * 60 * 1000;
+  function tokenLiveKey() { return tokenScopeEff() === 'world' ? MarketData.getSettings().worldName : 'ALL'; }
+  function tokenLiveFresh(rec) { return rec && Date.now() - rec.time < TOKEN_LIVE_TTL; }
+  function applyTokenLive(data) {
+    if (MarketData.getPricePrefs().sellBasis !== 'listing') return data; // 只有掛單價基準才需要
+    const lv = tokenLive[tokenLiveKey()];
+    if (!lv) return data;
+    const ids = Object.keys(lv).filter(function (id) { return tokenLiveFresh(lv[id]); });
+    if (!ids.length) return data;
+    const items = Object.assign({}, data.items);
+    ids.forEach(function (id) {
+      const row = items[id] ? items[id].slice() : [0, 0, null, null, null, null, null, null, null];
+      row[2] = lv[id].min; row[7] = [lv[id].minN, lv[id].minH];
+      items[id] = row;
+    });
+    return Object.assign({}, data, { items: items });
+  }
+  function tokenLiveStamp() { // 目前有效的校正裡最新的一筆時間（沒有就回傳 0）
+    const lv = tokenLive[tokenLiveKey()] || {};
+    let t = 0; Object.keys(lv).forEach(function (id) { if (tokenLiveFresh(lv[id]) && lv[id].time > t) t = lv[id].time; });
+    return t;
+  }
+  async function tokenLiveCorrect(body, tokenId, gen, topRows, redraw) { // redraw＝由 renderTokenBody 傳進來的重畫函式（它定義在內層，這裡看不到）
+    try {
+      buildTradeIndices();
+      const need = {}, rowItems = new Set();
+      topRows.forEach(function (r) {
+        rowItems.add(r.resultItems);
+        r.resultItems.forEach(function (it) { need[it[0]] = 1; });
+        if (r.chainEnd != null) need[r.chainEnd] = 1;
+      });
+      (tradesByCurrencyCache[tokenId] || []).forEach(function (t) { // 這些兌換的「其他付出項」也要用即時價，不然成本還是舊的
+        if (!rowItems.has(t.items)) return;
+        t.currencies.forEach(function (c) { if (c[0] !== Number(tokenId) && c[0] !== 1) need[c[0]] = 1; });
+      });
+      const key = tokenLiveKey();
+      const lv = (tokenLive[key] = tokenLive[key] || {});
+      const ids = Object.keys(need).filter(function (id) { return !tokenLiveFresh(lv[id]); }).slice(0, 150).map(Number);
+      if (!ids.length) return;
+      const st = MarketData.getSettings();
+      const res = await MarketData.fetchWatchBatch(ids, key === 'ALL' ? st.dcName : key, {});
+      let stored = 0;
+      ids.forEach(function (id) {
+        const r = res[id];
+        if (!r) return; // 這個物品沒查到（請求失敗）：保留快照價，不蓋掉
+        lv[id] = { min: r.min, minN: r.minNQ, minH: r.minHQ, time: Date.now() };
+        stored++;
+      });
+      if (!stored) { tokenLiveFail(body, tokenId, gen, redraw); return; }
+      // 查的期間使用者已經收起、換了代幣、或改了排序：不要蓋掉現在的畫面
+      if (body.__tokGen !== gen || body.dataset.loaded !== '1' || String(body.dataset.tokenId) !== String(tokenId)) return;
+      redraw();
+    } catch (e) { tokenLiveFail(body, tokenId, gen, redraw); /* 校正失敗就維持快照價，不影響排行 */ }
+  }
+  function tokenLiveFail(body, tokenId, gen, redraw) { // 查不到即時價：把畫面底下那行字改成「查詢失敗」，免得一直顯示「正在查⋯」
+    if (body.__tokGen !== gen || body.dataset.loaded !== '1' || String(body.dataset.tokenId) !== String(tokenId)) return;
+    body.__tokLiveState = 'failed';
+    redraw();
+  }
   async function getTokenData() {
     if (tokenScopeEff() === 'world') {
       try {
         const r = await MarketData.loadPrecomputed(MarketData.getSettings().worldName);
-        if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return r.data;
+        if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return applyTokenLive(r.data);
       } catch (e) { /* 讀不到就回傳null，呼叫端自行處理 */ }
       return null;
     }
     try { // 「所有世界」固定讀 ALL，不受供應鏈的買入範圍影響
       const r = await MarketData.loadPrecomputed('ALL');
-      if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return r.data;
+      if (r.state === 'ok' && r.ageMs <= 24 * 3600 * 1000) return applyTokenLive(r.data);
     } catch (e) { /* 讀不到就回傳null */ }
     return null;
   }
@@ -4677,14 +4829,16 @@
       const sel = groups.find(function (g) { return g.key === tokenCatSel; });
       $('mk-token-note').textContent = sel ? sel.desc : '';
       $('mk-token-note').style.display = sel ? '' : 'none';
-      if (kw) {
+      const kwTokens = searchTokens(kw);
+      const kwHit = function (x) { return tokensMatch(normNameOf('tok' + x.id, x.name), kwTokens); };
+      if (kwTokens.length) {
         // 搜尋：選了某個分類就只在該分類裡找；選「全部」就全部分類一起找，每列標出所屬分類
         const pool = sel ? byGroup[sel.key] : list;
-        const rows = pool.filter(function (x) { return x.name.indexOf(kw) !== -1; });
+        const rows = pool.filter(kwHit);
         if (rows.length) { box.innerHTML = '<div class="market-token-panel">' + rows.map(function (x) { return tokenRowHtml(x, !sel); }).join('') + '</div>'; return; }
-        const elsewhere = sel ? list.filter(function (x) { return x.name.indexOf(kw) !== -1; }).length : 0;
+        const elsewhere = sel ? list.filter(kwHit).length : 0;
         // 被隱藏的代幣也要能被「找得到」：搜尋沒結果、但其實有被隱藏的符合時，明講出來，不然玩家會以為沒有這個代幣
-        const hiddenMatch = tokenShowHidden ? 0 : allList.filter(function (x) { return hiddenIds[x.id] && x.name.indexOf(kw) !== -1; }).length;
+        const hiddenMatch = tokenShowHidden ? 0 : allList.filter(function (x) { return hiddenIds[x.id] && kwHit(x); }).length;
         box.innerHTML = '<p class="craft-muted">' + (sel ? '「' + sel.label + '」裡沒有符合的代幣' + (elsewhere ? '，但其他分類有 ' + elsewhere + ' 個符合，切到「全部」可以看到。' : '。') : '沒有符合的代幣。') +
           (hiddenMatch ? '　另有 ' + hiddenMatch + ' 個被隱藏的符合（換到的東西都沒有可比價），點上方的 ⚙ 勾選「顯示沒有可比價兌換物的代幣」就能看到。' : '') + '</p>';
         return;
@@ -4789,7 +4943,14 @@
       setTokenFold(false); // 分類是「選一次就看結果」的操作：選完立刻收起，把空間還給清單（摘要會顯示目前分類，想換再點開）
       const sb = pane.querySelector('.market-pane-scrollbody'); if (sb) sb.scrollTop = 0;
     });
-    $('mk-token-search').addEventListener('input', renderList);
+    // 代幣搜尋原本每敲一個鍵就整份重畫；注音／拼音組字中每個鍵都會觸發，手機上很容易卡。
+    // 跟物品搜尋框一樣：組字中不搜、停手 120ms 才搜、組字完成立刻搜。
+    (function () {
+      const tin = $('mk-token-search');
+      let tTimer = 0;
+      tin.addEventListener('input', function (e) { clearTimeout(tTimer); if (e.isComposing) return; tTimer = setTimeout(renderList, 120); });
+      tin.addEventListener('compositionend', function () { clearTimeout(tTimer); tTimer = setTimeout(renderList, 0); });
+    })();
     // 窄容器：搜尋框收成放大鏡鈕，點了才換成搜尋列（關掉會一併清除關鍵字，免得「看不到的篩選」還在作用）
     $('mk-token-sbtn').addEventListener('click', function () {
       setTokenFold(false);
@@ -4935,14 +5096,16 @@
       btn.classList.remove('is-short'); row.dataset.npcFit = 'wrap';
     }
     function fitAllNpcBtns() { pane.querySelectorAll('.market-token-row.is-open').forEach(fitNpcBtn); }
-    async function renderTokenBody(body, id) {
+    async function renderTokenBody(body, id, silent) { // silent＝即時價校正完成後的重畫：不顯示「讀取中」、不重新發起校正
       body.dataset.loaded = '1';
+      const gen = silent ? body.__tokGen : (body.__tokGen = (body.__tokGen || 0) + 1); // 每次完整重畫換編號，校正回來時用來判斷畫面還是不是同一份
       const tokRow = body.closest('.market-token-row');
       const npcSlot = tokRow && tokRow.querySelector('.mk-npc-slot');
       if (npcSlot) npcSlot.innerHTML = '';
-      body.innerHTML = '<p class="craft-muted">讀取排行中⋯</p>';
+      if (!silent) body.innerHTML = '<p class="craft-muted">讀取排行中⋯</p>';
       const settings = getSupplySettings();
       const dcData = await getTokenData();
+      if (body.__tokGen !== gen) return; // 讀資料的期間又有新的重畫（換排序、換代幣），這一份作廢
       if (!dcData) {
         body.innerHTML = tokenScopeEff() === 'world'
           ? '<p class="craft-muted">目前沒有「' + MarketData.getSettings().worldName + '」的市場快照資料，暫時無法算出排行；可以切回「所有世界」。</p>'
@@ -4982,6 +5145,11 @@
       notes.push(all.length > SHOW ? '列出前 ' + SHOW + ' 名，共 ' + all.length + ' 種可比價' : '共 ' + all.length + ' 種可比價');
       if (tokenScopeEff() === 'world') notes.push('價格以「' + MarketData.getSettings().worldName + '」為準');
       if (slowCut) notes.push('已排除 ' + slowCut + ' 種明顯滯銷物品');
+      if (MarketData.getPricePrefs().sellBasis === 'listing') {
+        const liveAt = tokenLiveStamp();
+        if (liveAt) { const hh = new Date(liveAt); notes.push('已用即時掛單價校正（' + (hh.getHours() < 10 ? '0' : '') + hh.getHours() + ':' + (hh.getMinutes() < 10 ? '0' : '') + hh.getMinutes() + '）'); }
+        else notes.push(body.__tokLiveState === 'failed' ? '即時掛單價查詢失敗，顯示的是預先計算快照（約每15分鐘更新）' : '價格為預先計算快照（約每15分鐘更新），正在查即時掛單價⋯');
+      }
       if (totalTrades > allRaw.length) notes.push('另有 ' + (totalTrades - allRaw.length) + ' 種不可交易且NPC收購價為0，或目前市場上沒有行情');
       const legendParts = [];
       if (best.some(function (r) { return r.viaChain; })) legendParts.push('🔗→ 再兌換成該物品後的市價');
@@ -5015,6 +5183,8 @@
         });
       });
       if (npcSlot) { npcSlot.innerHTML = npcBtnHtml; fitNpcBtn(tokRow); }
+      // 掛單價基準：快照畫好之後，背景查一次排行前面那些物品的即時最低價，回來再重畫一次（均價基準是歷史成交，不需要）
+      if (!silent && MarketData.getPricePrefs().sellBasis === 'listing') { body.__tokLiveState = 'pending'; tokenLiveCorrect(body, id, gen, all.slice(0, 40), function () { renderTokenBody(body, id, true); }); }
     }
   }
 
@@ -5096,6 +5266,35 @@
       $('mk-hot-start').addEventListener('click', function () { runHotScan(ui.scope, ui.metric); });
     }
 
+    /* 預先計算模式下，名稱旁那個綠色的「掛單最低價」是快照裡的值。排行（漲跌、賣速）本來就是用成交窗口算的、不受影響，
+     * 這個價格只是顯示，所以顯示出來的那幾十筆另外查一次即時最低價，直接改掉畫面上的數字（不重排、不重畫）。 */
+    const hotLiveMin = {}; // '範圍|物品ID' -> { min, time }
+    function hotLiveUpdate(ids, scope, body) {
+      const s = MarketData.getSettings(), scopeName = scope === 'ALL' ? s.dcName : scope;
+      if (!scopeName || !ids.length) return;
+      const keyOf = function (id) { return scope + '|' + id; };
+      const fresh = function (rec) { return rec && Date.now() - rec.time < 5 * 60 * 1000; };
+      function paint() {
+        ids.forEach(function (id) {
+          const rec = hotLiveMin[keyOf(id)];
+          if (!fresh(rec)) return;
+          const el = body.querySelector('[data-mk-hot-item="' + id + '"] .market-hot-price');
+          if (!el) return;
+          const hh = new Date(rec.time);
+          el.textContent = rec.min != null ? fmtGil(rec.min) + '金' : '無人出售';
+          el.title = '已用即時掛單價更新（' + (hh.getHours() < 10 ? '0' : '') + hh.getHours() + ':' + (hh.getMinutes() < 10 ? '0' : '') + hh.getMinutes() + '）；掛單隨時會變動，只供參考，不參與任何計算';
+        });
+      }
+      paint();
+      const need = ids.filter(function (id) { return !fresh(hotLiveMin[keyOf(id)]); });
+      if (!need.length) return;
+      MarketData.fetchWatchBatch(need.map(Number), scopeName, {}).then(function (res) {
+        need.forEach(function (id) { if (res[id]) hotLiveMin[keyOf(id)] = { min: res[id].min, time: Date.now() }; }); // 沒查到的保留快照價
+        if (ui.scope !== scope || $('mk-hot-body') !== body) return; // 查的期間使用者換了範圍或畫面已重畫
+        paint();
+      }).catch(function () { /* 查不到就維持快照價（旁邊的提示本來就寫了可能已變動） */ });
+    }
+
     function renderPre() {
       const r = pcResult;
       const body = $('mk-hot-body');
@@ -5158,6 +5357,7 @@
       bindMoreInfoToggles(body);
       body.querySelectorAll('[data-mk-hot-item]').forEach(function (el) { el.addEventListener('click', function () { openItemDetail(el.dataset.mkHotItem); }); });
       const more = $('mk-hot-more'); if (more) more.addEventListener('click', function () { ui.shown += 30; renderPre(); });
+      hotLiveUpdate(top.map(function (e) { return e.id; }), ui.scope, body);
     }
 
     async function load() {

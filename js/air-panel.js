@@ -454,9 +454,9 @@ app.exploreUi.enhanceAll(root);
     const dd = document.createElement('div'); dd.className = 'sub-combo-dd'; dd.style.display = 'none';
     const allOpts = AIR_SECTORS.map(s => ({ val: s[0], label: `${s[1]} — ${s[3]}` }));
     const renderDD = q => {
-      dd.innerHTML = ''; q = (q || '').trim().toLowerCase();
+      dd.innerHTML = ''; q = (q || '').trim().normalize('NFKC').toLowerCase();
       allOpts.forEach(o => {
-        const lo = o.label.toLowerCase();
+        const lo = o.label.normalize('NFKC').toLowerCase();
         if (q && !lo.includes(q)) return;
         const it = document.createElement('div'); it.className = 'sub-combo-item' + (arr.includes(o.val) ? ' selected' : ''); it.textContent = (arr.includes(o.val) ? '✓ ' : '') + o.label;
         it.addEventListener('mousedown', e => { e.preventDefault(); const idx = arr.indexOf(o.val); if (idx >= 0) arr.splice(idx, 1); else arr.push(o.val); inp.value = ''; rc(); renderDD(inp.value); });
@@ -482,9 +482,9 @@ app.exploreUi.enhanceAll(root);
     const allIds = [...new Set(Object.keys(AIR_ITEM_DB).map(Number))];
     const allOpts = allIds.map(id => ({ id, name: getName(id), cat: getPickerCategory(id) })).sort((a, b) => (PICKER_CAT_ORDER[a.cat] - PICKER_CAT_ORDER[b.cat]) || a.name.localeCompare(b.name, 'zh-TW'));
     const renderDD = q => {
-      dd.innerHTML = ''; q = (q || '').trim().toLowerCase(); let curCat = null;
+      dd.innerHTML = ''; q = (q || '').trim().normalize('NFKC').toLowerCase(); let curCat = null;
       allOpts.forEach(o => {
-        if (q && !o.name.toLowerCase().includes(q)) return;
+        if (q && !o.name.normalize('NFKC').toLowerCase().includes(q)) return;
         if (o.cat !== curCat) { curCat = o.cat; const g = document.createElement('div'); g.className = 'sub-combo-grp'; g.textContent = PICKER_CAT_LABEL[o.cat]; dd.appendChild(g); }
         const it = document.createElement('div'); it.className = 'sub-combo-item' + (arr.includes(o.id) ? ' selected' : ''); it.textContent = (arr.includes(o.id) ? '✓ ' : '') + o.name;
         it.addEventListener('mousedown', e => { e.preventDefault(); const idx = arr.indexOf(o.id); if (idx >= 0) arr.splice(idx, 1); else arr.push(o.id); inp.value = ''; rc(); renderDD(inp.value); });
@@ -1138,9 +1138,9 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
       });
     };
     const renderDestDD = q => {
-      dDd.innerHTML = ''; q = (q || '').trim().toLowerCase();
+      dDd.innerHTML = ''; q = (q || '').trim().normalize('NFKC').toLowerCase();
       allSecOpts.forEach(o => {
-        if (q && !o.label.toLowerCase().includes(q)) return;
+        if (q && !o.label.normalize('NFKC').toLowerCase().includes(q)) return;
         const isSel = targetMode === 'single' ? selDest === o.val : selDests.includes(o.val);
         const it = document.createElement('div'); it.className = 'sub-combo-item' + (isSel ? ' selected' : ''); it.textContent = (isSel ? '✓ ' : '') + o.label;
         it.addEventListener('mousedown', e => {
@@ -1210,9 +1210,9 @@ mkStepper(revPanel.querySelector('#air-rev-rank'), { step: 1, min: 1, max: 50, w
       });
     };
     const renderItemDD = q => {
-      iDd.innerHTML = ''; q = (q || '').trim().toLowerCase(); let curCat = null;
+      iDd.innerHTML = ''; q = (q || '').trim().normalize('NFKC').toLowerCase(); let curCat = null;
       allItemOpts.forEach(o => {
-        if (q && !o.name.toLowerCase().includes(q)) return;
+        if (q && !o.name.normalize('NFKC').toLowerCase().includes(q)) return;
         if (o.cat !== curCat) { curCat = o.cat; const g = document.createElement('div'); g.className = 'sub-combo-grp'; g.textContent = PICKER_CAT_LABEL[o.cat]; iDd.appendChild(g); }
         const isSel = selItems.includes(o.id);
         const it = document.createElement('div'); it.className = 'sub-combo-item' + (isSel ? ' selected' : ''); it.textContent = (isSel ? '✓ ' : '') + o.name;

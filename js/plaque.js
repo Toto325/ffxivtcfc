@@ -123,5 +123,14 @@
 
   scan();
   window.addEventListener('load', scan);
-  new MutationObserver(scan).observe(doc.body, { childList: true, subtree: true });
+  // 只處理新加入的節點（搜尋結果、列表重畫時會頻繁觸發），不要每次變動都 querySelectorAll 整份文件
+  new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) {
+      ms[i].addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches('[data-plaque]')) adopt(n);
+        if (n.querySelectorAll) n.querySelectorAll('[data-plaque]').forEach(adopt);
+      });
+    }
+  }).observe(doc.body, { childList: true, subtree: true });
 })();

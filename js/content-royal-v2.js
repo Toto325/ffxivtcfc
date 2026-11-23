@@ -133,5 +133,14 @@
   window.addEventListener('load', function () { scan(); rebuildAll(); });
   window.addEventListener('resize', rebuildAll);
   new MutationObserver(rebuildAll).observe(root, { attributes: true, attributeFilter: ['data-nav-mode'] });
-  new MutationObserver(function () { scan(); }).observe(doc.body, { childList: true, subtree: true });
+  // 只處理新加入的節點，不要每次 DOM 變動（例如搜尋結果重畫）都掃整份文件
+  new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) {
+      ms[i].addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches('.noble-outer-frame')) adopt(n);
+        if (n.querySelectorAll) n.querySelectorAll('.noble-outer-frame').forEach(adopt);
+      });
+    }
+  }).observe(doc.body, { childList: true, subtree: true });
 })();

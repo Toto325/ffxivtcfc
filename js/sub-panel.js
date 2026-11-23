@@ -171,13 +171,13 @@ app.exploreUi = app.exploreUi || (function(){
     const effMode=()=>isNarrow()?'card':mode;
     let Q='';
     const hasFilter=()=>!!Q||fcat.size>0;
-    const isOn=it=>(!Q||it.name.toLowerCase().includes(Q))&&(!fcat.size||fcat.has(it.cls));
+    const isOn=it=>(!Q||it.name.normalize('NFKC').toLowerCase().includes(Q))&&(!fcat.size||fcat.has(it.cls));
     const secOk=sec=>!hasFilter()||[1,2,3].some(t=>sec._t[t].some(isOn));
     const itemsHtml=(sec,t)=>{
       const list=sec._t[t];
       if(!list.length)return '<span class="ld-none">—</span>';
       const f=hasFilter();
-      const mk=it=>'<span class="ld-it '+it.cls+(f?(isOn(it)?' ld-on':' ld-dim'):'')+(Q&&it.name.toLowerCase().includes(Q)?' ld-hit':'')+'">'+esc(it.name)+'</span>';
+      const mk=it=>'<span class="ld-it '+it.cls+(f?(isOn(it)?' ld-on':' ld-dim'):'')+(Q&&it.name.normalize('NFKC').toLowerCase().includes(Q)?' ld-hit':'')+'">'+esc(it.name)+'</span>';
       const vip=list.filter(it=>it.cat==='blueprint'||it.cat==='rare'),rest=list.filter(it=>!(it.cat==='blueprint'||it.cat==='rare'));
       return (vip.length?'<span class="ld-vip">'+vip.map(mk).join('')+'</span>':'')
         +(rest.length?'<span class="ld-rest">'+rest.map(mk).join('<i class="ld-sep">、</i>')+'</span>':'');
@@ -186,7 +186,7 @@ app.exploreUi = app.exploreUi || (function(){
     const destHtml=sec=>(sec.letter?'<b class="thr-letter ld-letter">'+esc(sec.letter)+'</b>':'')+'<span class="ld-dn">'+esc(sec.name)+'</span><span class="ld-rk" title="解鎖等級"><i class="ph ph-medal"></i>Lv'+sec.rank+'</span>';
     const tierCell=(sec,t)=>'<td class="ld-c t'+t+'"><b class="loot-tier-badge tier-badge-'+t+' ld-mb">T'+t+'</b><div class="ld-cell">'+req(sec,t)+itemsHtml(sec,t)+'</div></td>';
     const render=()=>{
-      Q=inp.value.trim().toLowerCase();
+      Q=inp.value.trim().normalize('NFKC').toLowerCase();
       clr.hidden=!Q;
       fclear.hidden=!fcat.size;
       ov.querySelectorAll('.ld-fcat').forEach(b=>{const on=fcat.has(b.dataset.c);b.classList.toggle('active',on);b.setAttribute('aria-pressed',on);});
@@ -919,9 +919,9 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
       const allOpts=[];
       [...new Set(SUB_SECTORS.map(s=>s[1]))].forEach(m=>{SUB_SECTORS.filter(s=>s[1]===m).forEach(s=>{allOpts.push({val:s[0],label:`${s[2]} — ${s[4]}`,grp:`(${m}) ${MAP_NAMES[m]}`});});});
       const renderDD=q=>{
-        dd.innerHTML='';q=(q||'').trim().toLowerCase();let cg='';
+        dd.innerHTML='';q=(q||'').trim().normalize('NFKC').toLowerCase();let cg='';
         allOpts.forEach(o=>{
-          const lo=o.label.toLowerCase(),letter=o.label.split('—')[0].trim().toLowerCase();
+          const lo=o.label.normalize('NFKC').toLowerCase(),letter=o.label.split('—')[0].trim().normalize('NFKC').toLowerCase();
           if(q&&!lo.includes(q)&&letter!==q)return;
           if(o.grp!==cg){cg=o.grp;const g=document.createElement('div');g.className='sub-combo-grp';g.textContent=cg;dd.appendChild(g);}
           const it=document.createElement('div');it.className='sub-combo-item'+(arr.includes(o.val)?' selected':'');it.textContent=(arr.includes(o.val)?'✓ ':'')+o.label;
@@ -984,9 +984,9 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
       const allIds=[...new Set(Object.values(SUB_LOOT).flat())];
       const allOpts=allIds.map(id=>({id,name:getName(id),cat:getPickerCategory(id)})).filter(o=>!o.name.startsWith('ID:')).sort((a,b)=>(PICKER_CAT_ORDER[a.cat]-PICKER_CAT_ORDER[b.cat])||a.name.localeCompare(b.name,'zh-TW'));
       const renderDD=q=>{
-        dd.innerHTML='';q=(q||'').trim().toLowerCase();let curCat=null;
+        dd.innerHTML='';q=(q||'').trim().normalize('NFKC').toLowerCase();let curCat=null;
         allOpts.forEach(o=>{
-          if(q&&!o.name.toLowerCase().includes(q))return;
+          if(q&&!o.name.normalize('NFKC').toLowerCase().includes(q))return;
           if(o.cat!==curCat){curCat=o.cat;const g=document.createElement('div');g.className='sub-combo-grp';g.textContent=PICKER_CAT_LABEL[o.cat];dd.appendChild(g);}
           const it=document.createElement('div');it.className='sub-combo-item'+(arr.includes(o.id)?' selected':'');it.textContent=(arr.includes(o.id)?'✓ ':'')+o.name;
           it.addEventListener('mousedown',e=>{e.preventDefault();const idx=arr.indexOf(o.id);if(idx>=0)arr.splice(idx,1);else arr.push(o.id);inp.value='';rc();renderDD(inp.value);});
@@ -1899,10 +1899,10 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
         });
       };
       const renderDestDD=q=>{
-        dDd.innerHTML='';q=(q||'').trim().toLowerCase();
+        dDd.innerHTML='';q=(q||'').trim().normalize('NFKC').toLowerCase();
         let lastMap=null;
         allSecOpts.forEach(o=>{
-          if(q&&!o.label.toLowerCase().includes(q))return;
+          if(q&&!o.label.normalize('NFKC').toLowerCase().includes(q))return;
           if(o.mapId!==lastMap){
             lastMap=o.mapId;
             const grp=document.createElement('div');grp.className='sub-combo-grp';grp.textContent=`(${o.mapId}) ${MAP_NAMES[o.mapId]}`;dDd.appendChild(grp);
@@ -1976,9 +1976,9 @@ ${app.exploreUi.searchRowHtml('sub-search-btn')}
         });
       };
       const renderItemDD=q=>{
-        iDd.innerHTML='';q=(q||'').trim().toLowerCase();let curCat=null;
+        iDd.innerHTML='';q=(q||'').trim().normalize('NFKC').toLowerCase();let curCat=null;
         allItemOpts.forEach(o=>{
-          if(q&&!o.name.toLowerCase().includes(q))return;
+          if(q&&!o.name.normalize('NFKC').toLowerCase().includes(q))return;
           if(o.cat!==curCat){curCat=o.cat;const g=document.createElement('div');g.className='sub-combo-grp';g.textContent=PICKER_CAT_LABEL[o.cat];iDd.appendChild(g);}
           const isSel=selItems.includes(o.id);
           const it=document.createElement('div');it.className='sub-combo-item'+(isSel?' selected':'');it.textContent=(isSel?'✓ ':'')+o.name;
