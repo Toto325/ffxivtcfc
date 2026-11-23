@@ -8,6 +8,7 @@
 #   低等級    90 級以下（446 種形狀）。預計約 40～50 分鐘。
 #   （兩個正式模式最多跑 2 小時 30 分，沒跑完的部分下次再跑會接著做。）
 #   每個參考點會分別用「可用操作」「不可用操作」各找一次（玩家勾掉操作時庫才有手法可用），所以時間約為原本的兩倍。
+#   高等級另外多放一組 CP 較低（×0.88）的參考點（--extra-cp 0.88）：實測同一形狀「能滿足的數值比例」約 28% → 42%，建庫時間約再增加一倍；沒跑完的部分再按一次 Run workflow 會接著做。
 #
 # 跑完會自動把結果存回 data/craft-rotation-library.json（已經做好的形狀不會被覆蓋、會累積）。
 name: build-rotation-library
@@ -42,7 +43,7 @@ jobs:
         run: |
           mkdir -p out
           case "${{ inputs.mode }}" in
-            "高等級") ARGS="--beam-only --also-exclude Manipulation --min-rlvl 580 --beam-budget 15000000 --beam-widths 3000,8000 --max-minutes 150" ;;
+            "高等級") ARGS="--beam-only --also-exclude Manipulation --extra-cp 0.88 --min-rlvl 580 --beam-budget 15000000 --beam-widths 3000,8000 --max-minutes 150" ;;
             "低等級") ARGS="--beam-only --also-exclude Manipulation --min-rlvl 0 --max-rlvl 579 --beam-budget 8000000 --beam-widths 2500,6000 --max-minutes 150" ;;
             *)        ARGS="--beam-only --also-exclude Manipulation --min-rlvl 580 --beam-budget 6000000 --beam-widths 2500,6000 --limit 1" ;;
           esac
