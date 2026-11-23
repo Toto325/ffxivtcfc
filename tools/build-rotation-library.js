@@ -15,6 +15,8 @@ const fs = require('fs'), path = require('path');
 const { makeWorker } = require('./node-worker-host');
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf('--' + name); return i >= 0 ? args[i + 1] : def; };
+const DIVERSE = +opt('diverse', 0);
+const EXTRA_CP = String(opt('extra-cp', '')).split(',').filter(Boolean).map(Number);
 const BEAM_BUDGET = +opt('beam-budget', 60e6), BEAM_WIDTHS = String(opt('beam-widths', '4000,12000,30000')).split(',').map(Number);
 const OUT = path.resolve(opt('out', path.join(__dirname, '..', 'data', 'craft-rotation-library.json')));
 
@@ -82,12 +84,15 @@ if (args.includes('--merge')) {
       const hqv = hqAll.length ? hqAll : [], pts = [], list = [], seenSig = new Set();
       REFS.forEach(function (r) { const sv = S0 * r[0], c = refOf(sv, r[1], r[2]); pts.push({ craftsmanship: Math.round(sv), control: Math.round(c.control), cp: Math.round(c.cp) }); });
       [0.45, 0.6, 0.75, 0.9].forEach(function (f) { const sv = S0 * f; pts.push({ craftsmanship: Math.round(sv), control: Math.round((isExpert ? 0.75 : 0.905) * sv), cp: Math.round(isExpert ? cpFormula(sv) * 2.0 : cpFormula(sv)) }); });
+      if (EXTRA_CP.length) { const base = pts.slice(); EXTRA_CP.forEach(function (m) { base.forEach(function (p0) { pts.push({ craftsmanship: p0.craftsmanship, control: p0.control, cp: Math.round(p0.cp * m) }); }); }); } // --extra-cp 0.9,1.1：每個參考點再多放幾個 CP 比例不同的點
       for (const pt of pts) {
         for (const wk of w2 ? [w, w2] : [w]) {
-          const bst = Object.assign({ jobId: rec.jobId, level: 100 }, pt);
-          const b = await wk.send({ type: 'solve', recipeId: id, stats: bst, options: { strategy: 'beam', lang: 'tw', hqIngredients: hqv, beamMaxExpand: BEAM_BUDGET, beamWidths: BEAM_WIDTHS, beamRealCapMs: 600000 } });
-          const bk = b.ok && b.result && b.result.actionKeys, sig = bk && bk.join(',');
-          if (bk && bk.length && !seenSig.has(sig)) { seenSig.add(sig); list.push(bk); }
+          for (const dv of DIVERSE > 0 ? [0, DIVERSE] : [0]) { // --diverse 0.8：每個參考點另外用「多樣性集束」再找一次（保留資源組合不同的狀態，常找得到一般集束漏掉的手法）
+            const bst = Object.assign({ jobId: rec.jobId, level: 100 }, pt);
+            const b = await wk.send({ type: 'solve', recipeId: id, stats: bst, options: { strategy: 'beam', lang: 'tw', hqIngredients: hqv, beamMaxExpand: BEAM_BUDGET, beamWidths: BEAM_WIDTHS, beamRealCapMs: 600000, diverse: dv || undefined } });
+            const bk = b.ok && b.result && b.result.actionKeys, sig = bk && bk.join(',');
+            if (bk && bk.length && !seenSig.has(sig)) { seenSig.add(sig); list.push(bk); }
+          }
         }
       }
       result[k] = list;
