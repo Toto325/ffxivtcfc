@@ -895,6 +895,17 @@
     return chips.length ? '<span class="market-detail-meta">' + chips.join('') + '</span>' : '';
   }
 
+  /* 物品頁標題圖示的 HQ 標記：獨立於供應鏈區塊。沒有配方、沒有「被用在」的物品，供應鏈區塊會提前結束，
+   * 標記如果掛在它後面就永遠不會出現。所以頁面一開、或設定一改，都直接用同一份價格資料＋同一個品質設定判斷。 */
+  async function refreshHeaderHqMark(itemId) {
+    try {
+      const st = getSupplySettings();
+      const dc = st.materialsBasis === 'avg' ? null : await getPrecomputedAllData();
+      if (String(itemId) !== String(currentDetailItemId)) return; // 等資料的期間已經換了物品
+      const qi = dc ? qualityInfo(dc.items[String(itemId)], String(itemId), st) : null;
+      setHqMark(document.querySelector('#mk-pane-item .market-detail-header > .market-item-icon, #mk-pane-item .market-detail-header > .mk-icowrap > .market-item-icon'), !!(qi && qi.q === 'hq'));
+    } catch (e) { /* 標記是輔助資訊，失敗就不顯示 */ }
+  }
   function openItemDetail(itemId, o) {
     itemId = String(itemId);
     o = o || {};
@@ -938,6 +949,7 @@
     bindSolveButton(itemId);
     loadMarketSection(itemId, o.restoreView ? { keepView: true } : undefined);
     loadSupplyChainSection(itemId);
+    refreshHeaderHqMark(itemId);
     bindObtainButton(itemId);
   }
 
@@ -3146,12 +3158,11 @@
     // 這兩行必須是同一組if/else，中間不能插入其他程式碼——之前在中間插入了「數量>1」的區塊，
     // 讓else變成接在那個if上，結果數量=1（預設）時每次都多跑一次「即時查最低掛單價」，
     // 把剛填好的均價蓋掉，數量>1才不會被蓋，就是「切換均價沒反應、改數量才突然生效」的真正原因。
-    if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.materialsBasis, settings.materialsAvgWindow, settings.matPersp, settings.hqOverrides);
     if (dcData) {
+      fillCardPricesFromSnapshot(box, dcData, settings.materialsBasis, settings.materialsAvgWindow, settings.matPersp, settings.hqOverrides);
       const cq = settings.materialsBasis === 'avg' ? null : qualityInfo(dcData.items[itemId], itemId, settings);
-      const centerHq = !!(cq && cq.q === 'hq');
-      setHqMark(box.querySelector('.msc-hero-ico .market-item-icon'), centerHq);
-      if (String(itemId) === String(currentDetailItemId)) setHqMark(document.querySelector('#mk-pane-item .market-detail-header > .market-item-icon, #mk-pane-item .market-detail-header > .mk-icowrap > .market-item-icon'), centerHq);
+      setHqMark(box.querySelector('.msc-hero-ico .market-item-icon'), !!(cq && cq.q === 'hq'));
+      if (String(itemId) === String(currentDetailItemId)) refreshHeaderHqMark(itemId);
     }
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
 
