@@ -1182,7 +1182,7 @@
     if (!info) return '';
     const tag = info.both ? 'button' : 'span';
     return '<' + tag + (info.both ? ' type="button"' : '') + ' class="mk-qchip' + (info.pinned ? ' is-pin' : '') + (info.both ? '' : ' is-static') + '" data-qchip="' + id + '"' +
-      (info.both ? ' title="點一下切換：自動／NQ／HQ"' : '') + '>' + (info.pinned ? '<i class="ph ph-push-pin"></i>' : '') + (info.q === 'hq' ? 'HQ' : 'NQ') + '</' + tag + '>';
+      (info.both ? ' title="' + (info.pinned ? '已固定品質' : '自動：NQ／HQ 取較低價') + '，點一下切換"' : '') + '>' + (info.pinned ? '<i class="ph ph-push-pin"></i>' : '') + (info.q === 'hq' ? 'HQ' : 'NQ') + '</' + tag + '>';
   }
   function avgPriceOf(id, window, dcData) {
     const mr = dcData && dcData.items[id];
@@ -2810,7 +2810,7 @@
         '<p class="craft-muted pp-sync-hint">與生產頁同步</p>' +
       '<div class="market-supply-settings-row"><span>品質</span>' +
         '<select id="mk-sup-persp" class="craft-select" style="font-size:13px">' +
-          '<option value="auto"' + (s.matPersp === 'auto' ? ' selected' : '') + '>自動</option>' +
+          '<option value="auto"' + (s.matPersp === 'auto' ? ' selected' : '') + '>自動（取較低價）</option>' +
           '<option value="nq"' + (s.matPersp === 'nq' ? ' selected' : '') + '>NQ</option>' +
           '<option value="hq"' + (s.matPersp === 'hq' ? ' selected' : '') + '>HQ</option>' +
         '</select></div>' +
@@ -3074,7 +3074,7 @@
       '<div class="msc-head">' +
         '<span class="msc-head-title">供應鏈</span>' +
         '<div class="msc-head-btns">' +
-          '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
+          '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／品質／水晶是否算成本"><i class="ph ph-gear-six"></i>' + ((settings.matPersp === 'nq' || settings.matPersp === 'hq') && settings.materialsBasis !== 'avg' ? '<i class="msc-gear-dot"></i>' : '') + '</button>' +
           '<button type="button" class="market-history-btn market-fullchain-btn msc-list-btn" data-mk-open-fullchain="1" title="查看完整供應鏈清單">完整清單</button>' +
         '</div>' +
         '<button type="button" class="market-modal-close msc-head-close" data-mk-chain-close="1" aria-label="關閉"><i class="ph ph-x"></i></button>' +
@@ -3474,7 +3474,14 @@
       el.dataset.rawPrice = String(p); // 主條數量調整時要用原始數字重算，不能從顯示文字（可能是「1.2萬」）反推
       const amount = Number(el.dataset.amount);
       const unitStr = Math.round(p).toLocaleString();
-      const chip = basis === 'avg' ? '' : qChipHtml(id, qualityInfo(dcData.items[id], id, { materialsBasis: basis, hqOverrides: hqOverrides, matPersp: matPersp }));
+      // 品質標記：跟遊戲一樣，HQ 在物品圖示右下角蓋一個小「HQ」，NQ 不標。價格那行不放任何東西，免得擠掉數字。
+      const cellIco = el.closest('.msc-cell') && el.closest('.msc-cell').querySelector('.msc-ico');
+      if (cellIco) {
+        const old = cellIco.querySelector('.msc-hqmark'); if (old) old.remove();
+        const qi = basis === 'avg' ? null : qualityInfo(dcData.items[id], id, { materialsBasis: basis, hqOverrides: hqOverrides, matPersp: matPersp });
+        if (qi && qi.q === 'hq') cellIco.insertAdjacentHTML('beforeend', '<i class="msc-hqmark">HQ</i>');
+      }
+      const chip = '';
       if (amount > 1) {
         el.innerHTML = '<span class="msc-unit">' + unitStr + '</span><span class="msc-eq">＝</span><b class="msc-tot">' + fmtTotalGil(p * amount) + '</b>' + chip;
       } else {
