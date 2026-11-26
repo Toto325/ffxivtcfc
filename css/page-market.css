@@ -1215,7 +1215,7 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 
 
 /* HQ 標記：疊在物品圖示右下角（跟遊戲一樣，NQ不標）。圖示是圓的，標記往外突出一點才不會蓋住圖案 */
-.msc-hqmark{position:absolute;right:-6px;bottom:-2px;padding:1px 3px;font-size:9px;font-style:normal;font-weight:700;line-height:1;letter-spacing:.2px;border-radius:3px;background:#1c2a44;color:#93c5fd;border:1px solid rgba(96,165,250,.6);pointer-events:none}
+.msc-hqmark{position:absolute;right:-6px;bottom:-2px;padding:1px 3px;font-size:9px;font-style:normal;font-weight:700;line-height:1;letter-spacing:.2px;border-radius:3px;background:#14110a;color:var(--gold-bright);border:1px solid rgba(197,160,89,.6);pointer-events:none}
 
 /* 沒有現成圖示外框的地方（物品頁標題、完整供應鏈清單、被用在清單）：臨時包一層，讓 HQ 標記有地方定位 */
 .mk-icowrap{position:relative;display:inline-flex;flex:none;line-height:0}
@@ -1226,4 +1226,14 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
    HQ 用淡藍色，NQ 跟著文字顏色但壓低亮度，不搶數字的風頭 */
 .msc-tile em{white-space:nowrap}
 .mk-q{display:inline-block;margin-left:7px;font-size:.72em;font-weight:600;letter-spacing:.4px;opacity:.6;vertical-align:baseline}
-.mk-q.is-hq{opacity:1;color:#93c5fd}
+.mk-q.is-hq{opacity:1;color:var(--gold-bright)}
+
+/* 供應鏈彈窗標題列的設定齒輪：原本偏小，圖示放大並加大點擊範圍 */
+.mk-chain-modal .msc-head-btns .market-supply-gear{padding:5px 11px;line-height:1}
+.mk-chain-modal .msc-head-btns .market-supply-gear .ph{font-size:20px;vertical-align:middle}
+
+/* ×N 卡片：單價放在「×N」那行，淡色小字；整行不換行 */
+.msc-qty{white-space:nowrap}
+.msc-qty .msc-unit{font-size:.78em;font-weight:500;margin-left:2px}
+/* 世界價格格子裡的 HQ：沿用價格列表的 .market-hq-tag，縮一點不撐開格子 */
+.mws-price .market-hq-tag{font-size:9px;padding:0 3px;line-height:1.35;font-weight:600}
