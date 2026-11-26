@@ -1213,18 +1213,15 @@ tr.market-hot-item:hover td{background:rgba(197,160,89,.18)}
 .craft-mat-worlds-popover .market-supply-settings-row .pp-lead{font-size:14px}
 .craft-mat-worlds-popover .market-supply-settings-row{font-size:14px}
 
-/* 品質標籤：永遠標出價格實際買到的品質；淡灰＝自動，藍底＋圖釘＝玩家固定 */
-.mk-qchip{display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:0 6px;font-size:11px;line-height:18px;font-weight:500;font-style:normal;border:1px solid var(--tb,rgba(255,255,255,.18));border-radius:4px;background:transparent;color:var(--dim,#9aa);vertical-align:middle;white-space:nowrap}
-button.mk-qchip{cursor:pointer;font-family:inherit}
-button.mk-qchip:hover{border-color:currentColor;color:var(--text,#e8e6df)}
-.mk-qchip.is-pin{background:rgba(96,165,250,.18);border-color:rgba(96,165,250,.55);color:#93c5fd}
-.mk-qchip.is-static{cursor:default}
-.mk-qchip .ph{font-size:11px}
-.msc-tile em .mk-qchip{margin-left:0}
-.msc-cell .mk-qchip{margin-left:4px;padding:0 4px;line-height:16px;font-size:10.5px}
 
 /* HQ 標記：疊在物品圖示右下角（跟遊戲一樣，NQ不標）。圖示是圓的，標記往外突出一點才不會蓋住圖案 */
 .msc-hqmark{position:absolute;right:-6px;bottom:-2px;padding:1px 3px;font-size:9px;font-style:normal;font-weight:700;line-height:1;letter-spacing:.2px;border-radius:3px;background:#1c2a44;color:#93c5fd;border:1px solid rgba(96,165,250,.6);pointer-events:none}
 /* 設定齒輪上的小點：全域品質不是「自動」時亮起 */
 .market-supply-gear{position:relative}
 .msc-gear-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:#60a5fa;box-shadow:0 0 0 1.5px rgba(0,0,0,.6)}
+
+/* 沒有現成圖示外框的地方（物品頁標題、完整供應鏈清單、被用在清單）：臨時包一層，讓 HQ 標記有地方定位 */
+.mk-icowrap{position:relative;display:inline-flex;flex:none;line-height:0}
+.msc-hero-ico{position:relative}
+.market-fc-row .msc-hqmark,.market-usedin-cell .msc-hqmark{font-size:7px;padding:0 2px;right:-4px;bottom:-2px}
+.market-detail-header .msc-hqmark{right:-5px}
