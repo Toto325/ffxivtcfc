@@ -1222,3 +1222,9 @@ button.mk-qchip:hover{border-color:currentColor;color:var(--text,#e8e6df)}
 .mk-qchip .ph{font-size:11px}
 .msc-tile em .mk-qchip{margin-left:0}
 .msc-cell .mk-qchip{margin-left:4px;padding:0 4px;line-height:16px;font-size:10.5px}
+
+/* HQ 標記：疊在物品圖示右下角（跟遊戲一樣，NQ不標）。圖示是圓的，標記往外突出一點才不會蓋住圖案 */
+.msc-hqmark{position:absolute;right:-6px;bottom:-2px;padding:1px 3px;font-size:9px;font-style:normal;font-weight:700;line-height:1;letter-spacing:.2px;border-radius:3px;background:#1c2a44;color:#93c5fd;border:1px solid rgba(96,165,250,.6);pointer-events:none}
+/* 設定齒輪上的小點：全域品質不是「自動」時亮起 */
+.market-supply-gear{position:relative}
+.msc-gear-dot{position:absolute;top:2px;right:2px;width:7px;height:7px;border-radius:50%;background:#60a5fa;box-shadow:0 0 0 1.5px rgba(0,0,0,.6)}
