@@ -1570,9 +1570,17 @@
     // 各世界目前最低價（取自整個資料中心的全部掛單）：玩家不用逐一切換世界，打開下拉就看得出哪個世界最便宜。
     // 手上是全部掛單，所以沒出現的世界就是真的沒有在賣。
     const worldMinPrice = {};
+    // 每個世界「最低價那筆是不是 HQ」：是才在價格旁標 HQ，NQ 不標（跟價格列表、圖示同一個規則）。
+    // 同價有 NQ 也有 HQ 時算 NQ（玩家買 NQ 就夠了，不該說成 HQ）。
+    const worldMinHq = {};
+    function minIsHq(list) {
+      let m = null; list.forEach(function (l) { if (m == null || l.pricePerUnit < m) m = l.pricePerUnit; });
+      return m != null && list.filter(function (l) { return l.pricePerUnit === m; }).every(function (l) { return !!l.hq; });
+    }
     overview.listings.forEach(function (l) {
       if (worldMinPrice[l.world] == null || l.pricePerUnit < worldMinPrice[l.world]) worldMinPrice[l.world] = l.pricePerUnit;
     });
+    Object.keys(worldMinPrice).forEach(function (w) { worldMinHq[w] = minIsHq(overview.listings.filter(function (l) { return l.world === w; })); });
     // 世界下拉：每個世界後面直接寫「該世界目前最低價」和「資料更新距今」，不用逐一切換世界就看得出哪個最便宜、哪個資料太舊。
     // worldUploadTimes 是 Universalis 回傳的各世界更新時間（毫秒）；API沒給就只顯示價格。
     const worldTimes = overview.worldUploadTimes || {};
@@ -1788,8 +1796,8 @@
     function ageClass(ms) { const h = (Date.now() - ms) / 3600e3; return h >= 24 ? ' is-stale' : (h >= 6 ? ' is-old' : ''); }
     function renderWorldStrip() {
       const strip = $('mk-world-strip'); if (!strip) return;
-      const cells = [{ key: 'ALL', name: '所有世界', price: overview.minPrice || null, ts: overview.lastUploadTime }]
-        .concat(dcWorlds.map(function (w) { return { key: w, name: w, price: worldMinPrice[w] != null ? worldMinPrice[w] : null, ts: worldTimes[w] || null }; }));
+      const cells = [{ key: 'ALL', name: '所有世界', price: overview.minPrice || null, ts: overview.lastUploadTime, hq: minIsHq(overview.listings) }]
+        .concat(dcWorlds.map(function (w) { return { key: w, name: w, price: worldMinPrice[w] != null ? worldMinPrice[w] : null, ts: worldTimes[w] || null, hq: !!worldMinHq[w] }; }));
       const prices = cells.slice(1).map(function (c) { return c.price; }).filter(function (v) { return v != null; });
       const best = prices.length ? Math.min.apply(null, prices) : null;
       // 手上只有「全服最便宜的 N 筆」掛單。沒出現在裡面的世界不代表沒人賣：它的最低價「至少」要等於這 N 筆裡最貴的那筆。
@@ -1808,7 +1816,7 @@
           (c.ts && c.key !== 'ALL' ? '（資料更新於' + timeAgo(c.ts / 1000) + '）' : '');
         return '<button type="button" class="mws-cell' + (worldFilter === c.key ? ' active' : '') + (isBest ? ' is-best' : '') + '" data-world="' + c.key + '" title="' + tip + '">' +
           '<span class="mws-name">' + c.name + '</span>' + (stale ? '<span class="mws-age' + ageClass(c.ts) + '">' + shortAgo(c.ts) + '</span>' : '') +
-          '<span class="mws-price">' + (c.price != null ? fmtCompactGil(c.price) : (none ? '<span class="mws-none">無</span>' : (bound ? '<span class="mws-lb">≥' + fmtCompactGil(lowerBound) + '</span>' : '—'))) + '</span>' +
+          '<span class="mws-price">' + (c.price != null ? fmtCompactGil(c.price) + (c.hq ? hqIconHtml() : '') : (none ? '<span class="mws-none">無</span>' : (bound ? '<span class="mws-lb">≥' + fmtCompactGil(lowerBound) + '</span>' : '—'))) + '</span>' +
         '</button>';
       }).join('');
       fitWorldStrip(strip); mkObserveFit(strip, function () { fitWorldStrip(strip); });
@@ -1884,7 +1892,7 @@
         const sub = overview.listings.filter(function (l) { return l.world === target; });
         sub.total = sub.length;
         worldListingsCache[target] = sub;
-        if (sub.length) worldMinPrice[target] = Math.min.apply(null, sub.map(function (l) { return l.pricePerUnit; }));
+        if (sub.length) { worldMinPrice[target] = Math.min.apply(null, sub.map(function (l) { return l.pricePerUnit; })); worldMinHq[target] = minIsHq(sub); }
         else worldNoListing[target] = true;
         renderWorldStrip();
         setActiveListingSet(sub);
@@ -1900,7 +1908,7 @@
       if (myLoad !== detailLoadToken) return; // 已經換物品或重畫了
       if (listings) { // 結果一律只存進「那個世界」自己的快取；以前存進目前選的世界，快速連點時會把 A 世界的掛單存成 B 世界的
         worldListingsCache[target] = listings;
-        if (listings.length) worldMinPrice[target] = Math.min.apply(null, listings.map(function (l) { return l.pricePerUnit; }));
+        if (listings.length) { worldMinPrice[target] = Math.min.apply(null, listings.map(function (l) { return l.pricePerUnit; })); worldMinHq[target] = minIsHq(listings); }
         else worldNoListing[target] = true;
       }
       renderWorldStrip();
@@ -2960,7 +2968,7 @@
     // 成品本身的市價從頭到尾沒拿來比，所以成品其實直接買便宜很多時，結論卻寫「買／做價格接近」。
     // resolveItemBuyCraft 本來就能算任何物品（含產出數量與水晶開關），直接拿來用，不用另外寫演算法。
     let centerCmp = null;
-    // 「買」後面接 NQ／HQ：這個最低價買到的是哪一種品質（成交均價不分品質，不標）。物品頁左邊和供應鏈彈窗主卡片共用這一段。
+    // 「買」後面接 NQ／HQ：這個最低價買到的是哪一種品質（成交均價不分品質，不標）。只用在物品頁左邊的「買／製作」（那裡的標題圖示只是展示物品，沒地方標品質）；供應鏈彈窗主卡片靠圖示右下角的 HQ 標記表達，不重複。
     const centerQi = dcData ? qualityInfo(dcData.items[itemId], itemId, settings) : null;
     const centerQHtml = centerQi ? '<span class="mk-q' + (centerQi.q === 'hq' ? ' is-hq' : '') + '">' + (centerQi.q === 'hq' ? 'HQ' : 'NQ') + '</span>' : '';
     if (dcData && rid) {
@@ -3056,7 +3064,7 @@
       const craftWins = c.winner === 'craft';
       const both = c.buyT != null && c.craftT != null;
       heroCmps =
-        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買' + (c.buyT != null ? centerQHtml : '') + '</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
+        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
         '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b></span>' +
         ((c.winner === 'craft' || c.winner === 'buy') ? deltaBadgeHtml(c.save, itemId, 0) : '');
       const verdict = c.save == null ? ''
@@ -3476,7 +3484,10 @@
       const cell = el.closest('.msc-cell');
       if (cell) setHqMark(cell.querySelector('.market-item-icon'), !!(qi && qi.q === 'hq'));
       if (amount > 1) {
-        el.innerHTML = '<span class="msc-unit">' + unitStr + '</span><span class="msc-eq">＝</span><b class="msc-tot">' + fmtTotalGil(p * amount) + '</b>';
+        // 價格行永遠只放一個總價（×1 和 ×2 長得一樣）；單價搬到卡片上本來就有的「×N」那一行，用淡色小字
+        el.innerHTML = '<b class="msc-tot">' + fmtTotalGil(p * amount) + '</b>';
+        const qtyEl = el.closest('.msc-cell') && el.closest('.msc-cell').querySelector('.msc-qty');
+        if (qtyEl) qtyEl.innerHTML = '×' + amount + ' <span class="msc-unit">@' + (p >= 1e6 ? fmtTotalGil(p) : unitStr) + '</span>';
       } else {
         el.innerHTML = '<b class="msc-tot">' + unitStr + '</b>'; // 單位「金」統一寫在圖例，不重複，省橫向空間
       }
