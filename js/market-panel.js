@@ -895,17 +895,6 @@
     return chips.length ? '<span class="market-detail-meta">' + chips.join('') + '</span>' : '';
   }
 
-  /* 物品頁標題圖示的 HQ 標記：獨立於供應鏈區塊。沒有配方、沒有「被用在」的物品，供應鏈區塊會提前結束，
-   * 標記如果掛在它後面就永遠不會出現。所以頁面一開、或設定一改，都直接用同一份價格資料＋同一個品質設定判斷。 */
-  async function refreshHeaderHqMark(itemId) {
-    try {
-      const st = getSupplySettings();
-      const dc = st.materialsBasis === 'avg' ? null : await getPrecomputedAllData();
-      if (String(itemId) !== String(currentDetailItemId)) return; // 等資料的期間已經換了物品
-      const qi = dc ? qualityInfo(dc.items[String(itemId)], String(itemId), st) : null;
-      setHqMark(document.querySelector('#mk-pane-item .market-detail-header > .market-item-icon, #mk-pane-item .market-detail-header > .mk-icowrap > .market-item-icon'), !!(qi && qi.q === 'hq'));
-    } catch (e) { /* 標記是輔助資訊，失敗就不顯示 */ }
-  }
   function openItemDetail(itemId, o) {
     itemId = String(itemId);
     o = o || {};
@@ -949,7 +938,6 @@
     bindSolveButton(itemId);
     loadMarketSection(itemId, o.restoreView ? { keepView: true } : undefined);
     loadSupplyChainSection(itemId);
-    refreshHeaderHqMark(itemId);
     bindObtainButton(itemId);
   }
 
@@ -2972,6 +2960,9 @@
     // 成品本身的市價從頭到尾沒拿來比，所以成品其實直接買便宜很多時，結論卻寫「買／做價格接近」。
     // resolveItemBuyCraft 本來就能算任何物品（含產出數量與水晶開關），直接拿來用，不用另外寫演算法。
     let centerCmp = null;
+    // 「買」後面接 NQ／HQ：這個最低價買到的是哪一種品質（成交均價不分品質，不標）。物品頁左邊和供應鏈彈窗主卡片共用這一段。
+    const centerQi = dcData ? qualityInfo(dcData.items[itemId], itemId, settings) : null;
+    const centerQHtml = centerQi ? '<span class="mk-q' + (centerQi.q === 'hq' ? ' is-hq' : '') + '">' + (centerQi.q === 'hq' ? 'HQ' : 'NQ') + '</span>' : '';
     if (dcData && rid) {
       const cres = resolveItemBuyCraft(itemId, dcData, settings.materialsBasis, settings);
       if (cres.craftable && (cres.buy != null || cres.craft != null)) {
@@ -3065,7 +3056,7 @@
       const craftWins = c.winner === 'craft';
       const both = c.buyT != null && c.craftT != null;
       heroCmps =
-        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
+        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買' + (c.buyT != null ? centerQHtml : '') + '</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
         '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b></span>' +
         ((c.winner === 'craft' || c.winner === 'buy') ? deltaBadgeHtml(c.save, itemId, 0) : '');
       const verdict = c.save == null ? ''
@@ -3094,7 +3085,7 @@
       '<div class="msc-head">' +
         '<span class="msc-head-title">供應鏈</span>' +
         '<div class="msc-head-btns">' +
-          '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／品質／水晶是否算成本"><i class="ph ph-gear-six"></i>' + ((settings.matPersp === 'nq' || settings.matPersp === 'hq') && settings.materialsBasis !== 'avg' ? '<i class="msc-gear-dot"></i>' : '') + '</button>' +
+          '<button type="button" class="market-history-btn market-supply-gear" data-mk-supply-settings-btn="1" title="調整價格基準／品質／水晶是否算成本"><i class="ph ph-gear-six"></i></button>' +
           '<button type="button" class="market-history-btn market-fullchain-btn msc-list-btn" data-mk-open-fullchain="1" title="查看完整供應鏈清單">完整清單</button>' +
         '</div>' +
         '<button type="button" class="market-modal-close msc-head-close" data-mk-chain-close="1" aria-label="關閉"><i class="ph ph-x"></i></button>' +
@@ -3121,7 +3112,7 @@
         const buyWins = c.winner === 'buy' || c.winner === 'tie', craftWins = c.winner === 'craft';
         const both = c.buyT != null && c.craftT != null;
         tiles = '<div class="mdb-v-tiles">' +
-          '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b>' + (c.winner === 'buy' ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
+          '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買' + (c.buyT != null ? centerQHtml : '') + '</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b>' + (c.winner === 'buy' ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
           '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b>' + (craftWins ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
           (craftMultiplier > 1 ? '<span class="mdb-v-mult" title="供應鏈裡設定的製作數量">×' + craftMultiplier + '</span>' : '') +
         '</div>';
@@ -3160,9 +3151,9 @@
     // 把剛填好的均價蓋掉，數量>1才不會被蓋，就是「切換均價沒反應、改數量才突然生效」的真正原因。
     if (dcData) {
       fillCardPricesFromSnapshot(box, dcData, settings.materialsBasis, settings.materialsAvgWindow, settings.matPersp, settings.hqOverrides);
+      // 彈窗主卡片的大圖示：跟材料卡片一樣，買到的是 HQ 就標在圖示右下角（供應鏈圖裡的物品本來就可能是 NQ 也可能是 HQ）
       const cq = settings.materialsBasis === 'avg' ? null : qualityInfo(dcData.items[itemId], itemId, settings);
       setHqMark(box.querySelector('.msc-hero-ico .market-item-icon'), !!(cq && cq.q === 'hq'));
-      if (String(itemId) === String(currentDetailItemId)) refreshHeaderHqMark(itemId);
     }
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
 
