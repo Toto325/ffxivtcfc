@@ -18,6 +18,7 @@
 var __V = (typeof self !== 'undefined' && self.location && self.location.search) || '';
 importScripts('vendor/ffxiv-simulator.umd.js' + __V);
 importScripts('craft-clock.js' + __V); // 虛擬時鐘：讓求解結果可重現
+importScripts('craft-finish.js' + __V); // 「完成即可」的精確搜尋
 importScripts('craft-solver-ga.js' + __V);
 importScripts('craft-frontier.js' + __V); // 反推「最低所需數值」
 importScripts('craft-sim-fast.js' + __V); // 精簡模擬器（安全模式＋線性）：集束搜尋的底層
@@ -733,11 +734,30 @@ self.onmessage = async function (e) {
   const msg = e.data || {};
   CraftClock.begin({ deterministic: msg.deterministic !== false && !(msg.options && msg.options.deterministic === false), realCapMs: msg.options && msg.options.realCapMs });
   if (msg.type === 'frontier' || msg.type === 'solve' || msg.type === 'preview') await self.__libraryReady;
-  if (msg.type === 'frontier' || msg.type === 'simulate' || msg.type === 'needs' || msg.type === 'evalmany' || msg.type === 'preview') {
+  if (msg.type === 'frontier' || msg.type === 'finishfront' || msg.type === 'finishmin' || msg.type === 'simulate' || msg.type === 'needs' || msg.type === 'evalmany' || msg.type === 'preview') {
     try {
       const recipe = getRecipe(msg.recipeId, msg.recipe);
       if (!recipe) throw new Error('找不到配方 id=' + msg.recipeId);
       const craft = buildCraftObject(Object.assign({ id: msg.recipeId }, recipe), {});
+      if (msg.type === 'finishmin') { // 單一作業精度的精確最低 CP（測試用）
+        const cst = buildCrafterStats(Object.assign({}, msg.stats, { cp: 5000 }));
+        const fr = CraftFinish.minCP(CraftSimFast.makeCtx(craft, cst, [], simulator.Tables.LEVEL_TABLE[cst.level], allowedActionNames(cst)), { maxStates: msg.maxStates || 1.5e6 });
+        self.postMessage({ type: 'solve-result', requestId: msg.requestId, ok: true, result: fr ? { cp: fr.cp, steps: fr.steps, expanded: fr.expanded, keys: fr.keys.map(function (i) { return CraftSimFast.ACTIONS[i].name; }) } : null });
+        return;
+      }
+      if (msg.type === 'finishfront') { // 「完成即可」：精確的「作業精度 ↔ 最低 CP」取捨曲線（只看進度；專家配方有品質門檻，不處理）
+        if (craft.expert || craft.requiredQuality > 0) { self.postMessage({ type: 'solve-result', requestId: msg.requestId, ok: true, result: { cands: [], exact: true } }); return; }
+        const ctxFor = function (cs) {
+          const cst = buildCrafterStats(Object.assign({}, msg.stats, { craftsmanship: cs, cp: 5000 }));
+          return CraftSimFast.makeCtx(craft, cst, [], simulator.Tables.LEVEL_TABLE[cst.level], allowedActionNames(cst));
+        };
+        const pts = CraftFinish.front(ctxFor, { start: msg.start || 0 });
+        const names = CraftSimFast.ACTIONS;
+        self.postMessage({ type: 'solve-result', requestId: msg.requestId, ok: true, result: { exact: true, complete: !!pts.complete, cands: pts.map(function (p) {
+          return { need: { craftsmanship: p.cs, control: 0, cp: p.cp, csMax: 99999 }, keys: p.keys.map(function (i) { return names[i].name; }), steps: p.steps, cost: 0, rel: 0, fromLib: false, exact: true };
+        }) } });
+        return;
+      }
       if (msg.type === 'simulate') {
         // 固定手法、固定數值，完全確定的重算（不含任何隨機搜尋）：驗證「這組數值＋這套手法」到底做不做得到
         const crafterStats = buildCrafterStats(msg.stats);

@@ -23,12 +23,12 @@
  * 不要為了填滿表格硬猜一個可能是錯的中文詞——這正是這次要修的問題，不能在修的過程中又犯一次。 */
 /* 版本參數：只是 Worker 載入網址的快取標記。忘記改也不會壞：GitHub Pages 的檔案快取約 10 分鐘，之後瀏覽器會自動向伺服器確認並取得新檔；
  * 想立刻生效就按 Ctrl+F5。index.html 不需要為此改動（不必在載入 craft-panel.js 時加 ?v=）。 */
-var CRAFT_BUILD = '20261123d';
+var CRAFT_BUILD = '20261125b';
 /* 網址參數（排查問題用，平常不用）：?diag=1 在主控台印診斷；?noV=1 Worker 網址不帶版本參數（等同原本載入方式）；
- * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」；?noWide=1 探測不做「差一點時用較寬集束補確認」；?noDiv=1 主求解不多開「多樣性集束」策略。 */
+ * ?noDescent=1 建議分析不做逐項探測；?noAccurate=1 建議分析不用「精確評估庫手法」；?noWide=1 探測不做「差一點時用較寬集束補確認」；?noDiv=1 主求解不多開「多樣性集束」策略；?noExact=1 「完成」目標不用精確搜尋。 */
 var CRAFT_FLAGS = (function () {
   var q = (typeof location !== 'undefined' && location.search) || '';
-  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q), noWide: /[?&]noWide=1/.test(q), noDiv: /[?&]noDiv=1/.test(q) };
+  return { diag: /[?&]diag=1/.test(q), noV: /[?&]noV=1/.test(q), noDescent: /[?&]noDescent=1/.test(q), noAccurate: /[?&]noAccurate=1/.test(q), noWide: /[?&]noWide=1/.test(q), noDiv: /[?&]noDiv=1/.test(q), noExact: /[?&]noExact=1/.test(q) };
 })();
 function craftDiag() { if (CRAFT_FLAGS.diag && typeof console !== 'undefined') console.info.apply(console, ['[建議診斷]'].concat(Array.prototype.slice.call(arguments))); }
 /* 建立求解 Worker：送出訊息時自動把「這一個配方」附在 msg.recipe 裡，Worker 就不必各自載入整份配方庫（約 9 MB、數十 MB 記憶體）。
@@ -1165,11 +1165,11 @@ app._craftReady = function () {
     positionPopoverNear(pop, btn);
     const w = await MarketData.getAvgWindows(itemId, scope || undefined);
     if (!w) { pop.innerHTML = '<p class="mav-title">' + title + '</p><p class="craft-muted" style="font-size:11px;margin:0">讀取失敗，請稍後再試。</p>'; positionPopoverNear(pop, btn); return; }
-    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均（件數加權），已排除異常成交（可在設定裡關閉）。「掛單」是現在架上還沒賣掉的掛單價格平均（已排除亂標價，跟成交均價同一套規則），不是成交價。">？</span></p>' + MarketData.avgWindowRowsHtml(w) +
-      '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均（已排除亂標價，跟成交均價同一套規則），不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small><em class="mav-chg"></em></div>';
+    pop.innerHTML = '<p class="mav-title">' + title + '<span class="mav-help" title="都是實際成交的平均（件數加權），已排除異常成交（可在設定裡關閉）。「掛單」是現在架上還沒賣掉的掛單價格平均，不是成交價。">？</span></p>' + MarketData.avgWindowRowsHtml(w) +
+      '<div class="mav-row mav-listing" id="cf-avg-listing" title="現在架上還沒賣掉的掛單價格平均，不是成交價"><span class="mav-l">掛單</span><span class="mav-bar"></span><strong>⋯</strong><small>金</small><em class="mav-chg"></em></div>';
     positionPopoverNear(pop, btn);
     try {
-      const ov = await MarketData.getItemMarketOverview(itemId, undefined, { noRefresh: true }); // 這裡只要掛單均價，不需要各世界校正（省7個請求）
+      const ov = await MarketData.getItemMarketOverview(itemId);
       const row = $('cf-avg-listing');
       if (row) { row.querySelector('strong').textContent = (ov && ov.avgPrice) ? Math.round(ov.avgPrice).toLocaleString() : '—'; if (!(ov && ov.avgPrice)) row.querySelector('small').textContent = '無掛單'; }
     } catch (e) { const row = $('cf-avg-listing'); if (row) { row.querySelector('strong').textContent = '—'; row.querySelector('small').textContent = '讀取失敗'; } }
@@ -3622,7 +3622,9 @@ app._craftReady = function () {
       const list = beamOnly ? ['beam'] : (((hasLibrary && cores >= 4) ? ['plain', 'ladder'] : ['plain']).concat(['beam']));
        /* 'beamDiverse'＝多樣性集束：每層保留一部分「CP、耐久、增益組合不同」的狀態。實測在 CP 吃緊時常找得到一般集束漏掉的手法（品質比例平均 +2%，也有少數點較差），
         * 所以只當「額外候選」，最後仍取最好的，不會讓結果更差。運算量用一般集束的窄設定（12e6），不會比原本最慢的那條更久；核心少（<6）的裝置不開。 */
-       if (!beamOnly && cores >= 6 && !CRAFT_FLAGS.noDiv) list.push('beamDiverse');
+       /* 取代 ladder：實測 ladder 在困難題（0/19）與優質率（12 個配方，平均 18%，最低）都沒有任何獨家最佳，而多樣性集束耗時比一般集束少約 35%、
+        * 優質率相近、困難題明顯較好。plain 保留當後備（集束出錯時只剩它）。核心 4 個以上就開，ladder 同時移除，所以總工作量不增加。 */
+       if (!beamOnly && cores >= 4 && !CRAFT_FLAGS.noDiv) { list.push('beamDiverse'); const li = list.indexOf('ladder'); if (li >= 0) list.splice(li, 1); }
       list.forEach(function (strategy) { // 階梯優先流程需要手法庫當起點；沒有手法庫的配方只多開「獨立流程」當保險（主 Worker 跑的是追求滿品質的流程）
         let wk;
         try { wk = newCraftWorker(); } catch (err) { return; }
@@ -3634,7 +3636,7 @@ app._craftReady = function () {
           settle(e2.data);
         });
         wk.addEventListener('error', function (ev) { craftDiag('主求解 策略=' + strategy + ' Worker error 事件', ev && ev.message, ev && ev.filename, ev && ev.lineno); settle(null); });
-        wk.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { strategy: strategy === 'beamDiverse' ? 'beam' : strategy, diverse: strategy === 'beamDiverse' ? 0.8 : undefined, lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal, beamMaxExpand: strategy === 'beamDiverse' ? 12e6 : (cores >= 4 ? 36e6 : 12e6) } });
+        wk.postMessage({ type: 'solve', requestId: requestId, recipeId: selectedRecipe.id, stats: stats, options: { strategy: strategy === 'beamDiverse' ? 'beam' : strategy, diverse: strategy === 'beamDiverse' ? 0.8 : undefined, lang: 'tw', trials: 3, populationSize: 150, generations: 40, hqIngredients: hqIngredients, collectableGoal: collectableGoal, beamMaxExpand: strategy === 'beamDiverse' ? (cores >= 8 ? 12e6 : 6e6) : (list.indexOf('beamDiverse') >= 0 ? 12e6 : (cores >= 4 ? 36e6 : 12e6)) } }); // 多樣性集束是最慢的一條（決定整體等多久）：核心 8 個以上用 12e6，其餘用 6e6（實測 6e6 優質率只少約 0.1 點，耗時約少三分之一） // 有多樣性集束一起跑時，一般集束的預算不必 36e6：18 個有鑑別力的情境實測，一般集束 12e6＋多樣性 12e6 與 36e6＋12e6 結果相同（優質率都是 25.72%），耗時約少一半
       });
     };
     function onMsg(e) {
@@ -4424,6 +4426,22 @@ app._craftReady = function () {
           const r0 = await present(raw, false);
           if (r0.done || an.cancelled) return;
         }
+      }
+      /* 「完成即可」只看進度，可以用精確搜尋直接算出「作業精度 ↔ 最低 CP」的取捨曲線（不是隨機搜尋，是真正的最低值），
+       * 每個點都用模擬器驗證過；有結果就不必再跑隨機搜尋，又快又準。專家配方有品質門檻，維持原本的做法。 */
+      if (!full && !isExpert && !CRAFT_FLAGS.noExact) {
+        try {
+          const startFinal = finalFor(baseB, bestCombo).craftsmanship;
+          const fo = await pool.call({ type: 'finishfront', recipeId: craft.id, stats: Object.assign({}, stats), start: startFinal });
+          if (an.cancelled) return;
+          if (fo && fo.cands && fo.cands.length) {
+            gather([fo], raw);
+            diag('精確完成搜尋', tsec(), '候選', fo.cands.length, '套', fo.cands.map(function (c) { return c.need.craftsmanship + '→' + c.need.cp; }).join(' '));
+            const rx = await present(raw, !!fo.complete); // 不完整時只是先顯示，後面還會繼續補
+            if (rx.done || an.cancelled) return;
+            if (fo.complete && rx.shown) return; // 掃描完整才不必再跑隨機搜尋；時間不夠（慢裝置）時，結果先顯示，再繼續用原本的搜尋補上
+          }
+        } catch (e) { diag('精確完成搜尋發生錯誤，改用原本的搜尋', e && e.message ? e.message : e); }
       }
       /* 第一階段：快速找出第一批方案，先讓玩家看到。
        * 隨機搜尋（以主求解的手法當種子）能改良出庫裡沒有的取向，所以不跳過；之後的逐項探測只會往下改進。 */
