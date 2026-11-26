@@ -1178,11 +1178,20 @@
     else q = (nq != null && (hq == null || nq <= hq)) ? 'nq' : 'hq';
     return { q: q, pinned: pinned, both: nq != null && hq != null };
   }
-  function qChipHtml(id, info) {
-    if (!info) return '';
-    const tag = info.both ? 'button' : 'span';
-    return '<' + tag + (info.both ? ' type="button"' : '') + ' class="mk-qchip' + (info.pinned ? ' is-pin' : '') + (info.both ? '' : ' is-static') + '" data-qchip="' + id + '"' +
-      (info.both ? ' title="' + (info.pinned ? '已固定品質' : '自動：NQ／HQ 取較低價') + '，點一下切換"' : '') + '>' + (info.pinned ? '<i class="ph ph-push-pin"></i>' : '') + (info.q === 'hq' ? 'HQ' : 'NQ') + '</' + tag + '>';
+  /* 品質標記（整站唯一的呈現方式）：跟遊戲一樣，買到的是 HQ 就在物品圖示右下角蓋一個小「HQ」，NQ 不標。
+   * 圖示本來就在每個物品旁邊，標記疊在圖示上不佔文字的位置。有圖示的地方（供應鏈卡片、彈窗主圖示、物品頁標題、
+   * 完整供應鏈清單、被用在清單）都呼叫同一個函式，標不標一律由 qualityInfo 決定。 */
+  function setHqMark(iconEl, on) {
+    if (!iconEl) return;
+    let wrap = iconEl.closest && iconEl.closest('.msc-ico, .msc-hero-ico, .mk-icowrap');
+    if (!wrap) {
+      if (!on || !iconEl.parentNode) return;
+      wrap = document.createElement('span'); wrap.className = 'mk-icowrap';
+      iconEl.parentNode.insertBefore(wrap, iconEl); wrap.appendChild(iconEl);
+    }
+    const m = wrap.querySelector('.msc-hqmark');
+    if (on && !m) wrap.insertAdjacentHTML('beforeend', '<i class="msc-hqmark">HQ</i>');
+    else if (!on && m) m.remove();
   }
   function avgPriceOf(id, window, dcData) {
     const mr = dcData && dcData.items[id];
@@ -2951,7 +2960,6 @@
     // 成品本身的市價從頭到尾沒拿來比，所以成品其實直接買便宜很多時，結論卻寫「買／做價格接近」。
     // resolveItemBuyCraft 本來就能算任何物品（含產出數量與水晶開關），直接拿來用，不用另外寫演算法。
     let centerCmp = null;
-    const centerQChip = dcData ? qChipHtml(itemId, qualityInfo(dcData.items[itemId], itemId, settings)) : '';
     if (dcData && rid) {
       const cres = resolveItemBuyCraft(itemId, dcData, settings.materialsBasis, settings);
       if (cres.craftable && (cres.buy != null || cres.craft != null)) {
@@ -3045,7 +3053,7 @@
       const craftWins = c.winner === 'craft';
       const both = c.buyT != null && c.craftT != null;
       heroCmps =
-        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買' + centerQChip + '</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
+        '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b></span>' +
         '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b></span>' +
         ((c.winner === 'craft' || c.winner === 'buy') ? deltaBadgeHtml(c.save, itemId, 0) : '');
       const verdict = c.save == null ? ''
@@ -3101,7 +3109,7 @@
         const buyWins = c.winner === 'buy' || c.winner === 'tie', craftWins = c.winner === 'craft';
         const both = c.buyT != null && c.craftT != null;
         tiles = '<div class="mdb-v-tiles">' +
-          '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買' + centerQChip + '</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b>' + (c.winner === 'buy' ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
+          '<span class="msc-tile ' + (buyWins ? 'is-win is-green' : 'is-lose') + (craftWins && both ? ' is-strike' : '') + '"><em>買</em><b>' + (c.buyT != null ? fmtTotalGil(c.buyT) : '無報價') + '</b>' + (c.winner === 'buy' ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
           '<span class="msc-tile ' + (craftWins ? 'is-win is-green' : 'is-lose') + (c.winner === 'buy' && both ? ' is-strike' : '') + '"><em>製作</em><b>' + (c.craftT != null ? fmtTotalGil(c.craftT) : '無法估價') + '</b>' + (craftWins ? deltaBadgeHtml(c.save, itemId, 0, true) : '') + '</span>' +
           (craftMultiplier > 1 ? '<span class="mdb-v-mult" title="供應鏈裡設定的製作數量">×' + craftMultiplier + '</span>' : '') +
         '</div>';
@@ -3139,6 +3147,12 @@
     // 讓else變成接在那個if上，結果數量=1（預設）時每次都多跑一次「即時查最低掛單價」，
     // 把剛填好的均價蓋掉，數量>1才不會被蓋，就是「切換均價沒反應、改數量才突然生效」的真正原因。
     if (dcData) fillCardPricesFromSnapshot(box, dcData, settings.materialsBasis, settings.materialsAvgWindow, settings.matPersp, settings.hqOverrides);
+    if (dcData) {
+      const cq = settings.materialsBasis === 'avg' ? null : qualityInfo(dcData.items[itemId], itemId, settings);
+      const centerHq = !!(cq && cq.q === 'hq');
+      setHqMark(box.querySelector('.msc-hero-ico .market-item-icon'), centerHq);
+      if (String(itemId) === String(currentDetailItemId)) setHqMark(document.querySelector('#mk-pane-item .market-detail-header > .market-item-icon, #mk-pane-item .market-detail-header > .mk-icowrap > .market-item-icon'), centerHq);
+    }
     else fillCardPrices(box); // 完全沒有快照資料時才退回即時查價，至少有數字可看
 
     // 主條：數量大於1時，價格後面接「×N＝總價」
@@ -3146,9 +3160,8 @@
       const centerPriceEl = $('mk-center-price');
       if (centerPriceEl && centerPriceEl.dataset.rawPrice) {
         const unitPriceNum = parseFloat(centerPriceEl.dataset.rawPrice);
-        const keepChip = centerPriceEl.querySelector('.mk-qchip'), keepChipHtml = keepChip ? keepChip.outerHTML : '';
         centerPriceEl.innerHTML = '<b class="msc-tot">' + Math.round(unitPriceNum).toLocaleString() + '</b>' +
-          '<span class="msc-mult">×' + craftMultiplier + '</span><span class="msc-eq">＝</span><b class="msc-tot">' + fmtTotalGil(unitPriceNum * craftMultiplier) + '</b>' + keepChipHtml;
+          '<span class="msc-mult">×' + craftMultiplier + '</span><span class="msc-eq">＝</span><b class="msc-tot">' + fmtTotalGil(unitPriceNum * craftMultiplier) + '</b>';
       }
     }
     bindSupplySettingsPopover(box, itemId, rid, dcData); // 每次重繪（含數量±）都要重新綁，舊的按鈕已經被換掉了
@@ -3158,23 +3171,6 @@
     // openItemDetail）。同一張圖上的卡片，點起來反應却不一樣，才會出現「點這個只換圖、點那個
     // 整頁跳」的不一致。統一成兩者都走完整的openItemDetail，左邊價格欄位、頁首名稱、右邊供應鏈
     // 圖永遠一起換成同一個目標物品，不會再各自為政。
-    // 品質標籤：點一下依序切換 自動→NQ→HQ→自動（記在個別物品的覆寫裡）。用捕獲階段攔截，不讓卡片本體的「點了跳轉」一起觸發。
-    box.__qctx = { itemId: itemId, rid: rid };
-    [box, $('mk-band-verdict')].forEach(function (host) {
-      if (!host || host.__qchipBound) return;
-      host.__qchipBound = true;
-      host.addEventListener('click', function (e) {
-        const chip = e.target.closest && e.target.closest('.mk-qchip[data-qchip]');
-        if (!chip) return;
-        e.stopPropagation(); e.preventDefault();
-        if (chip.classList.contains('is-static')) return;
-        const cur = getSupplySettings(), ov = Object.assign({}, cur.hqOverrides), id = chip.dataset.qchip;
-        const eff = ov[id] || cur.matPersp || 'auto'; // 目前實際生效的設定（個別優先，沒有就是全域）
-        ov[id] = eff === 'nq' ? 'hq' : (eff === 'hq' ? 'auto' : 'nq'); // 自動→NQ→HQ→自動，只改這一個物品
-        saveSupplySettings(Object.assign(cur, { hqOverrides: ov }));
-        const ctx = box.__qctx; if (ctx) renderSupplyChainWithBreakdown(ctx.itemId, ctx.rid, box);
-      }, true);
-    });
     box.querySelectorAll('[data-mk-supply-item], [data-mk-goto-item]').forEach(function (el) {
       const targetId = el.dataset.mkSupplyItem || el.dataset.mkGotoItem;
       el.addEventListener('click', function (e) {
@@ -3474,18 +3470,13 @@
       el.dataset.rawPrice = String(p); // 主條數量調整時要用原始數字重算，不能從顯示文字（可能是「1.2萬」）反推
       const amount = Number(el.dataset.amount);
       const unitStr = Math.round(p).toLocaleString();
-      // 品質標記：跟遊戲一樣，HQ 在物品圖示右下角蓋一個小「HQ」，NQ 不標。價格那行不放任何東西，免得擠掉數字。
-      const cellIco = el.closest('.msc-cell') && el.closest('.msc-cell').querySelector('.msc-ico');
-      if (cellIco) {
-        const old = cellIco.querySelector('.msc-hqmark'); if (old) old.remove();
-        const qi = basis === 'avg' ? null : qualityInfo(dcData.items[id], id, { materialsBasis: basis, hqOverrides: hqOverrides, matPersp: matPersp });
-        if (qi && qi.q === 'hq') cellIco.insertAdjacentHTML('beforeend', '<i class="msc-hqmark">HQ</i>');
-      }
-      const chip = '';
+      const qi = basis === 'avg' ? null : qualityInfo(dcData.items[id], id, { materialsBasis: basis, hqOverrides: hqOverrides, matPersp: matPersp });
+      const cell = el.closest('.msc-cell');
+      if (cell) setHqMark(cell.querySelector('.market-item-icon'), !!(qi && qi.q === 'hq'));
       if (amount > 1) {
-        el.innerHTML = '<span class="msc-unit">' + unitStr + '</span><span class="msc-eq">＝</span><b class="msc-tot">' + fmtTotalGil(p * amount) + '</b>' + chip;
+        el.innerHTML = '<span class="msc-unit">' + unitStr + '</span><span class="msc-eq">＝</span><b class="msc-tot">' + fmtTotalGil(p * amount) + '</b>';
       } else {
-        el.innerHTML = '<b class="msc-tot">' + unitStr + '</b>' + chip; // 單位「金」統一寫在圖例，不重複，省橫向空間
+        el.innerHTML = '<b class="msc-tot">' + unitStr + '</b>'; // 單位「金」統一寫在圖例，不重複，省橫向空間
       }
     });
   }
@@ -3495,6 +3486,27 @@
     if (!s.dcName) return; // 沒設定資料中心就不查，卡片上的價格欄保持空白，不跳訊息打斷版面
     const nodes = Array.prototype.slice.call(container.querySelectorAll('[data-price-item]'));
     if (!nodes.length) return;
+    // 先用跟供應鏈圖同一份快照＋同一個品質設定算價格並標 HQ；快照裡沒有的物品才退回即時查價
+    const live = [];
+    const snapReady = getPrecomputedAllData().then(function (dcData) {
+      const st = getSupplySettings();
+      nodes.forEach(function (el) {
+        const id = el.dataset.priceItem, mr = dcData && dcData.items && dcData.items[id];
+        if (!mr) { live.push(el); return; }
+        const p = st.materialsBasis === 'avg' ? avgPriceOf(id, st.materialsAvgWindow || 'current', dcData) : listingPriceWithPersp(mr, (st.hqOverrides && st.hqOverrides[id]) || st.matPersp || 'auto');
+        el.textContent = p != null ? Math.round(p).toLocaleString() + '金' : '無人出售';
+        const ico = (el.closest('.market-fc-row, .market-usedin-cell') || el.parentNode).querySelector('.market-item-icon');
+        const qi = st.materialsBasis === 'avg' ? null : qualityInfo(mr, id, st);
+        setHqMark(ico, !!(qi && qi.q === 'hq'));
+      });
+      if (container.__mscFit) container.__mscFit();
+    }).catch(function () { nodes.forEach(function (el) { live.push(el); }); });
+    snapReady.then(function () {
+      if (!live.length) return;
+      fillCardPricesLive(live, container);
+    });
+  }
+  function fillCardPricesLive(nodes, container) {
     const ids = [];
     nodes.forEach(function (el) { if (ids.indexOf(el.dataset.priceItem) === -1) ids.push(el.dataset.priceItem); });
     MarketData.fetchListingsBatch(ids.map(Number)).then(function (result) {
