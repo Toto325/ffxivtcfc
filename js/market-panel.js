@@ -1850,8 +1850,8 @@
       const pct = Math.round(taxInfo.ratePercent * 10) / 10;
       const net = function (v) { return Math.round(v * (1 - taxInfo.ratePercent / 100)); };
       const parts = [], tipParts = [];
-      if (nq != null) { parts.push('NQ <span style="color:#4ade80">' + net(nq).toLocaleString() + '</span>'); tipParts.push('NQ 最低 ' + nq.toLocaleString() + ' → 約拿 ' + net(nq).toLocaleString()); }
-      if (hq != null) { parts.push('HQ <span style="color:#4ade80">' + net(hq).toLocaleString() + '</span>'); tipParts.push('HQ 最低 ' + hq.toLocaleString() + ' → 約拿 ' + net(hq).toLocaleString()); }
+      if (nq != null) { parts.push('NQ <span style="color:var(--c-grn)">' + net(nq).toLocaleString() + '</span>'); tipParts.push('NQ 最低 ' + nq.toLocaleString() + ' → 約拿 ' + net(nq).toLocaleString()); }
+      if (hq != null) { parts.push('HQ <span style="color:var(--c-grn)">' + net(hq).toLocaleString() + '</span>'); tipParts.push('HQ 最低 ' + hq.toLocaleString() + ' → 約拿 ' + net(hq).toLocaleString()); }
       if (!parts.length) { el.textContent = ''; el.removeAttribute('title'); return; }
       el.innerHTML = '寄售稅後 ≈ ' + parts.join('　') + '（' + pct + '%）';
       el.title = (worldFilter === 'ALL' ? '全服' : worldFilter) + '最低價扣賣方稅 ' + pct + '%（' + taxInfo.cityName + '）：' + tipParts.join('；');
@@ -2023,14 +2023,14 @@
       legendMode = mode;
       const sw = function (style, txt) { return '<span class="mk-legend-item"><i class="mk-legend-sw" style="' + style + '"></i>' + txt + '</span>'; };
       els.legend.innerHTML = mode === 'band'
-        ? sw('background:rgba(197,160,89,.55)', '金色柱：這段時間內成交價從最低到最高') +
-          sw('background:#8fb3ff;height:2px;margin-top:6px', '藍線：NQ 的平均成交價') +
-          sw('border-top:2px dashed #fcf6ba;height:0;margin-top:6px', '金色虛線：HQ 的平均成交價') +
-          sw('background:rgba(143,179,255,.5)', '下方藍柱：這段時間賣出的件數') +
-          sw('border-top:2px dashed rgba(255,255,255,.7);height:0;margin-top:6px', '白色虛線：整個範圍的平均價')
-        : sw('background:#8fb3ff;border-radius:50%', 'NQ 成交') + sw('background:#fcf6ba;border-radius:2px', 'HQ 成交') +
-          sw('background:rgba(197,160,89,.7);height:2px;margin-top:6px', '成交順序連線') +
-          sw('border-top:2px dashed rgba(255,255,255,.7);height:0;margin-top:6px', '白色虛線：整個範圍的平均價');
+        ? sw('background:var(--c-band)', '金色柱：這段時間內成交價從最低到最高') +
+          sw('background:var(--c-nq);height:2px;margin-top:6px', '藍線：NQ 的平均成交價') +
+          sw('border-top:2px dashed var(--c-hq);height:0;margin-top:6px', '金色虛線：HQ 的平均成交價') +
+          sw('background:var(--c-nq-a)', '下方藍柱：這段時間賣出的件數') +
+          sw('border-top:2px dashed var(--c-avg);height:0;margin-top:6px', '白色虛線：整個範圍的平均價')
+        : sw('background:var(--c-nq);border-radius:50%', 'NQ 成交') + sw('background:var(--c-hq);border-radius:2px', 'HQ 成交') +
+          sw('background:var(--c-band);height:2px;margin-top:6px', '成交順序連線') +
+          sw('border-top:2px dashed var(--c-avg);height:0;margin-top:6px', '白色虛線：整個範圍的平均價');
     }
 
     function refilter() {
@@ -2059,7 +2059,7 @@
       st.geom = { PADL: PADL, PADT: PADT, plotW: plotW, plotH: plotH, cssW: cssW, cssH: cssH };
       g.font = '10px sans-serif';
       if (!vis.length) {
-        g.fillStyle = '#888'; g.textAlign = 'center';
+        g.fillStyle = ffT('#888','#6b5f50'); g.textAlign = 'center';
         g.fillText(st.done ? '這個範圍內沒有符合的成交紀錄' : '讀取中⋯', cssW / 2, cssH / 2);
         st.buckets = null; st.dotPts = null;
         return;
@@ -2086,7 +2086,7 @@
         return bottom - f * (bottom - top);
       };
       // 軸
-      g.strokeStyle = 'rgba(197,160,89,.18)'; g.lineWidth = 1; g.fillStyle = '#999'; g.textAlign = 'right';
+      g.strokeStyle = ffT('rgba(197,160,89,.18)','rgba(134,98,42,0.28)'); g.lineWidth = 1; g.fillStyle = ffT('#999','#6b5f50'); g.textAlign = 'right';
       niceTicks(lo, hi, 5).forEach(function (price) {
         const y = yOf(price);
         g.beginPath(); g.moveTo(PADL, y); g.lineTo(PADL + plotW, y); g.stroke();
@@ -2102,9 +2102,9 @@
       if (st.showAvg) {
         const avg = vis.reduce(function (s, p) { return s + p.price; }, 0) / vis.length;
         const ay = yOf(avg);
-        g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1; g.setLineDash([6, 4]);
+        g.strokeStyle = ffT('rgba(255,255,255,.55)','rgba(58,49,40,0.55)'); g.lineWidth = 1; g.setLineDash([6, 4]);
         g.beginPath(); g.moveTo(PADL, ay); g.lineTo(PADL + plotW, ay); g.stroke(); g.setLineDash([]);
-        g.fillStyle = 'rgba(255,255,255,.85)'; g.textAlign = 'right';
+        g.fillStyle = ffT('rgba(255,255,255,.85)','rgba(58,49,40,0.85)'); g.textAlign = 'right';
         g.fillText('均價 ' + Math.round(avg).toLocaleString(), PADL + plotW - 4, ay - 4);
       }
       if (!bandMode) {
@@ -2112,7 +2112,7 @@
         const inRange = vis.filter(function (p) { return p.price >= lo && p.price <= hi; });
         // 相鄰成交用細線連起來，放大到只剩幾個點也看得出走勢
         if (inRange.length > 1) {
-          g.strokeStyle = 'rgba(197,160,89,.55)'; g.lineWidth = 1.2; g.beginPath();
+          g.strokeStyle = ffT('rgba(197,160,89,.55)','rgba(134,98,42,0.65)'); g.lineWidth = 1.2; g.beginPath();
           inRange.forEach(function (p, i) { const x = xOf(p.ts), y = yOf(p.price); if (i === 0) g.moveTo(x, y); else g.lineTo(x, y); });
           g.stroke();
         }
@@ -2122,16 +2122,16 @@
           st.dotPts.push({ x: x, y: y, p: p });
           if (p.hq) {
             const R1 = big ? 7 : 5.5, R2 = big ? 3.1 : 2.4;
-            g.fillStyle = '#fcf6ba'; g.strokeStyle = '#3a2f1a'; g.lineWidth = 0.8; g.beginPath();
+            g.fillStyle = ffT('#fcf6ba','#b07a14'); g.strokeStyle = ffT('#3a2f1a','#fffaf0'); g.lineWidth = 0.8; g.beginPath();
             for (let k = 0; k < 10; k++) { const ang = (Math.PI / 5) * k - Math.PI / 2; const rr = k % 2 === 0 ? R1 : R2; const px = x + rr * Math.cos(ang), py = y + rr * Math.sin(ang); if (k === 0) g.moveTo(px, py); else g.lineTo(px, py); }
             g.closePath(); g.fill(); g.stroke();
           } else {
-            g.fillStyle = '#8fb3ff'; g.strokeStyle = '#1a2a3a'; g.lineWidth = 0.8; g.beginPath(); g.arc(x, y, big ? 4.2 : 3.2, 0, Math.PI * 2); g.fill(); g.stroke();
+            g.fillStyle = ffT('#8fb3ff','#2f5fb8'); g.strokeStyle = ffT('#1a2a3a','#fffaf0'); g.lineWidth = 0.8; g.beginPath(); g.arc(x, y, big ? 4.2 : 3.2, 0, Math.PI * 2); g.fill(); g.stroke();
           }
         });
         if (st.hover && st.hover.p) {
-          g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(st.hover.x, PADT); g.lineTo(st.hover.x, PADT + plotH); g.stroke();
-          g.strokeStyle = '#fff'; g.lineWidth = 1.8; g.beginPath(); g.arc(st.hover.x, st.hover.y, 9, 0, Math.PI * 2); g.stroke();
+          g.strokeStyle = ffT('rgba(255,255,255,.35)','rgba(58,49,40,0.35)'); g.lineWidth = 1; g.beginPath(); g.moveTo(st.hover.x, PADT); g.lineTo(st.hover.x, PADT + plotH); g.stroke();
+          g.strokeStyle = ffT('#fff','#3a3128'); g.lineWidth = 1.8; g.beginPath(); g.arc(st.hover.x, st.hover.y, 9, 0, Math.PI * 2); g.stroke();
         }
       } else {
         const B = Math.max(8, Math.floor(plotW / 6));
@@ -2145,26 +2145,26 @@
         st.buckets = bk; st.dotPts = null;
         const maxUnits = Math.max.apply(null, bk.map(function (b) { return b.units; })) || 1;
         const cw = plotW / B;
-        g.fillStyle = 'rgba(143,179,255,.8)'; g.textAlign = 'left'; g.fillText('賣出件數（最多 ' + maxUnits.toLocaleString() + ' 件）', PADL + 4, PADT + plotH - volH - 2);
+        g.fillStyle = ffT('rgba(143,179,255,.8)','rgba(47,95,184,0.8)'); g.textAlign = 'left'; g.fillText('賣出件數（最多 ' + maxUnits.toLocaleString() + ' 件）', PADL + 4, PADT + plotH - volH - 2);
         bk.forEach(function (b) {
           if (!b.n) return;
           const h = Math.max(1.5, (b.units / maxUnits) * volH);
-          g.fillStyle = 'rgba(143,179,255,.35)'; g.fillRect(PADL + b.i * cw + 0.5, PADT + plotH - h, Math.max(1, cw - 1), h);
+          g.fillStyle = ffT('rgba(143,179,255,.35)','rgba(47,95,184,0.35)'); g.fillRect(PADL + b.i * cw + 0.5, PADT + plotH - h, Math.max(1, cw - 1), h);
         });
         bk.forEach(function (b) {
           if (!b.n) return;
           const y1 = yOf(b.max), y2 = yOf(b.min);
-          g.fillStyle = 'rgba(197,160,89,.30)'; g.fillRect(PADL + b.i * cw + 0.5, y1, Math.max(1, cw - 1), Math.max(2, y2 - y1));
+          g.fillStyle = ffT('rgba(197,160,89,.30)','rgba(134,98,42,0.4)'); g.fillRect(PADL + b.i * cw + 0.5, y1, Math.max(1, cw - 1), Math.max(2, y2 - y1));
         });
         function line(sumKey, nKey, color, dash) {
           g.strokeStyle = color; g.lineWidth = 1.6; g.setLineDash(dash || []); g.beginPath(); let started = false;
           bk.forEach(function (b) { if (!b[nKey]) return; const x = PADL + (b.i + 0.5) * cw, y = yOf(b[sumKey] / b[nKey]); if (!started) { g.moveTo(x, y); started = true; } else g.lineTo(x, y); });
           g.stroke(); g.setLineDash([]);
         }
-        line('nqS', 'nqN', '#8fb3ff'); line('hqS', 'hqN', '#fcf6ba', [5, 3]);
-        if (st.hover && st.hover.b) { const b = st.hover.b; g.strokeStyle = '#fff'; g.lineWidth = 1; g.strokeRect(PADL + b.i * cw, PADT, cw, plotH); }
+        line('nqS', 'nqN', ffT('#8fb3ff','#2f5fb8')); line('hqS', 'hqN', ffT('#fcf6ba','#b07a14'), [5, 3]);
+        if (st.hover && st.hover.b) { const b = st.hover.b; g.strokeStyle = ffT('#fff','#3a3128'); g.lineWidth = 1; g.strokeRect(PADL + b.i * cw, PADT, cw, plotH); }
       }
-      if (st.sel) { g.fillStyle = 'rgba(197,160,89,.22)'; g.fillRect(Math.min(st.sel.x0, st.sel.x1), PADT, Math.abs(st.sel.x1 - st.sel.x0), plotH); }
+      if (st.sel) { g.fillStyle = ffT('rgba(197,160,89,.22)','rgba(134,98,42,0.32)'); g.fillRect(Math.min(st.sel.x0, st.sel.x1), PADT, Math.abs(st.sel.x1 - st.sel.x0), plotH); }
     }
 
     /* ── 明細表：圖上目前範圍（含縮放與品質／世界篩選）的每一筆成交 ── */
@@ -2185,7 +2185,7 @@
         (rows.length ? '<div class="market-trend-tablewrap"><table class="market-trend-table"><thead><tr>' +
           '<th data-sort="time" class="mk-sortable">時間' + arrow('time') + '</th>' + (hasWorld ? '<th>世界</th>' : '') + '<th>品質</th>' +
           '<th data-sort="price" class="mk-sortable">單價' + arrow('price') + '</th><th>數量</th><th>總價</th></tr></thead><tbody>' +
-          shown.map(function (p) { return '<tr><td>' + fmtTrendTime(p.ts, true) + '</td>' + (hasWorld ? '<td>' + (p.world || '') + '</td>' : '') + '<td>' + (p.hq ? '<span style="color:#fcf6ba">HQ★</span>' : 'NQ') + '</td><td>' + p.price.toLocaleString() + '</td><td>' + p.qty + '</td><td>' + (p.price * p.qty).toLocaleString() + '</td></tr>'; }).join('') +
+          shown.map(function (p) { return '<tr><td>' + fmtTrendTime(p.ts, true) + '</td>' + (hasWorld ? '<td>' + (p.world || '') + '</td>' : '') + '<td>' + (p.hq ? '<span style="color:var(--c-hq)">HQ★</span>' : 'NQ') + '</td><td>' + p.price.toLocaleString() + '</td><td>' + p.qty + '</td><td>' + (p.price * p.qty).toLocaleString() + '</td></tr>'; }).join('') +
           '</tbody></table></div>' +
           (rows.length > shown.length ? '<button type="button" class="market-history-btn" data-tt="more">顯示更多（還有 ' + (rows.length - shown.length).toLocaleString() + ' 筆）</button>' : '')
           : '<p class="craft-muted">這個範圍內沒有符合的成交紀錄。</p>');
@@ -3931,9 +3931,9 @@
     if (!bd) return '';
     const save = (bd.totalBuy != null && bd.totalAuto != null) ? bd.totalBuy - bd.totalAuto : null;
     const summary = bd.totalBuy != null
-      ? '每 1 個材料成本：<span class="' + (save > 0.5 ? '' : 'craft-muted') + '" style="' + (save > 0.5 ? 'color:#4ade80' : '') + '">直接買齊 ' + fmtGil(bd.totalBuy) + ' 金</span>' +
-        (bd.totalAuto != null && save > 0.5 ? '　自動選較便宜 <span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金（▼' + fmtGil(save) + '）</span>' : '')
-      : (bd.totalAuto != null ? '每 1 個材料成本（部分材料市場沒有價格，只能算自動選較便宜）：<span style="color:#4ade80">' + fmtGil(bd.totalAuto) + ' 金</span>' : '<span class="craft-muted">材料成本無法完整估算（部分項目沒有價格）</span>');
+      ? '每 1 個材料成本：<span class="' + (save > 0.5 ? '' : 'craft-muted') + '" style="' + (save > 0.5 ? 'color:var(--c-grn)' : '') + '">直接買齊 ' + fmtGil(bd.totalBuy) + ' 金</span>' +
+        (bd.totalAuto != null && save > 0.5 ? '　自動選較便宜 <span style="color:var(--c-grn)">' + fmtGil(bd.totalAuto) + ' 金（▼' + fmtGil(save) + '）</span>' : '')
+      : (bd.totalAuto != null ? '每 1 個材料成本（部分材料市場沒有價格，只能算自動選較便宜）：<span style="color:var(--c-grn)">' + fmtGil(bd.totalAuto) + ' 金</span>' : '<span class="craft-muted">材料成本無法完整估算（部分項目沒有價格）</span>');
     return '<div class="market-radar-breakdown-wrap" style="--d:' + depth + '">' +
       (depth > 0 ? '<p class="craft-muted" style="font-size:11px;margin:2px 0">' + summary + '</p>' : '') +
       '<table class="market-radar-breakdown"><thead><tr><th class="market-radar-togcol"></th><th>材料</th><th>需求</th><th>買</th><th>差距</th><th>做</th><th>採用</th></tr></thead><tbody>' +
@@ -3953,17 +3953,17 @@
         if (p.buy != null && p.craft != null) {
           const diff = p.buy - p.craft; // 正值＝做比較便宜（買比做貴diff），負值＝買比較便宜
           if (Math.abs(diff) < 0.5) diffTxt = '<span class="craft-muted">打平</span>';
-          else if (diff > 0) diffTxt = '<span style="color:#4ade80">🔨▼' + fmtGil(diff) + '</span>';
-          else diffTxt = '<span style="color:#4ade80">🛒▼' + fmtGil(-diff) + '</span>';
+          else if (diff > 0) diffTxt = '<span style="color:var(--c-grn)">🔨▼' + fmtGil(diff) + '</span>';
+          else diffTxt = '<span style="color:var(--c-grn)">🛒▼' + fmtGil(-diff) + '</span>';
         }
         const canExpand = p.craftable && depth < MAT_BREAKDOWN_MAX_DEPTH;
         return '<tr class="market-radar-mat-row' + (canExpand ? ' is-expandable' : '') + '" data-mat-item="' + p.itemId + '" data-mat-depth="' + (depth + 1) + '">' +
           '<td class="market-radar-togcol">' + (canExpand ? '<button type="button" class="market-radar-mat-toggle" data-mat-toggle="' + p.itemId + '-' + depth + '" aria-label="展開這項材料的材料明細" title="展開／收起這項材料的材料">▸</button>' : '') + '</td>' +
           '<td class="market-radar-matname">' + (ITEM_NAMES_TW_ALL[p.itemId] || p.itemId) + '</td><td>×' + p.amount + '</td>' +
-          '<td style="color:' + (buyWins && p.buy != null ? '#4ade80' : 'inherit') + '">' + buyTxt + '</td>' +
+          '<td style="color:' + (buyWins && p.buy != null ? 'var(--c-grn)' : 'inherit') + '">' + buyTxt + '</td>' +
           '<td>' + diffTxt + '</td>' +
-          '<td style="color:' + (!buyWins && p.craft != null ? '#4ade80' : 'inherit') + '">' + craftTxt + '</td>' +
-          '<td>' + (p.chosen === 'craft' ? '<span style="color:#4ade80">自己做</span>' : (p.chosen === 'buy' ? '直接買' : '－')) + '</td></tr>' +
+          '<td style="color:' + (!buyWins && p.craft != null ? 'var(--c-grn)' : 'inherit') + '">' + craftTxt + '</td>' +
+          '<td>' + (p.chosen === 'craft' ? '<span style="color:var(--c-grn)">自己做</span>' : (p.chosen === 'buy' ? '直接買' : '－')) + '</td></tr>' +
           (canExpand ? '<tr class="market-radar-mat-nested" data-mat-nested="' + p.itemId + '-' + depth + '" style="display:none"><td colspan="7"></td></tr>' : '');
       }).join('') + '</tbody></table>' +
 
@@ -4229,20 +4229,20 @@
           // 「直接買」跟「自己做」的比較：把兩個決策字眼本身標色，比較便宜（建議採用）的那個標綠色，
           // 自己做省太少的話時間成本可能不划算，所以「省得不多」的情況故意不特別推薦自己做。
           let craftNote = '';
-          const BUY = '<span style="color:#4ade80">直接買</span>', CRAFT = '<span style="color:#4ade80">自己做</span>', BUY_DIM = '<span class="craft-muted">直接買</span>', CRAFT_DIM = '<span class="craft-muted">自己做</span>';
+          const BUY = '<span style="color:var(--c-grn)">直接買</span>', CRAFT = '<span style="color:var(--c-grn)">自己做</span>', BUY_DIM = '<span class="craft-muted">直接買</span>', CRAFT_DIM = '<span class="craft-muted">自己做</span>';
           if (r.costBuy != null && r.costAuto != null) {
             const save = r.costBuy - r.costAuto, pct = r.costBuy > 0 ? (save / r.costBuy) * 100 : 0;
             if (save <= 0.5) craftNote = BUY + '材料已經是最便宜的做法';
             else if (pct < 5) craftNote = BUY + '材料就好（' + CRAFT_DIM + '只省 ' + fmtGil(save) + ' 金・' + pct.toFixed(1) + '%，不划算）';
             else craftNote = CRAFT + '省 ' + fmtGil(save) + ' 金（' + pct.toFixed(1) + '%）' + (ui.matMode === 'auto' && r.craftedN ? '，已套用（' + r.craftedN + ' 項）' : '');
           } else if (r.costBuy == null && r.costAuto != null) craftNote = '有些材料市場上沒有人賣，只能' + CRAFT + '（成本 ' + fmtGil(r.costAuto) + ' 金）';
-          const trendColor = r.change > 0 ? '#f87171' : (r.change < 0 ? '#4ade80' : 'var(--dim)'); // 全站一致：紅＝漲、綠＝跌
+          const trendColor = r.change > 0 ? 'var(--c-red)' : (r.change < 0 ? 'var(--c-grn)' : 'var(--dim)'); // 全站一致：紅＝漲、綠＝跌
           const trendNote = r.P ? windowCoverageLabel(r.P) + '・漲跌 <span style="color:' + trendColor + '">' + (r.change >= 0 ? '+' : '') + r.change.toFixed(1) + '%</span>' : '成交筆數太少，沒有漲跌';
           const hasBreakdown = (CRAFT_RECIPES[r.rid].ingredients || []).length > 0;
           const expandBtn = hasBreakdown ? ' <button type="button" class="market-radar-expand" data-mk-radar-expand="' + r.rid + '" data-item="' + r.itemId + '">▸ 材料明細</button>' : '';
           const note = [yieldNote, craftNote, otherNote, trendNote].filter(Boolean).join('　·　');
-          return '<tr data-mk-radar-item="' + r.itemId + '" class="market-hot-item" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (r.profit >= 0 ? '+' : '') + fmtGil(r.profit) + '金</td>' +
-            '<td style="color:' + (r.roi >= 0 ? '#4ade80' : '#f87171') + '">' + (r.roi >= 0 ? '+' : '') + r.roi.toFixed(0) + '%</td><td>' + (r.refined ? '<span class="mk-ref ok" title="依配方數量逐件吃掛單精算">✓</span>' : (ui.buyBasis === 'listing' && ui.matMode === 'buy' ? '<span class="mk-ref" title="用最低價估算">≈</span>' : '')) + fmtGil(r.cost) + '金</td><td>' + (r.warnLow ? '<i class="ph ph-warning mk-warn" title="最低掛單價遠低於成交均價"></i>' : '') + fmtGil(r.sell) + '金</td><td>' + r.vel.toFixed(1) + '/天</td>' +
+          return '<tr data-mk-radar-item="' + r.itemId + '" class="market-hot-item" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? 'var(--c-grn)' : 'var(--c-red)') + '">' + (r.profit >= 0 ? '+' : '') + fmtGil(r.profit) + '金</td>' +
+            '<td style="color:' + (r.roi >= 0 ? 'var(--c-grn)' : 'var(--c-red)') + '">' + (r.roi >= 0 ? '+' : '') + r.roi.toFixed(0) + '%</td><td>' + (r.refined ? '<span class="mk-ref ok" title="依配方數量逐件吃掛單精算">✓</span>' : (ui.buyBasis === 'listing' && ui.matMode === 'buy' ? '<span class="mk-ref" title="用最低價估算">≈</span>' : '')) + fmtGil(r.cost) + '金</td><td>' + (r.warnLow ? '<i class="ph ph-warning mk-warn" title="最低掛單價遠低於成交均價"></i>' : '') + fmtGil(r.sell) + '金</td><td>' + r.vel.toFixed(1) + '/天</td>' +
             '<td>' + (ITEM_NAMES_TW_ALL[r.itemId] || r.itemId) + expandBtn + '<div class="craft-muted" style="font-size:11px">' + note + '</div></td></tr>' +
             '<tr class="market-radar-detail-row" data-mk-radar-detail="' + r.rid + '" style="display:none"><td colspan="6"></td></tr>';
         }).join('') + '</tbody></table></div>' +
@@ -4480,7 +4480,7 @@
         const yieldNote = r.yields > 1 ? r.sellUnit.toLocaleString() + '金×' + r.yields : '';
         const worldNote = r.worldSell != null ? '你的世界 ' + r.worldSell.toLocaleString() + '金' : '你的世界目前無掛單';
         const noteLine = [yieldNote, worldNote].filter(Boolean).join('　·　');
-        return '<tr data-mk-radar-item="' + r.itemId + '" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? '#4ade80' : '#f87171') + '">' + (r.profit >= 0 ? '+' : '') + Math.round(r.profit).toLocaleString() + '金</td><td>' + Math.round(r.cost).toLocaleString() + '金</td><td>' + Math.round(r.sell).toLocaleString() + '金<br><span class="craft-muted" style="font-size:11px">' + noteLine + '</span></td><td>' + r.name + '</td></tr>';
+        return '<tr data-mk-radar-item="' + r.itemId + '" style="cursor:pointer"><td style="color:' + (r.profit >= 0 ? 'var(--c-grn)' : 'var(--c-red)') + '">' + (r.profit >= 0 ? '+' : '') + Math.round(r.profit).toLocaleString() + '金</td><td>' + Math.round(r.cost).toLocaleString() + '金</td><td>' + Math.round(r.sell).toLocaleString() + '金<br><span class="craft-muted" style="font-size:11px">' + noteLine + '</span></td><td>' + r.name + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       '<p class="craft-muted" style="margin-top:6px">粗估值：只算直接材料成本，沒有考慮製作時間跟賣方稅；「淨利／次」是做一次配方（可能一次做出不只1件）的總損益，不是單件價格。「最低價」是整個資料中心裡最便宜的掛單——買方能跨世界買，只看你自己世界的價格會漏掉「其實有人在別的世界用更低價賣」這件事，所以拿全服最低價當能不能賺的判斷基準；你自己世界的價格另外列出來當參考，那才是你實際上架時看得到的競爭對手。</p>';
     body.querySelectorAll('[data-mk-radar-item]').forEach(function (tr) {
@@ -5364,7 +5364,7 @@
           top.map(function (e, i) {
             const v = e.value;
             const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
-            const barColor = ui.metric === 'changePct' ? (v > 0 ? '#f87171' : (v < 0 ? '#4ade80' : '#c5a059')) : '#c5a059'; // 漲跌幅度：紅＝漲、綠＝跌（全站一致）；賣速等指標不是價格方向，維持金色
+            const barColor = ui.metric === 'changePct' ? (v > 0 ? 'var(--c-red)' : (v < 0 ? 'var(--c-grn)' : 'var(--gold)')) : 'var(--gold)'; // 漲跌幅度：紅＝漲、綠＝跌（全站一致）；賣速等指標不是價格方向，維持金色
             // 第1、2點：賣速、每日成交額這兩個指標，本來就有算好的價格漲跌（跟「漲跌幅度」指標是同一套算法），
             // 只是原本沒有拿出來顯示；這裡不管選哪個指標，只要有P資料，都順便把價格漲跌標出來，方便對照。
             function priceChangeTxt(P) {
@@ -5601,7 +5601,7 @@
       const down = withValue.filter(function (r) { return r.stats.changePct < -0.05; }).length;
       const flat = withValue.length - up - down;
       const skipped = rows.length - withValue.length;
-      summaryLine = '<p class="craft-muted" style="margin-bottom:8px">共 ' + withValue.length + ' 項可判斷：<span style="color:#f87171">漲 ' + up + '</span>／<span style="color:#4ade80">跌 ' + down + '</span>／平 ' + flat +
+      summaryLine = '<p class="craft-muted" style="margin-bottom:8px">共 ' + withValue.length + ' 項可判斷：<span style="color:var(--c-red)">漲 ' + up + '</span>／<span style="color:var(--c-grn)">跌 ' + down + '</span>／平 ' + flat +
         (skipped > 0 ? '（另有 ' + skipped + ' 項成交筆數不足，未列入）' : '') + '</p>';
     }
     const notes = [];
@@ -5620,7 +5620,7 @@
           const v = r.stats[metricKey];
           // 數值跨好幾個數量級時用對數比例，才分得出差異
           const barPct = Math.max(4, Math.round((Math.log(Math.abs(v) + 1) / Math.log(maxVal + 1)) * 100));
-          const barColor = ui.metric === 'changePct' ? (v > 0 ? '#f87171' : (v < 0 ? '#4ade80' : '#c5a059')) : '#c5a059'; // 漲跌幅度：紅＝漲、綠＝跌（全站一致）；賣速等指標不是價格方向，維持金色
+          const barColor = ui.metric === 'changePct' ? (v > 0 ? 'var(--c-red)' : (v < 0 ? 'var(--c-grn)' : 'var(--gold)')) : 'var(--gold)'; // 漲跌幅度：紅＝漲、綠＝跌（全站一致）；賣速等指標不是價格方向，維持金色
           let subLine = '';
           if (metricKey === 'velocity' && (r.stats.nqVelocity != null || r.stats.hqVelocity != null)) {
             subLine = '<span class="market-hot-sub">NQ ' + (r.stats.nqVelocity || 0).toFixed(1) + '　HQ ' + (r.stats.hqVelocity || 0).toFixed(1) + '</span>';

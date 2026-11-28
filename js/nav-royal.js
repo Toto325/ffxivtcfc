@@ -522,21 +522,22 @@
       if (G.mode === 'top') e = Math.min(e, Math.max(0, (G.W - x) / 120), 1);
       return e;
     }
+    var LT = document.documentElement.getAttribute('data-theme') === 'light';
     var prev = ptAt(head), headPt = prev;
     for (var i = 1; i <= N; i++) {
       var k = i / N, cur = ptAt(head - i * step);
       if (prev && cur) {
         var a = Math.pow(1 - k, 1.7) * COMET_PEAK * edge(cur[0]);
         ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(cur[0], cur[1]);
-        ctx.lineWidth = 4.4 * (1 - k * .55); ctx.strokeStyle = 'rgba(197,160,89,' + (a * .24) + ')'; ctx.stroke();
-        ctx.lineWidth = 1.5 * (1 - k * .5);  ctx.strokeStyle = 'rgba(255,238,196,' + a + ')';        ctx.stroke();
+        ctx.lineWidth = 4.4 * (1 - k * .55); ctx.strokeStyle = (LT ? 'rgba(134,98,42,' + (a * .16) : 'rgba(197,160,89,' + (a * .24)) + ')'; ctx.stroke();
+        ctx.lineWidth = 1.5 * (1 - k * .5);  ctx.strokeStyle = (LT ? 'rgba(150,108,36,' + (a * .85) : 'rgba(255,238,196,' + a) + ')';        ctx.stroke();
       }
       prev = cur || prev;
     }
     if (headPt) {
       var g = ctx.createRadialGradient(headPt[0], headPt[1], 0, headPt[0], headPt[1], 10);
-      g.addColorStop(0, 'rgba(255,246,214,' + (COMET_PEAK * .95 * edge(headPt[0])) + ')');
-      g.addColorStop(1, 'rgba(255,230,170,0)');
+      g.addColorStop(0, (LT ? 'rgba(176,128,40,' : 'rgba(255,246,214,') + (COMET_PEAK * .95 * edge(headPt[0])) + ')');
+      g.addColorStop(1, LT ? 'rgba(176,128,40,0)' : 'rgba(255,230,170,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(headPt[0], headPt[1], 10, 0, 6.2832); ctx.fill();
     }
   }

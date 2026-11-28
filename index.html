@@ -28,6 +28,15 @@
   document.documentElement.setAttribute('data-nav-mode', m);
 })();
 </script>
+<!-- 日／夜主題：必須在任何 CSS 套用前同步決定（同選單模式，避免閃爍）。預設深色（原設計）。 -->
+<script>
+(function(){
+  var t;
+  try{ t = localStorage.getItem('ff14fc-theme'); }catch(e){}
+  if(t!=='light'&&t!=='dark'){ t='dark'; }
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 <!-- 字體預連線：讓瀏覽器盡早建立 DNS/TCP，縮短字體阻塞時間 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,12 +58,16 @@
 <link rel="stylesheet" href="css/touch-fixes.css?v=1">
 <link rel="stylesheet" href="css/market-detail-v2.css?v=7">
 <link rel="stylesheet" href="css/market-compact.css?v=2">
+<link rel="stylesheet" href="css/theme-light.css?v=1">
+<link rel="stylesheet" href="css/theme-light-extra.css?v=1">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Noto+Serif+TC:wght@500;900&display=swap" rel="stylesheet">
 </head>
 <body>
 <canvas id="starfield"></canvas>
+<canvas id="light-fx" aria-hidden="true"></canvas>
 <div class="luxury-overlay"></div>
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="切換為淺色模式" title="切換為淺色模式" aria-pressed="false"><i class="ph ph-sun tt-sun" aria-hidden="true"></i><i class="ph ph-moon tt-moon" aria-hidden="true"></i></button>
 <nav class="royal-nav nav-has-burger">
   <button id="nav-mode-toggle" class="nav-mode-toggle" type="button" aria-label="切換選單顯示位置"><span class="nmt-icon" aria-hidden="true">⇄</span><span class="nmt-label" aria-hidden="true">頂部選單</span></button>
   <button id="nav-burger" class="nav-burger" type="button" aria-expanded="false" aria-label="展開選單"><span class="nb-icon" aria-hidden="true"><i class="ph ph-list"></i></span><span class="nb-label" id="nav-burger-label"><span class="nb-cn">序語</span><span class="nb-en">PROLOGUE</span></span><span class="nb-caret" aria-hidden="true">▾</span></button>
@@ -213,6 +226,7 @@
      5) sub-panel.js / air-panel.js  潛水艇／飛空艇 UI 面板，掛在 app 物件上
      6) macro-tool.js           巨集工具，獨立運作，不依賴 app 物件
      7) nav.js                  左側/頂部選單切換，完全獨立 -->
+<script src="js/theme.js?v=1"></script>
 <script src="js/items.js"></script>
 <script src="js/sub-data.js?v=2"></script>
 <script src="js/sub-calc.js?v=3"></script>
@@ -220,17 +234,17 @@
 <script src="js/air-calc.js?v=3"></script>
 <script src="js/craft-foods.js"></script>
 <script src="js/craft-consumables.js"></script>
-<script src="js/app.js?v=25"></script>
+<script src="js/app.js?v=26"></script>
 <script src="js/sub-panel.js?v=4"></script>
 <script src="js/air-panel.js?v=4"></script>
-<script src="js/craft-panel.js"></script>
+<script src="js/craft-panel.js?v=2"></script>
 <script src="js/obtain-ui.js"></script>
 <script src="js/lunar-ui.js"></script>
 <script src="js/market-watchlist.js"></script>
-<script src="js/market-panel.js?v=9"></script>
+<script src="js/market-panel.js?v=10"></script>
 <script src="js/macro-tool.js"></script>
 <script src="js/nav.js?v=13"></script>
-<script src="js/nav-royal.js?v=14"></script>
+<script src="js/nav-royal.js?v=15"></script>
 <script src="js/content-royal-v2.js?v=2"></script>
 <script src="js/plaque.js?v=2"></script>
 <script src="js/ui-motion.js?v=2"></script>

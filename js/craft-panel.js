@@ -1513,7 +1513,7 @@ app._craftReady = function () {
           tiles.push({ label: '預計收入', value: Math.round(fin.netRevenue).toLocaleString(), unit: '金',
             title: taxInfo ? '整批成品預估收入（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '整批成品預估收入（稅率查詢失敗，此數字未扣賣方稅）',
             extra: batchList.length === 1 ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + batchList[0].itemId + '" data-selldepth-qty="' + batchList[0].quantity + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '' });
-          tiles.push({ label: '預估淨利', value: (fin.profit >= 0 ? '+' : '') + Math.round(fin.profit).toLocaleString(), unit: '金', color: fin.profit >= 0 ? '#4ade80' : '#f87171', cls: fin.profit >= 0 ? 'good' : 'bad', title: '不含製作時間成本，僅供參考' });
+          tiles.push({ label: '預估淨利', value: (fin.profit >= 0 ? '+' : '') + Math.round(fin.profit).toLocaleString(), unit: '金', color: fin.profit >= 0 ? 'var(--c-grn)' : 'var(--c-red)', cls: fin.profit >= 0 ? 'good' : 'bad', title: '不含製作時間成本，僅供參考' });
           if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣稅', title: '稅率查詢失敗，收入與淨利未扣賣方稅' });
           if (fin.missingSell > 0) chips.push({ icon: 'ph-info', text: fin.missingSell + '項無賣出價', title: fin.missingSell + '項無賣出掛單，未計入收入' });
           if (fin.fallbackCount > 0) chips.push({ icon: 'ph-info', text: fin.fallbackCount + '項改用最低價', title: fin.fallbackCount + '項' + AVG_WIN_LABEL[fin.sellAvgWindow] + '沒有成交、算不出成交均價，這幾項的賣出改用目前最低掛單價' });
@@ -2240,7 +2240,7 @@ app._craftReady = function () {
       // 在售最低：有設定世界就看自己的世界，沒有就看整個資料中心；跟市場頁「在售最低」同一個意思
       const scopeName = scope === 'world' ? settings.worldName : '所有世界';
       const minListing = scope === 'world' ? (sellRef ? sellRef.price : null) : (overview && overview.minPrice ? overview.minPrice : null);
-      if (minListing) tiles.push({ label: '在售最低', value: Math.round(minListing).toLocaleString(), unit: '金', color: '#4ade80', cls: 'good', title: '目前掛單中最低的單價（' + scopeName + '）' });
+      if (minListing) tiles.push({ label: '在售最低', value: Math.round(minListing).toLocaleString(), unit: '金', color: 'var(--c-grn)', cls: 'good', title: '目前掛單中最低的單價（' + scopeName + '）' });
       else tiles.push({ label: '在售最低', value: '<span class="craft-muted">無在售</span>', title: scopeName + '目前沒有人在賣' });
       // 成交均價：先放「計算中」，30天成交紀錄讀好後再原地換成數字（不拖慢整條統計列）；點開可看當前／近1天／3天／7天／30天
       tiles.push({ label: '成交均價<i class="ph ph-caret-down"></i>', value: '計算中⋯', title: '近24小時實際成交均價・點擊看不同天數的均價比較', attrs: ' id="cf-avg-tile" data-avg-toggle="' + recipe.itemId + '" role="button" tabindex="0"', cls: 'cst-btn' });
@@ -2260,7 +2260,7 @@ app._craftReady = function () {
         tiles.push({ label: useAvg ? (AVG_WIN_SHORT[pf.sellAvgWindow] + '均價賣出') : (scope === 'world' ? settings.worldName : '最低價') + '賣出', value: Math.round(netSell).toLocaleString(), unit: '金',
           title: (taxInfo ? '稅後實拿（已扣' + (Math.round(taxInfo.ratePercent * 10) / 10) + '%賣方稅）' : '稅率查詢失敗，此數字未扣賣方稅') + (useAvg ? '・以' + (scope === 'dc' ? '整個資料中心' : settings.worldName) + AVG_WIN_LABEL[pf.sellAvgWindow] + '成交均價（件數加權）計算' : (scope === 'dc' ? '・以整個資料中心最便宜的掛單價計算' : '')),
           extra: scope === 'world' ? ' <button type="button" class="craft-mat-worlds-icon" data-selldepth-toggle="' + recipe.itemId + '" title="看看這個世界目前有多少人在賣、賣多少錢"><i class="ph ph-info"></i></button>' : '' });
-        tiles.push({ label: yl > 1 ? '預估淨利／次' : '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? '#4ade80' : '#f87171', cls: profit >= 0 ? 'good' : 'bad', title: (yl > 1 ? '做一次產出 ' + yl + ' 個，已按整次計算；' : '僅單件製作，') + '不含製作時間成本' });
+        tiles.push({ label: yl > 1 ? '預估淨利／次' : '預估淨利／件', value: (profit >= 0 ? '+' : '') + Math.round(profit).toLocaleString(), unit: '金', color: profit >= 0 ? 'var(--c-grn)' : 'var(--c-red)', cls: profit >= 0 ? 'good' : 'bad', title: (yl > 1 ? '做一次產出 ' + yl + ' 個，已按整次計算；' : '僅單件製作，') + '不含製作時間成本' });
         if (yl > 1) chips.push({ icon: 'ph-stack', text: '×' + yl, title: '每次製作產出 ' + yl + ' 個' });
         if (!taxInfo) chips.push({ cls: 'warn', icon: 'ph-warning', text: '未扣稅', title: '稅率查詢失敗，賣出與淨利未扣賣方稅' });
         if (avgFallback) chips.push({ icon: 'ph-info', text: '改用最低價', title: AVG_WIN_LABEL[pf.sellAvgWindow] + '沒有成交，算不出成交均價，賣出改用目前最低掛單價' });
@@ -2272,7 +2272,7 @@ app._craftReady = function () {
       if (velocity && velocity.totalVelocityPerDay) {
         const fv = function (n) { return n == null ? '—' : (Math.round(n * 100) / 100).toString(); };
         const hasSplit = velocity.nqVelocityPerDay != null || velocity.hqVelocityPerDay != null;
-        tiles.push({ label: '賣速／天', value: hasSplit ? '<span class="mst-q">NQ</span>' + fv(velocity.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fv(velocity.hqVelocityPerDay) : velocity.totalVelocityPerDay.toFixed(1), unit: hasSplit ? '' : '件/天', color: '#4ade80', title: '近4天每天賣出幾件（成交頻率）' + (velocity.usedScope === 'world' ? '' : '・DC整體，僅供參考') });
+        tiles.push({ label: '賣速／天', value: hasSplit ? '<span class="mst-q">NQ</span>' + fv(velocity.nqVelocityPerDay) + '<span class="mst-sep">·</span><span class="mst-q">HQ</span>' + fv(velocity.hqVelocityPerDay) : velocity.totalVelocityPerDay.toFixed(1), unit: hasSplit ? '' : '件/天', color: 'var(--c-grn)', title: '近4天每天賣出幾件（成交頻率）' + (velocity.usedScope === 'world' ? '' : '・DC整體，僅供參考') });
         if (scope === 'world' && velocity.usedScope !== 'world') chips.push({ icon: 'ph-globe', text: '全服賣速', title: '賣出速度是整個資料中心的數字，僅供參考' });
       } else if (velocity && velocity.usedScope === null) {
         chips.push({ icon: 'ph-snowflake', text: '近4天無成交', title: '近4天查無成交紀錄，可能較冷門' });
@@ -2462,7 +2462,7 @@ app._craftReady = function () {
     const icon = mode === 'buy' ? '🔨' : '🛒', altName = mode === 'buy' ? '自己做' : '直接買';
     if (Math.abs(diff) < 1) return '<span class="craft-decision-num" title="換成' + altName + '，成本差不多">' + icon + '≈</span>';
     const up = diff > 0, n = Math.round(Math.abs(diff)).toLocaleString();
-    return '<span class="craft-decision-num" title="改成' + altName + '，成本會' + (up ? '多' : '少') + ' ' + n + ' 金"><span style="color:' + (up ? '#f87171' : '#4ade80') + '">' + icon + (up ? '▲' : '▼') + n + '</span></span>';
+    return '<span class="craft-decision-num" title="改成' + altName + '，成本會' + (up ? '多' : '少') + ' ' + n + ' 金"><span style="color:' + (up ? 'var(--c-red)' : 'var(--c-grn)') + '">' + icon + (up ? '▲' : '▼') + n + '</span></span>';
   }
 
   /* 求解目標切換：統一換成榔頭小圖示，點下去直接在按鈕本身變成綠色打勾＋文字，
@@ -3142,7 +3142,7 @@ app._craftReady = function () {
       if (beforeFin && afterFin && beforeFin.profit != null && afterFin.profit != null) {
         const delta = afterFin.profit - beforeFin.profit;
         if (Math.round(delta) !== 0) {
-          const deltaColor = delta >= 0 ? '#4ade80' : '#f87171';
+          const deltaColor = delta >= 0 ? 'var(--c-grn)' : 'var(--c-red)';
           deltaText = '，整批淨利從 ' + Math.round(beforeFin.profit).toLocaleString() + ' 變成 ' +
             Math.round(afterFin.profit).toLocaleString() + '金（<strong style="color:' + deltaColor + '">' + (delta >= 0 ? '+' : '') + Math.round(delta).toLocaleString() + '金</strong>）';
         }
